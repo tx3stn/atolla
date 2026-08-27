@@ -107,6 +107,7 @@ async function renderHomeForPlaylistFlow(driver: IComponentTestDriver) {
 		getArtistLogoUrl: () => Promise.resolve(null),
 		getPlaylists: () => Promise.resolve({ hasMore: false, items: [] }),
 		getTracksByAlbum: () => Promise.resolve([{ duration: 180, id: 't1', name: 'Track' }]),
+		peekArtistLogoUrl: () => undefined,
 	} as unknown as Transport;
 	await base.preferences.setAnimationsEnabled(false);
 
@@ -202,6 +203,7 @@ describe('HomeView', () => {
 		base.transport = {
 			getArtistLogoUrl: () => Promise.resolve(null),
 			getTracksByAlbum: () => Promise.resolve([{ duration: 180, id: 't1', name: 'Track' }]),
+			peekArtistLogoUrl: () => undefined,
 		} as unknown as Transport;
 		await base.preferences.setAnimationsEnabled(false);
 
@@ -248,6 +250,7 @@ describe('HomeView', () => {
 			getArtistLogoUrl: () => Promise.resolve(null),
 			getTracksByAlbum: (albumId: string) =>
 				Promise.resolve([{ duration: 180, id: `${albumId}-t1`, name: 'Track' }]),
+			peekArtistLogoUrl: () => undefined,
 		} as unknown as Transport;
 		await base.preferences.setAnimationsEnabled(false);
 
@@ -312,6 +315,7 @@ describe('HomeView', () => {
 			getArtistLogoUrl: () => Promise.resolve(null),
 			getTracksByAlbum: (albumId: string) =>
 				Promise.resolve([{ duration: 180, id: `${albumId}-t1`, name: 'Track' }]),
+			peekArtistLogoUrl: () => undefined,
 		} as unknown as Transport;
 		await base.preferences.setAnimationsEnabled(false);
 

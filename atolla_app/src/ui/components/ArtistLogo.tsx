@@ -11,6 +11,7 @@ export interface ArtistLogoViewModel {
 	fallbackText?: string | null;
 	fallbackTextContainerStyle?: Style<Layout>;
 	fallbackTextStyle?: Style<Label>;
+	logoPending?: boolean;
 	logoSource?: string | null;
 	logoStyle?: Style<ImageView>;
 	numberOfLines?: number;
@@ -26,6 +27,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 			fallbackText,
 			fallbackTextContainerStyle,
 			fallbackTextStyle,
+			logoPending,
 			logoSource,
 			logoStyle,
 			onTap,
@@ -48,7 +50,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 					style={logoStyle ?? styles.logoImage}
 					url={logoSource}
 				/>
-			) : fallbackText ? (
+			) : fallbackText && !logoPending ? (
 				<layout style={fallbackTextContainerStyle ?? styles.fallbackTextPadding}>
 					<label
 						accessibilityId={accessibilityId ? `${accessibilityId}-text` : undefined}

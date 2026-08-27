@@ -11,3 +11,5 @@ export const ImageCategories = {
 } as const;
 
 export type ImageCategory = (typeof ImageCategories)[keyof typeof ImageCategories];
+
+export type ResolveCachedImage = (category: string, identity: string) => string | null;

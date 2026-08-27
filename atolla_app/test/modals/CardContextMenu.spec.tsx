@@ -9,6 +9,8 @@ import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(id = 'track-1'): Track {
@@ -40,6 +42,7 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 		getTracksByGenre: () =>
 			Promise.resolve({ hasMore: false, items: [mockTrack()], totalCount: 1 }),
 		getTracksByPlaylist: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
+		peekArtistLogoUrl: () => undefined,
 		...overrides,
 	} as unknown as Transport;
 }
@@ -741,6 +744,75 @@ describe('CardContextMenu', () => {
 				message: 'instant mix failed',
 				variant: 'error',
 			});
+		});
+	});
+
+	describe('artist logo', () => {
+		function logoViewModel(transport: Transport) {
+			return {
+				animationsEnabled: false,
+				card: { album: mockAlbum(), kind: 'album' },
+				onDismiss: jasmine.createSpy('onDismiss'),
+				playbackStore: {
+					setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
+				} as unknown as PlaybackStore,
+				transport,
+			};
+		}
+
+		function labelValues(component: CardContextMenu): Array<string> {
+			return elementTypeFind(
+				component.renderer.getComponentRootElements(component, true),
+				IRenderedElementViewClass.Label,
+			).map((label) => label.getAttribute('value') as string);
+		}
+
+		valdiIt('renders a peeked logo on the first render, with no fetch', async (driver) => {
+			const getArtistLogoUrl = jasmine
+				.createSpy('getArtistLogoUrl')
+				.and.returnValue(Promise.resolve(null));
+			const component = driver.renderComponent(
+				CardContextMenu,
+				logoViewModel(
+					mockTransport({
+						getArtistLogoUrl,
+						peekArtistLogoUrl: () => 'file:///cache/artist_logo_abc',
+					}),
+				),
+				undefined,
+			);
+
+			const sources = elementTypeFind(
+				component.renderer.getComponentRootElements(component, true),
+				IRenderedElementViewClass.Image,
+			).map((image) => image.getAttribute('src') as string);
+
+			expect(sources.some((src) => src.includes('c=artist_logo&id=artist-1'))).toBe(true);
+			expect(labelValues(component)).not.toContain('Artist One');
+			expect(getArtistLogoUrl).not.toHaveBeenCalled();
+		});
+
+		valdiIt('holds the artist name back until the lookup settles', async (driver) => {
+			let resolveLogo!: (logoUrl: string | null) => void;
+			const component = driver.renderComponent(
+				CardContextMenu,
+				logoViewModel(
+					mockTransport({
+						getArtistLogoUrl: () =>
+							new Promise<string | null>((resolve) => {
+								resolveLogo = resolve;
+							}),
+					}),
+				),
+				undefined,
+			);
+
+			expect(labelValues(component)).not.toContain('Artist One');
+
+			resolveLogo(null);
+			await flush();
+
+			expect(labelValues(component)).toContain('Artist One');
 		});
 	});
 });

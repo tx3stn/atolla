@@ -29,6 +29,7 @@ export interface TrackContextMenuViewModel {
 
 interface TrackContextMenuState {
 	artistLogoUrl: string | null;
+	logoPending: boolean;
 }
 
 export class TrackContextMenu extends StatefulComponent<
@@ -37,6 +38,7 @@ export class TrackContextMenu extends StatefulComponent<
 > {
 	state: TrackContextMenuState = {
 		artistLogoUrl: null,
+		logoPending: false,
 	};
 
 	private cachedPreviewEntry: Array<TrackListEntry> = [];
@@ -44,13 +46,29 @@ export class TrackContextMenu extends StatefulComponent<
 
 	onCreate(): void {
 		const { track, transport } = this.viewModel;
-		if (track.artistId) {
-			transport.getArtistLogoUrl(track.artistId).then((artistLogoUrl) => {
-				if (!this.isDestroyed()) {
-					this.setState({ artistLogoUrl });
-				}
-			});
+		if (!track.artistId) {
+			return;
 		}
+
+		const peeked = transport.peekArtistLogoUrl(track.artistId);
+		if (peeked !== undefined) {
+			this.setState({ artistLogoUrl: peeked });
+			return;
+		}
+
+		this.setState({ logoPending: true });
+		transport.getArtistLogoUrl(track.artistId).then(
+			(artistLogoUrl) => {
+				if (!this.isDestroyed()) {
+					this.setState({ artistLogoUrl, logoPending: false });
+				}
+			},
+			() => {
+				if (!this.isDestroyed()) {
+					this.setState({ logoPending: false });
+				}
+			},
+		);
 	}
 
 	private getPreviewEntry(track: Track): Array<TrackListEntry> {
@@ -148,7 +166,6 @@ export class TrackContextMenu extends StatefulComponent<
 
 	onRender(): void {
 		const { animationsEnabled, onCreatePlaylist, track } = this.viewModel;
-		const { artistLogoUrl } = this.state;
 
 		const previewEntry = this.getPreviewEntry(track);
 
@@ -160,9 +177,11 @@ export class TrackContextMenu extends StatefulComponent<
 		>
 			<ArtistLogo
 				accessibilityId='track-context-artist-logo'
+				artistId={track.artistId ?? null}
 				containerStyle={styles.logoContainer}
 				fallbackText={track.artistName ?? null}
-				logoSource={artistLogoUrl}
+				logoPending={this.state.logoPending}
+				logoSource={this.state.artistLogoUrl}
 				logoStyle={styles.logoImage}
 				onTap={this.handleArtistTap}
 			/>

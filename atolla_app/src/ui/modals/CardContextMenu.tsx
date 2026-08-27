@@ -44,6 +44,7 @@ export interface CardContextMenuViewModel {
 
 interface CardContextMenuState {
 	artistLogoUrl: string | null;
+	logoPending: boolean;
 }
 
 // large collections (genres, big playlists) stream their tracks into the queue a page at a time
@@ -57,22 +58,37 @@ export class CardContextMenu extends StatefulComponent<
 > {
 	state: CardContextMenuState = {
 		artistLogoUrl: null,
+		logoPending: false,
 	};
 
 	onCreate(): void {
 		const { card } = this.viewModel;
-		if (card.kind === 'album') {
-			this.viewModel.transport.getArtistLogoUrl(card.album.artistId).then(
-				(artistLogoUrl) => {
-					if (!this.isDestroyed()) {
-						this.setState({ artistLogoUrl });
-					}
-				},
-				() => {},
-			);
-		} else if (card.kind === 'artist' && card.artist.logoUrl) {
-			this.setState({ artistLogoUrl: card.artist.logoUrl });
+		const artistId =
+			card.kind === 'album' ? card.album.artistId : card.kind === 'artist' ? card.artist.id : null;
+		if (!artistId) {
+			return;
 		}
+
+		const known = card.kind === 'artist' ? (card.artist.logoUrl ?? null) : null;
+		const peeked = known ?? this.viewModel.transport.peekArtistLogoUrl(artistId);
+		if (peeked !== undefined) {
+			this.setState({ artistLogoUrl: peeked });
+			return;
+		}
+
+		this.setState({ logoPending: true });
+		this.viewModel.transport.getArtistLogoUrl(artistId).then(
+			(artistLogoUrl) => {
+				if (!this.isDestroyed()) {
+					this.setState({ artistLogoUrl, logoPending: false });
+				}
+			},
+			() => {
+				if (!this.isDestroyed()) {
+					this.setState({ logoPending: false });
+				}
+			},
+		);
 	}
 
 	private instantMixSeed(): InstantMixSeed {
@@ -235,7 +251,6 @@ export class CardContextMenu extends StatefulComponent<
 
 	onRender(): void {
 		const { animationsEnabled, card, isPinned, onCreatePlaylist } = this.viewModel;
-		const { artistLogoUrl } = this.state;
 
 		<ModalBase
 			accessibilityId='card-context-menu'
@@ -249,7 +264,8 @@ export class CardContextMenu extends StatefulComponent<
 						artistId={card.album.artistId}
 						containerStyle={styles.logoContainer}
 						fallbackText={card.album.artistName}
-						logoSource={artistLogoUrl}
+						logoPending={this.state.logoPending}
+						logoSource={this.state.artistLogoUrl}
 						logoStyle={styles.logoImage}
 					/>
 				</view>
@@ -276,7 +292,8 @@ export class CardContextMenu extends StatefulComponent<
 						artistId={card.artist.id}
 						containerStyle={styles.logoContainer}
 						fallbackText={card.artist.name}
-						logoSource={artistLogoUrl}
+						logoPending={this.state.logoPending}
+						logoSource={this.state.artistLogoUrl}
 						logoStyle={styles.logoImage}
 					/>
 				</view>

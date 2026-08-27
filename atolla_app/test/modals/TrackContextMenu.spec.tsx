@@ -47,6 +47,7 @@ function createViewModel(overrides = {}) {
 		track,
 		transport: {
 			getArtistLogoUrl: () => Promise.resolve(null),
+			peekArtistLogoUrl: () => undefined,
 		},
 		...overrides,
 	};
@@ -159,6 +160,7 @@ describe('TrackContextMenu', () => {
 					seeds.push(seed);
 					return Promise.resolve(mix);
 				},
+				peekArtistLogoUrl: () => undefined,
 			},
 		});
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
@@ -184,6 +186,7 @@ describe('TrackContextMenu', () => {
 			transport: {
 				getArtistLogoUrl: () => Promise.resolve(null),
 				getInstantMix: () => Promise.resolve([]),
+				peekArtistLogoUrl: () => undefined,
 			},
 		});
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
@@ -208,6 +211,7 @@ describe('TrackContextMenu', () => {
 			transport: {
 				getArtistLogoUrl: () => Promise.resolve(null),
 				getInstantMix: () => Promise.reject(new Error('boom')),
+				peekArtistLogoUrl: () => undefined,
 			},
 		});
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
@@ -273,6 +277,59 @@ describe('TrackContextMenu', () => {
 			expect(callOrder).toEqual([]);
 		},
 	);
+
+	valdiIt('renders a peeked artist logo on the first render, with no fetch', async (driver) => {
+		let logoFetches = 0;
+		const { viewModel } = createViewModel({
+			transport: {
+				getArtistLogoUrl: () => {
+					logoFetches += 1;
+					return Promise.resolve(null);
+				},
+				peekArtistLogoUrl: () => 'file:///cache/artist_logo_abc',
+			},
+		});
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const sources = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src') as string);
+
+		expect(sources.some((src) => src.includes('c=artist_logo&id=artist-1'))).toBe(true);
+		expect(logoFetches).toBe(0);
+	});
+
+	valdiIt('holds the artist name back until the logo lookup settles', async (driver) => {
+		let resolveLogo!: (logoUrl: string | null) => void;
+		const { viewModel } = createViewModel({
+			transport: {
+				getArtistLogoUrl: () =>
+					new Promise<string | null>((resolve) => {
+						resolveLogo = resolve;
+					}),
+				peekArtistLogoUrl: () => undefined,
+			},
+		});
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const fallbackText = (): string | undefined =>
+			elementTypeFind(
+				component.renderer.getComponentRootElements(component, true),
+				IRenderedElementViewClass.Label,
+			)
+				.find(
+					(label) => label.getAttribute('accessibilityLabel') === 'track-context-artist-logo-text',
+				)
+				?.getAttribute('value') as string | undefined;
+
+		expect(fallbackText()).toBeUndefined();
+
+		resolveLogo(null);
+		await flush();
+
+		expect(fallbackText()).toBe('The Artist');
+	});
 
 	valdiIt('keeps the lyrics row tappable when availability is unknown', async (driver) => {
 		const { callOrder, viewModel } = createViewModel({

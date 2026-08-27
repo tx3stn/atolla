@@ -839,6 +839,63 @@ describe('LiveTransport core collections', () => {
 		expect(logoUrl).toContain('tag=logo-tag-1');
 	});
 
+	it('resolves an artist logo url once and answers repeat reads from memory', async () => {
+		const artist: JellyfinArtistItem = {
+			Id: 'artist-1',
+			ImageTags: { Logo: 'logo-tag-1' },
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { calls, client } = createHTTPClient([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const first = await transport.getArtistLogoUrl('artist-1');
+		const second = await transport.getArtistLogoUrl('artist-1');
+
+		expect(calls).toHaveLength(1);
+		expect(second).toBe(first);
+		expect(transport.peekArtistLogoUrl('artist-1')).toBe(first);
+	});
+
+	it('peeks a resolved absent logo so the fallback text can render straight away', async () => {
+		const artist: JellyfinArtistItem = {
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { client } = createHTTPClient([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.getArtistLogoUrl('artist-1');
+
+		expect(transport.peekArtistLogoUrl('artist-1')).toBeNull();
+	});
+
+	it('peeks cached logo bytes so a first render needs no round trip', () => {
+		const { calls, client } = createHTTPClient([]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				resolveCachedImage: (category, identity) =>
+					category === 'artist_logo' && identity === 'artist-1' ? 'file:///cache/logo.png' : null,
+			},
+		);
+
+		expect(transport.peekArtistLogoUrl('artist-1')).toBe('file:///cache/logo.png');
+		expect(transport.peekArtistLogoUrl('artist-2')).toBeUndefined();
+		expect(calls).toHaveLength(0);
+	});
+
+	it('peeks undefined with no cache resolver wired up', () => {
+		const { client } = createHTTPClient([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		expect(transport.peekArtistLogoUrl('artist-1')).toBeUndefined();
+	});
+
 	it('fetches a genre by id with its primary image url', async () => {
 		const genre: JellyfinGenreItem = {
 			Id: 'genre-1',

@@ -8,6 +8,7 @@ import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
 import { trackReleaseYear } from 'atolla_core/src/models/Track';
+import type { ResolveCachedImage } from 'atolla_core/src/services/ImageCache';
 import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import type {
 	InstantMixSeed,
@@ -20,8 +21,6 @@ import type { DownloadService } from '../services/DownloadService';
 import { buildInstantMix, type InstantMixLibrary } from '../services/InstantMix';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
-
-export type ResolveCachedImage = (category: string, identity: string) => string | null;
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
@@ -138,49 +137,7 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getArtistLogoUrl(artistId: string): Promise<string | null> {
-		const artistEntry = this.downloads.getArtist(artistId);
-		if (artistEntry) {
-			for (const albumId of artistEntry.albumIds) {
-				const albumEntry = this.downloads.getAlbum(albumId);
-				if (albumEntry?.artistLogoUrl) return albumEntry.artistLogoUrl;
-			}
-		}
-
-		for (const albumEntry of this.downloads.getAllAlbums()) {
-			if (albumEntry.album.artistId === artistId && albumEntry.artistLogoUrl) {
-				return albumEntry.artistLogoUrl;
-			}
-		}
-
-		for (const playlistEntry of this.downloads.getAllPlaylists()) {
-			for (const trackId of playlistEntry.trackIds) {
-				const trackEntry = this.downloads.getTrack(trackId);
-				if (!trackEntry || trackEntry.track.artistId !== artistId) {
-					continue;
-				}
-
-				const playlistLogo = playlistEntry.trackArtistLogoUrls[trackId];
-				if (playlistLogo) {
-					return playlistLogo;
-				}
-			}
-		}
-
-		for (const genreEntry of this.downloads.getAllGenres()) {
-			for (const trackId of genreEntry.trackIds) {
-				const trackEntry = this.downloads.getTrack(trackId);
-				if (!trackEntry || trackEntry.track.artistId !== artistId) {
-					continue;
-				}
-
-				const genreLogo = genreEntry.trackArtistLogoUrls[trackId];
-				if (genreLogo) {
-					return genreLogo;
-				}
-			}
-		}
-
-		return this.resolveCachedImage?.('artist_logo', artistId) ?? null;
+		return this.peekArtistLogoUrl(artistId);
 	}
 
 	async getArtists(
@@ -374,6 +331,52 @@ export class OfflineTransport implements Transport {
 	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
 		const playlistName = this.resolvePlaylistName(playlistId);
 		this.playlistEditService?.enqueue({ playlistId, playlistName, toIndex, trackId, type: 'move' });
+	}
+
+	peekArtistLogoUrl(artistId: string): string | null {
+		const artistEntry = this.downloads.getArtist(artistId);
+		if (artistEntry) {
+			for (const albumId of artistEntry.albumIds) {
+				const albumEntry = this.downloads.getAlbum(albumId);
+				if (albumEntry?.artistLogoUrl) return albumEntry.artistLogoUrl;
+			}
+		}
+
+		for (const albumEntry of this.downloads.getAllAlbums()) {
+			if (albumEntry.album.artistId === artistId && albumEntry.artistLogoUrl) {
+				return albumEntry.artistLogoUrl;
+			}
+		}
+
+		for (const playlistEntry of this.downloads.getAllPlaylists()) {
+			for (const trackId of playlistEntry.trackIds) {
+				const trackEntry = this.downloads.getTrack(trackId);
+				if (!trackEntry || trackEntry.track.artistId !== artistId) {
+					continue;
+				}
+
+				const playlistLogo = playlistEntry.trackArtistLogoUrls[trackId];
+				if (playlistLogo) {
+					return playlistLogo;
+				}
+			}
+		}
+
+		for (const genreEntry of this.downloads.getAllGenres()) {
+			for (const trackId of genreEntry.trackIds) {
+				const trackEntry = this.downloads.getTrack(trackId);
+				if (!trackEntry || trackEntry.track.artistId !== artistId) {
+					continue;
+				}
+
+				const genreLogo = genreEntry.trackArtistLogoUrls[trackId];
+				if (genreLogo) {
+					return genreLogo;
+				}
+			}
+		}
+
+		return this.resolveCachedImage?.('artist_logo', artistId) ?? null;
 	}
 
 	async removePlaylistTrack(playlistId: string, trackId: string): Promise<void> {

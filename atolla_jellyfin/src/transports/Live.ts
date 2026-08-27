@@ -6,6 +6,7 @@ import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
+import type { ResolveCachedImage } from 'atolla_core/src/services/ImageCache';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { cancelable, tracked } from 'atolla_core/src/transports/Cancelable';
 import { TransportErrors } from 'atolla_core/src/transports/Errors';
@@ -54,6 +55,7 @@ export {
 
 interface LiveTransportOptions {
 	clientDeviceId?: string;
+	resolveCachedImage?: ResolveCachedImage;
 }
 
 interface RequestOptions {
@@ -72,6 +74,7 @@ const log = getLogger('transport');
 const trackFields = 'Overview,Genres,MediaSources,SortName';
 
 export class LiveTransport implements Transport {
+	private readonly artistLogoUrls = new Map<string, string | null>();
 	private readonly baseUrl: string;
 	private readonly client: IHTTPClient;
 	private readonly clientDeviceId: string;
@@ -83,6 +86,8 @@ export class LiveTransport implements Transport {
 		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(itemId, 'Primary', imageTag),
 	};
+	private readonly resolveCachedImage: ResolveCachedImage | null;
+
 	constructor(
 		readonly serverUrl: string,
 		readonly accessToken: string,
@@ -93,6 +98,7 @@ export class LiveTransport implements Transport {
 		this.baseUrl = this.normalizeBaseUrl(serverUrl);
 		this.client = client;
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
+		this.resolveCachedImage = options.resolveCachedImage ?? null;
 	}
 
 	async addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void> {
@@ -239,18 +245,23 @@ export class LiveTransport implements Transport {
 
 	getArtistLogoUrl(artistId: string): CancelablePromise<string | null> {
 		return cancelable(async (canceler) => {
+			const memoized = this.artistLogoUrls.get(artistId);
+			if (memoized !== undefined) {
+				return memoized;
+			}
+
 			const item = await tracked(canceler, this.getItem<JellyfinArtistItem>(artistId));
 			if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
 				return null;
 			}
 
 			const logoTag = item.ParentLogoImageTag ?? item.ImageTags?.Logo;
-			if (!logoTag) {
-				return null;
-			}
+			const logoUrl = logoTag
+				? this.buildItemImageUrl(item.ParentLogoItemId ?? item.Id, 'Logo', logoTag)
+				: null;
 
-			const logoItemId = item.ParentLogoItemId ?? item.Id;
-			return this.buildItemImageUrl(logoItemId, 'Logo', logoTag);
+			this.artistLogoUrls.set(artistId, logoUrl);
+			return logoUrl;
 		});
 	}
 
@@ -663,6 +674,15 @@ export class LiveTransport implements Transport {
 			'POST',
 			`/Playlists/${encodeURIComponent(playlistId)}/Items/${encodeURIComponent(entryId)}/Move/${toIndex}`,
 		);
+	}
+
+	peekArtistLogoUrl(artistId: string): string | null | undefined {
+		const memoized = this.artistLogoUrls.get(artistId);
+		if (memoized !== undefined) {
+			return memoized;
+		}
+
+		return this.resolveCachedImage?.('artist_logo', artistId) ?? undefined;
 	}
 
 	async removePlaylistTrack(playlistId: string, entryId: string): Promise<void> {

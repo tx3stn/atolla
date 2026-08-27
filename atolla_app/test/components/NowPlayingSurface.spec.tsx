@@ -715,6 +715,7 @@ describe('NowPlayingSurface', () => {
 		});
 		const transport = {
 			getArtistLogoUrl: () => Promise.resolve(null),
+			peekArtistLogoUrl: () => undefined,
 		};
 		const toastService = new ToastService();
 
@@ -765,6 +766,7 @@ describe('NowPlayingSurface', () => {
 		};
 		const transport = {
 			getArtistLogoUrl: () => Promise.resolve(null),
+			peekArtistLogoUrl: () => undefined,
 		};
 
 		const { instrumented, surface } = mountNowPlayingWithSlot({
@@ -818,6 +820,7 @@ describe('NowPlayingSurface', () => {
 		};
 		const transport = {
 			getArtistLogoUrl: () => Promise.resolve(null),
+			peekArtistLogoUrl: () => undefined,
 		};
 
 		const { instrumented, surface } = mountNowPlayingWithSlot({

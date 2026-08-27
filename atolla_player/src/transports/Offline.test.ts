@@ -169,6 +169,31 @@ describe('OfflineTransport', () => {
 		expect(resolved).toContainEqual(['artist_logo', 'artist-1']);
 	});
 
+	it('peeks the artist logo without waiting, so a first render can show it', () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-1',
+							name: 'Album One',
+						},
+						artistLogoUrl: 'https://img/logo-artist-1.png',
+						trackIds: [],
+					},
+				],
+			}) as never,
+			playlistCreateService,
+			undefined,
+			() => null,
+		);
+
+		expect(transport.peekArtistLogoUrl('artist-1')).toBe('https://img/logo-artist-1.png');
+		expect(transport.peekArtistLogoUrl('artist-2')).toBeNull();
+	});
+
 	it('prefers a downloaded artist logo over the image cache', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

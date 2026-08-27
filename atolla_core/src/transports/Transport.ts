@@ -83,6 +83,7 @@ export interface Transport {
 		pageSize: number,
 	): CancelablePromise<{ hasMore: boolean; items: Array<Track> }>;
 	movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void>;
+	peekArtistLogoUrl(artistId: string): string | null | undefined;
 	removePlaylistTrack(playlistId: string, trackId: string): Promise<void>;
 	scrobbleTrackPlayed(trackId: string, datePlayed: string): Promise<void>;
 	search(query: string): CancelablePromise<SearchResults>;

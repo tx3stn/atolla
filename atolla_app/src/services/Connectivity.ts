@@ -1,10 +1,11 @@
 import type { AuthSession } from 'atolla_core/src/models/Auth';
+import type { ResolveCachedImage } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { LiveTransport } from 'atolla_jellyfin/src/transports/Live';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
-import { OfflineTransport, type ResolveCachedImage } from 'atolla_player/src/transports/Offline';
+import { OfflineTransport } from 'atolla_player/src/transports/Offline';
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
 import type { SessionManager } from './SessionManager';
@@ -164,7 +165,10 @@ export class Connectivity {
 				session.accessToken,
 				session.userId,
 				this.deps.sessionManager.getHttpClient(),
-				{ clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId() },
+				{
+					clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId(),
+					resolveCachedImage: this.deps.resolveCachedImage,
+				},
 			);
 		} else {
 			this.transport = new OfflineTransport(
