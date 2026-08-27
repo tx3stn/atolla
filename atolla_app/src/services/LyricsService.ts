@@ -1,5 +1,6 @@
 import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Track } from 'atolla_core/src/models/Track';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { LyricsStorage } from '../stores/LyricsStore';
 
@@ -54,9 +55,14 @@ export class LyricsService {
 
 	private async resolve(track: Track): Promise<Lyrics | null> {
 		const cached = await this.deps.store.loadLyrics(track.id);
-		if (cached !== undefined) {
+		if (cached) {
 			this.cache.set(track.id, cached);
 			return cached;
+		}
+
+		if (cached === null && track.hasLyrics !== true) {
+			this.cache.set(track.id, null);
+			return null;
 		}
 
 		if (track.hasLyrics === false) {
@@ -64,7 +70,16 @@ export class LyricsService {
 			return null;
 		}
 
-		const lyrics = await this.deps.getTransport().getLyrics(track.id);
+		let lyrics: Lyrics | null;
+		try {
+			lyrics = await this.deps.getTransport().getLyrics(track.id);
+		} catch (error) {
+			if (error === TransportErrors.OFFLINE_LYRICS) {
+				return null;
+			}
+			throw error;
+		}
+
 		this.cache.set(track.id, lyrics);
 		await this.deps.store.saveLyrics(track.id, lyrics);
 

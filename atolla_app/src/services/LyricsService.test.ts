@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Track } from 'atolla_core/src/models/Track';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import { type InternalError, isErrorConst } from 'atolla_core/src/utils/Errors';
 import type { LyricsStorage } from '../stores/LyricsStore';
 import { LyricsService } from './LyricsService';
 
@@ -37,12 +39,16 @@ function createStorage(initial: Record<string, Lyrics | null> = {}) {
 	return { calls, saved, storage };
 }
 
-function createTransport(result: Lyrics | null | Error = lyrics) {
+function createTransport(result: Lyrics | null | Error | InternalError<string> = lyrics) {
 	const calls: Array<string> = [];
 	const transport = {
 		getLyrics: (trackId: string) => {
 			calls.push(trackId);
-			return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
+			if (result instanceof Error || isErrorConst(result)) {
+				return Promise.reject(result);
+			}
+
+			return Promise.resolve(result);
 		},
 	} as unknown as Transport;
 
@@ -119,6 +125,47 @@ describe('LyricsService', () => {
 
 		expect(calls).toEqual(['track-1']);
 		expect(saved.get('track-1')).toBeNull();
+	});
+
+	it('refetches a stored miss once the server says the track has lyrics', async () => {
+		const { saved, storage } = createStorage({ 'track-1': null });
+		const { calls, transport } = createTransport();
+		const service = new LyricsService({ getTransport: () => transport, store: storage });
+
+		expect(await service.load(track({ hasLyrics: true }))).toEqual(lyrics);
+		expect(calls).toEqual(['track-1']);
+		expect(saved.get('track-1')).toEqual(lyrics);
+	});
+
+	it('keeps trusting a stored miss when the server still reports no lyrics', async () => {
+		const { storage } = createStorage({ 'track-1': null });
+		const { calls, transport } = createTransport();
+		const service = new LyricsService({ getTransport: () => transport, store: storage });
+
+		expect(await service.load(track({ hasLyrics: false }))).toBeNull();
+		expect(calls).toEqual([]);
+	});
+
+	it('keeps trusting a stored miss when the server says nothing either way', async () => {
+		const { storage } = createStorage({ 'track-1': null });
+		const { calls, transport } = createTransport();
+		const service = new LyricsService({ getTransport: () => transport, store: storage });
+
+		expect(await service.load(track())).toBeNull();
+		expect(calls).toEqual([]);
+	});
+
+	it('records nothing when offline cannot answer, so the next read retries', async () => {
+		const { calls: storeCalls, storage } = createStorage();
+		const { calls, transport } = createTransport(TransportErrors.OFFLINE_LYRICS);
+		const service = new LyricsService({ getTransport: () => transport, store: storage });
+
+		expect(await service.load(track({ hasLyrics: true }))).toBeNull();
+		expect(storeCalls.save).toBe(0);
+		expect(service.get('track-1')).toBeUndefined();
+
+		expect(await service.load(track({ hasLyrics: true }))).toBeNull();
+		expect(calls).toEqual(['track-1', 'track-1']);
 	});
 
 	it('rejects on a transport failure and does not cache it as a miss', async () => {

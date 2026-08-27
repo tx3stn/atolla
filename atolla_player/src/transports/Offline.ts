@@ -182,7 +182,7 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getLyrics(_trackId: string): Promise<Lyrics | null> {
-		return null;
+		return Promise.reject(TransportErrors.OFFLINE_LYRICS);
 	}
 
 	async getPlaylist(playlistId: string): Promise<Playlist | null> {
