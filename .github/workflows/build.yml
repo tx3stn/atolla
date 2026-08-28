@@ -112,6 +112,62 @@ jobs:
           path: build/atolla_android.apk
           if-no-files-found: error
 
+  # The headless player for an x86 box — a mini-PC, NAS or HTPC. Native, so it needs nothing beyond
+  # what every other linux bazel job here needs.
+  headless-linux-amd64:
+    if: ${{ !inputs.upload-artifacts }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/free-disk-space
+      - uses: ./.github/actions/install-libtinfo5
+      - name: configure bazel caching
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+      - uses: ./.github/actions/wait-for-disk-cleanup
+      - run: bun run build:headless
+      # - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      #   if: inputs.upload-artifacts
+      #   with:
+      #     name: headless-linux-amd64
+      #     path: build/atolla_headless_cli
+      #     if-no-files-found: error
+
+  # The headless player for a Pi. Cross-built from an amd64 runner, not natively: Valdi's prebuilt
+  # valdi_compiler and pngquant select on darwin / linux_x86_64 with no arm64 build, so a native
+  # arm64 build cannot finish analysis, while a cross build keeps them in the exec configuration.
+  # The only extra it needs over the amd64 job is the arm64 sysroot.
+  headless-linux-arm64:
+    if: ${{ !inputs.upload-artifacts }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/free-disk-space
+      - uses: ./.github/actions/install-libtinfo5
+      # Pinned to jammy packages, so the binary's glibc and libc++ floor does not move with
+      # whatever suite the runner happens to be. See the script.
+      - name: build arm64 sysroot
+        run: sudo ./.scripts/make-arm64-sysroot.sh /opt/sysroot-arm64
+      - name: configure bazel caching
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+      - uses: ./.github/actions/wait-for-disk-cleanup
+      - run: bun run build:headless:arm64
+      # - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      #   if: inputs.upload-artifacts
+      #   with:
+      #     name: headless-linux-arm64
+      #     path: build/atolla_headless_cli_arm64
+      #     if-no-files-found: error
+
   ios:
     runs-on: macos-latest
     timeout-minutes: 120

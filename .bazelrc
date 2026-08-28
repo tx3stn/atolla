@@ -35,6 +35,24 @@ build --copt=-Wno-deprecated
 # without this, targets built with -Werror (protobuf) fail on -Wunknown-warning-option
 build:linux --copt=-Wno-unknown-warning-option
 build:linux --host_copt=-Wno-unknown-warning-option
+
+# Cross-build for a linux-arm64 target (the headless player on a Pi) from an amd64 or darwin
+# builder. Valdi's prebuilt valdi_compiler/pngquant have no arm64 build, so they have to stay in the
+# exec configuration
+build:linux-arm64 --platforms=@snap_platforms//os:linux_arm64
+build:linux-arm64 --extra_toolchains=@llvm_toolchain_arm64//:cc-toolchain-aarch64-linux
+# abseil trips layering_check's module maps on this toolchain ("module 'crosstool' is needed but
+# has not been provided"), exactly as it does on the iOS device toolchain
+build:linux-arm64 --features=-layering_check
+# Use the sysroot's libc++ 16 for both headers and runtime. -nostdinc++ drops clang's own C++
+# include path, which otherwise wins and pulls in the LLVM distribution's headers (x86_64, and
+# missing __config_site). Ubuntu keeps them under llvm-16 rather than /usr/include/c++/v1.
+build:linux-arm64 --cxxopt=-nostdinc++
+build:linux-arm64 --cxxopt=-isystem --cxxopt=/opt/sysroot-arm64/usr/lib/llvm-16/include/c++/v1
+build:linux-arm64 --linkopt=-L/opt/sysroot-arm64/usr/lib/llvm-16/lib
+# -nostdinc++ leaves the toolchain's own -stdlib=libc++ with nothing to do, and the build treats
+# unused arguments as errors.
+build:linux-arm64 --copt=-Wno-unused-command-line-argument
 # Pin the Zig image/palette/waveform kernels to ReleaseSafe so their bounds and overflow checks
 # stay on in every build (a bad width/height panics instead of corrupting memory), independent of
 # Bazel's -c mode — rules_zig otherwise maps `-c opt` to ReleaseFast, which drops those checks.

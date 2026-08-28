@@ -1,0 +1,5 @@
+# atolla_headless/builder.Dockerfile builds from the repo root so it can COPY the shared sysroot
+# script out of .scripts/, and that one file is all the context it needs. Without this, every
+# `docker build` ships node_modules and build/ — hundreds of megabytes — to the daemon.
+*
+!.scripts/make-arm64-sysroot.sh

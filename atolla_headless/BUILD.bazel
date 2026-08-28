@@ -1,0 +1,24 @@
+load("@valdi//bzl/valdi:valdi_cli_application.bzl", "valdi_cli_application")
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+valdi_module(
+    name = "atolla_headless",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.d.ts",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    exclude_patterns = [".*\\.test\\.ts$"],
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+valdi_cli_application(
+    name = "atolla_headless_cli",
+    script_path = "atolla_headless/src/main",
+    deps = [":atolla_headless"],
+)
