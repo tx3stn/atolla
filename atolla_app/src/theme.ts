@@ -38,8 +38,10 @@ export const paletteDefaults = {
 	surface: colors.bgAccent,
 } as const;
 
-const windowWidth = Device.getWindowWidth();
-const windowHeight = Device.getWindowHeight();
+// a headless host (the palette-preview CLI, component tests) has no window and reports 0, which
+// would collapse every size derived from it — fall back to a reference phone instead
+const windowWidth = Device.getWindowWidth() || 390;
+const windowHeight = Device.getWindowHeight() || 844;
 const uiScale = deriveUiScale(windowWidth);
 const gestureScale = deriveGestureScale(windowWidth);
 const navScale = deriveNavScale(windowWidth);

@@ -4,6 +4,7 @@
 // //tools/palette-preview:palette_preview_cli bazel binary with --manifest <path> (driven by ../run.ts).
 
 import type { Palette } from 'atolla_app/src/models/Color';
+import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
 import {
@@ -12,7 +13,6 @@ import {
 } from 'atolla_app/src/ui/components/NowPlayingSurface';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { createBitmap } from 'drawing/src/BitmapFactory';
@@ -73,6 +73,15 @@ function waitForIdle(): Promise<void> {
 	});
 }
 
+// get() returning null is the "resident, no lyrics" answer, so the surface never kicks off a
+// load — this renderer only cares about artwork and palette.
+function mockLyricsService(): LyricsService {
+	return {
+		get: () => null,
+		load: () => Promise.resolve(null),
+	} as unknown as LyricsService;
+}
+
 function mockPlaybackStore(duration: number): PlaybackStore {
 	return {
 		cycleLoopMode: () => {},
@@ -129,8 +138,8 @@ function buildViewModel(
 		blurredArtworkSource: blurred,
 		collapseSignal: 0,
 		gridColumns: 2,
-		imageCache: {} as unknown as ImageCache,
 		isPlaying: true,
+		lyricsService: mockLyricsService(),
 		modalSlot: new DetachedSlot(),
 		palette,
 		playbackStore: mockPlaybackStore(entry.track.duration),
