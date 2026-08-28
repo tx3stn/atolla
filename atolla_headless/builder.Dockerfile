@@ -3,7 +3,7 @@
 #
 # jammy on purpose: libtinfo5, which valdi's hermetic LLVM 16 clang links, is a plain apt install
 # here and gone from 24.04.
-FROM ubuntu:22.04
+FROM ubuntu:22.04@sha256:2edbbc5dc405e9612ba3584ce95480277e3eb374407b5505fe26f17df77c7dbc
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -27,9 +27,6 @@ RUN arch="$(dpkg --print-architecture)" \
 	&& curl -fsSL -o /usr/local/bin/bazel \
 	"https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-linux-${arch}" \
 	&& chmod +x /usr/local/bin/bazel
-
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
 
 # symlink_prefix keeps the container from replacing the host's bazel-* convenience symlinks in the
 # bind-mounted workspace, which point at darwin output. watchfs needs inotify, which does not

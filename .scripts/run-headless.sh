@@ -27,7 +27,7 @@ docker build --platform "$PLATFORM" -t "$IMAGE" \
 if [ "$#" -eq 0 ]; then
 	case "$PLATFORM" in
 	*/arm64) set -- ./build/atolla_headless_cli_arm64 ;;
-	*) set -- bun run build:headless:arm64 ;;
+	*) set -- ./.scripts/build-headless.sh arm64 ;;
 	esac
 fi
 
