@@ -14,7 +14,11 @@ valdi_module(
     ),
     exclude_patterns = [".*\\.test\\.ts$"],
     visibility = ["//visibility:public"],
-    deps = [],
+    deps = [
+        "//atolla_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_standalone",
+    ],
 )
 
 valdi_cli_application(
