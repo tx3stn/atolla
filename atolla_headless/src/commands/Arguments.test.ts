@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
-import { parseArguments, USAGE_ERROR } from './Arguments';
+import { parseArguments } from './Arguments';
+import { USAGE_ERROR } from './Errors';
 import type { Flags } from './Flags';
 
 const SPEC: Flags = {

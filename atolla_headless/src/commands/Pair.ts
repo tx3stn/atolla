@@ -1,7 +1,5 @@
 import Strings from 'atolla_headless/src/Strings';
-import type { Terminal } from '../terminal/Terminal';
-import type { ParsedArguments } from './Arguments';
-import type { Cmd } from './Command';
+import type { Cmd, CommandContext } from './Command';
 
 export const CmdPair = {
 	flags: {
@@ -10,7 +8,7 @@ export const CmdPair = {
 	},
 	helpTextLong: Strings.pairHelpLong,
 	helpTextShort: Strings.pairHelpShort,
-	run: (terminal: Terminal, args: ParsedArguments): number => {
+	run: ({ args, terminal }: CommandContext): number => {
 		if (args.flag('--reset') || args.flag('--status')) {
 			terminal.write(Strings.notImplemented());
 			return 0;

@@ -1,10 +1,17 @@
+import type { ConfigStore } from '../PlayerConfig';
 import type { Terminal } from '../terminal/Terminal';
 import type { ParsedArguments } from './Arguments';
 import type { Flags } from './Flags';
 
+export interface CommandContext {
+	args: ParsedArguments;
+	config: ConfigStore;
+	terminal: Terminal;
+}
+
 export interface Runnable {
 	flags: Flags;
-	run: (terminal: Terminal, args: ParsedArguments) => number;
+	run: (context: CommandContext) => number;
 }
 
 export interface Cmd extends Runnable {

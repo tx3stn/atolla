@@ -1,4 +1,26 @@
 {
+	"config_help_long": {
+		"defaultMessage": "TODO"
+	},
+	"config_help_short": {
+		"defaultMessage": "afficher ou modifier la configuration du lecteur"
+	},
+	"config_written": {
+		"defaultMessage": "{path%s} écrit",
+		"example": "/etc/atolla/player.json écrit"
+	},
+	"error_config_exists": {
+		"defaultMessage": "une configuration existe déjà dans {path%s}",
+		"example": "une configuration existe déjà dans /etc/atolla/player.json"
+	},
+	"error_config_invalid": {
+		"defaultMessage": "impossible de lire la configuration dans {path%s}",
+		"example": "impossible de lire la configuration dans /etc/atolla/player.json"
+	},
+	"error_config_missing": {
+		"defaultMessage": "aucune configuration dans {path%s} — lancez \"atolla init\"",
+		"example": "aucune configuration dans /etc/atolla/player.json — lancez \"atolla init\""
+	},
 	"error_missing_value": {
 		"defaultMessage": "{name%s} attend une valeur",
 		"example": "--config attend une valeur"
@@ -11,11 +33,21 @@
 		"defaultMessage": "argument inconnu {name%s}",
 		"example": "argument inconnu --bogus"
 	},
+	"error_unknown_language": {
+		"defaultMessage": "langue inconnue {code%s}",
+		"example": "langue inconnue de"
+	},
 	"field_audio_device": {
 		"defaultMessage": "périphérique audio"
 	},
+	"field_config": {
+		"defaultMessage": "configuration"
+	},
 	"field_control": {
 		"defaultMessage": "contrôle"
+	},
+	"field_language": {
+		"defaultMessage": "langue"
 	},
 	"field_name": {
 		"defaultMessage": "nom"
@@ -26,8 +58,17 @@
 	"field_state": {
 		"defaultMessage": "état"
 	},
+	"flag_config": {
+		"defaultMessage": "utiliser un autre fichier de configuration"
+	},
 	"flag_help": {
 		"defaultMessage": "afficher l'aide"
+	},
+	"flag_language": {
+		"defaultMessage": "langue des messages de la commande"
+	},
+	"flag_name": {
+		"defaultMessage": "nom affiché pour ce lecteur"
 	},
 	"flag_no_color": {
 		"defaultMessage": "désactiver la couleur"
@@ -52,6 +93,12 @@
 	},
 	"help_usage": {
 		"defaultMessage": "utilisation"
+	},
+	"init_help_long": {
+		"defaultMessage": "TODO"
+	},
+	"init_help_short": {
+		"defaultMessage": "créer la configuration du lecteur"
 	},
 	"not_implemented": {
 		"defaultMessage": "pas encore implémenté"

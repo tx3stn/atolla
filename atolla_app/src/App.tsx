@@ -1,5 +1,6 @@
 import Strings from 'atolla_app/src/Strings';
-import { applyLanguage, DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
+import { DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
+import { applyLanguage } from 'atolla_core/src/Localization';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';

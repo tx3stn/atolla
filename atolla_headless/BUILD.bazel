@@ -18,6 +18,7 @@ valdi_module(
     visibility = ["//visibility:public"],
     deps = [
         "//atolla_core",
+        "@valdi//src/valdi_modules/src/valdi/file_system",
         "@valdi//src/valdi_modules/src/valdi/valdi_core",
     ],
 )

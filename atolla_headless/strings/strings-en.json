@@ -1,4 +1,26 @@
 {
+	"config_help_long": {
+		"defaultMessage": "show or change the player configuration\n\nrun without flags to print the current configuration"
+	},
+	"config_help_short": {
+		"defaultMessage": "show or change the player configuration"
+	},
+	"config_written": {
+		"defaultMessage": "wrote {path%s}",
+		"example": "wrote /etc/atolla/player.json"
+	},
+	"error_config_exists": {
+		"defaultMessage": "config already exists at {path%s}",
+		"example": "config already exists at /etc/atolla/player.json"
+	},
+	"error_config_invalid": {
+		"defaultMessage": "could not read config at {path%s}",
+		"example": "could not read config at /etc/atolla/player.json"
+	},
+	"error_config_missing": {
+		"defaultMessage": "no config at {path%s} — run \"atolla init\"",
+		"example": "no config at /etc/atolla/player.json — run \"atolla init\""
+	},
 	"error_missing_value": {
 		"defaultMessage": "{name%s} needs a value",
 		"example": "--config needs a value"
@@ -11,11 +33,21 @@
 		"defaultMessage": "unrecognised argument {name%s}",
 		"example": "unrecognised argument --bogus"
 	},
+	"error_unknown_language": {
+		"defaultMessage": "unknown language {code%s}",
+		"example": "unknown language de"
+	},
 	"field_audio_device": {
 		"defaultMessage": "audio device"
 	},
+	"field_config": {
+		"defaultMessage": "config"
+	},
 	"field_control": {
 		"defaultMessage": "control"
+	},
+	"field_language": {
+		"defaultMessage": "language"
 	},
 	"field_name": {
 		"defaultMessage": "name"
@@ -26,8 +58,17 @@
 	"field_state": {
 		"defaultMessage": "state"
 	},
+	"flag_config": {
+		"defaultMessage": "use a different config file"
+	},
 	"flag_help": {
 		"defaultMessage": "print the help text"
+	},
+	"flag_language": {
+		"defaultMessage": "language for command output"
+	},
+	"flag_name": {
+		"defaultMessage": "name shown for this player"
 	},
 	"flag_no_color": {
 		"defaultMessage": "disable coloured output"
@@ -52,6 +93,12 @@
 	},
 	"help_usage": {
 		"defaultMessage": "usage"
+	},
+	"init_help_long": {
+		"defaultMessage": "create the player configuration\n\ninit writes the config file this player reads on every run; it refuses to overwrite one that already exists"
+	},
+	"init_help_short": {
+		"defaultMessage": "create the player configuration"
 	},
 	"not_implemented": {
 		"defaultMessage": "not implemented yet"

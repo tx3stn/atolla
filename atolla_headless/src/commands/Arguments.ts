@@ -1,8 +1,6 @@
-import { InternalError } from 'atolla_core/src/utils/Errors';
 import Strings from 'atolla_headless/src/Strings';
+import { USAGE_ERROR } from './Errors';
 import type { Flags } from './Flags';
-
-export const USAGE_ERROR = new InternalError('usage');
 
 export interface ParsedArguments {
 	flag(name: string): boolean;

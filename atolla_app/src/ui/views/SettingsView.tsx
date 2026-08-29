@@ -1,10 +1,6 @@
 import Strings from 'atolla_app/src/Strings';
-import {
-	applyLanguage,
-	DEFAULT_LANGUAGE,
-	LANGUAGE_OPTIONS,
-	type LanguageCode,
-} from 'atolla_core/src/Language';
+import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from 'atolla_core/src/Language';
+import { applyLanguage } from 'atolla_core/src/Localization';
 import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { Logger } from 'atolla_core/src/services/Logger';
 import { version } from 'atolla_core/src/version';
