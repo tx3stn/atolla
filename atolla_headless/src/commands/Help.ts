@@ -3,14 +3,8 @@ import { AllCmds } from './All';
 import type { Cmd } from './Command';
 import { AllFlags } from './Flags';
 
-export function commandHelp(terminal: Terminal, name: string, cmd: Cmd): number {
-	terminal.write(`atolla ${name} — ${cmd.helpTextShort}`);
-
-	if (cmd.helpTextLong !== '') {
-		terminal.write('');
-		terminal.write(cmd.helpTextLong);
-	}
-
+export function commandHelp(terminal: Terminal, cmd: Cmd): number {
+	terminal.write(cmd.helpTextLong);
 	return 0;
 }
 

@@ -5,7 +5,12 @@ import type { Cmd } from './Command';
 
 export const CmdRun = {
 	action: run,
-	helpTextLong: '',
+	helpTextLong: `atolla run [flags]
+
+run the player deamon
+
+TODO: add instructions about usage and backgrounding
+`,
 	helpTextShort: 'run the player daemon',
 } satisfies Cmd;
 

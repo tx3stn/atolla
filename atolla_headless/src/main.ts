@@ -69,7 +69,7 @@ function runCommand(terminal: Terminal, command: string, commandArgs: Array<stri
 	}
 
 	if (commandArgs.includes(FLAG_HELP)) {
-		return commandHelp(terminal, command, cmd);
+		return commandHelp(terminal, cmd);
 	}
 
 	if (!acceptsNoOptions(terminal, command, commandArgs)) {

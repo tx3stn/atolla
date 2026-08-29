@@ -3,7 +3,16 @@ import type { Cmd } from './Command';
 
 export const CmdPair = {
 	action: pair,
-	helpTextLong: '',
+	helpTextLong: `atolla pair [flags]
+
+pair this player with your device
+
+the pair command returns the pairing code for you the enter inside the atolla app
+
+flags
+  --status  display the current pairing status
+  --reset   forget the current connections and generate a new pairing code
+`,
 	helpTextShort: 'pair this player with your device',
 } satisfies Cmd;
 
