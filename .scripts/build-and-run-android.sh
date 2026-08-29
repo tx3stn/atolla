@@ -43,29 +43,8 @@ echo "Using Android device: $ANDROID_DEVICE_ID"
 # build; override VALDI_APPLICATION_TARGET=//:atolla_android to run the release id.
 export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_app_dev:atolla_android}"
 
-# Stamp a dev version onto this local build without disturbing the committed
-# 0.0.0 placeholders. Defaults to the latest release tag plus a -dev suffix
-# (e.g. 0.4.5-dev); override with DEV_VERSION=<x.y.z[-suffix]>. Requires vrsn; if
-# it isn't installed the build just uses the committed placeholder. The trap
-# restores the version files on exit, even on build failure or Ctrl-C.
-if command -v vrsn >/dev/null 2>&1; then
-	require_cmd git
-	repo_root="$SCRIPT_DIR/.."
-	tag="$(cd "$repo_root" && git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)"
-	version_files=(
-		atolla_core/src/version.ts
-		BUILD.bazel
-		atolla_app/native/android/AndroidManifest.prod.xml
-		atolla_app_dev/BUILD.bazel
-	)
-	commit=$(git rev-parse --short HEAD)
-	version="${tag}-dev-${commit}"
-	trap 'git -C "$repo_root" checkout -- "${version_files[@]}"' EXIT
-	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${version}}")
-	echo "Stamped dev version ${DEV_VERSION:-${version}} (version files revert on exit)."
-else
-	echo "vrsn not installed — building the committed placeholder version."
-fi
+source "$SCRIPT_DIR/stamp-dev-version.sh"
+stamp_dev_version "$SCRIPT_DIR/.."
 
 "$SCRIPT_DIR/build-android-apk.sh"
 

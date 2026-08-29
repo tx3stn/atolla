@@ -32,6 +32,9 @@ arm64)
 	;;
 esac
 
+source "$SCRIPT_DIR/stamp-dev-version.sh"
+stamp_dev_version "$SCRIPT_DIR/.."
+
 bazel build "${config[@]}" "$TARGET"
 
 # cquery prints a path relative to the execution root, and --symlink_prefix builds have no
