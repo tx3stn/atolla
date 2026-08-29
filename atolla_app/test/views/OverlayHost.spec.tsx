@@ -40,6 +40,27 @@ function playbackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
 	} as unknown as PlaybackStore;
 }
 
+function subscribablePlaybackStore(overrides: Record<string, unknown> = {}): {
+	notify: () => void;
+	store: PlaybackStore;
+} {
+	// NowPlayingSurface subscribes too, so hold every listener rather than the last one
+	const listeners = new Set<() => void>();
+	const store = playbackStore({
+		subscribe: (listener: () => void) => {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		...overrides,
+	});
+	const notify = (): void => {
+		for (const listener of [...listeners]) {
+			listener();
+		}
+	};
+	return { notify, store };
+}
+
 function setServices(store: PlaybackStore): { notifyPalette: PaletteListener } {
 	const stub = {} as unknown;
 	let paletteListener: PaletteListener = () => {};
@@ -133,6 +154,53 @@ describe('OverlayHost', () => {
 		setServices(playbackStore());
 		instrumented = InstrumentedComponentJSX.create(OverlayHostHarness, {}, undefined);
 		expect(labelValues(instrumented.getComponent())).not.toContain('The Track');
+	});
+
+	// the surface renders its queue list from the tracks OverlayHost drills in, so a reorder that
+	// leaves track, index and length identical must still reach it
+	describe('queue changes', () => {
+		const second = { ...track, id: 'track-2', name: 'Second Track' };
+		const third = { ...track, id: 'track-3', name: 'Third Track' };
+
+		// the first notification always renders (the collapse signature starts empty), so seed it
+		// before attaching stats and assert on what the second one does
+		function mountWithSeededSignature(): {
+			notify: () => void;
+			stats: ReturnType<typeof attachRenderStats>;
+			store: PlaybackStore;
+		} {
+			const { store, notify } = subscribablePlaybackStore({
+				album,
+				queueRevision: 0,
+				track,
+				trackIndex: 0,
+				tracks: [track, second, third],
+			});
+			setServices(store);
+			instrumented = InstrumentedComponentJSX.create(OverlayHostHarness, {}, undefined);
+			notify();
+			return { notify, stats: attachRenderStats(instrumented.getComponent()), store };
+		}
+
+		it('re-renders when the queue is reordered', () => {
+			const { store, notify, stats } = mountWithSeededSignature();
+
+			// a reorder of the upcoming tail leaves track, index and length identical
+			store.tracks = [track, third, second];
+			store.queueRevision += 1;
+			notify();
+
+			expect(stats.visits('AppHeader')).toBeGreaterThan(0);
+		});
+
+		it('ignores a progress-only notification', () => {
+			const { store, notify, stats } = mountWithSeededSignature();
+
+			store.progressSeconds = 42;
+			notify();
+
+			expect(stats.visits('AppHeader')).toBe(0);
+		});
 	});
 
 	// artwork palettes are pre-extracted for the whole library as covers are cached, but the overlay

@@ -1127,6 +1127,76 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('queueRevision', () => {
+		it('advances when the queue is reordered without changing length or index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			const before = store.queueRevision;
+
+			store.moveQueueTrack(2, 1);
+
+			expect(store.queueRevision).toBeGreaterThan(before);
+			expect(store.tracks.length).toBe(tracks.length);
+			expect(store.trackIndex).toBe(0);
+		});
+
+		it('advances for every queue mutation', () => {
+			const store = new PlaybackStore();
+			const revisions: Array<number> = [];
+			const record = (): void => {
+				revisions.push(store.queueRevision);
+			};
+
+			store.play(tracks, album, 0);
+			record();
+			store.playNext([{ duration: 100, id: 'track-4', name: 'Track Four' }]);
+			record();
+			store.addToQueue([{ duration: 120, id: 'track-5', name: 'Track Five' }]);
+			record();
+			store.moveQueueTrack(2, 1);
+			record();
+			store.shuffle();
+			record();
+			store.removeFromQueueAt(1);
+			record();
+			store.playTracks(tracks, 0);
+			record();
+			store.stop();
+			record();
+
+			const ascending = revisions.every(
+				(revision, index) => index === 0 || revision > revisions[index - 1],
+			);
+			expect(ascending).toBe(true);
+		});
+
+		it('does not advance on progress-only updates', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			const before = store.queueRevision;
+
+			store.updateProgress(10);
+			store.updateProgress(20);
+
+			expect(store.queueRevision).toBe(before);
+		});
+
+		it('advances once for a batched reorder and listeners see the final value', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			const before = store.queueRevision;
+			const observed: Array<number> = [];
+			store.subscribe(() => observed.push(store.queueRevision));
+
+			store.runBatched(() => {
+				store.moveQueueTrack(2, 1);
+			});
+
+			expect(observed).toEqual([before + 1]);
+			expect(store.queueRevision).toBe(before + 1);
+		});
+	});
+
 	describe('subscribe()', () => {
 		it('calls the listener on each state change', () => {
 			const store = new PlaybackStore();

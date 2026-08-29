@@ -116,9 +116,9 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 		if (!services) {
 			return;
 		}
-		const { track, album, isPlaying, loopMode, trackIndex, tracks, artistLogoUrl } =
+		const { track, album, isPlaying, loopMode, trackIndex, tracks, artistLogoUrl, queueRevision } =
 			services.playbackStore;
-		const signature = `${track?.id ?? ''}|${album?.id ?? ''}|${isPlaying}|${loopMode}|${trackIndex}|${tracks.length}|${artistLogoUrl ?? ''}`;
+		const signature = `${track?.id ?? ''}|${album?.id ?? ''}|${isPlaying}|${loopMode}|${trackIndex}|${tracks.length}|${artistLogoUrl ?? ''}|${queueRevision}`;
 		if (signature === this.lastPlaybackSignature) {
 			return;
 		}

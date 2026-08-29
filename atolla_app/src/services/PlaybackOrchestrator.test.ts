@@ -567,6 +567,69 @@ describe('PlaybackOrchestrator playback subscription', () => {
 		}
 	});
 
+	it('fires onPlaybackTick when only the queue order changed', () => {
+		const first = makeTrack('a');
+		const second = makeTrack('b');
+		const third = makeTrack('c');
+		const { store, notify } = subscribablePlaybackStore({
+			track: first,
+			tracks: [first, second, third],
+		});
+		let tickCount = 0;
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			onPlaybackTick: () => {
+				tickCount += 1;
+			},
+		});
+		orchestrator.start();
+
+		notify();
+		tickCount = 0;
+		// reordering the upcoming tail leaves track, index and length identical
+		store.tracks = [first, third, second];
+		store.queueRevision += 1;
+		notify();
+		orchestrator.dispose();
+
+		expect(tickCount).toBe(1);
+	});
+
+	it('re-sends the reordered queue window to native through the tick', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const first = makeTrack('a');
+		const second = makeTrack('b');
+		const third = makeTrack('c');
+		const { store, notify } = subscribablePlaybackStore({
+			loopMode: 'none',
+			track: first,
+			tracks: [first, second, third],
+		});
+		// mirrors App.tsx, where the tick runs the full reconciliation pass
+		const orchestrator: PlaybackOrchestrator = createOrchestrator(
+			store,
+			() => {},
+			fakeNotification(),
+			{
+				getTrackCacheUrl: (id) => `src://${id}`,
+				onPlaybackTick: () => orchestrator.reconcilePlaybackState(),
+				trackSourceNative,
+			},
+		);
+		orchestrator.start();
+
+		notify();
+		store.tracks = [first, third, second];
+		store.queueRevision += 1;
+		notify();
+		orchestrator.dispose();
+
+		const payloads = trackSourceNative.upcomingQueuePayloads;
+		const window = JSON.parse(payloads[payloads.length - 1] ?? '') as {
+			entries: Array<{ trackId: string }>;
+		};
+		expect(window.entries.map((entry) => entry.trackId)).toEqual(['a', 'c', 'b']);
+	});
+
 	it('does not fire onPlaybackTick after dispose', () => {
 		const { store, notify } = subscribablePlaybackStore();
 		let tickCount = 0;
@@ -1961,7 +2024,12 @@ function trackingScrobbleService(pending = 0): {
 }
 
 function subscribablePlaybackStore(overrides: Record<string, unknown> = {}): {
-	store: { track: Track | null };
+	store: {
+		queueRevision: number;
+		track: Track | null;
+		trackIndex: number;
+		tracks: Array<Track>;
+	};
 	notify: () => void;
 } {
 	const listeners = new Set<() => void>();
@@ -1970,6 +2038,7 @@ function subscribablePlaybackStore(overrides: Record<string, unknown> = {}): {
 		isPlaying: true,
 		loopMode: 'off',
 		progressSeconds: 0,
+		queueRevision: 0,
 		seekTarget: null,
 		subscribe(listener: () => void) {
 			listeners.add(listener);

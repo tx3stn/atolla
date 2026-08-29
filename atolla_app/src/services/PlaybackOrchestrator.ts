@@ -226,8 +226,9 @@ export class PlaybackOrchestrator {
 		}
 		this.lastPlaybackTickAt = now;
 
-		const { track, trackIndex, tracks, album, isPlaying, loopMode } = this.playbackStore;
-		const sig = `${track?.id ?? ''}|${trackIndex}|${tracks.length}|${album?.id ?? ''}|${isPlaying}|${loopMode}`;
+		const { track, trackIndex, tracks, album, isPlaying, loopMode, queueRevision } =
+			this.playbackStore;
+		const sig = `${track?.id ?? ''}|${trackIndex}|${tracks.length}|${album?.id ?? ''}|${isPlaying}|${loopMode}|${queueRevision}`;
 		if (sig === this.lastPlaybackSignature) {
 			return;
 		}

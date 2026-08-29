@@ -58,6 +58,7 @@ export class PlaybackStore {
 	private seekPersistTimer: ReturnType<typeof setTimeout> | null = null;
 	private notifySuspendDepth = 0;
 	private notifyPendingDuringSuspend = false;
+	private lastNotifiedTracks: Array<Track> | null = null;
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
@@ -66,6 +67,9 @@ export class PlaybackStore {
 	seekTarget: number | null = null;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
+	// bumped whenever the queue array changes, so subscribers that collapse progress-only
+	// notifications can still see a reorder (which leaves track, index and length identical)
+	queueRevision: number = 0;
 	// deliberate track changes (play/previous/jump) may rebuild the native queue backward; a restore/reconcile snap following the engine must not (that snap is the stale wake-race the native guard suppresses); read by NativeAudioPlayer when configuring the engine
 	allowBackwardRebuild: boolean = true;
 
@@ -699,6 +703,13 @@ export class PlaybackStore {
 	}
 
 	private notify(): void {
+		// every queue mutation reassigns tracks rather than mutating in place, and each one
+		// notifies, so this is the single point every queue change passes through. counted above
+		// the suspend check so a runBatched mutation is still recorded
+		if (this.tracks !== this.lastNotifiedTracks) {
+			this.lastNotifiedTracks = this.tracks;
+			this.queueRevision += 1;
+		}
 		if (this.notifySuspendDepth > 0) {
 			this.notifyPendingDuringSuspend = true;
 			return;
