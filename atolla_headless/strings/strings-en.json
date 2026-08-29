@@ -47,11 +47,17 @@
 	"help_flags": {
 		"defaultMessage": "flags"
 	},
+	"help_more_info": {
+		"defaultMessage": "use \"atolla <command> --help\" for more information about a command"
+	},
+	"help_usage": {
+		"defaultMessage": "usage"
+	},
 	"not_implemented": {
 		"defaultMessage": "not implemented yet"
 	},
 	"pair_help_long": {
-		"defaultMessage": "atolla pair [flags]\n\npair this player with your device\n\nthe pair command returns the pairing code for you to enter inside the atolla app\n"
+		"defaultMessage": "pair this player with your device\n\nthe pair command returns the pairing code for you to enter inside the atolla app"
 	},
 	"pair_help_short": {
 		"defaultMessage": "pair this player with your device"
@@ -62,8 +68,11 @@
 	"pairing_instructions": {
 		"defaultMessage": "enter it in atolla on your phone: Settings → Players → Add player"
 	},
+	"root_description": {
+		"defaultMessage": "atolla headless player"
+	},
 	"run_help_long": {
-		"defaultMessage": "atolla run [flags]\n\nrun the player daemon\n\nTODO: add instructions about usage and backgrounding\n"
+		"defaultMessage": "run the player daemon\n\nTODO: add instructions about usage and backgrounding"
 	},
 	"run_help_short": {
 		"defaultMessage": "run the player daemon"

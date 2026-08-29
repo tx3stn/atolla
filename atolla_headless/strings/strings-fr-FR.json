@@ -47,6 +47,12 @@
 	"help_flags": {
 		"defaultMessage": "options"
 	},
+	"help_more_info": {
+		"defaultMessage": "utilisez \"atolla <command> --help\" pour en savoir plus sur une commande"
+	},
+	"help_usage": {
+		"defaultMessage": "utilisation"
+	},
 	"not_implemented": {
 		"defaultMessage": "pas encore implémenté"
 	},
@@ -61,6 +67,9 @@
 	},
 	"pairing_instructions": {
 		"defaultMessage": "saisissez-le dans atolla sur votre téléphone : Réglages → Lecteurs → Ajouter un lecteur"
+	},
+	"root_description": {
+		"defaultMessage": "lecteur atolla sans interface"
 	},
 	"run_help_long": {
 		"defaultMessage": "TODO"

@@ -47,10 +47,9 @@ function runCommand(terminal: Terminal, command: string, commandArgs: Array<stri
 	}
 
 	if (commandArgs.includes(FLAG_HELP)) {
-		return commandHelp(terminal, cmd);
+		return commandHelp(terminal, command, cmd);
 	}
 
-	// return invoke(terminal, cmd, commandArgs);
 	return cmd.run(terminal, parseArguments(commandArgs, cmd.flags));
 }
 
