@@ -279,7 +279,8 @@ describe('SessionManager', () => {
 		expect(calls.applyState.filter((s) => s.authErrorMessage != null)).toEqual([]);
 	});
 
-	// a non-ErrorConst reaching the view crashes it: ConnectionView renders errorMessage.msg()
+	// ConnectionView has copy only for error codes it knows, so an unexpected throw has to arrive
+	// as a sentinel rather than reaching the view raw
 	it('login maps an unexpected throw to a renderable error', async () => {
 		const { calls, manager } = makeManager({
 			authService: { rememberServerUrl: () => Promise.reject(new TypeError('store gone')) },
@@ -289,7 +290,7 @@ describe('SessionManager', () => {
 
 		const surfaced = calls.applyState.find((s) => s.authErrorMessage != null)?.authErrorMessage;
 		expect(surfaced?.err).toBe(AuthErrors.CONNECTION_ERROR.err);
-		expect((surfaced as { detail?: string })?.detail).toBe('store gone');
+		expect(surfaced?.detail).toBe('store gone');
 	});
 
 	it('login keeps the session online and never runs a follow-up check that could drop it', async () => {

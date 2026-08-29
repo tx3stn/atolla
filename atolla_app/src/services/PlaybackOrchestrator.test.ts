@@ -1,9 +1,9 @@
 import { describe, expect, it, spyOn } from 'bun:test';
+import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { ScrobbleService } from 'atolla_player/src/services/ScrobbleService';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { RecentlyPlayedStore } from 'atolla_player/src/stores/RecentlyPlayed';
-import { PlaybackErrors } from './PlaybackErrors';
 import {
 	type DownloadedTrackSource,
 	PlaybackOrchestrator,
@@ -1611,7 +1611,7 @@ describe('PlaybackOrchestrator playback errors', () => {
 		expect(toasts).toEqual([
 			{
 				detail: 'Track b',
-				message: PlaybackErrors.UNSUPPORTED_FORMAT.message,
+				message: Strings.errorsPlaybackUnsupportedFormat(),
 				variant: ToastTypes.error,
 			},
 		]);
@@ -1632,7 +1632,7 @@ describe('PlaybackOrchestrator playback errors', () => {
 		expect(toasts).toEqual([
 			{
 				detail: 'Track a',
-				message: PlaybackErrors.NETWORK.message,
+				message: Strings.errorsPlaybackNetwork(),
 				variant: ToastTypes.error,
 			},
 		]);
@@ -1648,7 +1648,7 @@ describe('PlaybackOrchestrator playback errors', () => {
 		orchestrator.handlePlaybackError({ kind: 'unknown', message: 'boom', trackId: 'gone' });
 
 		expect(toasts).toEqual([
-			{ detail: undefined, message: PlaybackErrors.UNKNOWN.message, variant: ToastTypes.error },
+			{ detail: undefined, message: Strings.errorsPlaybackUnknown(), variant: ToastTypes.error },
 		]);
 		orchestrator.dispose();
 	});

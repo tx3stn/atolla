@@ -1,7 +1,7 @@
+import Strings from 'atolla_app/src/Strings';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import type { TrackPageSort, Transport } from 'atolla_core/src/transports/Transport';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';

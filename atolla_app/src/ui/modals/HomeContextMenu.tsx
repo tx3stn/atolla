@@ -1,6 +1,6 @@
 import res from 'atolla_app/res';
+import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
 import { startPagedPlayback } from 'atolla_player/src/services/PagedPlayback';

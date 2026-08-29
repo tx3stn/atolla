@@ -1,4 +1,4 @@
-import Strings from 'atolla_core/src/Strings';
+import Strings from 'atolla_app/src/Strings';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';

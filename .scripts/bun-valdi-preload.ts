@@ -27,10 +27,10 @@ mock.module('valdi_core/src/CancelablePromise', () =>
 // Strings is generated into the module by valdi from strings_dir, so no file exists on
 // disk for bun to resolve. Register the bare cross-module specifier as well as the file
 // URL: bun's tsconfig `paths` resolution stats the target before consulting the mock
-// registry, so the URL form alone only covers importers inside atolla_core.
+// registry, so the URL form alone only covers importers inside atolla_app.
 const stringsProxy = () => ({
 	default: new Proxy({}, { get: (_, key) => () => String(key) }),
 });
 
-mock.module('atolla_core/src/Strings', stringsProxy);
-mock.module(new URL('../atolla_core/src/Strings', import.meta.url).href, stringsProxy);
+mock.module('atolla_app/src/Strings', stringsProxy);
+mock.module(new URL('../atolla_app/src/Strings', import.meta.url).href, stringsProxy);

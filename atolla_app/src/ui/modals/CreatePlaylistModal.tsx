@@ -1,4 +1,4 @@
-import Strings from 'atolla_core/src/Strings';
+import Strings from 'atolla_app/src/Strings';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';

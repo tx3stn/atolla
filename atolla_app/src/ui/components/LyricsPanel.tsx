@@ -1,5 +1,5 @@
+import Strings from 'atolla_app/src/Strings';
 import { activeLineIndex, type Lyrics } from 'atolla_core/src/models/Lyrics';
-import Strings from 'atolla_core/src/Strings';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';

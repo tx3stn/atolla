@@ -1,6 +1,7 @@
+import Strings from 'atolla_app/src/Strings';
 import type { AuthSession } from 'atolla_core/src/models/Auth';
-import { type AuthError, AuthErrors } from 'atolla_core/src/services/AuthErrors';
-import { isErrorConst } from 'atolla_core/src/utils/Errors';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
+import { type InternalError, isErrorConst } from 'atolla_core/src/utils/Errors';
 import {
 	type JellyfinAuthService,
 	normalizeServerUrl,
@@ -9,7 +10,7 @@ import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
 
 export interface AuthRenderState {
-	authErrorMessage: AuthError | null;
+	authErrorMessage: InternalError<string> | null;
 	isAuthenticating: boolean;
 	quickConnectCode: string | null;
 	serverName: string;
@@ -172,14 +173,15 @@ export class SessionManager {
 			try {
 				await this.deps.authService.probeInitialAlbums(session);
 			} catch {
-				this.deps.showToast(AuthErrors.FAILED_TO_FETCH_DATA.msg());
+				this.deps.showToast(Strings.errorsAuthFailedToFetch());
 			}
 			return session;
 		} catch (error: unknown) {
-			// toAuthError keeps a non-ErrorConst throw from reaching the view, which renders msg()
+			// the isErrorConst branch keeps a non-sentinel throw from reaching the view, which has
+			// copy only for error codes it knows
 			applyIfCurrent({
 				authErrorMessage: isErrorConst(error)
-					? (error as AuthError)
+					? error
 					: AuthErrors.CONNECTION_ERROR.withDetail(error instanceof Error ? error.message : ''),
 				isAuthenticating: false,
 				quickConnectCode: null,

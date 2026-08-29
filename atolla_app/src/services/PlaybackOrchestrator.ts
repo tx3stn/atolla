@@ -1,3 +1,4 @@
+import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
@@ -15,7 +16,6 @@ import {
 	type RecentlyPlayedStore,
 } from 'atolla_player/src/stores/RecentlyPlayed';
 import type { NativeAudioPlaybackError } from './NativeAudioPlaybackEventSync';
-import { type PlaybackError, PlaybackErrors } from './PlaybackErrors';
 import { type ToastModel, ToastTypes } from './ToastService';
 import { TrackPlaybackNativePrefetchQueue } from './TrackPlaybackNativePrefetchQueue';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
@@ -1047,7 +1047,7 @@ export class PlaybackOrchestrator {
 
 		this.showToast({
 			detail: failedTrack?.name,
-			message: playbackErrorForKind(error.kind).message,
+			message: playbackErrorMessage(error.kind),
 			variant: ToastTypes.error,
 		});
 	}
@@ -1132,15 +1132,13 @@ export class PlaybackOrchestrator {
 	}
 }
 
-function playbackErrorForKind(
-	kind: Exclude<NativeAudioPlaybackError['kind'], 'internal'>,
-): PlaybackError {
+function playbackErrorMessage(kind: Exclude<NativeAudioPlaybackError['kind'], 'internal'>): string {
 	if (kind === 'unsupported') {
-		return PlaybackErrors.UNSUPPORTED_FORMAT;
+		return Strings.errorsPlaybackUnsupportedFormat();
 	}
 	if (kind === 'network') {
-		return PlaybackErrors.NETWORK;
+		return Strings.errorsPlaybackNetwork();
 	}
 
-	return PlaybackErrors.UNKNOWN;
+	return Strings.errorsPlaybackUnknown();
 }

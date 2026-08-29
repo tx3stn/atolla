@@ -1,6 +1,8 @@
 import res from 'atolla_app/res';
-import Strings from 'atolla_core/src/Strings';
-import type { AuthError } from 'atolla_core/src/services/AuthErrors';
+import Strings from 'atolla_app/src/Strings';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
+import type { InternalError } from 'atolla_core/src/utils/Errors';
+import { JellyfinAuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
@@ -20,7 +22,7 @@ import { LanguageSelectModal } from '../modals/LanguageSelectModal';
 
 export interface ConnectionViewModel {
 	animationsEnabled?: boolean;
-	errorMessage: AuthError | null;
+	errorMessage: InternalError<string> | null;
 	isConnecting: boolean;
 	modalSlot?: DetachedSlot;
 	onCancelConnect: () => void;
@@ -212,7 +214,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				</view>
 			</view>
 			{this.viewModel.errorMessage && (
-				<label style={styles.errorMessage} value={this.viewModel.errorMessage.msg()} />
+				<label style={styles.errorMessage} value={errorText(this.viewModel.errorMessage)} />
 			)}
 
 			<view
@@ -312,6 +314,35 @@ const styles = {
 		textAlign: 'center',
 	}),
 };
+
+function errorText(error: InternalError<string>): string {
+	const message = messageForErrorCode(error.err);
+
+	return error.detail === '' ? message : `${message}: ${error.detail}`;
+}
+
+function messageForErrorCode(code: string): string {
+	switch (code) {
+		case AuthErrors.CONNECTION_ERROR.err:
+			return Strings.errorsAuthConnection();
+		case AuthErrors.FAILED_TO_FETCH_DATA.err:
+			return Strings.errorsAuthFailedToFetch();
+		case AuthErrors.LOGIN_CANCELED.err:
+			return Strings.errorsAuthLoginCanceled();
+		case AuthErrors.SERVER_UNREACHABLE.err:
+			return Strings.errorsAuthServerUnreachable();
+		case AuthErrors.SESSION_EXPIRED.err:
+			return Strings.errorsAuthSessionExpired();
+		case JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER.err:
+			return Strings.errorsAuthNotJellyfin();
+		case JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE.err:
+			return Strings.errorsAuthQuickConnectNotAvailable();
+		case JellyfinAuthErrors.QUICK_CONNECT_TIMED_OUT.err:
+			return Strings.errorsAuthQuickConnectTimedOut();
+	}
+
+	return Strings.errorsAuthConnection();
+}
 
 function normalizeInputValue(value: unknown): string {
 	if (typeof value === 'string') {

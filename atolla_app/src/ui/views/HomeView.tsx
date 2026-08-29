@@ -1,8 +1,8 @@
+import Strings from 'atolla_app/src/Strings';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { TrackSource } from 'atolla_player/src/services/TrackSource';

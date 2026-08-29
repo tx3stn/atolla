@@ -1,5 +1,5 @@
 import res from 'atolla_app/res';
-import Strings from 'atolla_core/src/Strings';
+import Strings from 'atolla_app/src/Strings';
 import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import type { DownloadState } from 'atolla_player/src/services/DownloadService';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';

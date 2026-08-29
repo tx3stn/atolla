@@ -1,4 +1,4 @@
-import Strings from 'atolla_core/src/Strings';
+import Strings from 'atolla_app/src/Strings';
 import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';

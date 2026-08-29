@@ -1,5 +1,5 @@
+import Strings from 'atolla_app/src/Strings';
 import type { Album } from 'atolla_core/src/models/Album';
-import Strings from 'atolla_core/src/Strings';
 import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';

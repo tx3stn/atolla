@@ -1,8 +1,8 @@
+import Strings from 'atolla_app/src/Strings';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { fireAndForget, retryResolve } from 'atolla_core/src/utils/Async';
 import {

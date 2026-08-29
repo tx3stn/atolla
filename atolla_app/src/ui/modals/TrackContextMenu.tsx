@@ -1,6 +1,6 @@
 import res from 'atolla_app/res';
+import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import { INSTANT_MIX_LIMIT, type Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';

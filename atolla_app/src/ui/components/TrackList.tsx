@@ -1,6 +1,6 @@
 import res from 'atolla_app/res';
+import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';

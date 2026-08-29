@@ -2,7 +2,6 @@ import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { tracked } from 'atolla_core/src/transports/Cancelable';
-import { UserError } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
@@ -485,7 +484,7 @@ export class JellyfinAuthService {
 					clearDeadline();
 					log.error('request failed', {
 						context,
-						detail: new UserError(AuthErrors.SERVER_UNREACHABLE.err, error as string),
+						detail: error as string,
 					});
 
 					reject(AuthErrors.SERVER_UNREACHABLE);

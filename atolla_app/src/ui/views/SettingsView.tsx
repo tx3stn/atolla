@@ -1,4 +1,4 @@
-import Strings from 'atolla_core/src/Strings';
+import Strings from 'atolla_app/src/Strings';
 import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { Logger } from 'atolla_core/src/services/Logger';
 import { version } from 'atolla_core/src/version';

@@ -102,9 +102,6 @@
 	"dev_tools_section": {
 		"defaultMessage": "DEVELOPER"
 	},
-	"done": {
-		"defaultMessage": "done"
-	},
 	"enter_server_url": {
 		"defaultMessage": "enter server URL"
 	},
@@ -143,15 +140,6 @@
 	},
 	"errors_playback_unsupported_format": {
 		"defaultMessage": "unsupported file type"
-	},
-	"errors_transport_live_invalid_response": {
-		"defaultMessage": "live transport returned invalid response"
-	},
-	"errors_transport_live_request_failed": {
-		"defaultMessage": "live transport request failed"
-	},
-	"errors_transport_offline_scrobble_unavailable": {
-		"defaultMessage": "offline transport cannot scrobble while disconnected"
 	},
 	"failed_to_load_more": {
 		"defaultMessage": "failed to load more\npull to retry"
@@ -213,9 +201,6 @@
 	},
 	"loading": {
 		"defaultMessage": "loading..."
-	},
-	"loading_home": {
-		"defaultMessage": "loading home"
 	},
 	"lyrics": {
 		"defaultMessage": "lyrics"
@@ -379,9 +364,6 @@
 	"settings_device_id_placeholder": {
 		"defaultMessage": "atolla"
 	},
-	"settings_device_name": {
-		"defaultMessage": "device name"
-	},
 	"settings_download_on_wifi": {
 		"defaultMessage": "only on wi-fi"
 	},
@@ -393,9 +375,6 @@
 	},
 	"settings_include_lyrics": {
 		"defaultMessage": "include lyrics"
-	},
-	"settings_language": {
-		"defaultMessage": "language"
 	},
 	"settings_logout_button": {
 		"defaultMessage": "logout"
@@ -438,10 +417,6 @@
 	},
 	"shuffle_library": {
 		"defaultMessage": "SHUFFLE LIBRARY"
-	},
-	"tracks_cached_count": {
-		"defaultMessage": "{count%d} tracks currently cached",
-		"example": "5 tracks currently cached"
 	},
 	"tracks_downloaded": {
 		"defaultMessage": "{count%d} tracks downloaded      [ {size%s} ]",

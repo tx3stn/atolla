@@ -1,8 +1,8 @@
-import Strings from 'atolla_core/src/Strings';
-import type { AuthError } from 'atolla_core/src/services/AuthErrors';
+import Strings from 'atolla_app/src/Strings';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
+import type { InternalError } from 'atolla_core/src/utils/Errors';
 import { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import { InMemoryAuthStore, JellyfinAuthStore } from 'atolla_jellyfin/src/stores/JellyfinAuthStore';
 import { DownloadService } from 'atolla_player/src/services/DownloadService';
@@ -82,7 +82,7 @@ const MINIMUM_BOOT_SPLASH_MS = 100;
 const log = getLogger('app');
 
 interface AppState {
-	authErrorMessage: AuthError | null;
+	authErrorMessage: InternalError<string> | null;
 	connectionMode: ConnectionMode;
 	downloadedSizeBytes: number | null;
 	downloadedTrackCount: number;

@@ -76,7 +76,7 @@ jobs:
             atolla_player/tsconfig.json
             atolla_app/tsconfig.json
             atolla_headless/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_headless/BUILD.bazel', 'atolla_core/strings/**') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_headless/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
       # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
       # it needs the extra room; a cache hit does no heavy build
       - name: free disk space
@@ -158,7 +158,7 @@ jobs:
             atolla_player/tsconfig.json
             atolla_app/tsconfig.json
             atolla_headless/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_headless/BUILD.bazel', 'atolla_core/strings/**') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_headless/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
   zig-tests:
     runs-on: ubuntu-latest

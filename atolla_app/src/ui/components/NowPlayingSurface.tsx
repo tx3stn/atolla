@@ -1,9 +1,9 @@
 import res from 'atolla_app/res';
+import Strings from 'atolla_app/src/Strings';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { pagedFromArray } from 'atolla_player/src/services/TrackSource';

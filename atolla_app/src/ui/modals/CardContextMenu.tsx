@@ -1,6 +1,6 @@
 import res from 'atolla_app/res';
+import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
-import Strings from 'atolla_core/src/Strings';
 import {
 	INSTANT_MIX_LIMIT,
 	type InstantMixSeed,

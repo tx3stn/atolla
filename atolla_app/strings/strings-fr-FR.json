@@ -102,9 +102,6 @@
 	"dev_tools_section": {
 		"defaultMessage": "DÉVELOPPEUR"
 	},
-	"done": {
-		"defaultMessage": "terminé"
-	},
 	"enter_server_url": {
 		"defaultMessage": "entrer l'URL du serveur"
 	},
@@ -143,15 +140,6 @@
 	},
 	"errors_playback_unsupported_format": {
 		"defaultMessage": "type de fichier non pris en charge"
-	},
-	"errors_transport_live_invalid_response": {
-		"defaultMessage": "réponse invalide du transport en direct"
-	},
-	"errors_transport_live_request_failed": {
-		"defaultMessage": "échec de la requête du transport en direct"
-	},
-	"errors_transport_offline_scrobble_unavailable": {
-		"defaultMessage": "impossible de scrobbler hors ligne"
 	},
 	"failed_to_load_more": {
 		"defaultMessage": "échec du chargement\nappuyez pour réessayer"
@@ -214,9 +202,6 @@
 	"loading": {
 		"defaultMessage": "chargement..."
 	},
-	"loading_home": {
-		"defaultMessage": "chargement de l'accueil"
-	},
 	"lyrics": {
 		"defaultMessage": "paroles"
 	},
@@ -252,6 +237,9 @@
 	},
 	"pin_to_home": {
 		"defaultMessage": "épingler à l'accueil"
+	},
+	"play": {
+		"defaultMessage": "lire"
 	},
 	"play_next": {
 		"defaultMessage": "lire ensuite"
@@ -376,9 +364,6 @@
 	"settings_device_id_placeholder": {
 		"defaultMessage": "atolla"
 	},
-	"settings_device_name": {
-		"defaultMessage": "nom de l'appareil"
-	},
 	"settings_download_on_wifi": {
 		"defaultMessage": "uniquement en wi-fi"
 	},
@@ -390,9 +375,6 @@
 	},
 	"settings_include_lyrics": {
 		"defaultMessage": "inclure les paroles"
-	},
-	"settings_language": {
-		"defaultMessage": "langue"
 	},
 	"settings_logout_button": {
 		"defaultMessage": "déconnexion"
@@ -435,10 +417,6 @@
 	},
 	"shuffle_library": {
 		"defaultMessage": "BIBLIOTHÈQUE ALÉATOIRE"
-	},
-	"tracks_cached_count": {
-		"defaultMessage": "{count%d} titres actuellement en cache",
-		"example": "5 titres actuellement en cache"
 	},
 	"tracks_downloaded": {
 		"defaultMessage": "{count%d} titres téléchargés      [ {size%s} ]",

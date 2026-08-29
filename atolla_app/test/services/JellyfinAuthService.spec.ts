@@ -211,7 +211,7 @@ describe('JellyfinAuthService', () => {
 		expect(clientCalls).toBe(0);
 	});
 
-	it('includes HTTP status detail in connection error message', async () => {
+	it('attaches the HTTP status to the connection error as detail', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, true), jsonResponse(503, {})]);
 		const service = new JellyfinAuthService({ client, store: createStore() });
 
@@ -222,6 +222,8 @@ describe('JellyfinAuthService', () => {
 			thrown = error;
 		}
 
-		expect((thrown as AuthError).msg()).toBe('connection error: HTTP 503');
+		const error = thrown as AuthError;
+		expect(error.err).toBe('auth_connection_error');
+		expect(error.detail).toBe('HTTP 503');
 	});
 });

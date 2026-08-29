@@ -1,5 +1,5 @@
+import Strings from 'atolla_app/src/Strings';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
-import Strings from 'atolla_core/src/Strings';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import { StatefulComponent } from 'valdi_core/src/Component';
