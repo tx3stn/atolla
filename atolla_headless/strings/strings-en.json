@@ -1,4 +1,16 @@
 {
+	"error_missing_value": {
+		"defaultMessage": "{name%s} needs a value",
+		"example": "--config needs a value"
+	},
+	"error_repeated_argument": {
+		"defaultMessage": "{name%s} given more than once",
+		"example": "--config given more than once"
+	},
+	"error_unknown_argument": {
+		"defaultMessage": "unrecognised argument {name%s}",
+		"example": "unrecognised argument --bogus"
+	},
 	"field_audio_device": {
 		"defaultMessage": "audio device"
 	},
@@ -20,6 +32,12 @@
 	"flag_no_color": {
 		"defaultMessage": "disable coloured output"
 	},
+	"flag_pair_reset": {
+		"defaultMessage": "forget the current connections and generate a new pairing code"
+	},
+	"flag_pair_status": {
+		"defaultMessage": "display the current pairing status"
+	},
 	"flag_version": {
 		"defaultMessage": "the current version of the app"
 	},
@@ -29,8 +47,11 @@
 	"help_flags": {
 		"defaultMessage": "flags"
 	},
+	"not_implemented": {
+		"defaultMessage": "not implemented yet"
+	},
 	"pair_help_long": {
-		"defaultMessage": "atolla pair [flags]\n\npair this player with your device\n\nthe pair command returns the pairing code for you to enter inside the atolla app\n\nflags\n  --status  display the current pairing status\n  --reset   forget the current connections and generate a new pairing code\n"
+		"defaultMessage": "atolla pair [flags]\n\npair this player with your device\n\nthe pair command returns the pairing code for you to enter inside the atolla app\n"
 	},
 	"pair_help_short": {
 		"defaultMessage": "pair this player with your device"

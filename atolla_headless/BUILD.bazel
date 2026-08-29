@@ -19,7 +19,6 @@ valdi_module(
     deps = [
         "//atolla_core",
         "@valdi//src/valdi_modules/src/valdi/valdi_core",
-        "@valdi//src/valdi_modules/src/valdi/valdi_standalone",
     ],
 )
 

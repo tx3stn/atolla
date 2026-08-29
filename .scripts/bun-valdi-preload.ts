@@ -28,9 +28,20 @@ mock.module('valdi_core/src/CancelablePromise', () =>
 // disk for bun to resolve. Register the bare cross-module specifier as well as the file
 // URL: bun's tsconfig `paths` resolution stats the target before consulting the mock
 // registry, so the URL form alone only covers importers inside atolla_app.
+// parameters are appended so a test can assert what was interpolated, not just which key ran
 const stringsProxy = () => ({
-	default: new Proxy({}, { get: (_, key) => () => String(key) }),
+	default: new Proxy(
+		{},
+		{
+			get:
+				(_, key) =>
+				(...params: Array<unknown>) =>
+					params.length === 0 ? String(key) : `${String(key)} ${params.join(' ')}`,
+		},
+	),
 });
 
 mock.module('atolla_app/src/Strings', stringsProxy);
 mock.module(new URL('../atolla_app/src/Strings', import.meta.url).href, stringsProxy);
+mock.module('atolla_headless/src/Strings', stringsProxy);
+mock.module(new URL('../atolla_headless/src/Strings', import.meta.url).href, stringsProxy);

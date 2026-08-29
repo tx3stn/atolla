@@ -1,10 +1,11 @@
 import { applyLanguage, DEFAULT_LANGUAGE } from 'atolla_core/src/Language';
+import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import Strings from 'atolla_headless/src/Strings';
-import { ArgumentsParser } from 'valdi_standalone/src/ArgumentsParser';
 import { AllCmds } from './commands/All';
-import type { Cmd } from './commands/Command';
-import { FLAG_HELP, FLAG_NO_COLOR, FLAG_VERSION } from './commands/Flags';
+import { parseArguments, USAGE_ERROR } from './commands/Arguments';
+import type { Cmd, Runnable } from './commands/Command';
+import { FLAG_HELP, FLAG_NO_COLOR, FLAG_VERSION, RootFlags } from './commands/Flags';
 import { commandHelp, help } from './commands/Help';
 import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 
@@ -19,46 +20,20 @@ interface Invocation {
 	commandArgs: Array<string>;
 }
 
-const DEFAULT_COMMAND = 'run';
-
-function acceptsNoOptions(
-	terminal: Terminal,
-	command: string,
-	commandArgs: Array<string>,
-): boolean {
-	// ArgumentsParser drops the first element of the array it is given, so re-head it with a dummy.
-	const parser = new ArgumentsParser(`atolla ${command}`, ['_', ...commandArgs]);
-
-	try {
-		parser.parse();
-		return true;
-	} catch (error) {
-		fail(terminal, command, error instanceof Error ? error.message : String(error));
-		return false;
-	}
-}
-
-function dispatch(terminal: Terminal, invocation: Invocation): number {
-	const { command, commandArgs } = invocation;
-
-	if (command === undefined) {
-		if (commandArgs.includes(FLAG_HELP)) {
-			return help(terminal);
-		}
-
-		if (commandArgs.includes(FLAG_VERSION)) {
-			terminal.write(`atolla ${version}`);
+const CmdRoot: Runnable = {
+	flags: RootFlags,
+	run: (terminal, args) => {
+		if (args.flag(FLAG_VERSION)) {
+			terminal.write(`${version}`);
 			return 0;
 		}
 
-		return runCommand(terminal, DEFAULT_COMMAND, commandArgs);
-	}
+		return help(terminal);
+	},
+};
 
-	return runCommand(terminal, command, commandArgs);
-}
-
-function fail(terminal: Terminal, command: string, message: string): number {
-	terminal.write(`atolla ${command}: ${message}`);
+function fail(terminal: Terminal, command: string | undefined, message: string): number {
+	terminal.write(command === undefined ? `atolla: ${message}` : `atolla ${command}: ${message}`);
 	terminal.write('');
 	help(terminal);
 	return 1;
@@ -66,6 +41,7 @@ function fail(terminal: Terminal, command: string, message: string): number {
 
 function runCommand(terminal: Terminal, command: string, commandArgs: Array<string>): number {
 	const cmd: Cmd | undefined = (AllCmds as Record<string, Cmd>)[command];
+
 	if (cmd === undefined) {
 		return fail(terminal, command, Strings.unknownCommand());
 	}
@@ -74,33 +50,11 @@ function runCommand(terminal: Terminal, command: string, commandArgs: Array<stri
 		return commandHelp(terminal, cmd);
 	}
 
-	if (!acceptsNoOptions(terminal, command, commandArgs)) {
-		return 1;
-	}
-
-	return cmd.action(terminal);
+	// return invoke(terminal, cmd, commandArgs);
+	return cmd.run(terminal, parseArguments(commandArgs, cmd.flags));
 }
 
-function main(): void {
-	const invocation = parseArguments(valdiStandalone.arguments.slice(1));
-	const terminal = makeTerminal(stdout, invocation.colour);
-
-	applyLanguage(DEFAULT_LANGUAGE, Strings);
-
-	let exitCode: number;
-	try {
-		exitCode = dispatch(terminal, invocation);
-	} catch (error) {
-		terminal.write(`atolla: ${error instanceof Error ? error.message : String(error)}`);
-		exitCode = 1;
-	}
-
-	valdiStandalone.exit(exitCode);
-}
-
-// --no-color is consumed here rather than registered per command, because ArgumentsParser throws on
-// any token the command did not declare.
-function parseArguments(argv: Array<string>): Invocation {
+function parseInvocation(argv: Array<string>): Invocation {
 	const args = argv.filter((arg) => arg !== FLAG_NO_COLOR);
 	const named = args.length > 0 && !args[0].startsWith('--');
 
@@ -109,6 +63,30 @@ function parseArguments(argv: Array<string>): Invocation {
 		command: named ? args[0] : undefined,
 		commandArgs: named ? args.slice(1) : args,
 	};
+}
+
+function main(): void {
+	const { colour, command, commandArgs } = parseInvocation(valdiStandalone.arguments.slice(1));
+	const terminal = makeTerminal(stdout, colour);
+
+	applyLanguage(DEFAULT_LANGUAGE, Strings);
+
+	let exitCode: number;
+	try {
+		exitCode =
+			command === undefined
+				? CmdRoot.run(terminal, parseArguments(commandArgs, CmdRoot.flags))
+				: runCommand(terminal, command, commandArgs);
+	} catch (error) {
+		if (isErrorConst(error) && error.err === USAGE_ERROR.err) {
+			exitCode = fail(terminal, command, error.detail);
+		} else {
+			terminal.write(`atolla: ${error instanceof Error ? error.message : String(error)}`);
+			exitCode = 1;
+		}
+	}
+
+	valdiStandalone.exit(exitCode);
 }
 
 main();

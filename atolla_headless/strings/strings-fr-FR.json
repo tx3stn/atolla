@@ -1,4 +1,16 @@
 {
+	"error_missing_value": {
+		"defaultMessage": "{name%s} attend une valeur",
+		"example": "--config attend une valeur"
+	},
+	"error_repeated_argument": {
+		"defaultMessage": "{name%s} indiqué plusieurs fois",
+		"example": "--config indiqué plusieurs fois"
+	},
+	"error_unknown_argument": {
+		"defaultMessage": "argument inconnu {name%s}",
+		"example": "argument inconnu --bogus"
+	},
 	"field_audio_device": {
 		"defaultMessage": "périphérique audio"
 	},
@@ -20,6 +32,12 @@
 	"flag_no_color": {
 		"defaultMessage": "désactiver la couleur"
 	},
+	"flag_pair_reset": {
+		"defaultMessage": "oublier les connexions actuelles et générer un nouveau code"
+	},
+	"flag_pair_status": {
+		"defaultMessage": "afficher l'état d'association actuel"
+	},
 	"flag_version": {
 		"defaultMessage": "la version actuelle de l'application"
 	},
@@ -28,6 +46,9 @@
 	},
 	"help_flags": {
 		"defaultMessage": "options"
+	},
+	"not_implemented": {
+		"defaultMessage": "pas encore implémenté"
 	},
 	"pair_help_long": {
 		"defaultMessage": "TODO"
