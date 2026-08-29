@@ -1,0 +1,59 @@
+{
+	"field_audio_device": {
+		"defaultMessage": "périphérique audio"
+	},
+	"field_control": {
+		"defaultMessage": "contrôle"
+	},
+	"field_name": {
+		"defaultMessage": "nom"
+	},
+	"field_player_id": {
+		"defaultMessage": "identifiant du lecteur"
+	},
+	"field_state": {
+		"defaultMessage": "état"
+	},
+	"flag_help": {
+		"defaultMessage": "afficher l'aide"
+	},
+	"flag_no_color": {
+		"defaultMessage": "désactiver la couleur"
+	},
+	"flag_version": {
+		"defaultMessage": "la version actuelle de l'application"
+	},
+	"help_commands": {
+		"defaultMessage": "commandes"
+	},
+	"help_flags": {
+		"defaultMessage": "options"
+	},
+	"pair_help_long": {
+		"defaultMessage": "TODO"
+	},
+	"pair_help_short": {
+		"defaultMessage": "associer ce lecteur à votre appareil"
+	},
+	"pairing_code_heading": {
+		"defaultMessage": "code d'association"
+	},
+	"pairing_instructions": {
+		"defaultMessage": "saisissez-le dans atolla sur votre téléphone : Réglages → Lecteurs → Ajouter un lecteur"
+	},
+	"run_help_long": {
+		"defaultMessage": "TODO"
+	},
+	"run_help_short": {
+		"defaultMessage": "lancer le démon du lecteur"
+	},
+	"run_placeholder_notice": {
+		"defaultMessage": "sortie provisoire — rien n'est implémenté ; ce processus\nrestera actif jusqu'à ce qu'il soit arrêté."
+	},
+	"state_idle": {
+		"defaultMessage": "inactif"
+	},
+	"unknown_command": {
+		"defaultMessage": "commande inconnue"
+	}
+}

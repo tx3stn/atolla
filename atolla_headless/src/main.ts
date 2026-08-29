@@ -1,4 +1,6 @@
+import { applyLanguage, DEFAULT_LANGUAGE } from 'atolla_core/src/Language';
 import { version } from 'atolla_core/src/version';
+import Strings from 'atolla_headless/src/Strings';
 import { ArgumentsParser } from 'valdi_standalone/src/ArgumentsParser';
 import { AllCmds } from './commands/All';
 import type { Cmd } from './commands/Command';
@@ -65,7 +67,7 @@ function fail(terminal: Terminal, command: string, message: string): number {
 function runCommand(terminal: Terminal, command: string, commandArgs: Array<string>): number {
 	const cmd: Cmd | undefined = (AllCmds as Record<string, Cmd>)[command];
 	if (cmd === undefined) {
-		return fail(terminal, command, 'unknown command');
+		return fail(terminal, command, Strings.unknownCommand());
 	}
 
 	if (commandArgs.includes(FLAG_HELP)) {
@@ -82,6 +84,8 @@ function runCommand(terminal: Terminal, command: string, commandArgs: Array<stri
 function main(): void {
 	const invocation = parseArguments(valdiStandalone.arguments.slice(1));
 	const terminal = makeTerminal(stdout, invocation.colour);
+
+	applyLanguage(DEFAULT_LANGUAGE, Strings);
 
 	let exitCode: number;
 	try {

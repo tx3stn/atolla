@@ -1,0 +1,59 @@
+{
+	"field_audio_device": {
+		"defaultMessage": "audio device"
+	},
+	"field_control": {
+		"defaultMessage": "control"
+	},
+	"field_name": {
+		"defaultMessage": "name"
+	},
+	"field_player_id": {
+		"defaultMessage": "player id"
+	},
+	"field_state": {
+		"defaultMessage": "state"
+	},
+	"flag_help": {
+		"defaultMessage": "print the help text"
+	},
+	"flag_no_color": {
+		"defaultMessage": "disable coloured output"
+	},
+	"flag_version": {
+		"defaultMessage": "the current version of the app"
+	},
+	"help_commands": {
+		"defaultMessage": "commands"
+	},
+	"help_flags": {
+		"defaultMessage": "flags"
+	},
+	"pair_help_long": {
+		"defaultMessage": "atolla pair [flags]\n\npair this player with your device\n\nthe pair command returns the pairing code for you to enter inside the atolla app\n\nflags\n  --status  display the current pairing status\n  --reset   forget the current connections and generate a new pairing code\n"
+	},
+	"pair_help_short": {
+		"defaultMessage": "pair this player with your device"
+	},
+	"pairing_code_heading": {
+		"defaultMessage": "pairing code"
+	},
+	"pairing_instructions": {
+		"defaultMessage": "enter it in atolla on your phone: Settings → Players → Add player"
+	},
+	"run_help_long": {
+		"defaultMessage": "atolla run [flags]\n\nrun the player daemon\n\nTODO: add instructions about usage and backgrounding\n"
+	},
+	"run_help_short": {
+		"defaultMessage": "run the player daemon"
+	},
+	"run_placeholder_notice": {
+		"defaultMessage": "placeholder output — nothing is implemented; this process will\nsit here until it is killed."
+	},
+	"state_idle": {
+		"defaultMessage": "idle"
+	},
+	"unknown_command": {
+		"defaultMessage": "unknown command"
+	}
+}

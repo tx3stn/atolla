@@ -9,10 +9,12 @@ valdi_module(
         [
             "src/**/*.ts",
             "src/**/*.d.ts",
+            "strings/**/*.json",
         ],
         exclude = ["src/**/*.test.ts"],
     ),
     exclude_patterns = [".*\\.test\\.ts$"],
+    strings_dir = "strings",
     visibility = ["//visibility:public"],
     deps = [
         "//atolla_core",
