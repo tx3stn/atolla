@@ -11,7 +11,7 @@ describe('fields', () => {
 				{ label: 'name', value: 'Kitchen' },
 				{ label: 'audio device', value: 'hw:2,0' },
 			]),
-		).toEqual(['name         : Kitchen', 'audio device : hw:2,0']);
+		).toEqual(['name         Kitchen', 'audio device hw:2,0']);
 	});
 });
 

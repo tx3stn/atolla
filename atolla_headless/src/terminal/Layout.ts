@@ -23,7 +23,5 @@ export function beside(
 
 export function fields(terminal: Terminal, entries: Array<Field>): Array<string> {
 	const width = entries.reduce((widest, entry) => Math.max(widest, entry.label.length), 0);
-	return entries.map(
-		(entry) => `${terminal.dim(entry.label.padEnd(width))} ${terminal.dim(':')} ${entry.value}`,
-	);
+	return entries.map((entry) => `${terminal.dim(entry.label.padEnd(width))} ${entry.value}`);
 }

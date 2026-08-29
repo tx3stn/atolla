@@ -16,9 +16,13 @@ TODO: add instructions about usage and backgrounding
 
 function run(terminal: Terminal): number {
 	const version = '0.0.0';
+
+	terminal.write('');
+
 	const summary = [
 		'',
-		terminal.dim(`atolla ${version} — headless player`),
+		'',
+		terminal.dim(`atolla ${version}`),
 		'',
 		...fields(terminal, [
 			{ label: 'name', value: 'living room' },
