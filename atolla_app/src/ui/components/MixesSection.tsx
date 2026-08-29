@@ -1,5 +1,6 @@
 import res from 'atolla_app/res';
 import Strings from 'atolla_app/src/Strings';
+import type { LanguageCode } from 'atolla_core/src/Language';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import {
@@ -11,7 +12,6 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
-import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { type Card, CardGrid } from './CardGrid';

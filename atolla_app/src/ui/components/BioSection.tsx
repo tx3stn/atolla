@@ -1,9 +1,9 @@
 import Strings from 'atolla_app/src/Strings';
+import type { LanguageCode } from 'atolla_core/src/Language';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
-import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { Modal } from '../modals/Modal';
 

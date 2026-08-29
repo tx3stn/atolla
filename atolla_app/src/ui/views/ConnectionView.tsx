@@ -1,5 +1,6 @@
 import res from 'atolla_app/res';
 import Strings from 'atolla_app/src/Strings';
+import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from 'atolla_core/src/Language';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import type { InternalError } from 'atolla_core/src/utils/Errors';
 import { JellyfinAuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
@@ -11,7 +12,6 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
-import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { LoadingSpinner } from '../animations/LoadingSpinner';

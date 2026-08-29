@@ -1,4 +1,5 @@
 import Strings from 'atolla_app/src/Strings';
+import { applyLanguage, DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
@@ -17,8 +18,6 @@ import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
-import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
-import { Locale } from 'valdi_core/src/localization/Locale';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { HTTPClient } from 'valdi_http/src/HTTPClient';
@@ -59,7 +58,7 @@ import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { UserScope } from './services/UserScope';
 import { appShellStore } from './stores/AppShell';
 import { BarColorStore } from './stores/BarColor';
-import { DEFAULT_LANGUAGE, type LanguageCode, Preferences } from './stores/Preferences';
+import { Preferences } from './stores/Preferences';
 import {
 	getAtollaDeviceUserScopeKey,
 	getAtollaDownloadedCacheTotalSizeBytes,
@@ -444,7 +443,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 		}
 		if (this.preferences.language !== DEFAULT_LANGUAGE) {
-			overrideLocales(Strings, () => [new Locale(this.preferences.language, undefined)]);
+			applyLanguage(this.preferences.language, Strings);
 		}
 		Logger.setEnabled(this.preferences.debugLoggingEnabled);
 	}
@@ -560,7 +559,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	private handleLanguageChange = (code: LanguageCode): void => {
-		overrideLocales(Strings, () => [new Locale(code, undefined)]);
+		applyLanguage(code, Strings);
 		void this.preferences.setLanguage(code);
 		this.requestRerender();
 	};

@@ -2,15 +2,13 @@ import 'jasmine/src/jasmine';
 import { ConnectionModes } from 'atolla_app/src/models/App';
 import Strings from 'atolla_app/src/Strings';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
-import type { LanguageCode } from 'atolla_app/src/stores/Preferences';
 import { MixesSection } from 'atolla_app/src/ui/components/MixesSection';
 import { NowPlayingSurface } from 'atolla_app/src/ui/components/NowPlayingSurface';
+import { applyLanguage, type LanguageCode } from 'atolla_core/src/Language';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
-import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
-import { Locale } from 'valdi_core/src/localization/Locale';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
@@ -97,14 +95,14 @@ describe('derived-array cache invalidation', () => {
 		expect(labelValues(instrumented.getComponent())).toContain(english);
 
 		try {
-			overrideLocales(Strings, () => [new Locale('fr', undefined)]);
+			applyLanguage('fr', Strings);
 			instrumented.setViewModel({ ...viewModel, language: 'fr' as LanguageCode });
 
 			const french = Strings.shuffleLibrary();
 			expect(french).not.toBe(english);
 			expect(labelValues(instrumented.getComponent())).toContain(french);
 		} finally {
-			overrideLocales(Strings, () => [new Locale('en', undefined)]);
+			applyLanguage('en', Strings);
 		}
 	});
 

@@ -1,8 +1,8 @@
 import Strings from 'atolla_app/src/Strings';
+import { LANGUAGE_OPTIONS, type LanguageCode } from 'atolla_core/src/Language';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { ModalBase, modalStyles } from './ModalBase';

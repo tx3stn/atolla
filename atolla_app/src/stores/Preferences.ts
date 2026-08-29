@@ -1,3 +1,4 @@
+import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from 'atolla_core/src/Language';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { Device } from 'valdi_core/src/Device';
 import { type CardSize, CardSizes, type ConnectionMode, ConnectionModes } from '../models/App';
@@ -10,13 +11,6 @@ export const CARD_SIZE_OPTIONS: ReadonlyArray<CardSize> = [CardSizes.regular, Ca
 export const DEFAULT_CARD_SIZE: CardSize = CardSizes.regular;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35];
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
-
-export const LANGUAGE_OPTIONS = [
-	{ code: 'en', flag: '🇬🇧', name: 'ENGLISH' },
-	{ code: 'fr', flag: '🇫🇷', name: 'FRANÇAIS' },
-] as const;
-export type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]['code'];
-export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
 const PreferenceKeys = {
 	cardSize: 'card_size',

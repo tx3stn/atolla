@@ -3,11 +3,11 @@ import { CardSizes, ConnectionModes } from 'atolla_app/src/models/App';
 import {
 	CARD_SIZE_OPTIONS,
 	DEFAULT_CARD_SIZE,
-	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from 'atolla_app/src/stores/Preferences';
+import { DEFAULT_LANGUAGE } from 'atolla_core/src/Language';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 
 describe('Preferences', () => {

@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
-import type { LanguageCode } from 'atolla_app/src/stores/Preferences';
 import { LanguageSelectModal } from 'atolla_app/src/ui/modals/LanguageSelectModal';
+import type { LanguageCode } from 'atolla_core/src/Language';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';

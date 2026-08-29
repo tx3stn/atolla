@@ -1,11 +1,15 @@
 import Strings from 'atolla_app/src/Strings';
+import {
+	applyLanguage,
+	DEFAULT_LANGUAGE,
+	LANGUAGE_OPTIONS,
+	type LanguageCode,
+} from 'atolla_core/src/Language';
 import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { Logger } from 'atolla_core/src/services/Logger';
 import { version } from 'atolla_core/src/version';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
-import { Locale } from 'valdi_core/src/localization/Locale';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type {
@@ -32,12 +36,9 @@ import {
 	CARD_SIZE_OPTIONS,
 	DEFAULT_CARD_SIZE,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
-	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	GB,
 	IMAGE_CACHE_SIZE_OPTIONS,
-	LANGUAGE_OPTIONS,
-	type LanguageCode,
 	type Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
@@ -504,7 +505,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	};
 
 	private handleLanguageSelect = (code: LanguageCode): void => {
-		overrideLocales(Strings, () => [new Locale(code, undefined)]);
+		applyLanguage(code, Strings);
 		void this.viewModel.preferences.setLanguage(code);
 		closeSlot(this.viewModel.modalSlot);
 	};
