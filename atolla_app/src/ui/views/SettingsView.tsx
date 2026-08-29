@@ -306,6 +306,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 					<DevToolsSection
 						devTools={this.viewModel.devTools}
+						language={selectedLanguage}
 						modalSlot={this.viewModel.modalSlot}
 					/>
 				</view>

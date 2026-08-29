@@ -3,6 +3,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { LanguageCode } from '../stores/Preferences';
 import { theme } from '../theme';
 import { Button } from '../ui/components/Button';
 import { closeSlot, openSlot } from '../ui/flows/ModalSlotFlow';
@@ -10,6 +11,8 @@ import type { DevTools } from './DevTools';
 
 export interface DevToolsSectionViewModel {
 	devTools?: DevTools;
+	// language added so it re-renders on language change
+	language: LanguageCode;
 	modalSlot: DetachedSlot;
 }
 
