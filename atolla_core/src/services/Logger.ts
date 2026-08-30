@@ -17,6 +17,18 @@ export interface LoggerNativeFns {
 	writeLog(entry: string): void;
 }
 
+export type LogWriter = (level: LogLevel, entry: string) => void;
+
+export const consoleLogWriter: LogWriter = (level, entry) => {
+	if (level === 'error') {
+		console.error(entry);
+	} else if (level === 'warn') {
+		console.warn(entry);
+	} else {
+		console.log(entry);
+	}
+};
+
 // the app-global control surface: bind the native sink, toggle diagnostic logging, and export/share
 // the log file. logging itself goes through getLogger(); this is only used by App bootstrap and
 // SettingsView.
@@ -25,12 +37,14 @@ export interface LoggerControl {
 	isEnabled(): boolean;
 	register(fns: LoggerNativeFns): void;
 	setEnabled(enabled: boolean): void;
+	setWriter(writer: LogWriter): void;
 	shareLog(): void;
 }
 
 class LoggerService {
 	private enabled = false;
 	private fns: LoggerNativeFns | null = null;
+	private writer: LogWriter = consoleLogWriter;
 
 	register(fns: LoggerNativeFns): void {
 		this.fns = fns;
@@ -38,6 +52,10 @@ class LoggerService {
 
 	setEnabled(enabled: boolean): void {
 		this.enabled = enabled;
+	}
+
+	setWriter(writer: LogWriter): void {
+		this.writer = writer;
 	}
 
 	isEnabled(): boolean {
@@ -60,7 +78,7 @@ class LoggerService {
 		}
 	}
 
-	// every entry always goes to the platform console; the shareable log file is written only when
+	// every entry always goes to the configured writer; the shareable log file is written only when
 	// diagnostic logging is enabled in settings (so logging off leaves nothing persisted). entries
 	// are redacted regardless of destination.
 	write(level: LogLevel, namespace: string, message: string, data?: unknown): void {
@@ -69,13 +87,8 @@ class LoggerService {
 			`${new Date().toISOString()} [${level.toUpperCase()}] [${namespace}] ${message}${suffix}`,
 		);
 
-		if (level === 'error') {
-			console.error(entry);
-		} else if (level === 'warn') {
-			console.warn(entry);
-		} else {
-			console.log(entry);
-		}
+		this.writer(level, entry);
+
 		if (this.enabled) {
 			try {
 				this.fns?.writeLog(entry);

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
-import { getLogger, Logger } from './Logger';
+import { consoleLogWriter, getLogger, Logger } from './Logger';
 
 function captureEntries(): Array<string> {
 	const entries: Array<string> = [];
@@ -24,6 +24,7 @@ describe('getLogger', () => {
 	});
 
 	afterEach(() => {
+		Logger.setWriter(consoleLogWriter);
 		errorSpy.mockRestore();
 		warnSpy.mockRestore();
 		logSpy.mockRestore();
@@ -94,5 +95,31 @@ describe('getLogger', () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]).toContain('[WARN]');
 		expect(warnSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('sends entries to a registered writer instead of the console', () => {
+		const written: Array<string> = [];
+		Logger.setWriter((_level, entry) => written.push(entry));
+		const log = getLogger('daemon');
+
+		log.info('started');
+
+		expect(written).toHaveLength(1);
+		expect(written[0]).toContain('[daemon]');
+		expect(written[0]).toContain('started');
+		expect(logSpy).not.toHaveBeenCalled();
+	});
+
+	it('gives the writer the level so a caller can filter on it', () => {
+		const levels: Array<string> = [];
+		Logger.setWriter((level) => levels.push(level));
+		const log = getLogger('daemon');
+
+		log.debug('d');
+		log.info('i');
+		log.warn('w');
+		log.error('e');
+
+		expect(levels).toEqual(['debug', 'info', 'warn', 'error']);
 	});
 });
