@@ -4,7 +4,7 @@ import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
-import { imageCacheKey } from 'atolla_core/src/services/ImageSource';
+import { extractImageTag, imageCacheKey } from 'atolla_core/src/services/ImageSource';
 
 export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded' | 'partial';
 
@@ -64,6 +64,15 @@ export interface DownloadedGenreEntry {
 	trackIds: Array<string>;
 }
 
+// current server state for entities that are already downloaded. only artwork urls are read, so
+// a partial dto is safe; a url left unset means "no change"
+export interface ArtworkRefresh {
+	albums?: ReadonlyArray<Album>;
+	artists?: ReadonlyArray<Artist>;
+	genres?: ReadonlyArray<Genre>;
+	playlists?: ReadonlyArray<Playlist>;
+}
+
 export interface CollectionTrackDownload {
 	artistLogoUrl: string | null;
 	streamUrl: string;
@@ -102,6 +111,23 @@ const KEY_PLAYLISTS = 'dl_playlists';
 const KEY_ARTISTS = 'dl_artists';
 const KEY_TRACKS = 'dl_tracks';
 const KEY_IMAGES = 'dl_images';
+
+// the tag is the server's "this artwork changed" signal, and it is what the native cache keys its
+// invalidation on, so compare on it rather than the whole url: the rest can differ (a different
+// host, say) without the image having changed. an entry with no url yet always counts as changed
+function artworkReplaced(
+	next: string | null | undefined,
+	current: string | null | undefined,
+): boolean {
+	const nextUrl = next?.trim();
+	if (!nextUrl) return false;
+	if (!current) return true;
+
+	const nextTag = extractImageTag(nextUrl);
+	const currentTag = extractImageTag(current);
+	if (nextTag == null || currentTag == null) return nextUrl !== current;
+	return nextTag !== currentTag;
+}
 
 const MAX_CONCURRENT_DOWNLOADS = 3;
 // images are cheap (often already cached), so allow more in flight than tracks
@@ -689,6 +715,40 @@ export class DownloadService {
 		});
 	}
 
+	// downloaded entries keep the artwork urls they were captured with, and offline reads those
+	// directly. left alone they go stale, and the stale tag makes the native cache drop bytes a
+	// later online browse had already refreshed. write the current url back so both agree
+	refreshArtwork(refresh: ArtworkRefresh): void {
+		const { albums = [], artists = [], genres = [], playlists = [] } = refresh;
+		if (albums.length + artists.length + genres.length + playlists.length === 0) {
+			return;
+		}
+
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
+
+			// built once for the whole pass: an artist's tracks and albums would otherwise be found by
+			// walking every track and album again for every artist, which is the bulk of the work
+			const hasArtists = artists.length > 0;
+			const trackIdsByArtist = hasArtists ? this.buildTrackIdsByArtist() : new Map();
+			const albumsByArtist = hasArtists ? this.buildAlbumsByArtist() : new Map();
+
+			let changed = false;
+			for (const album of albums) changed = this.refreshAlbumArtwork(album) || changed;
+			for (const artist of artists) {
+				changed = this.refreshArtistArtwork(artist, trackIdsByArtist, albumsByArtist) || changed;
+			}
+			for (const genre of genres) changed = this.refreshGenreArtwork(genre) || changed;
+			for (const playlist of playlists) changed = this.refreshPlaylistArtwork(playlist) || changed;
+			if (!changed) {
+				return;
+			}
+
+			await this.persistAll();
+			this.notify();
+		});
+	}
+
 	removeAlbumDownload(albumId: string): void {
 		this.enqueueRemoval('album download', () =>
 			this.removeEntry(this.albums, albumId, { albumId }, () =>
@@ -1073,6 +1133,172 @@ export class DownloadService {
 			imageUrl: album.imageUrl ?? existing.imageUrl,
 			name: album.name || existing.name,
 		};
+	}
+
+	private refreshAlbumArtwork(album: Album): boolean {
+		const entry = this.albums[album.id];
+		if (!entry || !artworkReplaced(album.imageUrl, entry.album.imageUrl)) {
+			return false;
+		}
+
+		const previousUrl = entry.album.imageUrl;
+		const imageUrl = album.imageUrl;
+		entry.album = { ...entry.album, imageUrl };
+		const metadata = this.albumMetadata[album.id];
+		if (metadata) {
+			this.albumMetadata[album.id] = { ...metadata, imageUrl };
+		}
+
+		this.replaceImageRequirements(
+			entry.trackIds,
+			this.albumArtReqs(album.id, previousUrl),
+			this.albumArtReqs(album.id, imageUrl),
+		);
+		return true;
+	}
+
+	private buildTrackIdsByArtist(): Map<string, Array<string>> {
+		const byArtist = new Map<string, Array<string>>();
+		for (const entry of Object.values(this.tracks)) {
+			const artistId = entry.track.artistId;
+			if (!artistId) continue;
+
+			const existing = byArtist.get(artistId);
+			if (existing) {
+				existing.push(entry.track.id);
+			} else {
+				byArtist.set(artistId, [entry.track.id]);
+			}
+		}
+		return byArtist;
+	}
+
+	private buildAlbumsByArtist(): Map<string, Array<DownloadedAlbumEntry>> {
+		const byArtist = new Map<string, Array<DownloadedAlbumEntry>>();
+		for (const entry of Object.values(this.albums)) {
+			const artistId = entry.album.artistId;
+			if (!artistId) continue;
+
+			const existing = byArtist.get(artistId);
+			if (existing) {
+				existing.push(entry);
+			} else {
+				byArtist.set(artistId, [entry]);
+			}
+		}
+		return byArtist;
+	}
+
+	private refreshArtistArtwork(
+		artist: Artist,
+		trackIdsByArtist: Map<string, Array<string>>,
+		albumsByArtist: Map<string, Array<DownloadedAlbumEntry>>,
+	): boolean {
+		const entry = this.artists[artist.id];
+		if (!entry) {
+			return false;
+		}
+
+		const imageReplaced = artworkReplaced(artist.imageUrl, entry.artist.imageUrl);
+		const logoReplaced = artworkReplaced(artist.logoUrl, entry.artist.logoUrl);
+		if (!imageReplaced && !logoReplaced) {
+			return false;
+		}
+
+		const previousImageUrl = entry.artist.imageUrl;
+		const previousLogoUrl = entry.artist.logoUrl;
+		const imageUrl = imageReplaced ? artist.imageUrl : previousImageUrl;
+		const logoUrl = logoReplaced ? artist.logoUrl : previousLogoUrl;
+		entry.artist = { ...entry.artist, imageUrl, logoUrl };
+
+		const trackIds = trackIdsByArtist.get(artist.id) ?? [];
+
+		// peekArtistLogoUrl reads the logo off album and collection entries before it ever looks at
+		// the artist, so they have to move together or offline keeps serving the old one
+		if (logoReplaced) {
+			for (const albumEntry of albumsByArtist.get(artist.id) ?? []) {
+				albumEntry.artistLogoUrl = logoUrl ?? null;
+			}
+			for (const trackId of trackIds) {
+				for (const collection of Object.values(this.playlists)) {
+					if (trackId in collection.trackArtistLogoUrls) {
+						collection.trackArtistLogoUrls[trackId] = logoUrl ?? null;
+					}
+				}
+				for (const collection of Object.values(this.genres)) {
+					if (trackId in collection.trackArtistLogoUrls) {
+						collection.trackArtistLogoUrls[trackId] = logoUrl ?? null;
+					}
+				}
+			}
+		}
+		this.replaceImageRequirements(
+			trackIds,
+			this.artistReqs(artist.id, previousImageUrl, previousLogoUrl),
+			this.artistReqs(artist.id, imageUrl, logoUrl),
+		);
+		return true;
+	}
+
+	private refreshGenreArtwork(genre: Genre): boolean {
+		const entry = this.genres[genre.id];
+		if (!entry || !artworkReplaced(genre.imageUrl, entry.genre.imageUrl)) {
+			return false;
+		}
+
+		const previousGenre = entry.genre;
+		entry.genre = { ...entry.genre, imageUrl: genre.imageUrl };
+		this.replaceImageRequirements(
+			entry.trackIds,
+			this.genreArtReqs([previousGenre]),
+			this.genreArtReqs([entry.genre]),
+		);
+		return true;
+	}
+
+	private refreshPlaylistArtwork(playlist: Playlist): boolean {
+		const entry = this.playlists[playlist.id];
+		if (!entry || !artworkReplaced(playlist.imageUrl, entry.playlist.imageUrl)) {
+			return false;
+		}
+
+		const previousUrl = entry.playlist.imageUrl;
+		entry.playlist = { ...entry.playlist, imageUrl: playlist.imageUrl };
+		this.replaceImageRequirements(
+			entry.trackIds,
+			this.playlistImageReqs(playlist.id, previousUrl),
+			this.playlistImageReqs(playlist.id, playlist.imageUrl),
+		);
+		return true;
+	}
+
+	// the ledger is keyed by url, so a replaced image leaves its predecessor behind as a required
+	// key nothing will ever satisfy again. the previous reqs name it directly, so no scan is needed
+	private replaceImageRequirements(
+		trackIds: ReadonlyArray<string>,
+		previousReqs: Array<ImageReq>,
+		reqs: Array<ImageReq>,
+	): void {
+		for (const { category, url } of previousReqs) {
+			const trimmedUrl = typeof url === 'string' ? url.trim() : '';
+			if (trimmedUrl.length === 0) continue;
+
+			const key = imageCacheKey(trimmedUrl, category);
+			if (!this.images[key]) continue;
+
+			delete this.images[key];
+			for (const trackId of trackIds) {
+				const requiredKeys = this.tracks[trackId]?.requiredImageKeys;
+				const index = requiredKeys?.indexOf(key) ?? -1;
+				if (requiredKeys && index !== -1) {
+					requiredKeys.splice(index, 1);
+				}
+			}
+		}
+
+		for (const trackId of trackIds) {
+			this.addTrackImageRequirements(trackId, reqs);
+		}
 	}
 
 	private upsertArtistEntry(entry: DownloadedArtistEntry): void {

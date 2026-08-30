@@ -41,6 +41,7 @@ export interface Transport {
 		pageSize: number,
 		options?: { startsWith?: string },
 	): CancelablePromise<{ hasMore: boolean; items: Array<Artist> }>;
+	getArtistsByIds(ids: Array<string>): CancelablePromise<Array<Artist>>;
 	getArtistTopTracks(artistId: string): CancelablePromise<Array<Track>>;
 	getGenre(genreId: string): CancelablePromise<Genre | null>;
 	getGenres(

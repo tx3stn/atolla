@@ -68,7 +68,7 @@ interface AlbumsPageResult {
 	items: Array<Album>;
 }
 
-const albumIdBatchSize = 100;
+const itemIdBatchSize = 100;
 const defaultSearchLimit = 100;
 const log = getLogger('transport');
 const trackFields = 'Overview,Genres,MediaSources,SortName';
@@ -181,8 +181,8 @@ export class LiveTransport implements Transport {
 			const cleaned = ids.filter((id) => id.length > 0);
 			const albums: Array<Album> = [];
 
-			for (let start = 0; start < cleaned.length; start += albumIdBatchSize) {
-				const batch = cleaned.slice(start, start + albumIdBatchSize);
+			for (let start = 0; start < cleaned.length; start += itemIdBatchSize) {
+				const batch = cleaned.slice(start, start + itemIdBatchSize);
 				const list = await tracked(
 					canceler,
 					this.fetchItemsPage<JellyfinAlbumItem>({
@@ -245,8 +245,10 @@ export class LiveTransport implements Transport {
 
 	getArtistLogoUrl(artistId: string): CancelablePromise<string | null> {
 		return cancelable(async (canceler) => {
+			// only a found logo is an answer worth keeping; an artist with none is re-checked, so a
+			// logo added to the server shows up without waiting for a reconnect or a restart
 			const memoized = this.artistLogoUrls.get(artistId);
-			if (memoized !== undefined) {
+			if (memoized) {
 				return memoized;
 			}
 
@@ -289,6 +291,34 @@ export class LiveTransport implements Transport {
 				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
 				items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
 			};
+		});
+	}
+
+	getArtistsByIds(ids: Array<string>): CancelablePromise<Array<Artist>> {
+		return cancelable(async (canceler) => {
+			const cleaned = ids.filter((id) => id.length > 0);
+			const artists: Array<Artist> = [];
+
+			for (let start = 0; start < cleaned.length; start += itemIdBatchSize) {
+				const batch = cleaned.slice(start, start + itemIdBatchSize);
+				const list = await tracked(
+					canceler,
+					this.fetchItemsPage<JellyfinArtistItem>({
+						fields: 'Overview,Genres,SortName',
+						ids: batch.join(','),
+						includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
+						limit: batch.length,
+						recursive: true,
+						startIndex: 0,
+					}),
+				);
+
+				artists.push(
+					...list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
+				);
+			}
+
+			return artists;
 		});
 	}
 

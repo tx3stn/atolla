@@ -841,6 +841,80 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('refreshArtwork', () => {
+		async function downloadedAlbum(
+			overrides: { artistLogoUrl?: string | null; imageUrl?: string } = {},
+		): Promise<ReturnType<typeof createService>> {
+			const created = createService();
+			created.service.downloadAlbum({
+				album: makeAlbum('album-1', { imageUrl: overrides.imageUrl ?? 'http://art/v1?tag=a1' }),
+				artist: makeArtist('artist-1'),
+				artistLogoUrl: overrides.artistLogoUrl ?? null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			await flush();
+			created.imageCalls.length = 0;
+			return created;
+		}
+
+		it('stores a logo the artist gained after download so offline reads it', async () => {
+			const { service, imageCalls } = await downloadedAlbum({ artistLogoUrl: null });
+
+			service.refreshArtwork({
+				artists: [{ id: 'artist-1', logoUrl: 'http://logo/v1?tag=l1', name: 'Artist artist-1' }],
+			});
+			await flush();
+
+			// Offline.getArtist returns the stored entry directly, so the write is what matters
+			expect(service.getArtist('artist-1')?.artist.logoUrl).toBe('http://logo/v1?tag=l1');
+			expect(service.getAlbum('album-1')?.artistLogoUrl).toBe('http://logo/v1?tag=l1');
+			expect(imageCalls).toContainEqual({
+				category: 'artist_logo',
+				url: 'http://logo/v1?tag=l1',
+			});
+		});
+
+		it('stores replaced album art and keeps the download complete', async () => {
+			const { service, imageCalls } = await downloadedAlbum({ imageUrl: 'http://art/v1?tag=a1' });
+
+			service.refreshArtwork({
+				albums: [makeAlbum('album-1', { imageUrl: 'http://art/v2?tag=a2' })],
+			});
+			await flush();
+
+			expect(service.getAlbumMetadata('album-1')?.imageUrl).toBe('http://art/v2?tag=a2');
+			expect(imageCalls.map((call) => call.url)).toContain('http://art/v2?tag=a2');
+			// the superseded key must stop being required or completion waits on art
+			// that will never be fetched again
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+		});
+
+		it('ignores a url whose tag is unchanged', async () => {
+			const { service, imageCalls } = await downloadedAlbum({ imageUrl: 'http://art/v1?tag=a1' });
+
+			service.refreshArtwork({
+				albums: [makeAlbum('album-1', { imageUrl: 'http://other-host/art?tag=a1' })],
+			});
+			await flush();
+
+			expect(imageCalls).toEqual([]);
+			expect(service.getAlbumMetadata('album-1')?.imageUrl).toBe('http://art/v1?tag=a1');
+		});
+
+		it('ignores entities that are not downloaded', async () => {
+			const { service, imageCalls } = await downloadedAlbum();
+
+			service.refreshArtwork({
+				albums: [makeAlbum('album-999', { imageUrl: 'http://art/other?tag=z' })],
+				artists: [{ id: 'artist-999', logoUrl: 'http://logo/other?tag=z', name: 'Other' }],
+			});
+			await flush();
+
+			expect(imageCalls).toEqual([]);
+			expect(service.getAlbum('album-999')).toBeUndefined();
+		});
+	});
+
 	describe('getArtistDownloadState', () => {
 		it('reports not_downloaded for an artist registered via a playlist (no albums)', async () => {
 			const { service } = createService();

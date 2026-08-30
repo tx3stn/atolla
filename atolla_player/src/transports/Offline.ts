@@ -150,6 +150,11 @@ export class OfflineTransport implements Transport {
 		return singleLocalPage(this.collectAllArtists(), page, pageSize);
 	}
 
+	async getArtistsByIds(ids: Array<string>): Promise<Array<Artist>> {
+		const wanted = new Set(ids.filter((id) => id.length > 0));
+		return this.collectAllArtists().filter((artist) => wanted.has(artist.id));
+	}
+
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
 		return this.downloads
 			.getAllTracks()

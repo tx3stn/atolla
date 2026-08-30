@@ -857,6 +857,47 @@ describe('LiveTransport core collections', () => {
 		expect(transport.peekArtistLogoUrl('artist-1')).toBe(first);
 	});
 
+	it('fetches artists by id in one request, carrying their logo urls', async () => {
+		const envelope = listResponse<JellyfinArtistItem>([
+			{ Id: 'artist-1', ImageTags: { Logo: 'logo-tag-1' }, Name: 'Artist A', Type: 'MusicArtist' },
+			{ Id: 'artist-2', Name: 'Artist B', Type: 'MusicArtist' },
+		]);
+		const { calls, client } = createHTTPClient([jsonResponse(200, envelope)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const artists = await transport.getArtistsByIds(['artist-1', 'artist-2']);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'ids')).toBe('artist-1,artist-2');
+		expect(artists.map((artist) => artist.id)).toEqual(['artist-1', 'artist-2']);
+		expect(artists[0].logoUrl).toContain('tag=logo-tag-1');
+		expect(artists[1].logoUrl).toBeUndefined();
+	});
+
+	it('re-checks an artist with no logo so one added later is picked up', async () => {
+		const withoutLogo: JellyfinArtistItem = {
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const withLogo: JellyfinArtistItem = {
+			Id: 'artist-1',
+			ImageTags: { Logo: 'logo-tag-1' },
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { calls, client } = createHTTPClient([
+			jsonResponse(200, withoutLogo),
+			jsonResponse(200, withLogo),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		expect(await transport.getArtistLogoUrl('artist-1')).toBeNull();
+
+		expect(await transport.getArtistLogoUrl('artist-1')).toContain('tag=logo-tag-1');
+		expect(calls).toHaveLength(2);
+	});
+
 	it('peeks a resolved absent logo so the fallback text can render straight away', async () => {
 		const artist: JellyfinArtistItem = {
 			Id: 'artist-1',
