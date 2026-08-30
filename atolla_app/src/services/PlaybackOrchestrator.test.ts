@@ -1355,6 +1355,55 @@ describe('PlaybackOrchestrator cached current track source stability', () => {
 		orchestrator.dispose();
 	});
 
+	it('holds the cached-file waveform back until the playback cushion when it starts playback', () => {
+		const cachedFiles: Record<string, string> = { a: '/cache/a' };
+		const waveform = fakeWaveformQueue();
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => cachedFiles[id] ?? '',
+		});
+		const orchestrator = createOrchestrator(
+			playingStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{
+				getAudioFileUrl: (id) => (id === 'a' ? '/audio/a' : null),
+				getTrackCacheUrl: (id) => `https://${id}`,
+				trackSourceNative,
+			},
+		);
+		orchestrator.setUserServices(userServices({ ...waveform.callbacks }));
+
+		orchestrator.handleTrackCached('a');
+
+		expect(waveform.state.enqueued).toEqual([]);
+
+		orchestrator.handlePlaybackEvent('playback-cushion');
+
+		expect(waveform.state.enqueued).toContainEqual({ audioPath: '/audio/a', trackId: 'a' });
+		orchestrator.dispose();
+	});
+
+	it('enqueues the cached-file waveform immediately when not playing', () => {
+		const cachedFiles: Record<string, string> = { a: '/cache/a' };
+		const waveform = fakeWaveformQueue();
+		const tracks = [makeTrack('a')];
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => cachedFiles[id] ?? '',
+		});
+		const pausedStore = { ...playingStore(tracks), isPlaying: false };
+		const orchestrator = createOrchestrator(pausedStore, () => {}, fakeNotification(), {
+			getAudioFileUrl: (id) => (id === 'a' ? '/audio/a' : null),
+			getTrackCacheUrl: (id) => `https://${id}`,
+			trackSourceNative,
+		});
+		orchestrator.setUserServices(userServices({ ...waveform.callbacks }));
+
+		orchestrator.handleTrackCached('a');
+
+		expect(waveform.state.enqueued).toContainEqual({ audioPath: '/audio/a', trackId: 'a' });
+		orchestrator.dispose();
+	});
+
 	it('does not schedule a source-format retry on source-bound', () => {
 		const orchestrator = createOrchestrator(playingStore([makeTrack('a')]));
 		const setTimeoutSpy = spyOn(globalThis, 'setTimeout');

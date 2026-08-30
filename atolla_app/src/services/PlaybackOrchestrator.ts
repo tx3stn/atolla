@@ -921,19 +921,37 @@ export class PlaybackOrchestrator {
 		this.refreshTrackCachedCount();
 
 		const audioPath = this.getAudioFileUrl(trackId);
-		if (audioPath) {
-			this.enqueueWaveformIfNeeded(trackId, audioPath);
-		}
-
 		const isCurrentTrack = this.playbackStore.track?.id === trackId;
 		const currentSourceUnbound = this.getTrackPlaybackSourceUrl() == null;
 		if (isCurrentTrack && currentSourceUnbound && this.handleTrackPlaybackSourceChange(true)) {
+			if (audioPath) {
+				this.deferWaveformForStartingTrack(trackId, audioPath);
+			}
 			this.syncUpcomingQueue();
 			return;
 		}
 
+		if (audioPath) {
+			this.enqueueWaveformIfNeeded(trackId, audioPath);
+		}
+
 		this.handleNextTrackPreload();
 		this.syncUpcomingQueue();
+	}
+
+	private deferWaveformForStartingTrack(trackId: string, audioPath: string): void {
+		const deferralSource = this.playbackStore.isPlaying ? this.getTrackPlaybackSourceUrl() : null;
+		if (!deferralSource) {
+			this.enqueueWaveformIfNeeded(trackId, audioPath);
+			return;
+		}
+
+		this.deferredDownloadCoordinator.defer('waveform-cached', {
+			requestId: this.playbackSourceRequestId,
+			run: () => this.enqueueWaveformIfNeeded(trackId, audioPath),
+			source: deferralSource,
+			trackId,
+		});
 	}
 
 	private handleTrackCacheFetchFailed(trackId: string, reason = 'unknown'): void {
