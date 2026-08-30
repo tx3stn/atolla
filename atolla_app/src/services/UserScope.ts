@@ -75,16 +75,14 @@ export class UserScope {
 			`atolla/user/${userId}/now_playing_queue`,
 			{ deviceGlobal: true },
 		);
-		void this.deps.playbackStore.setQueueStore(
-			nowPlayingQueueStore,
-			() => {
-				try {
-					return getAtollaAudioPlaybackIsActive();
-				} catch {
-					return false;
-				}
-			},
-			() => {
+		// its own store, not another key in the queue's: PersistentStore rewrites its whole archive on
+		// every save, so a shared store would rewrite all 100 tracks for one number every 5s
+		const nowPlayingProgressStore: KeyValueStore = new PersistentStore(
+			`atolla/user/${userId}/now_playing_progress`,
+			{ deviceGlobal: true },
+		);
+		void this.deps.playbackStore.setPersistence({
+			currentNativeTrack: () => {
 				try {
 					const trackId = getAtollaAudioPlaybackCurrentTrackId();
 					if (!trackId) return null;
@@ -96,7 +94,16 @@ export class UserScope {
 					return null;
 				}
 			},
-		);
+			isPlaying: () => {
+				try {
+					return getAtollaAudioPlaybackIsActive();
+				} catch {
+					return false;
+				}
+			},
+			progress: nowPlayingProgressStore,
+			queue: nowPlayingQueueStore,
+		});
 		const homeAlbumsStore: KeyValueStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});

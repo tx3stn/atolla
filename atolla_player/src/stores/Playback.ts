@@ -1,15 +1,11 @@
 import type { Album } from 'atolla_core/src/models/Album';
 import { isTrack, sanitizeTracks, type Track } from 'atolla_core/src/models/Track';
 import { getLogger } from 'atolla_core/src/services/Logger';
+import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 
 const log = getLogger('PlaybackStore');
 
 type PlaybackListener = () => void;
-
-interface PlaybackQueueStore {
-	fetchString(key: string): Promise<string>;
-	storeString(key: string, value: string): Promise<void>;
-}
 
 interface QueueFiller {
 	dispose(): void;
@@ -18,13 +14,27 @@ interface QueueFiller {
 interface PersistedPlaybackQueue {
 	album: Album | null;
 	artistLogoUrls: Array<string | null>;
-	progressSeconds: number;
+	epoch?: string;
 	trackIndex: number;
 	tracks: Array<Track>;
 }
 
+interface PersistedPlaybackProgress {
+	epoch: string;
+	progressSeconds: number;
+	trackId: string;
+}
+
+interface PlaybackPersistence {
+	currentNativeTrack?: () => { trackId: string; positionSeconds: number } | null;
+	isPlaying?: () => boolean;
+	progress: KeyValueStore;
+	queue: KeyValueStore;
+}
+
 const playbackQueueCacheKey = 'queue';
 const playbackActiveKey = 'queue_active';
+const playbackProgressKey = 'progress';
 const progressPersistStepSeconds = 5;
 const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3;
 const MAX_PERSISTED_QUEUE_TRACKS = 100;
@@ -51,10 +61,13 @@ export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
 	private _artistLogoUrls: Array<string | null> = [];
 	private queueFiller: QueueFiller | null = null;
-	private queueStore: PlaybackQueueStore | null = null;
+	private queueStore: KeyValueStore | null = null;
+	private progressStore: KeyValueStore | null = null;
 	private queueStoreLoadToken = 0;
 	private queueRestoreSuperseded = false;
 	private lastPersistedProgressSeconds = 0;
+	private persistEpoch = '';
+	private persistEpochSequence = 0;
 	private seekPersistTimer: ReturnType<typeof setTimeout> | null = null;
 	private notifySuspendDepth = 0;
 	private notifyPendingDuringSuspend = false;
@@ -73,12 +86,12 @@ export class PlaybackStore {
 	// deliberate track changes (play/previous/jump) may rebuild the native queue backward; a restore/reconcile snap following the engine must not (that snap is the stale wake-race the native guard suppresses); read by NativeAudioPlayer when configuring the engine
 	allowBackwardRebuild: boolean = true;
 
-	async setQueueStore(
-		store: PlaybackQueueStore | null,
-		isPlayingFn?: () => boolean,
-		currentNativeTrackFn?: () => { trackId: string; positionSeconds: number } | null,
-	): Promise<void> {
+	async setPersistence(persistence: PlaybackPersistence | null): Promise<void> {
+		const store = persistence?.queue ?? null;
+		const isPlayingFn = persistence?.isPlaying;
+		const currentNativeTrackFn = persistence?.currentNativeTrack;
 		this.queueStore = store;
+		this.progressStore = persistence?.progress ?? null;
 		const token = ++this.queueStoreLoadToken;
 		this.queueRestoreSuperseded = false;
 
@@ -87,9 +100,10 @@ export class PlaybackStore {
 		}
 
 		try {
-			const [activeMarker, raw] = await Promise.all([
+			const [activeMarker, raw, rawProgress] = await Promise.all([
 				store.fetchString(playbackActiveKey).catch(() => ''),
 				store.fetchString(playbackQueueCacheKey),
+				this.progressStore?.fetchString(playbackProgressKey).catch(() => '') ?? '',
 			]);
 			if (
 				token !== this.queueStoreLoadToken ||
@@ -119,18 +133,25 @@ export class PlaybackStore {
 			this.album = parsed.album;
 			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
+			this.persistEpoch = parsed.epoch ?? '';
 
 			this.isPlaying = isPlayingFn?.() === true;
+			const currentTrack = this.tracks[this.trackIndex] ?? null;
+			const maxProgress = currentTrack?.duration ?? 0;
+
+			const checkpoint = parsePersistedProgress(rawProgress);
+			this.progressSeconds =
+				checkpoint != null &&
+				checkpoint.epoch === this.persistEpoch &&
+				checkpoint.trackId === currentTrack?.id
+					? Math.max(0, Math.min(checkpoint.progressSeconds, maxProgress))
+					: 0;
 			log.debug('queue restore applied', {
 				isPlaying: this.isPlaying,
-				progressSeconds: parsed.progressSeconds,
+				progressSeconds: this.progressSeconds,
 				trackCount: parsed.tracks.length,
 				trackIndex: this.trackIndex,
 			});
-			const currentTrack = this.tracks[this.trackIndex] ?? null;
-			const maxProgress = currentTrack?.duration ?? 0;
-			const restoredProgress = Number.isFinite(parsed.progressSeconds) ? parsed.progressSeconds : 0;
-			this.progressSeconds = Math.max(0, Math.min(restoredProgress, maxProgress));
 			this.lastPersistedProgressSeconds = this.progressSeconds;
 			this.seekTarget = null;
 			// persisted index/progress can be stale (engine auto-advanced while JS was frozen); snap to the engine's track before notifying so App.tsx computes a matching source
@@ -138,6 +159,7 @@ export class PlaybackStore {
 			if (nativeNow?.trackId) {
 				const nativeIndex = this.indexOfNearestTrackId(nativeNow.trackId);
 				if (nativeIndex !== -1) {
+					const movedIndex = nativeIndex !== this.trackIndex;
 					this.trackIndex = nativeIndex;
 					const nativeMaxProgress = this.tracks[nativeIndex]?.duration ?? 0;
 					const nativeProgress = Number.isFinite(nativeNow.positionSeconds)
@@ -145,6 +167,12 @@ export class PlaybackStore {
 						: 0;
 					this.progressSeconds = Math.max(0, Math.min(nativeProgress, nativeMaxProgress));
 					this.lastPersistedProgressSeconds = this.progressSeconds;
+					// disk still points at the track the engine has already left, and the checkpoint no
+					// longer rewrites the queue, so without this the stale index survives until the next
+					// queue event
+					if (movedIndex) {
+						this.persistQueue();
+					}
 				}
 			}
 			// a restore follows the engine, so don't let a stale restored track shove it backward
@@ -425,6 +453,9 @@ export class PlaybackStore {
 			if (this.loopMode === LoopModes.track) {
 				this.progressSeconds = 0;
 				this.seekTarget = 0;
+				// this branch resets position without persisting, so the checkpoint baseline has to come
+				// back with it or the step below stays negative for the whole looped play-through
+				this.lastPersistedProgressSeconds = 0;
 			} else if (this.trackIndex >= this.tracks.length - 1) {
 				if (this.loopMode === LoopModes.queue && this.tracks.length > 0) {
 					this.allowBackwardRebuild = true;
@@ -449,7 +480,7 @@ export class PlaybackStore {
 				this.isPlaying &&
 				this.progressSeconds - this.lastPersistedProgressSeconds >= progressPersistStepSeconds
 			) {
-				this.persistQueue();
+				this.persistProgress();
 			}
 		}
 
@@ -470,6 +501,11 @@ export class PlaybackStore {
 		// update the persisted baseline so the step logic in updateProgress doesn't immediately
 		// fire another persist when playback resumes after seeking
 		this.lastPersistedProgressSeconds = clamped;
+		// seeks come from taps, never a drag, so the small key can be written on every one; that closes
+		// the window where a kill inside the debounce restored the pre-seek position. the queue is not
+		// small, so it stays debounced — and a seek changes neither tracks nor index, so the checkpoint
+		// refines the current queue rather than outrunning it
+		this.persistProgress();
 		if (this.seekPersistTimer != null) clearTimeout(this.seekPersistTimer);
 		this.seekPersistTimer = setTimeout(() => {
 			this.seekPersistTimer = null;
@@ -496,7 +532,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
 		// write the inactive marker before the full queue payload so that if the process is
-		// killed between the two writes, setQueueStore sees active=false and skips restoration
+		// killed between the two writes, setPersistence sees active=false and skips restoration
 		// even though the queue payload still has tracks
 		void this.queueStore?.storeString(playbackActiveKey, 'false').catch(() => {});
 		this.persistQueue();
@@ -632,6 +668,24 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	private persistProgress(): void {
+		if (!this.progressStore) {
+			return;
+		}
+
+		this.lastPersistedProgressSeconds = this.progressSeconds;
+
+		const payload: PersistedPlaybackProgress = {
+			epoch: this.persistEpoch,
+			progressSeconds: this.progressSeconds,
+			trackId: this.track?.id ?? '',
+		};
+
+		void this.progressStore.storeString(playbackProgressKey, JSON.stringify(payload)).catch(() => {
+			// best effort persistence
+		});
+	}
+
 	private persistQueue(): void {
 		if (!this.queueStore) {
 			return;
@@ -646,18 +700,22 @@ export class PlaybackStore {
 				: 0;
 		const end = start + MAX_PERSISTED_QUEUE_TRACKS;
 
+		// a fresh token on every queue write is what lets a restore tell a checkpoint written against
+		// this queue from one that outlived it. the time component keeps tokens from colliding across
+		// process restarts, which a bare counter would
+		this.persistEpoch = `${Date.now().toString(36)}.${this.persistEpochSequence++}`;
 		const payload: PersistedPlaybackQueue = {
 			album: this.album,
 			artistLogoUrls: this._artistLogoUrls.slice(start, end),
-			progressSeconds: this.progressSeconds,
+			epoch: this.persistEpoch,
 			trackIndex: this.trackIndex - start,
 			tracks: this.tracks.slice(start, end),
 		};
-		this.lastPersistedProgressSeconds = this.progressSeconds;
 
 		void this.queueStore.storeString(playbackQueueCacheKey, JSON.stringify(payload)).catch(() => {
 			// best effort persistence
 		});
+		this.persistProgress();
 	}
 
 	setArtistLogoUrl(url: string | null): void {
@@ -742,10 +800,7 @@ function isPersistedPlaybackQueue(value: unknown): value is PersistedPlaybackQue
 		return false;
 	}
 
-	if (
-		candidate.progressSeconds != null &&
-		(typeof candidate.progressSeconds !== 'number' || !Number.isFinite(candidate.progressSeconds))
-	) {
+	if (candidate.epoch != null && typeof candidate.epoch !== 'string') {
 		return false;
 	}
 
@@ -754,6 +809,37 @@ function isPersistedPlaybackQueue(value: unknown): value is PersistedPlaybackQue
 	}
 
 	return true;
+}
+
+// its own try/catch rather than leaning on the caller's: a malformed checkpoint must not take the
+// queue restore down with it
+function parsePersistedProgress(raw: string): PersistedPlaybackProgress | null {
+	if (!raw) {
+		return null;
+	}
+
+	try {
+		const parsed = JSON.parse(raw);
+		return isPersistedPlaybackProgress(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+function isPersistedPlaybackProgress(value: unknown): value is PersistedPlaybackProgress {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Partial<PersistedPlaybackProgress>;
+	return (
+		typeof candidate.epoch === 'string' &&
+		candidate.epoch.length > 0 &&
+		typeof candidate.trackId === 'string' &&
+		candidate.trackId.length > 0 &&
+		typeof candidate.progressSeconds === 'number' &&
+		Number.isFinite(candidate.progressSeconds)
+	);
 }
 
 function isAlbum(value: unknown): value is Album {
