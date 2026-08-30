@@ -1138,6 +1138,11 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
     // leavingTrackId == currentTrackId and this is skipped (the natural-end path handled it).
     BOOL isTrackChange =
         leavingTrackId.length > 0 && ![leavingTrackId isEqualToString:(currentTrackId ?: @"")];
+    if (isTrackChange) {
+        // a seek requested while no player existed is still pending. it belonged to the track we are
+        // leaving, so drop it rather than let the rebuild apply it to the incoming one
+        sPendingSeekMs = -1;
+    }
 
     dispatch_async(dispatch_get_main_queue(), ^{
         if (isTrackChange) {

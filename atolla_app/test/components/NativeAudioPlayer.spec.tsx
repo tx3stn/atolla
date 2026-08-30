@@ -41,9 +41,13 @@ function getInternal(component: NativeAudioPlayer): PlayerInternal {
 // the bazel test target to its timeout.
 function mountPlayer(
 	driver: IComponentTestDriver,
-	viewModel: NativeAudioPlayerViewModel,
+	viewModel: Omit<NativeAudioPlayerViewModel, 'isPlaying'> & { isPlaying?: boolean },
 ): NativeAudioPlayer {
-	return driver.renderComponent(NativeAudioPlayer, viewModel, undefined);
+	const resolved: NativeAudioPlayerViewModel = {
+		...viewModel,
+		isPlaying: viewModel.isPlaying ?? viewModel.playbackStore.isPlaying,
+	};
+	return driver.renderComponent(NativeAudioPlayer, resolved, undefined);
 }
 
 describe('NativeAudioPlayer', () => {
@@ -407,6 +411,94 @@ describe('NativeAudioPlayer', () => {
 			expect(
 				(store as unknown as PlayerInternal).updateProgress as jasmine.Spy,
 			).not.toHaveBeenCalled();
+		});
+	});
+
+	// after a force-close the engine is dead and the restore comes back paused, so the first bind is
+	// deferred. isPlaying has to be a real prop for the play tap to bring us back here. valdi only
+	// calls onViewModelUpdate when a property changes by identity, and playbackStore never does.
+	describe('deferred first bind after a cold restore', () => {
+		function mountColdRestore(driver: IComponentTestDriver): {
+			configureSpy: jasmine.Spy;
+			player: PlayerInternal;
+			seekSpy: jasmine.Spy;
+		} {
+			const store = mockPlaybackStore({
+				allowBackwardRebuild: true,
+				isPlaying: false,
+				progressSeconds: 90,
+			});
+			const component = mountPlayer(driver, {
+				isPlaying: false,
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+			const player = getInternal(component);
+			const configureSpy = jasmine.createSpy('nativeConfigure');
+			const seekSpy = jasmine.createSpy('safeSeekTo');
+			player.nativeConfigure = configureSpy;
+			player.safeSeekTo = seekSpy;
+			player.nativeIsActive = () => false;
+			return { configureSpy, player, seekSpy };
+		}
+
+		function tapPlay(player: PlayerInternal): void {
+			const component = player as unknown as { viewModel: NativeAudioPlayerViewModel };
+			component.viewModel = { ...component.viewModel, isPlaying: true };
+			(player.onViewModelUpdate as () => void)();
+		}
+
+		valdiIt('does not configure while the restore is still paused', async (driver) => {
+			const { configureSpy, player } = mountColdRestore(driver);
+
+			(player.onViewModelUpdate as () => void)();
+
+			expect(configureSpy).not.toHaveBeenCalled();
+			expect(player.hasEverBoundSource).toBe(false);
+		});
+
+		valdiIt('configures once when the play tap flips the isPlaying prop', async (driver) => {
+			const { configureSpy, player } = mountColdRestore(driver);
+			(player.onViewModelUpdate as () => void)();
+
+			tapPlay(player);
+
+			expect(configureSpy).toHaveBeenCalledTimes(1);
+			expect(player.hasEverBoundSource).toBe(true);
+		});
+
+		valdiIt('seeks to the restored offset on that first bind', async (driver) => {
+			const { player, seekSpy } = mountColdRestore(driver);
+			(player.onViewModelUpdate as () => void)();
+
+			tapPlay(player);
+
+			expect(seekSpy).toHaveBeenCalledWith(90000);
+		});
+
+		// remounting while the engine is still playing in the background is the case the reattach
+		// skip exists for: it is already positioned, so seeking would re-buffer it
+		valdiIt('does not seek when re-attaching to a live engine', async (driver) => {
+			const store = mockPlaybackStore({
+				allowBackwardRebuild: true,
+				isPlaying: true,
+				progressSeconds: 90,
+			});
+			const component = mountPlayer(driver, {
+				isPlaying: true,
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+			const player = getInternal(component);
+			const seekSpy = jasmine.createSpy('safeSeekTo');
+			player.safeSeekTo = seekSpy;
+			player.nativeIsActive = () => true;
+			player.hasEverBoundSource = false;
+			player.lastSourceUrl = '';
+
+			(player.onViewModelUpdate as () => void)();
+
+			expect(seekSpy).not.toHaveBeenCalled();
 		});
 	});
 

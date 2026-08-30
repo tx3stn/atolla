@@ -90,6 +90,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 			<view style={theme.app.content}>
 				<GaplessPlayer
 					activeSourceUrl={this.viewModel.playbackOrchestrator.getTrackPlaybackSourceUrl()}
+					isPlaying={this.viewModel.playbackStore.isPlaying}
 					nextSourceUrl={this.viewModel.playbackOrchestrator.getNextTrackSourceUrl()}
 					onPlaybackError={this.handlePlaybackError}
 					onPlaybackEvent={this.handlePlaybackEvent}

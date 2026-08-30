@@ -5,6 +5,7 @@ import { NativeAudioPlayer } from './NativeAudioPlayer';
 
 export interface GaplessPlayerViewModel {
 	activeSourceUrl: string | null;
+	isPlaying: boolean;
 	nextSourceUrl: string | null;
 	onPlaybackError?: (error: NativeAudioPlaybackError) => void;
 	onPlaybackEvent?: (event: string) => void;
@@ -16,6 +17,7 @@ export class GaplessPlayer extends Component<GaplessPlayerViewModel> {
 	onRender(): void {
 		const {
 			activeSourceUrl,
+			isPlaying,
 			nextSourceUrl,
 			onPlaybackError,
 			onPlaybackEvent,
@@ -25,6 +27,7 @@ export class GaplessPlayer extends Component<GaplessPlayerViewModel> {
 
 		<NativeAudioPlayer
 			isActive
+			isPlaying={isPlaying}
 			nextPlaybackSourceUrl={nextSourceUrl}
 			onPlaybackError={onPlaybackError}
 			onPlaybackEvent={onPlaybackEvent}

@@ -511,6 +511,9 @@ object AtollaGaplessAudioEngine {
 		val leavingTrackId = sourceTrackId
 		val leavingDurationMs = sourceDurationMs
 		if (leavingTrackId.isNotBlank() && leavingTrackId != currentTrackId) {
+			// a seek requested while no player existed is still pending. it belonged to the track we
+			// are leaving, so drop it rather than let replaceQueue apply it to the incoming one
+			pendingSeekToMs = null
 			mainHandler.post {
 				val player = exoPlayer ?: return@post
 				// only while the player is still on the leaving track (guards a race with a native

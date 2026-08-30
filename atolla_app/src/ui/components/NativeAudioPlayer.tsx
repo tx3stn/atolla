@@ -35,6 +35,7 @@ const log = getLogger('NativeAudioPlayer');
 
 export interface NativeAudioPlayerViewModel {
 	isActive?: boolean;
+	isPlaying: boolean;
 	nextPlaybackSourceUrl?: string | null;
 	onPlaybackError?: (error: NativeAudioPlaybackError) => void;
 	onPlaybackEvent?: (event: string) => void;
@@ -128,10 +129,10 @@ export class NativeAudioPlayer extends StatefulComponent<
 		}
 
 		if (source !== this.lastSourceUrl) {
-			const isReattach = !this.hasEverBoundSource;
-			// on cold restore with no active playback, skip configure so ExoPlayer isn't loaded with a
-			// stale source; the next onViewModelUpdate after the user taps play configures normally
-			if (isReattach && !this.viewModel.playbackStore.isPlaying) {
+			// re-attaching to a player that is already running and positioned (remount during background
+			// playback), as opposed to the first bind of a fresh engine after a cold start
+			const isReattach = !this.hasEverBoundSource && this.nativeIsActive();
+			if (!this.hasEverBoundSource && !this.viewModel.isPlaying) {
 				return;
 			}
 			this.hasEverBoundSource = true;

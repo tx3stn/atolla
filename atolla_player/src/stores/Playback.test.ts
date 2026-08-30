@@ -791,21 +791,33 @@ describe('PlaybackStore', () => {
 			expect(store.allowBackwardRebuild).toBe(false);
 		});
 
-		it('is false after a queue restore', async () => {
+		it('is false after a restore that followed a live engine', async () => {
 			const queueStore = new InMemoryQueueStore();
-			queueStore.values.set(
-				'queue',
-				JSON.stringify({
-					album,
-					artistLogoUrls: [null, null],
-					progressSeconds: 10,
-					trackIndex: 1,
-					tracks: [track1, track2],
-				}),
-			);
+			const progressStore = new InMemoryQueueStore();
+			seedRestore(queueStore, progressStore, 0, 10, 'track-1');
+
 			const store = new PlaybackStore();
-			await attach(store, queueStore);
+			await store.setPersistence({
+				currentNativeTrack: () => ({ positionSeconds: 4, trackId: 'track-2' }),
+				isPlaying: () => true,
+				progress: progressStore,
+				queue: queueStore,
+			});
+
 			expect(store.allowBackwardRebuild).toBe(false);
+		});
+
+		// with no engine there is nothing to follow, and the restored position still has to be seeked
+		// to — leaving this false suppressed that seek, so a cold start resumed at 0
+		it('stays true after a restore with no live engine', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const progressStore = new InMemoryQueueStore();
+			seedRestore(queueStore, progressStore, 1, 10, 'track-2');
+
+			const store = new PlaybackStore();
+			await attach(store, queueStore, progressStore);
+
+			expect(store.allowBackwardRebuild).toBe(true);
 		});
 	});
 

@@ -174,9 +174,11 @@ export class PlaybackStore {
 						this.persistQueue();
 					}
 				}
+				// a restore follows the engine, so don't let a stale restored track shove it backward.
+				// with no engine there is nothing to follow, and the restored position still has to be
+				// seeked to, so this stays true on a cold start
+				this.allowBackwardRebuild = false;
 			}
-			// a restore follows the engine, so don't let a stale restored track shove it backward
-			this.allowBackwardRebuild = false;
 			this.notify();
 		} catch {
 			// best effort restore
