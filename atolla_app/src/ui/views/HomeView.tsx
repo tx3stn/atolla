@@ -3,6 +3,7 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { TrackSource } from 'atolla_player/src/services/TrackSource';
@@ -11,6 +12,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { CardDetailItem } from '../../models/App';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import type { EntityRef } from '../../services/EntityTracks';
@@ -89,6 +91,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbum: Album | null = null;
 	private lastKnownGridColumns = -1;
+	private lastKnownOnThisDayLookahead = -1;
 
 	state: HomeState = {
 		contextMenuCard: null,
@@ -101,6 +104,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onCreate(): void {
 		this.lastKnownGridColumns = this.viewModel.preferences.gridColumns;
+		this.lastKnownOnThisDayLookahead = this.viewModel.preferences.onThisDayLookaheadDays;
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.handlePreferencesChange));
 		this.registerDisposable(this.playlistFlow.cancel);
 		this.loadAlbums();
@@ -237,6 +241,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	private handlePreferencesChange = (): void => {
 		const gridColumns = this.viewModel.preferences.gridColumns;
+		const onThisDayLookahead = this.viewModel.preferences.onThisDayLookaheadDays;
 
 		if (gridColumns !== this.lastKnownGridColumns) {
 			this.lastKnownGridColumns = gridColumns;
@@ -244,6 +249,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			if (this.viewModel.connectionMode !== ConnectionModes.offline) {
 				void this.loadRecentlyAdded(this.loadGeneration);
 			}
+		}
+
+		// a wider window no longer matches the cached one, so the sweep re-runs unforced
+		if (onThisDayLookahead !== this.lastKnownOnThisDayLookahead) {
+			this.lastKnownOnThisDayLookahead = onThisDayLookahead;
+			void this.loadOnThisDay(this.loadGeneration);
 		}
 
 		this.setState({ revision: this.state.revision + 1 });
@@ -303,15 +314,37 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					return undefined;
 				}
 
-				return service.refresh(this.viewModel.transport, new Date(), { force }).then((summary) => {
-					if (this.isDestroyed() || generation !== this.loadGeneration) {
-						return;
-					}
-					log.debug('on-this-day refreshed', summary);
-					this.setState({ onThisDayAlbums: service.getAlbumsForDate(new Date()) });
-				});
+				return service
+					.refresh(this.viewModel.transport, new Date(), {
+						force,
+						lookaheadDays: this.viewModel.preferences.onThisDayLookaheadDays,
+					})
+					.then((summary) => {
+						if (this.isDestroyed() || generation !== this.loadGeneration) {
+							return;
+						}
+						log.debug('on-this-day refreshed', summary);
+						this.setState({ onThisDayAlbums: service.getAlbumsForDate(new Date()) });
+						// only when the window changed: warms artwork for days not rendered yet, so
+						// the section still shows covers once the device is away from the server
+						if (summary.ran) {
+							this.preloadOnThisDayArtwork(service.getCachedAlbums());
+						}
+					});
 			})
 			.catch(() => {});
+	}
+
+	private preloadOnThisDayArtwork(albums: Array<Album>): void {
+		try {
+			preloadAtollaImages(
+				albums.map((album) =>
+					buildImageSource({ category: 'album_art_thumb', id: album.id, url: album.imageUrl }),
+				),
+			);
+		} catch {
+			// non-Android targets have no native preload bridge
+		}
 	}
 
 	private restoreCachedRecentlyAdded(generation: number): void {

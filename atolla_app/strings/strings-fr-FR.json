@@ -382,6 +382,9 @@
 	"settings_logout_confirm": {
 		"defaultMessage": "êtes-vous sûr de vouloir vous déconnecter ?"
 	},
+	"settings_on_this_day_lookahead": {
+		"defaultMessage": "jours en cache pour ce jour-là"
+	},
 	"settings_play_queue_cached_tracks": {
 		"defaultMessage": "titres en cache de la file de lecture"
 	},
@@ -399,6 +402,9 @@
 	},
 	"settings_section_downloads": {
 		"defaultMessage": "TÉLÉCHARGEMENTS"
+	},
+	"settings_section_home": {
+		"defaultMessage": "ACCUEIL"
 	},
 	"settings_section_language": {
 		"defaultMessage": "LANGUE"

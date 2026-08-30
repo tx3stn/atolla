@@ -32,9 +32,11 @@ import {
 	CARD_SIZE_OPTIONS,
 	DEFAULT_CARD_SIZE,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
+	DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	GB,
 	IMAGE_CACHE_SIZE_OPTIONS,
+	ON_THIS_DAY_LOOKAHEAD_OPTIONS,
 	type Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
@@ -112,6 +114,8 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 			this.viewModel.preferences.trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
 		const selectedImageCacheSize =
 			this.viewModel.preferences.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES;
+		const selectedOnThisDayLookahead =
+			this.viewModel.preferences.onThisDayLookaheadDays ?? DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS;
 		const selectedLanguage = this.viewModel.preferences.language ?? DEFAULT_LANGUAGE;
 		const debugLoggingEnabled = this.viewModel.preferences.debugLoggingEnabled;
 		const downloadedTrackCount = this.viewModel.downloadService.getDownloadedTrackCount();
@@ -279,6 +283,17 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 							accessibilityId='settings-downloads-delete-all'
 							label={Strings.settingsDeleteAllDownloadsButton()}
 							onTap={this.handleClearDownloadsPress}
+						/>
+					</view>
+
+					<label style={styles.sectionTitle} value={Strings.settingsSectionHome()} />
+					<view style={styles.section}>
+						<SelectOption
+							accessibilityId='settings-on-this-day-lookahead'
+							label={Strings.settingsOnThisDayLookahead()}
+							onSelect={this.handleOnThisDayLookaheadSelect}
+							options={ON_THIS_DAY_LOOKAHEAD_OPTIONS}
+							selectedValue={selectedOnThisDayLookahead}
 						/>
 					</view>
 
@@ -528,6 +543,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 				title={Strings.settingsLogoutButton()}
 			/>;
 		});
+	};
+
+	private handleOnThisDayLookaheadSelect = (days: number): void => {
+		void this.viewModel.preferences.setOnThisDayLookaheadDays(days);
 	};
 
 	private handleShareDebugLogPress = (): void => {

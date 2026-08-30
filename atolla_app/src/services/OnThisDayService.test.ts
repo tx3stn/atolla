@@ -38,12 +38,14 @@ function memoryStore(seed?: string): OnThisDayStore & { value: () => string | un
 	};
 }
 
-// a1 = today's anniversary, a2 = tomorrow's, a3 = wrong day, a4 = current year (no anniversary yet)
+// a1 = today's anniversary, a2 = tomorrow's, a3 = wrong day, a4 = current year (no anniversary
+// yet), a5 = three days out (only reachable with a wider lookahead)
 const library: Record<string, Album> = {
 	a1: album('a1', '2001-06-15T12:00:00'),
 	a2: album('a2', '2010-06-16T12:00:00'),
 	a3: album('a3', '2005-07-01T12:00:00'),
 	a4: album('a4', '2024-06-15T12:00:00'),
+	a5: album('a5', '2015-06-18T12:00:00'),
 };
 
 function transportFromPages(
@@ -90,7 +92,7 @@ describe('OnThisDayService.refresh', () => {
 		const store = memoryStore();
 		const service = new OnThisDayService(store);
 
-		await service.refresh(transport, NOW);
+		await service.refresh(transport, NOW, { lookaheadDays: 1 });
 
 		expect(transport.hydrateCalls).toHaveLength(1);
 		expect([...transport.hydrateCalls[0]].sort()).toEqual(['a1', 'a2']);
@@ -114,7 +116,7 @@ describe('OnThisDayService.refresh', () => {
 		]);
 		const service = new OnThisDayService(memoryStore());
 
-		const summary = await service.refresh(transport, NOW);
+		const summary = await service.refresh(transport, NOW, { lookaheadDays: 1 });
 
 		expect(transport.discoverCalls).toBe(2);
 		expect(summary.scanned).toBe(DISCOVERY_PAGE_SIZE + 1);
@@ -143,37 +145,40 @@ describe('OnThisDayService.refresh', () => {
 		}
 
 		const service = new OnThisDayService(memoryStore());
-		const summary = await service.refresh(new ClassTransport(), NOW);
+		const summary = await service.refresh(new ClassTransport(), NOW, { lookaheadDays: 1 });
 
 		expect(summary.error).toBeUndefined();
 		expect(service.getAlbumsForDate(NOW).map((a) => a.id)).toEqual(['a1']);
 	});
 
 	it('reports a funnel summary so an empty result is diagnosable', async () => {
-		const summary = await new OnThisDayService(memoryStore()).refresh(singlePageTransport(), NOW);
+		const summary = await new OnThisDayService(memoryStore()).refresh(singlePageTransport(), NOW, {
+			lookaheadDays: 1,
+		});
 
 		expect(summary).toMatchObject({
+			days: 2,
 			hydrated: 2,
 			matched: 2,
 			ran: true,
 			today: 1,
-			tomorrow: 1,
-			withReleaseDate: 4,
+			upcoming: 1,
+			withReleaseDate: 5,
 		});
-		expect(summary.scanned).toBe(4);
+		expect(summary.scanned).toBe(5);
 	});
 
 	it('skips the sweep when the cache is already fresh, unless forced', async () => {
 		const transport = singlePageTransport();
 		const service = new OnThisDayService(memoryStore());
 
-		await service.refresh(transport, NOW);
+		await service.refresh(transport, NOW, { lookaheadDays: 1 });
 		const callsAfterFirst = transport.discoverCalls;
 
-		await service.refresh(transport, NOW);
+		await service.refresh(transport, NOW, { lookaheadDays: 1 });
 		expect(transport.discoverCalls).toBe(callsAfterFirst); // no extra sweep
 
-		await service.refresh(transport, NOW, { force: true });
+		await service.refresh(transport, NOW, { force: true, lookaheadDays: 1 });
 		expect(transport.discoverCalls).toBeGreaterThan(callsAfterFirst);
 	});
 
@@ -185,7 +190,7 @@ describe('OnThisDayService.refresh', () => {
 			getAlbumReleaseDates: () => Promise.resolve({ hasMore: false, items: [] }),
 			getAlbumsByIds: () => Promise.resolve([]),
 		};
-		await service.refresh(emptyTransport, NOW);
+		await service.refresh(emptyTransport, NOW, { lookaheadDays: 1 });
 
 		expect(store.value()).toBeDefined();
 		expect(service.getAlbumsForDate(NOW)).toEqual([]);
@@ -193,16 +198,85 @@ describe('OnThisDayService.refresh', () => {
 
 	it('never throws and keeps the prior cache when the transport fails', async () => {
 		const service = new OnThisDayService(memoryStore());
-		await service.refresh(singlePageTransport(), NOW); // seed a good cache
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 1 }); // seed a good cache
 
 		const failing: OnThisDayTransport = {
 			getAlbumReleaseDates: () => Promise.reject(new Error('network down')),
 			getAlbumsByIds: () => Promise.reject(new Error('network down')),
 		};
 
-		const summary = await service.refresh(failing, NOW, { force: true });
+		const summary = await service.refresh(failing, NOW, { force: true, lookaheadDays: 1 });
 		expect(summary.error).toBeDefined();
 		expect(service.getAlbumsForDate(NOW).map((a) => a.id)).toEqual(['a1']); // prior cache kept
+	});
+});
+
+describe('OnThisDayService lookahead window', () => {
+	const DAY_TWO = new Date(2024, 5, 17);
+	const DAY_THREE = new Date(2024, 5, 18);
+
+	it('caches one bucket per day across the window', async () => {
+		const store = memoryStore();
+		const service = new OnThisDayService(store);
+
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 3 });
+
+		expect(service.getAlbumsForDate(NOW).map((a) => a.id)).toEqual(['a1']);
+		expect(service.getAlbumsForDate(new Date(2024, 5, 16)).map((a) => a.id)).toEqual(['a2']);
+		expect(service.getAlbumsForDate(DAY_TWO)).toEqual([]);
+		expect(service.getAlbumsForDate(DAY_THREE).map((a) => a.id)).toEqual(['a5']);
+		expect(store.value()).toContain('2024-06-18');
+	});
+
+	it('returns nothing for a date past the end of the window', async () => {
+		const service = new OnThisDayService(memoryStore());
+
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 3 });
+
+		expect(service.getAlbumsForDate(new Date(2024, 5, 19))).toEqual([]);
+	});
+
+	it('serves a mid-window day from a restored cache, so a rollover survives offline', async () => {
+		const store = memoryStore();
+		await new OnThisDayService(store).refresh(singlePageTransport(), NOW, { lookaheadDays: 3 });
+
+		const restored = new OnThisDayService(store);
+		await restored.load();
+
+		expect(restored.getAlbumsForDate(DAY_THREE).map((a) => a.id)).toEqual(['a5']);
+	});
+
+	it('sweeps again when the lookahead widens, even though today still matches', async () => {
+		const transport = singlePageTransport();
+		const service = new OnThisDayService(memoryStore());
+
+		await service.refresh(transport, NOW, { lookaheadDays: 1 });
+		const callsAfterFirst = transport.discoverCalls;
+		expect(service.getAlbumsForDate(DAY_THREE)).toEqual([]);
+
+		await service.refresh(transport, NOW, { lookaheadDays: 3 });
+
+		expect(transport.discoverCalls).toBeGreaterThan(callsAfterFirst);
+		expect(service.getAlbumsForDate(DAY_THREE).map((a) => a.id)).toEqual(['a5']);
+	});
+
+	it('drops the trailing days when the lookahead narrows', async () => {
+		const service = new OnThisDayService(memoryStore());
+
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 3 });
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 1 });
+
+		expect(service.getAlbumsForDate(NOW).map((a) => a.id)).toEqual(['a1']);
+		expect(service.getAlbumsForDate(DAY_THREE)).toEqual([]);
+	});
+
+	it('getCachedAlbums returns every day in the window, for artwork prewarming', async () => {
+		const service = new OnThisDayService(memoryStore());
+		expect(service.getCachedAlbums()).toEqual([]);
+
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 3 });
+
+		expect(service.getCachedAlbums().map((a) => a.id)).toEqual(['a1', 'a2', 'a5']);
 	});
 });
 
@@ -211,13 +285,13 @@ describe('OnThisDayService.getAlbumsForDate / load', () => {
 		const service = new OnThisDayService(memoryStore());
 		expect(service.getAlbumsForDate(NOW)).toEqual([]);
 
-		await service.refresh(singlePageTransport(), NOW);
+		await service.refresh(singlePageTransport(), NOW, { lookaheadDays: 1 });
 		expect(service.getAlbumsForDate(new Date(2024, 6, 4))).toEqual([]);
 	});
 
 	it('restores a persisted cache and serves it (including the midnight rollover)', async () => {
 		const store = memoryStore();
-		await new OnThisDayService(store).refresh(singlePageTransport(), NOW);
+		await new OnThisDayService(store).refresh(singlePageTransport(), NOW, { lookaheadDays: 1 });
 
 		const restored = new OnThisDayService(store);
 		await restored.load();
@@ -229,7 +303,7 @@ describe('OnThisDayService.getAlbumsForDate / load', () => {
 
 	it('ensureLoaded reads from disk only once', async () => {
 		const store = memoryStore();
-		await new OnThisDayService(store).refresh(singlePageTransport(), NOW);
+		await new OnThisDayService(store).refresh(singlePageTransport(), NOW, { lookaheadDays: 1 });
 
 		let reads = 0;
 		const countingStore: OnThisDayStore = {
@@ -250,15 +324,17 @@ describe('OnThisDayService.getAlbumsForDate / load', () => {
 
 	it('drops malformed albums from a tampered cache instead of serving them', async () => {
 		const tampered = JSON.stringify({
-			today: {
-				albums: [
-					{ artistId: 'ar', artistName: 'A', id: 'ok', name: 'Good' },
-					{ artistId: 'ar', artistName: 'A', id: 'bad', name: null },
-				],
-				date: TODAY_KEY,
-			},
-			tomorrow: { albums: [], date: TOMORROW_KEY },
-			version: 2,
+			days: [
+				{
+					albums: [
+						{ artistId: 'ar', artistName: 'A', id: 'ok', name: 'Good' },
+						{ artistId: 'ar', artistName: 'A', id: 'bad', name: null },
+					],
+					date: TODAY_KEY,
+				},
+				{ albums: [], date: TOMORROW_KEY },
+			],
+			version: 3,
 		});
 		const service = new OnThisDayService(memoryStore(tampered));
 		await service.load();
@@ -273,7 +349,7 @@ describe('OnThisDayService.getAlbumsForDate / load', () => {
 				date: TODAY_KEY,
 			},
 			tomorrow: { albums: [], date: TOMORROW_KEY },
-			version: 1,
+			version: 2,
 		});
 		const service = new OnThisDayService(memoryStore(old));
 		await service.load();

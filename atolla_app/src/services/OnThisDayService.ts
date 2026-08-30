@@ -2,13 +2,14 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchOnThisDay } from './OnThisDay';
 
-// caches albums whose anniversary is today or tomorrow, so the home view renders
-// cheaply and survives an offline midnight rollover. recomputed online via a
-// two-phase sweep, else served from the date-keyed cache. best-effort, never throws
+// caches albums whose anniversary falls in a window starting today, so the home view
+// renders cheaply and keeps working while away from the server. the window length is the
+// user's configured lookahead. recomputed online via a two-phase sweep, else served from
+// the date-keyed cache. best-effort, never throws
 
 const CACHE_KEY = 'on_this_day_v1';
 // bump to invalidate caches from older logic so a corrected sweep re-runs
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 export const DISCOVERY_PAGE_SIZE = 200;
 const MAX_DISCOVERY_PAGES = 250;
 
@@ -20,13 +21,14 @@ export interface OnThisDayStore {
 export type OnThisDayTransport = Pick<Transport, 'getAlbumReleaseDates' | 'getAlbumsByIds'>;
 
 export interface OnThisDayRefreshSummary {
+	days: number;
 	error?: string;
 	hydrated: number;
 	matched: number;
 	ran: boolean;
 	scanned: number;
 	today: number;
-	tomorrow: number;
+	upcoming: number;
 	withReleaseDate: number;
 }
 
@@ -35,9 +37,9 @@ interface DayAlbums {
 	date: string;
 }
 
+// days[0] is today, days[i] is today + i days
 interface OnThisDayCache {
-	today: DayAlbums;
-	tomorrow: DayAlbums;
+	days: Array<DayAlbums>;
 	version: number;
 }
 
@@ -84,18 +86,23 @@ function parseDayAlbums(value: unknown): DayAlbums | null {
 function parseCache(raw: string): OnThisDayCache | null {
 	try {
 		const parsed = JSON.parse(raw) as Partial<OnThisDayCache>;
-		if (parsed?.version !== CACHE_VERSION) {
+		if (parsed?.version !== CACHE_VERSION || !Array.isArray(parsed.days)) {
 			return null;
 		}
-		const today = parseDayAlbums(parsed.today);
-		const tomorrow = parseDayAlbums(parsed.tomorrow);
-		if (!today || !tomorrow) {
+		const days = parsed.days.map(parseDayAlbums).filter((day): day is DayAlbums => day !== null);
+		if (days.length === 0) {
 			return null;
 		}
-		return { today, tomorrow, version: CACHE_VERSION };
+		return { days, version: CACHE_VERSION };
 	} catch {
 		return null;
 	}
+}
+
+function lookaheadDates(now: Date, lookaheadDays: number): Array<Date> {
+	return Array.from({ length: Math.max(0, lookaheadDays) + 1 }, (_, offset) =>
+		addDays(now, offset),
+	);
 }
 
 export class OnThisDayService {
@@ -119,48 +126,43 @@ export class OnThisDayService {
 		return this.loadPromise;
 	}
 
+	// any day still inside the cached window answers, so a midnight rollover keeps working
+	// offline until the window runs out
 	getAlbumsForDate(now: Date): Array<Album> {
-		const cache = this.cache;
-		if (!cache) {
-			return [];
-		}
-
 		const key = localDateKey(now);
-		if (cache.today.date === key) {
-			return cache.today.albums;
-		}
-		// midnight rollover: yesterday's "tomorrow" is today
-		if (cache.tomorrow.date === key) {
-			return cache.tomorrow.albums;
-		}
-		return [];
+		return this.cache?.days.find((day) => day.date === key)?.albums ?? [];
 	}
 
-	// recompute today's and tomorrow's albums via a discovery sweep + batch hydrate,
-	// then persist. no-op when already fresh (unless forced); never throws
+	getCachedAlbums(): Array<Album> {
+		return this.cache?.days.flatMap((day) => day.albums) ?? [];
+	}
+
+	// recompute the whole lookahead window via a discovery sweep + batch hydrate, then
+	// persist. no-op when the cached window already matches (unless forced); never throws
 	async refresh(
 		transport: OnThisDayTransport,
 		now: Date,
-		options: { force?: boolean } = {},
+		options: { force?: boolean; lookaheadDays: number },
 	): Promise<OnThisDayRefreshSummary> {
-		const todayKey = localDateKey(now);
-		const tomorrow = addDays(now, 1);
-		const tomorrowKey = localDateKey(tomorrow);
+		const targets = lookaheadDates(now, options.lookaheadDays);
+		const targetKeys = targets.map(localDateKey);
+		const cachedDays = this.cache?.days ?? [];
 		const summary: OnThisDayRefreshSummary = {
+			days: cachedDays.length,
 			hydrated: 0,
 			matched: 0,
 			ran: false,
 			scanned: 0,
-			today: this.cache?.today.albums.length ?? 0,
-			tomorrow: this.cache?.tomorrow.albums.length ?? 0,
+			today: cachedDays[0]?.albums.length ?? 0,
+			upcoming: cachedDays.slice(1).reduce((total, day) => total + day.albums.length, 0),
 			withReleaseDate: 0,
 		};
 
+		// a changed lookahead shifts the expected keys, so this also catches a resized window
 		if (
 			!options.force &&
-			this.cache &&
-			this.cache.today.date === todayKey &&
-			this.cache.tomorrow.date === tomorrowKey
+			cachedDays.length === targetKeys.length &&
+			cachedDays.every((day, index) => day.date === targetKeys[index])
 		) {
 			return summary;
 		}
@@ -171,7 +173,7 @@ export class OnThisDayService {
 
 		summary.ran = true;
 		try {
-			const found = await this.discoverMatchedIds(discover, now, tomorrow);
+			const found = await this.discoverMatchedIds(discover, targets);
 			summary.scanned = found.scanned;
 			summary.withReleaseDate = found.withReleaseDate;
 			summary.matched = found.ids.length;
@@ -180,20 +182,17 @@ export class OnThisDayService {
 			summary.hydrated = albums.length;
 
 			const next: OnThisDayCache = {
-				today: {
-					albums: albums.filter((album) => matchOnThisDay(album.releaseDate, now)),
-					date: todayKey,
-				},
-				tomorrow: {
-					albums: albums.filter((album) => matchOnThisDay(album.releaseDate, tomorrow)),
-					date: tomorrowKey,
-				},
+				days: targets.map((target, index) => ({
+					albums: albums.filter((album) => matchOnThisDay(album.releaseDate, target)),
+					date: targetKeys[index],
+				})),
 				version: CACHE_VERSION,
 			};
 
 			this.cache = next;
-			summary.today = next.today.albums.length;
-			summary.tomorrow = next.tomorrow.albums.length;
+			summary.days = next.days.length;
+			summary.today = next.days[0].albums.length;
+			summary.upcoming = next.days.slice(1).reduce((total, day) => total + day.albums.length, 0);
 			await this.store.storeString(CACHE_KEY, JSON.stringify(next));
 		} catch (error) {
 			// best-effort: keep the existing cache instead of crashing the toggle
@@ -205,8 +204,7 @@ export class OnThisDayService {
 
 	private async discoverMatchedIds(
 		discover: Transport['getAlbumReleaseDates'],
-		today: Date,
-		tomorrow: Date,
+		targets: Array<Date>,
 	): Promise<{ ids: Array<string>; scanned: number; withReleaseDate: number }> {
 		const ids = new Set<string>();
 		let scanned = 0;
@@ -219,10 +217,7 @@ export class OnThisDayService {
 				if (item.releaseDate) {
 					withReleaseDate += 1;
 				}
-				if (
-					item.id &&
-					(matchOnThisDay(item.releaseDate, today) || matchOnThisDay(item.releaseDate, tomorrow))
-				) {
+				if (item.id && targets.some((target) => matchOnThisDay(item.releaseDate, target))) {
 					ids.add(item.id);
 				}
 			}

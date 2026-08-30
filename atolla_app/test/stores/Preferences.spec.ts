@@ -3,7 +3,9 @@ import { CardSizes, ConnectionModes } from 'atolla_app/src/models/App';
 import {
 	CARD_SIZE_OPTIONS,
 	DEFAULT_CARD_SIZE,
+	DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	ON_THIS_DAY_LOOKAHEAD_OPTIONS,
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from 'atolla_app/src/stores/Preferences';
@@ -119,6 +121,61 @@ describe('Preferences', () => {
 			await preferences.setTrackCacheMaxTracks(999);
 
 			await expectAsync(store.fetchString('track_cache_max_tracks')).toBeRejected();
+		});
+	});
+
+	describe('getOnThisDayLookaheadDays()', () => {
+		it('returns default when preference is missing', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			expect(await preferences.getOnThisDayLookaheadDays()).toBe(
+				DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS,
+			);
+		});
+
+		it('returns default when stored value is invalid', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('on_this_day_lookahead_days', '2');
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getOnThisDayLookaheadDays()).toBe(
+				DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS,
+			);
+		});
+
+		it('returns stored value when allowed', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString(
+				'on_this_day_lookahead_days',
+				String(ON_THIS_DAY_LOOKAHEAD_OPTIONS[5]),
+			);
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getOnThisDayLookaheadDays()).toBe(ON_THIS_DAY_LOOKAHEAD_OPTIONS[5]);
+		});
+	});
+
+	describe('setOnThisDayLookaheadDays()', () => {
+		it('stores allowed value', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setOnThisDayLookaheadDays(ON_THIS_DAY_LOOKAHEAD_OPTIONS[3]);
+
+			expect(await store.fetchString('on_this_day_lookahead_days')).toBe(
+				String(ON_THIS_DAY_LOOKAHEAD_OPTIONS[3]),
+			);
+			expect(preferences.onThisDayLookaheadDays).toBe(ON_THIS_DAY_LOOKAHEAD_OPTIONS[3]);
+		});
+
+		it('ignores disallowed value', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setOnThisDayLookaheadDays(2);
+
+			await expectAsync(store.fetchString('on_this_day_lookahead_days')).toBeRejected();
+			expect(preferences.onThisDayLookaheadDays).toBe(DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS);
 		});
 	});
 

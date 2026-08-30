@@ -382,6 +382,9 @@
 	"settings_logout_confirm": {
 		"defaultMessage": "are you sure you want to log out?"
 	},
+	"settings_on_this_day_lookahead": {
+		"defaultMessage": "on this day lookahead"
+	},
 	"settings_play_queue_cached_tracks": {
 		"defaultMessage": "play queue cached tracks"
 	},
@@ -399,6 +402,9 @@
 	},
 	"settings_section_downloads": {
 		"defaultMessage": "DOWNLOADS"
+	},
+	"settings_section_home": {
+		"defaultMessage": "HOME"
 	},
 	"settings_section_language": {
 		"defaultMessage": "LANGUAGE"

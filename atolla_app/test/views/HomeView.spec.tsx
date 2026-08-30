@@ -43,7 +43,12 @@ async function flushAsyncWork(): Promise<void> {
 }
 
 function makeOnThisDayService() {
-	const calls = { ensureLoaded: 0, getAlbumsForDate: 0, refresh: 0 };
+	const calls = {
+		ensureLoaded: 0,
+		getAlbumsForDate: 0,
+		lookaheadDays: [] as Array<number>,
+		refresh: 0,
+	};
 	const albums: Array<Album> = [
 		{ artistId: 'ar1', artistName: 'Artist', id: 'a1', name: 'Album One' },
 	];
@@ -55,8 +60,14 @@ function makeOnThisDayService() {
 			calls.getAlbumsForDate += 1;
 			return albums;
 		},
-		refresh: async () => {
+		getCachedAlbums: () => albums,
+		refresh: async (
+			_transport: unknown,
+			_now: Date,
+			options: { force?: boolean; lookaheadDays: number },
+		) => {
 			calls.refresh += 1;
+			calls.lookaheadDays.push(options.lookaheadDays);
 			return { error: undefined };
 		},
 	} as unknown as OnThisDayService;
@@ -161,6 +172,25 @@ describe('HomeView', () => {
 		expect(onThisDay.calls.ensureLoaded).toBe(1);
 		expect(recentlyAdded.calls.loadCached).toBe(1);
 		expect(recentlyAdded.calls.refresh).toBe(1);
+	});
+
+	it('refreshes on-this-day with the configured lookahead, and again when it changes', async () => {
+		const base = makeBaseDeps();
+		const onThisDay = makeOnThisDayService();
+		await base.preferences.setOnThisDayLookaheadDays(7);
+		InstrumentedComponentJSX.create(
+			HomeView,
+			buildViewModel(base, onThisDay.service, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(onThisDay.calls.lookaheadDays).toEqual([7]);
+
+		await base.preferences.setOnThisDayLookaheadDays(14);
+		await flushAsyncWork();
+
+		expect(onThisDay.calls.lookaheadDays).toEqual([7, 14]);
 	});
 
 	it('does not reload when an unrelated view-model update leaves the services unchanged', async () => {

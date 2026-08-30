@@ -194,6 +194,23 @@ describe('SettingsView', () => {
 		expect(preferences.cardSize).toBe(CardSizes.small);
 	});
 
+	valdiIt('writes the selected on this day lookahead to preferences', async (driver) => {
+		const preferences = mockPreferences();
+		const viewModel = makeViewModel({ preferences });
+		const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find(
+				(v) => v.getAttribute('accessibilityLabel') === 'settings-on-this-day-lookahead-dropdown',
+			)
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityId') === 'settings-on-this-day-lookahead-option-7')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(preferences.onThisDayLookaheadDays).toBe(7);
+	});
+
 	valdiIt('toggling animations writes to preferences', async (driver) => {
 		const preferences = mockPreferences();
 		const viewModel = makeViewModel({ preferences });

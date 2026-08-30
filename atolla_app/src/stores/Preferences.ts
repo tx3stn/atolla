@@ -11,6 +11,8 @@ export const CARD_SIZE_OPTIONS: ReadonlyArray<CardSize> = [CardSizes.regular, Ca
 export const DEFAULT_CARD_SIZE: CardSize = CardSizes.regular;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35];
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
+export const ON_THIS_DAY_LOOKAHEAD_OPTIONS = [1, 3, 5, 7, 10, 14];
+export const DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS = 1;
 
 const PreferenceKeys = {
 	cardSize: 'card_size',
@@ -22,6 +24,7 @@ const PreferenceKeys = {
 	language: 'language',
 	mode: 'mode',
 	navigationAnimationsEnabled: 'navigation_animations_enabled',
+	onThisDayLookaheadDays: 'on_this_day_lookahead_days',
 	trackCacheMaxTracks: 'track_cache_max_tracks',
 } as const;
 
@@ -51,6 +54,7 @@ export class Preferences {
 	private _jellyfinClientDeviceIdOverride = '';
 	private _language: LanguageCode = DEFAULT_LANGUAGE;
 	private _mode: ConnectionMode = ConnectionModes.offline;
+	private _onThisDayLookaheadDays = DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS;
 	private _trackCacheMaxTracks = DEFAULT_TRACK_CACHE_MAX_TRACKS;
 
 	constructor(
@@ -113,6 +117,10 @@ export class Preferences {
 
 	get mode(): ConnectionMode {
 		return this._mode;
+	}
+
+	get onThisDayLookaheadDays(): number {
+		return this._onThisDayLookaheadDays;
 	}
 
 	get trackCacheMaxTracks(): number {
@@ -205,6 +213,22 @@ export class Preferences {
 		}
 	}
 
+	async getOnThisDayLookaheadDays(): Promise<number> {
+		try {
+			const value = Number(await this.store.fetchString(PreferenceKeys.onThisDayLookaheadDays));
+			if (
+				ON_THIS_DAY_LOOKAHEAD_OPTIONS.includes(
+					value as (typeof ON_THIS_DAY_LOOKAHEAD_OPTIONS)[number],
+				)
+			) {
+				return value;
+			}
+			return DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS;
+		} catch {
+			return DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS;
+		}
+	}
+
 	async getTrackCacheMaxTracks(): Promise<number> {
 		try {
 			const value = Number(await this.store.fetchString(PreferenceKeys.trackCacheMaxTracks));
@@ -237,6 +261,7 @@ export class Preferences {
 			jellyfinClientDeviceIdOverride,
 			language,
 			mode,
+			onThisDayLookaheadDays,
 			trackCacheMaxTracks,
 		] = await Promise.all([
 			this.getAnimationsEnabled(),
@@ -249,6 +274,7 @@ export class Preferences {
 			this.getJellyfinClientDeviceIdOverride(),
 			this.getLanguage(),
 			this.getMode(),
+			this.getOnThisDayLookaheadDays(),
 			this.getTrackCacheMaxTracks(),
 		]);
 		this._animationsEnabled = animationsEnabled;
@@ -261,6 +287,7 @@ export class Preferences {
 		this._jellyfinClientDeviceIdOverride = jellyfinClientDeviceIdOverride;
 		this._language = language;
 		this._mode = mode;
+		this._onThisDayLookaheadDays = onThisDayLookaheadDays;
 		this._trackCacheMaxTracks = trackCacheMaxTracks;
 		this.notify();
 	}
@@ -345,6 +372,21 @@ export class Preferences {
 			this.notify();
 		}
 		return this.store.storeString(PreferenceKeys.mode, mode);
+	}
+
+	setOnThisDayLookaheadDays(days: number): Promise<void> {
+		if (
+			!ON_THIS_DAY_LOOKAHEAD_OPTIONS.includes(
+				days as (typeof ON_THIS_DAY_LOOKAHEAD_OPTIONS)[number],
+			)
+		) {
+			return Promise.resolve();
+		}
+		if (this._onThisDayLookaheadDays !== days) {
+			this._onThisDayLookaheadDays = days;
+			this.notify();
+		}
+		return this.store.storeString(PreferenceKeys.onThisDayLookaheadDays, String(days));
 	}
 
 	setTrackCacheMaxTracks(count: number): Promise<void> {
