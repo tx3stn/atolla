@@ -23,18 +23,17 @@ const CONCURRENCY = 3;
 // so upcoming tracks are processed first
 export class WaveformGenerationQueue {
 	private queue: Array<QueueEntry> = [];
-	private allWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>>;
-	private idleWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>>;
+	private allWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>> = [];
+	private idleWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>> = [];
 	private activeJobs: Array<ActiveJob> = [];
+	private disposed = false;
 
-	constructor(private readonly waveformService: WaveformService) {
-		this.allWorkers = Array.from({ length: CONCURRENCY }, () =>
-			startWorkerService(WaveformNativeWorkerEntryPoint, []),
-		);
-		this.idleWorkers = [...this.allWorkers];
-	}
+	constructor(private readonly waveformService: WaveformService) {}
 
 	dispose(): void {
+		this.disposed = true;
+		this.queue = [];
+		for (const job of this.activeJobs) job.abandoned = true;
 		for (const worker of this.allWorkers) worker.dispose();
 	}
 
@@ -77,7 +76,7 @@ export class WaveformGenerationQueue {
 	// abandon in-flight jobs ranked below the queue front: native work finishes
 	// but the result is dropped and the track is re-queued at the back
 	private abandonLowPriorityJobs(desiredOrder: Array<string>): void {
-		if (this.queue.length === 0 || this.idleWorkers.length > 0) return;
+		if (this.queue.length === 0 || this.hasSpareCapacity()) return;
 		const frontPriority = desiredOrder.indexOf(this.queue[0].trackId);
 		if (frontPriority < 0) return;
 		for (const job of this.activeJobs) {
@@ -91,11 +90,35 @@ export class WaveformGenerationQueue {
 		}
 	}
 
+	private takeWorker(): IWorkerServiceClient<IWaveformNativeWorker> | null {
+		const idle = this.idleWorkers.pop();
+		if (idle) {
+			return idle;
+		}
+		if (this.allWorkers.length >= CONCURRENCY) {
+			return null;
+		}
+
+		const worker: IWorkerServiceClient<IWaveformNativeWorker> = startWorkerService(
+			WaveformNativeWorkerEntryPoint,
+			[],
+		);
+		this.allWorkers.push(worker);
+		return worker;
+	}
+
+	private hasSpareCapacity(): boolean {
+		return this.idleWorkers.length > 0 || this.allWorkers.length < CONCURRENCY;
+	}
+
 	private processNext(): void {
-		while (this.idleWorkers.length > 0 && this.queue.length > 0) {
-			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
-			const worker = this.idleWorkers.pop()!;
-			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
+		if (this.disposed) return;
+		while (this.queue.length > 0) {
+			const worker = this.takeWorker();
+			if (!worker) {
+				return;
+			}
+			// biome-ignore lint/style/noNonNullAssertion: length checked above
 			const entry = this.queue.shift()!;
 			const job: ActiveJob = { abandoned: false, entry };
 			this.activeJobs.push(job);

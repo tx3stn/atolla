@@ -9,9 +9,9 @@ type MockWorker = IWorkerServiceClient<IWaveformNativeWorker> & {
 	dispose: jasmine.Spy;
 };
 
-function createMockWorker(
-	generateImpl: () => Promise<string | null> = () => Promise.resolve('amps-base64-ok'),
-): MockWorker {
+type GenerateImpl = (trackId: string, audioPath: string) => Promise<string | null>;
+
+function createMockWorker(generateImpl: GenerateImpl): MockWorker {
 	return {
 		api: {
 			generateWaveform: jasmine.createSpy('generateWaveform').and.callFake(generateImpl),
@@ -58,42 +58,47 @@ async function tick() {
 
 describe('WaveformGenerationQueue', () => {
 	let workers: Array<MockWorker>;
+	let generateFor: (workerIndex: number) => GenerateImpl;
 
 	beforeEach(() => {
 		workers = [];
+		generateFor = () => () => Promise.resolve('amps-base64-ok');
 		// biome-ignore lint/suspicious/noExplicitAny: spy returns mock, not the full generic type
 		spyOn(WorkerService, 'startWorkerService').and.callFake((): any => {
-			const w = createMockWorker();
+			const index = workers.length;
+			const w = createMockWorker((trackId, audioPath) => generateFor(index)(trackId, audioPath));
 			workers.push(w);
 			return w;
 		});
 	});
 
+	function useWorkerBehaviour(impl: GenerateImpl): void {
+		generateFor = () => impl;
+	}
+
 	function makeQueue(service = createMockService()) {
 		const queue = new WaveformGenerationQueue(service as never);
-		return { queue, service, workers: [...workers] };
+		return { queue, service };
 	}
 
 	describe('enqueue', () => {
 		it('skips a track whose waveform is already ready', async () => {
 			const service = createMockService();
 			service._ready.set('t1', 'data:image/png;base64,existing');
-			const { queue, workers: w } = makeQueue(service);
+			const { queue } = makeQueue(service);
 
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
 
-			const allCalls = w.flatMap((worker) => worker.api.generateWaveform.calls.allArgs());
+			const allCalls = workers.flatMap((worker) => worker.api.generateWaveform.calls.allArgs());
 			expect(allCalls.filter(([id]) => id === 't1').length).toBe(0);
 			queue.dispose();
 		});
 
 		it('skips a track already pending in the queue', async () => {
 			const d = deferred<string | null>();
-			const { queue, workers: w } = makeQueue();
-			for (const worker of w) {
-				worker.api.generateWaveform.and.callFake(() => d.promise);
-			}
+			const { queue } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
 			// fill all 3 worker slots
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
@@ -106,7 +111,7 @@ describe('WaveformGenerationQueue', () => {
 			d.resolve('data:image/png;base64,x');
 			await tick();
 
-			const t4Calls = w
+			const t4Calls = workers
 				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
 				.filter(([id]) => id === 't4');
 			expect(t4Calls.length).toBe(1);
@@ -115,16 +120,14 @@ describe('WaveformGenerationQueue', () => {
 
 		it('skips a track that is already in-flight', () => {
 			const d = deferred<string | null>();
-			const { queue, workers: w } = makeQueue();
+			const { queue } = makeQueue();
 			// all workers use the same deferred so whichever handles t1 stays busy
-			for (const worker of w) {
-				worker.api.generateWaveform.and.callFake(() => d.promise);
-			}
+			useWorkerBehaviour(() => d.promise);
 
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t1', '/a/t1.flac');
 
-			const t1Calls = w
+			const t1Calls = workers
 				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
 				.filter(([id]) => id === 't1');
 			expect(t1Calls.length).toBe(1);
@@ -133,12 +136,13 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('dispatches work to a worker immediately when a slot is free', async () => {
-			const { queue, workers: w } = makeQueue();
+			const { queue } = makeQueue();
 
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
 
-			const allCalls = w.flatMap((worker) => worker.api.generateWaveform.calls.allArgs());
+			expect(workers.length).toBe(1);
+			const allCalls = workers.flatMap((worker) => worker.api.generateWaveform.calls.allArgs());
 			expect(allCalls.length).toBe(1);
 			expect(allCalls[0][0]).toBe('t1');
 			expect(allCalls[0][1]).toBe('/audio/t1.flac');
@@ -156,10 +160,8 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('calls onGenerationFailed when the worker returns null', async () => {
-			const { queue, workers: w, service } = makeQueue();
-			for (const worker of w) {
-				worker.api.generateWaveform.and.returnValue(Promise.resolve(null));
-			}
+			const { queue, service } = makeQueue();
+			useWorkerBehaviour(() => Promise.resolve(null));
 
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
@@ -169,10 +171,8 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('calls onGenerationFailed when the worker throws', async () => {
-			const { queue, workers: w, service } = makeQueue();
-			for (const worker of w) {
-				worker.api.generateWaveform.and.returnValue(Promise.reject(new Error('worker crash')));
-			}
+			const { queue, service } = makeQueue();
+			useWorkerBehaviour(() => Promise.reject(new Error('worker crash')));
 
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
@@ -183,10 +183,8 @@ describe('WaveformGenerationQueue', () => {
 
 		it('queues a fourth track when all three worker slots are busy', async () => {
 			const d = deferred<string | null>();
-			const { queue, workers: w } = makeQueue();
-			for (const worker of w) {
-				worker.api.generateWaveform.and.callFake(() => d.promise);
-			}
+			const { queue } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
 
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
@@ -195,7 +193,7 @@ describe('WaveformGenerationQueue', () => {
 			await tick();
 
 			// t4 should not yet be dispatched
-			const beforeCalls = w
+			const beforeCalls = workers
 				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
 				.map(([id]) => id);
 			expect(beforeCalls.length).toBe(3);
@@ -205,10 +203,11 @@ describe('WaveformGenerationQueue', () => {
 			d.resolve('data:image/png;base64,ok');
 			await tick();
 
-			const afterCalls = w
+			const afterCalls = workers
 				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
 				.map(([id]) => id);
 			expect(afterCalls).toContain('t4');
+			expect(workers.length).toBe(3);
 			queue.dispose();
 		});
 	});
@@ -217,13 +216,11 @@ describe('WaveformGenerationQueue', () => {
 		it('moves a queued track to the front', async () => {
 			const d = deferred<string | null>();
 			const callOrder: Array<string> = [];
-			const { queue, workers: w } = makeQueue();
-			for (const worker of w) {
-				worker.api.generateWaveform.and.callFake((trackId: string) => {
-					callOrder.push(trackId);
-					return d.promise;
-				});
-			}
+			const { queue } = makeQueue();
+			useWorkerBehaviour((trackId) => {
+				callOrder.push(trackId);
+				return d.promise;
+			});
 
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
@@ -251,13 +248,11 @@ describe('WaveformGenerationQueue', () => {
 		it('reorders pending entries to match the given sequence', async () => {
 			const d = deferred<string | null>();
 			const callOrder: Array<string> = [];
-			const { queue, workers: w } = makeQueue();
-			for (const worker of w) {
-				worker.api.generateWaveform.and.callFake((trackId: string) => {
-					callOrder.push(trackId);
-					return d.promise;
-				});
-			}
+			const { queue } = makeQueue();
+			useWorkerBehaviour((trackId) => {
+				callOrder.push(trackId);
+				return d.promise;
+			});
 
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
@@ -287,14 +282,11 @@ describe('WaveformGenerationQueue', () => {
 				deferred<string | null>(),
 			];
 			const callOrder: Array<string> = [];
-			const { queue, workers: w } = makeQueue();
-			for (let i = 0; i < 3; i++) {
-				const d = deferreds[i];
-				w[i].api.generateWaveform.and.callFake((trackId: string) => {
-					callOrder.push(trackId);
-					return d.promise;
-				});
-			}
+			const { queue } = makeQueue();
+			generateFor = (index) => (trackId) => {
+				callOrder.push(trackId);
+				return deferreds[index].promise;
+			};
 
 			// fill all workers: t1/t2/t3 in-flight, t4 pending
 			queue.enqueue('t1', '/a/t1.flac');
@@ -323,14 +315,63 @@ describe('WaveformGenerationQueue', () => {
 	});
 
 	describe('dispose', () => {
-		it('disposes all idle workers', () => {
-			const { queue, workers: w } = makeQueue();
+		it('disposes every worker it started', async () => {
+			const d = deferred<string | null>();
+			const { queue } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
+			queue.enqueue('t1', '/a/t1.flac');
+			queue.enqueue('t2', '/a/t2.flac');
+			queue.enqueue('t3', '/a/t3.flac');
+
+			queue.dispose();
+			d.resolve(null);
+			await tick();
+
+			expect(workers.length).toBe(3);
+			for (const worker of workers) {
+				expect(worker.dispose).toHaveBeenCalledTimes(1);
+			}
+		});
+
+		it('has nothing to dispose when no work was ever queued', () => {
+			const { queue } = makeQueue();
 
 			queue.dispose();
 
-			for (const worker of w) {
-				expect(worker.dispose).toHaveBeenCalledTimes(1);
-			}
+			expect(workers.length).toBe(0);
+		});
+
+		it('reports nothing for jobs still in flight when disposed', async () => {
+			const d = deferred<string | null>();
+			const { queue, service } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
+			queue.enqueue('t1', '/a/t1.flac');
+
+			queue.dispose();
+			d.resolve('amps-base64-ok');
+			await tick();
+
+			expect(service.onGenerationSucceeded).not.toHaveBeenCalled();
+			expect(service.onGenerationFailed).not.toHaveBeenCalled();
+		});
+
+		it('dispatches no queued work after being disposed', async () => {
+			const d = deferred<string | null>();
+			const { queue } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
+			queue.enqueue('t1', '/a/t1.flac');
+			queue.enqueue('t2', '/a/t2.flac');
+			queue.enqueue('t3', '/a/t3.flac');
+			queue.enqueue('t4', '/a/t4.flac');
+
+			queue.dispose();
+			d.resolve(null);
+			await tick();
+
+			const dispatched = workers
+				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
+				.map(([id]) => id);
+			expect(dispatched).not.toContain('t4');
 		});
 	});
 });
