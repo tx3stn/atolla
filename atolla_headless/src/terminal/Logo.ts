@@ -21,9 +21,9 @@ const BELL: Array<string> = [
 const TENTACLES: Array<string> = [
 	'      █▙    ▐█▖     █▌    ▟█',
 	'      ▐█     █▌    ▐█     █▌',
-	'     ▗█▘    ▟▛▘    ▝▜▙    ▀█▌',
-	'      ▜▙▖   ▜▙▖    ▗▟▛   ▗▟█▘',
-	'       ▀█    ▀▜▙  ▟█▀   █▛▀',
+	'     ▗█▘    ▟▛▘    ▝▜▙    ▝█▖',
+	'      ▜▙▖   ▜▙▖    ▗▟▛   ▗▟▛',
+	'       ▀█    ▀▜▙  ▟█▀    █▀',
 ];
 
 export const BELL_ROWS = BELL.length;
