@@ -26,6 +26,10 @@
 		"defaultMessage": "aucune configuration dans {path%s} — lancez \"atolla init\"",
 		"example": "aucune configuration dans /etc/atolla/player.json — lancez \"atolla init\""
 	},
+	"error_invalid_port": {
+		"defaultMessage": "le port doit être un nombre entier entre 1 et 65535, et non {value%s}",
+		"example": "le port doit être un nombre entier entre 1 et 65535, et non http"
+	},
 	"error_missing_value": {
 		"defaultMessage": "{name%s} attend une valeur",
 		"example": "--config attend une valeur"
@@ -42,6 +46,10 @@
 		"defaultMessage": "langue inconnue {code%s}",
 		"example": "langue inconnue de"
 	},
+	"error_unknown_log_level": {
+		"defaultMessage": "niveau de journalisation inconnu {level%s}",
+		"example": "niveau de journalisation inconnu chatty"
+	},
 	"field_audio_device": {
 		"defaultMessage": "périphérique audio"
 	},
@@ -57,6 +65,9 @@
 	"field_state": {
 		"defaultMessage": "état"
 	},
+	"flag_audio_device": {
+		"defaultMessage": "périphérique de sortie audio utilisé pour la lecture"
+	},
 	"flag_config": {
 		"defaultMessage": "utiliser un autre fichier de configuration"
 	},
@@ -65,6 +76,9 @@
 	},
 	"flag_language": {
 		"defaultMessage": "langue des messages de la commande"
+	},
+	"flag_log_level": {
+		"defaultMessage": "niveau de détail des journaux : debug, info, warn ou error"
 	},
 	"flag_name": {
 		"defaultMessage": "nom affiché pour ce lecteur"
@@ -77,6 +91,9 @@
 	},
 	"flag_pair_status": {
 		"defaultMessage": "afficher l'état d'association actuel"
+	},
+	"flag_port": {
+		"defaultMessage": "port d'écoute du serveur de contrôle"
 	},
 	"flag_version": {
 		"defaultMessage": "la version actuelle de l'application"

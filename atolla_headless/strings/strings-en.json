@@ -26,6 +26,10 @@
 		"defaultMessage": "no config at {path%s} — run \"atolla init\"",
 		"example": "no config at /etc/atolla/player.json — run \"atolla init\""
 	},
+	"error_invalid_port": {
+		"defaultMessage": "port must be a whole number between 1 and 65535, not {value%s}",
+		"example": "port must be a whole number between 1 and 65535, not http"
+	},
 	"error_missing_value": {
 		"defaultMessage": "{name%s} needs a value",
 		"example": "--config needs a value"
@@ -42,6 +46,10 @@
 		"defaultMessage": "unknown language {code%s}",
 		"example": "unknown language de"
 	},
+	"error_unknown_log_level": {
+		"defaultMessage": "unknown log level {level%s}",
+		"example": "unknown log level chatty"
+	},
 	"field_audio_device": {
 		"defaultMessage": "audio device"
 	},
@@ -57,6 +65,9 @@
 	"field_state": {
 		"defaultMessage": "state"
 	},
+	"flag_audio_device": {
+		"defaultMessage": "audio output device used for playback"
+	},
 	"flag_config": {
 		"defaultMessage": "use a different config file"
 	},
@@ -65,6 +76,9 @@
 	},
 	"flag_language": {
 		"defaultMessage": "language for command output"
+	},
+	"flag_log_level": {
+		"defaultMessage": "how much detail to log: debug, info, warn or error"
 	},
 	"flag_name": {
 		"defaultMessage": "name shown for this player"
@@ -77,6 +91,9 @@
 	},
 	"flag_pair_status": {
 		"defaultMessage": "display the current pairing status"
+	},
+	"flag_port": {
+		"defaultMessage": "port the control server listens on"
 	},
 	"flag_version": {
 		"defaultMessage": "the current version of the app"

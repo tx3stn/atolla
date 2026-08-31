@@ -1,4 +1,10 @@
-import { getLogger, Logger, type LogWriter } from 'atolla_core/src/services/Logger';
+import {
+	getLogger,
+	LOG_LEVELS,
+	Logger,
+	type LogLevel,
+	type LogWriter,
+} from 'atolla_core/src/services/Logger';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import type { PlayerConfig } from './PlayerConfig';
@@ -9,11 +15,21 @@ export interface DaemonDeps {
 	log: LogWriter;
 }
 
+export function filterLogWriter(minimum: LogLevel, write: (entry: string) => void): LogWriter {
+	const floor = LOG_LEVELS.indexOf(minimum);
+
+	return (level, entry) => {
+		if (LOG_LEVELS.indexOf(level) >= floor) {
+			write(entry);
+		}
+	};
+}
+
 export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	Logger.setWriter(deps.log);
 
 	const log = getLogger('daemon');
-	log.info('started', { dataDir: deps.config.dataDir, name: deps.config.name });
+	log.debug('started', { dataDir: deps.config.dataDir, name: deps.config.name });
 
 	const state = `${deps.config.dataDir}/state`;
 	const playback = new PlaybackStore();

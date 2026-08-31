@@ -1,6 +1,8 @@
 import { redactSensitiveUrlParams } from '../utils/RedactUrl';
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+// ordered by severity, so the index doubles as the ranking a level filter compares on
+export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 // a namespaced logger. the namespace is bound once via getLogger(), so call sites pass only the
 // message and optional data (e.g. `log.info('rendered', { count })`).

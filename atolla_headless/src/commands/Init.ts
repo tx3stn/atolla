@@ -1,6 +1,11 @@
-import { DEFAULT_LANGUAGE } from 'atolla_core/src/Language';
 import Strings from 'atolla_headless/src/Strings';
-import { DEFAULT_DATA_DIR, isLanguageCode } from '../PlayerConfig';
+import {
+	DEFAULT_AUDIO_DEVICE,
+	DEFAULT_DATA_DIR,
+	DEFAULT_LOG_LEVEL,
+	DEFAULT_PORT,
+	readLanguage,
+} from '../PlayerConfig';
 import type { Cmd, CommandContext } from './Command';
 import { CLI_ERROR } from './Errors';
 import { FLAG_LANGUAGE, FLAG_NAME } from './Flags';
@@ -18,9 +23,12 @@ export const CmdInit = {
 		}
 
 		const written = {
+			audioDevice: DEFAULT_AUDIO_DEVICE,
 			dataDir: DEFAULT_DATA_DIR,
 			language: readLanguage(args.value(FLAG_LANGUAGE)),
+			logLevel: DEFAULT_LOG_LEVEL,
 			name: args.value(FLAG_NAME) ?? '',
+			port: DEFAULT_PORT,
 		};
 
 		// the language the operator just chose, so this invocation's own output honours it; without
@@ -32,14 +40,3 @@ export const CmdInit = {
 		return 0;
 	},
 } satisfies Cmd;
-
-export function readLanguage(value: string | undefined) {
-	if (value === undefined) {
-		return DEFAULT_LANGUAGE;
-	}
-	if (!isLanguageCode(value)) {
-		throw CLI_ERROR.withDetail(Strings.errorUnknownLanguage(value));
-	}
-
-	return value;
-}

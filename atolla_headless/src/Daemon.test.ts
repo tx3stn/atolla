@@ -5,10 +5,17 @@ import {
 	Logger,
 	type LogWriter,
 } from 'atolla_core/src/services/Logger';
-import { startDaemon } from './Daemon';
+import { filterLogWriter, startDaemon } from './Daemon';
 import type { StoreFiles } from './FileKeyValueStore';
 
-const CONFIG = { dataDir: '/var/lib/atolla', language: 'en', name: 'Kitchen' } as const;
+const CONFIG = {
+	audioDevice: 'default',
+	dataDir: '/var/lib/atolla',
+	language: 'en',
+	logLevel: 'info',
+	name: 'Kitchen',
+	port: 45889,
+} as const;
 
 function capture(): { entries: Array<string>; log: LogWriter } {
 	const entries: Array<string> = [];
@@ -29,6 +36,28 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 		},
 	};
 }
+
+describe('filterLogWriter', () => {
+	it('writes entries at or above the configured level', () => {
+		const entries: Array<string> = [];
+		const write = filterLogWriter('warn', (entry) => entries.push(entry));
+
+		write('warn', 'a');
+		write('error', 'b');
+
+		expect(entries).toEqual(['a', 'b']);
+	});
+
+	it('drops entries below the configured level', () => {
+		const entries: Array<string> = [];
+		const write = filterLogWriter('warn', (entry) => entries.push(entry));
+
+		write('debug', 'a');
+		write('info', 'b');
+
+		expect(entries).toEqual([]);
+	});
+});
 
 describe('startDaemon', () => {
 	afterEach(() => {

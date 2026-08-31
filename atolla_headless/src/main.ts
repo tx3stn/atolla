@@ -1,5 +1,6 @@
 import { DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
 import { applyLanguage } from 'atolla_core/src/Localization';
+import type { LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import Strings from 'atolla_headless/src/Strings';
@@ -9,9 +10,22 @@ import { AllCmds } from './commands/All';
 import { parseArguments } from './commands/Arguments';
 import type { Cmd, Runnable } from './commands/Command';
 import { USAGE_ERROR } from './commands/Errors';
-import { FLAG_CONFIG, FLAG_HELP, FLAG_NO_COLOR, FLAG_VERSION, RootFlags } from './commands/Flags';
+import {
+	FLAG_CONFIG,
+	FLAG_HELP,
+	FLAG_LOG_LEVEL,
+	FLAG_NO_COLOR,
+	FLAG_VERSION,
+	RootFlags,
+} from './commands/Flags';
 import { commandHelp, help } from './commands/Help';
-import { type ConfigStore, DEFAULT_CONFIG_PATH, makeConfigStore } from './PlayerConfig';
+import {
+	type ConfigStore,
+	DEFAULT_CONFIG_PATH,
+	DEFAULT_LOG_LEVEL,
+	makeConfigStore,
+	readLogLevel,
+} from './PlayerConfig';
 import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 
 // Importing valdi_standalone/src/ValdiStandalone pulls the whole renderer into the program, and
@@ -24,6 +38,8 @@ interface Invocation {
 	command: string | undefined;
 	commandArgs: Array<string>;
 	configPath: string;
+	// unvalidated: --config decides which file supplies the language the error is reported in
+	logLevel: string | undefined;
 }
 
 const CmdRoot: Runnable = {
@@ -45,6 +61,14 @@ function configuredLanguage(config: ConfigStore): LanguageCode {
 		return config.read()?.language ?? DEFAULT_LANGUAGE;
 	} catch {
 		return DEFAULT_LANGUAGE;
+	}
+}
+
+function configuredLogLevel(config: ConfigStore): LogLevel {
+	try {
+		return config.read()?.logLevel ?? DEFAULT_LOG_LEVEL;
+	} catch {
+		return DEFAULT_LOG_LEVEL;
 	}
 }
 
@@ -82,6 +106,7 @@ async function runCommand(
 	config: ConfigStore,
 	command: string,
 	commandArgs: Array<string>,
+	logLevel: LogLevel,
 ): Promise<number> {
 	const cmd: Cmd | undefined = (AllCmds as Record<string, Cmd>)[command];
 
@@ -97,17 +122,20 @@ async function runCommand(
 		args: parseArguments(commandArgs, cmd.flags),
 		config,
 		files: fs,
+		logLevel,
 		setLanguage,
 		terminal,
 	});
 }
 
-// --config and --no-color are consumed here rather than declared per command, because they apply to
-// the whole invocation: the config file supplies the language every other message is rendered in
+// --config, --log-level and --no-color are consumed here rather than declared per command, because
+// they apply to the whole invocation: the config file supplies the language every other message is
+// rendered in
 function parseInvocation(argv: Array<string>): Invocation {
 	const rest: Array<string> = [];
 	let colour = true;
 	let configPath = DEFAULT_CONFIG_PATH;
+	let logLevel: string | undefined;
 
 	for (let index = 0; index < argv.length; index++) {
 		const arg = argv[index];
@@ -126,6 +154,15 @@ function parseInvocation(argv: Array<string>): Invocation {
 			continue;
 		}
 
+		if (arg === FLAG_LOG_LEVEL) {
+			index++;
+			if (index >= argv.length) {
+				throw USAGE_ERROR.withDetail(Strings.errorMissingValue(FLAG_LOG_LEVEL));
+			}
+			logLevel = argv[index];
+			continue;
+		}
+
 		rest.push(arg);
 	}
 
@@ -136,6 +173,7 @@ function parseInvocation(argv: Array<string>): Invocation {
 		command: named ? rest[0] : undefined,
 		commandArgs: named ? rest.slice(1) : rest,
 		configPath,
+		logLevel,
 	};
 }
 
@@ -154,15 +192,22 @@ function main(): void {
 		const config = makeConfigStore(fs, invocation.configPath);
 		applyLanguage(configuredLanguage(config), Strings);
 
+		// validated after the language is applied, so a bad level is reported in the operator's language
+		const logLevel =
+			invocation.logLevel === undefined
+				? configuredLogLevel(config)
+				: readLogLevel(invocation.logLevel);
+
 		return command === undefined
 			? CmdRoot.run({
 					args: parseArguments(invocation.commandArgs, CmdRoot.flags),
 					config,
 					files: fs,
+					logLevel,
 					setLanguage,
 					terminal,
 				})
-			: runCommand(terminal, config, command, invocation.commandArgs);
+			: runCommand(terminal, config, command, invocation.commandArgs, logLevel);
 	};
 
 	const keepAlive = beginKeepAlive();

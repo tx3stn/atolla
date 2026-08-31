@@ -1,4 +1,5 @@
 import type { LanguageCode } from 'atolla_core/src/Language';
+import type { LogLevel } from 'atolla_core/src/services/Logger';
 import type { StoreFiles } from '../FileKeyValueStore';
 import type { ConfigStore } from '../PlayerConfig';
 import type { Terminal } from '../terminal/Terminal';
@@ -11,6 +12,8 @@ export interface CommandContext {
 	args: ParsedArguments;
 	config: ConfigStore;
 	files: StoreFiles;
+	// the level this invocation prints at: the global --log-level, or the configured level
+	logLevel: LogLevel;
 	setLanguage: (language: LanguageCode) => void;
 	terminal: Terminal;
 }

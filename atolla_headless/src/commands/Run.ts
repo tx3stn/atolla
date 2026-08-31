@@ -1,6 +1,6 @@
 import { version } from 'atolla_core/src/version';
 import Strings from 'atolla_headless/src/Strings';
-import { startDaemon } from '../Daemon';
+import { filterLogWriter, startDaemon } from '../Daemon';
 import type { PlayerConfig } from '../PlayerConfig';
 import { beside, fields } from '../terminal/Layout';
 import { LOGO_WIDTH, logoLines } from '../terminal/Logo';
@@ -12,7 +12,7 @@ export const CmdRun = {
 	flags: {},
 	helpTextLong: Strings.runHelpLong,
 	helpTextShort: Strings.runHelpShort,
-	run: async ({ config, files, terminal }: CommandContext): Promise<number> => {
+	run: async ({ config, files, logLevel, terminal }: CommandContext): Promise<number> => {
 		const current = config.read();
 		if (current === undefined) {
 			throw CLI_ERROR.withDetail(Strings.errorConfigMissing(config.path));
@@ -23,7 +23,7 @@ export const CmdRun = {
 		return startDaemon({
 			config: current,
 			files,
-			log: (_level, entry) => terminal.write(entry),
+			log: filterLogWriter(logLevel, terminal.write),
 		});
 	},
 } satisfies Cmd;
@@ -39,8 +39,8 @@ function banner(terminal: Terminal, config: PlayerConfig): void {
 		...fields(terminal, [
 			{ label: Strings.fieldName(), value: config.name },
 			{ label: Strings.fieldPlayerId(), value: 'atolla headless 666' },
-			{ label: Strings.fieldControl(), value: 'http://0.0.0.0:45889' },
-			{ label: Strings.fieldAudioDevice(), value: 'hw:2,0 Topping E30' },
+			{ label: Strings.fieldControl(), value: `http://0.0.0.0:${config.port}` },
+			{ label: Strings.fieldAudioDevice(), value: config.audioDevice },
 			{ label: Strings.fieldState(), value: Strings.stateIdle() },
 		]),
 	];
