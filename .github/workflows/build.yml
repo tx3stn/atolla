@@ -134,7 +134,7 @@ jobs:
       #   if: inputs.upload-artifacts
       #   with:
       #     name: headless-linux-amd64
-      #     path: build/atolla_headless_cli
+      #     path: build/atolla
       #     if-no-files-found: error
 
   # The headless player for a Pi. Cross-built from an amd64 runner, not natively: Valdi's prebuilt
@@ -165,7 +165,7 @@ jobs:
       #   if: inputs.upload-artifacts
       #   with:
       #     name: headless-linux-arm64
-      #     path: build/atolla_headless_cli_arm64
+      #     path: build/atolla_arm64
       #     if-no-files-found: error
 
   ios:

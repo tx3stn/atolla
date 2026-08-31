@@ -20,11 +20,11 @@ ARCH="${1:-host}"
 case "$ARCH" in
 host)
 	config=()
-	output=build/atolla_headless_cli
+	output=build/atolla
 	;;
 arm64)
 	config=(--config=linux-arm64)
-	output=build/atolla_headless_cli_arm64
+	output=build/atolla_arm64
 	;;
 *)
 	echo "usage: $(basename "$0") [arm64]" >&2
