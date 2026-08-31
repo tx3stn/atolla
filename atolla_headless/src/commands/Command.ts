@@ -1,3 +1,4 @@
+import type { StoreFiles } from '../FileKeyValueStore';
 import type { ConfigStore } from '../PlayerConfig';
 import type { Terminal } from '../terminal/Terminal';
 import type { ParsedArguments } from './Arguments';
@@ -6,6 +7,7 @@ import type { Flags } from './Flags';
 export interface CommandContext {
 	args: ParsedArguments;
 	config: ConfigStore;
+	files: StoreFiles;
 	terminal: Terminal;
 }
 

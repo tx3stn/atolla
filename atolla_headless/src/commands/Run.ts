@@ -12,7 +12,7 @@ export const CmdRun = {
 	flags: {},
 	helpTextLong: Strings.runHelpLong,
 	helpTextShort: Strings.runHelpShort,
-	run: async ({ config, terminal }: CommandContext): Promise<number> => {
+	run: async ({ config, files, terminal }: CommandContext): Promise<number> => {
 		const current = config.read();
 		if (current === undefined) {
 			throw CLI_ERROR.withDetail(Strings.errorConfigMissing(config.path));
@@ -22,6 +22,7 @@ export const CmdRun = {
 
 		return startDaemon({
 			config: current,
+			files,
 			log: (_level, entry) => terminal.write(entry),
 		});
 	},

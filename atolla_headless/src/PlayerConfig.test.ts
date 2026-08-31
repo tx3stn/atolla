@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { CLI_ERROR } from './commands/Errors';
-import { type ConfigFiles, makeConfigStore, type PlayerConfig } from './PlayerConfig';
+import {
+	type ConfigFiles,
+	DEFAULT_DATA_DIR,
+	makeConfigStore,
+	type PlayerConfig,
+} from './PlayerConfig';
 
 const PATH = '/etc/atolla/player.json';
 
@@ -40,13 +45,27 @@ describe('makeConfigStore read', () => {
 	it('reads the stored language and name', () => {
 		const { files } = fakeFiles('{"language":"fr","name":"kitchen"}');
 
-		expect(makeConfigStore(files, PATH).read()).toEqual({ language: 'fr', name: 'kitchen' });
+		expect(makeConfigStore(files, PATH).read()).toEqual({
+			dataDir: DEFAULT_DATA_DIR,
+			language: 'fr',
+			name: 'kitchen',
+		});
 	});
 
 	it('falls back per field rather than rejecting the whole file', () => {
 		const { files } = fakeFiles('{"language":"martian"}');
 
-		expect(makeConfigStore(files, PATH).read()).toEqual({ language: 'en', name: '' });
+		expect(makeConfigStore(files, PATH).read()).toEqual({
+			dataDir: DEFAULT_DATA_DIR,
+			language: 'en',
+			name: '',
+		});
+	});
+
+	it('respects a data directory the operator has set by hand', () => {
+		const { files } = fakeFiles('{"dataDir":"/mnt/usb/atolla","language":"en","name":"kitchen"}');
+
+		expect(makeConfigStore(files, PATH).read()?.dataDir).toBe('/mnt/usb/atolla');
 	});
 
 	it('reports a file that exists but cannot be parsed', () => {
@@ -68,7 +87,11 @@ describe('makeConfigStore write', () => {
 	it('creates the containing directory before writing', () => {
 		const { directories, files } = fakeFiles();
 
-		makeConfigStore(files, PATH).write({ language: 'en', name: 'living room' });
+		makeConfigStore(files, PATH).write({
+			dataDir: DEFAULT_DATA_DIR,
+			language: 'en',
+			name: 'living room',
+		});
 
 		expect(directories).toEqual(['/etc/atolla']);
 	});
@@ -76,7 +99,11 @@ describe('makeConfigStore write', () => {
 	it('round-trips through read', () => {
 		const { files } = fakeFiles();
 		const store = makeConfigStore(files, PATH);
-		const config: PlayerConfig = { language: 'fr', name: 'bedroom' };
+		const config: PlayerConfig = {
+			dataDir: DEFAULT_DATA_DIR,
+			language: 'fr',
+			name: 'bedroom',
+		};
 
 		store.write(config);
 
@@ -86,7 +113,11 @@ describe('makeConfigStore write', () => {
 	it('writes newline-terminated json so the file edits cleanly by hand', () => {
 		const { files, written } = fakeFiles();
 
-		makeConfigStore(files, PATH).write({ language: 'en', name: 'hall' });
+		makeConfigStore(files, PATH).write({
+			dataDir: DEFAULT_DATA_DIR,
+			language: 'en',
+			name: 'hall',
+		});
 
 		expect(written[0][1].endsWith('\n')).toBe(true);
 	});

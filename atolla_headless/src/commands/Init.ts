@@ -1,6 +1,6 @@
 import { DEFAULT_LANGUAGE } from 'atolla_core/src/Language';
 import Strings from 'atolla_headless/src/Strings';
-import { isLanguageCode } from '../PlayerConfig';
+import { DEFAULT_DATA_DIR, isLanguageCode } from '../PlayerConfig';
 import type { Cmd, CommandContext } from './Command';
 import { CLI_ERROR } from './Errors';
 import { FLAG_LANGUAGE, FLAG_NAME } from './Flags';
@@ -18,6 +18,7 @@ export const CmdInit = {
 		}
 
 		config.write({
+			dataDir: DEFAULT_DATA_DIR,
 			language: readLanguage(args.value(FLAG_LANGUAGE)),
 			name: args.value(FLAG_NAME) ?? '',
 		});

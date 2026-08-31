@@ -34,6 +34,7 @@ export const CmdConfig = {
 		}
 
 		config.write({
+			dataDir: current.dataDir,
 			language: language === undefined ? current.language : readLanguage(language),
 			name: name ?? current.name,
 		});

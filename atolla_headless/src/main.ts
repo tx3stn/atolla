@@ -89,7 +89,7 @@ async function runCommand(
 		return commandHelp(terminal, command, cmd);
 	}
 
-	return cmd.run({ args: parseArguments(commandArgs, cmd.flags), config, terminal });
+	return cmd.run({ args: parseArguments(commandArgs, cmd.flags), config, files: fs, terminal });
 }
 
 // --config and --no-color are consumed here rather than declared per command, because they apply to
@@ -148,6 +148,7 @@ function main(): void {
 			? CmdRoot.run({
 					args: parseArguments(invocation.commandArgs, CmdRoot.flags),
 					config,
+					files: fs,
 					terminal,
 				})
 			: runCommand(terminal, config, command, invocation.commandArgs);

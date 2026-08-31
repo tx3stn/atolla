@@ -3,8 +3,10 @@ import Strings from 'atolla_headless/src/Strings';
 import { CLI_ERROR } from './commands/Errors';
 
 export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
+export const DEFAULT_DATA_DIR = '/var/lib/atolla';
 
 export interface PlayerConfig {
+	dataDir: string;
 	language: LanguageCode;
 	name: string;
 }
@@ -64,9 +66,11 @@ function parse(raw: string, path: string): PlayerConfig {
 		throw CLI_ERROR.withDetail(Strings.errorConfigInvalid(path));
 	}
 
-	const value = parsed as { language?: unknown; name?: unknown };
+	const value = parsed as { dataDir?: unknown; language?: unknown; name?: unknown };
 
 	return {
+		dataDir:
+			typeof value.dataDir === 'string' && value.dataDir !== '' ? value.dataDir : DEFAULT_DATA_DIR,
 		language: isLanguageCode(value.language) ? value.language : DEFAULT_LANGUAGE,
 		name: typeof value.name === 'string' ? value.name : '',
 	};
