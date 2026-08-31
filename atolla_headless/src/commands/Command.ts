@@ -11,7 +11,7 @@ export interface CommandContext {
 
 export interface Runnable {
 	flags: Flags;
-	run: (context: CommandContext) => number;
+	run: (context: CommandContext) => Promise<number>;
 }
 
 export interface Cmd extends Runnable {

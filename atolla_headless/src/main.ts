@@ -4,6 +4,7 @@ import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import Strings from 'atolla_headless/src/Strings';
 import { fs } from 'file_system/src/FileSystem';
+import { beginKeepAlive, endKeepAlive } from 'valdi_core/src/utils/KeepAliveCallback';
 import { AllCmds } from './commands/All';
 import { parseArguments } from './commands/Arguments';
 import type { Cmd, Runnable } from './commands/Command';
@@ -27,7 +28,7 @@ interface Invocation {
 
 const CmdRoot: Runnable = {
 	flags: RootFlags,
-	run: ({ args, terminal }) => {
+	run: async ({ args, terminal }) => {
 		if (args.flag(FLAG_VERSION)) {
 			terminal.write(`${version}`);
 			return 0;
@@ -58,12 +59,26 @@ function prefixed(command: string | undefined, message: string): string {
 	return command === undefined ? `atolla: ${message}` : `atolla ${command}: ${message}`;
 }
 
-function runCommand(
+function report(terminal: Terminal, command: string | undefined, error: unknown): number {
+	if (isErrorConst(error)) {
+		if (error.err === USAGE_ERROR.err) {
+			return fail(terminal, command, error.detail);
+		}
+
+		terminal.write(prefixed(command, error.detail));
+		return 1;
+	}
+
+	terminal.write(prefixed(command, error instanceof Error ? error.message : String(error)));
+	return 1;
+}
+
+async function runCommand(
 	terminal: Terminal,
 	config: ConfigStore,
 	command: string,
 	commandArgs: Array<string>,
-): number {
+): Promise<number> {
 	const cmd: Cmd | undefined = (AllCmds as Record<string, Cmd>)[command];
 
 	if (cmd === undefined) {
@@ -121,36 +136,34 @@ function main(): void {
 	applyLanguage(DEFAULT_LANGUAGE, Strings);
 
 	let command: string | undefined;
-	let exitCode: number;
-	try {
+
+	const dispatch = async (): Promise<number> => {
 		const invocation = parseInvocation(argv);
 		command = invocation.command;
 
 		const config = makeConfigStore(fs, invocation.configPath);
 		applyLanguage(configuredLanguage(config), Strings);
 
-		exitCode =
-			command === undefined
-				? CmdRoot.run({
-						args: parseArguments(invocation.commandArgs, CmdRoot.flags),
-						config,
-						terminal,
-					})
-				: runCommand(terminal, config, command, invocation.commandArgs);
-	} catch (error) {
-		exitCode = 1;
-		if (isErrorConst(error)) {
-			if (error.err === USAGE_ERROR.err) {
-				fail(terminal, command, error.detail);
-			} else {
-				terminal.write(prefixed(command, error.detail));
-			}
-		} else {
-			terminal.write(prefixed(command, error instanceof Error ? error.message : String(error)));
-		}
-	}
+		return command === undefined
+			? CmdRoot.run({
+					args: parseArguments(invocation.commandArgs, CmdRoot.flags),
+					config,
+					terminal,
+				})
+			: runCommand(terminal, config, command, invocation.commandArgs);
+	};
 
-	valdiStandalone.exit(exitCode);
+	const keepAlive = beginKeepAlive();
+	dispatch().then(
+		(exitCode) => {
+			endKeepAlive(keepAlive);
+			valdiStandalone.exit(exitCode);
+		},
+		(error) => {
+			endKeepAlive(keepAlive);
+			valdiStandalone.exit(report(terminal, command, error));
+		},
+	);
 }
 
 main();

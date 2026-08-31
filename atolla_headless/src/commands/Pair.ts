@@ -8,7 +8,7 @@ export const CmdPair = {
 	},
 	helpTextLong: Strings.pairHelpLong,
 	helpTextShort: Strings.pairHelpShort,
-	run: ({ args, terminal }: CommandContext): number => {
+	run: async ({ args, terminal }: CommandContext): Promise<number> => {
 		if (args.flag('--reset') || args.flag('--status')) {
 			terminal.write(Strings.notImplemented());
 			return 0;

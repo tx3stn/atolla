@@ -74,6 +74,17 @@
 	},
 	"overrides": [
 		{
+			// every command satisfies a Promise<number> interface, so most have nothing to await
+			"includes": ["atolla_headless/src/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"useAwait": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**/*.spec.ts", "**/*.spec.tsx"],
 			"linter": {
 				"rules": {

@@ -12,7 +12,7 @@ export const CmdConfig = {
 	},
 	helpTextLong: Strings.configHelpLong,
 	helpTextShort: Strings.configHelpShort,
-	run: ({ args, config, terminal }: CommandContext): number => {
+	run: async ({ args, config, terminal }: CommandContext): Promise<number> => {
 		const current = config.read();
 		if (current === undefined) {
 			throw CLI_ERROR.withDetail(Strings.errorConfigMissing(config.path));

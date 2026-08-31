@@ -124,9 +124,6 @@
 	"run_help_short": {
 		"defaultMessage": "run the player daemon"
 	},
-	"run_placeholder_notice": {
-		"defaultMessage": "placeholder output — nothing is implemented; this process will\nsit here until it is killed."
-	},
 	"state_idle": {
 		"defaultMessage": "idle"
 	},

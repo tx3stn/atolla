@@ -124,9 +124,6 @@
 	"run_help_short": {
 		"defaultMessage": "lancer le démon du lecteur"
 	},
-	"run_placeholder_notice": {
-		"defaultMessage": "sortie provisoire — rien n'est implémenté ; ce processus\nrestera actif jusqu'à ce qu'il soit arrêté."
-	},
 	"state_idle": {
 		"defaultMessage": "inactif"
 	},
