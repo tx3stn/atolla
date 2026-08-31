@@ -1,13 +1,18 @@
 {
+	"config_created": {
+		"defaultMessage": "config file created:"
+	},
+	"config_file": {
+		"defaultMessage": "config file:"
+	},
 	"config_help_long": {
 		"defaultMessage": "show or change the player configuration\n\nrun without flags to print the current configuration"
 	},
 	"config_help_short": {
 		"defaultMessage": "show or change the player configuration"
 	},
-	"config_written": {
-		"defaultMessage": "wrote {path%s}",
-		"example": "wrote /etc/atolla/player.json"
+	"config_updated": {
+		"defaultMessage": "config file updated:"
 	},
 	"error_config_exists": {
 		"defaultMessage": "config already exists at {path%s}",
@@ -40,14 +45,8 @@
 	"field_audio_device": {
 		"defaultMessage": "audio device"
 	},
-	"field_config": {
-		"defaultMessage": "config"
-	},
 	"field_control": {
 		"defaultMessage": "control"
-	},
-	"field_language": {
-		"defaultMessage": "language"
 	},
 	"field_name": {
 		"defaultMessage": "name"

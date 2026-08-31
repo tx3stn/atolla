@@ -12,17 +12,22 @@ export const CmdInit = {
 	},
 	helpTextLong: Strings.initHelpLong,
 	helpTextShort: Strings.initHelpShort,
-	run: async ({ args, config, terminal }: CommandContext): Promise<number> => {
+	run: async ({ args, config, setLanguage, terminal }: CommandContext): Promise<number> => {
 		if (config.read() !== undefined) {
 			throw CLI_ERROR.withDetail(Strings.errorConfigExists(config.path));
 		}
 
-		config.write({
+		const written = {
 			dataDir: DEFAULT_DATA_DIR,
 			language: readLanguage(args.value(FLAG_LANGUAGE)),
 			name: args.value(FLAG_NAME) ?? '',
-		});
-		terminal.write(Strings.configWritten(config.path));
+		};
+
+		// the language the operator just chose, so this invocation's own output honours it; without
+		// this the confirmation is English because main resolved the language before the file existed
+		setLanguage(written.language);
+		config.write(written);
+		terminal.write(`${terminal.dim(Strings.configCreated())} ${config.path}`);
 
 		return 0;
 	},

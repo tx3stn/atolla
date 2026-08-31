@@ -1,13 +1,18 @@
 {
+	"config_created": {
+		"defaultMessage": "fichier de configuration créé :"
+	},
+	"config_file": {
+		"defaultMessage": "fichier de configuration :"
+	},
 	"config_help_long": {
 		"defaultMessage": "TODO"
 	},
 	"config_help_short": {
 		"defaultMessage": "afficher ou modifier la configuration du lecteur"
 	},
-	"config_written": {
-		"defaultMessage": "{path%s} écrit",
-		"example": "/etc/atolla/player.json écrit"
+	"config_updated": {
+		"defaultMessage": "fichier de configuration mis à jour :"
 	},
 	"error_config_exists": {
 		"defaultMessage": "une configuration existe déjà dans {path%s}",
@@ -40,14 +45,8 @@
 	"field_audio_device": {
 		"defaultMessage": "périphérique audio"
 	},
-	"field_config": {
-		"defaultMessage": "configuration"
-	},
 	"field_control": {
 		"defaultMessage": "contrôle"
-	},
-	"field_language": {
-		"defaultMessage": "langue"
 	},
 	"field_name": {
 		"defaultMessage": "nom"

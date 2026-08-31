@@ -1,13 +1,17 @@
+import type { LanguageCode } from 'atolla_core/src/Language';
 import type { StoreFiles } from '../FileKeyValueStore';
 import type { ConfigStore } from '../PlayerConfig';
 import type { Terminal } from '../terminal/Terminal';
 import type { ParsedArguments } from './Arguments';
 import type { Flags } from './Flags';
 
+// NOTE: for testability if a command requires something that involves Valdi
+// libraries it should be made available via the CommandContext.
 export interface CommandContext {
 	args: ParsedArguments;
 	config: ConfigStore;
 	files: StoreFiles;
+	setLanguage: (language: LanguageCode) => void;
 	terminal: Terminal;
 }
 

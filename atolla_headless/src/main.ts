@@ -55,6 +55,10 @@ function fail(terminal: Terminal, command: string | undefined, message: string):
 	return 1;
 }
 
+function setLanguage(language: LanguageCode): void {
+	applyLanguage(language, Strings);
+}
+
 function prefixed(command: string | undefined, message: string): string {
 	return command === undefined ? `atolla: ${message}` : `atolla ${command}: ${message}`;
 }
@@ -89,7 +93,13 @@ async function runCommand(
 		return commandHelp(terminal, command, cmd);
 	}
 
-	return cmd.run({ args: parseArguments(commandArgs, cmd.flags), config, files: fs, terminal });
+	return cmd.run({
+		args: parseArguments(commandArgs, cmd.flags),
+		config,
+		files: fs,
+		setLanguage,
+		terminal,
+	});
 }
 
 // --config and --no-color are consumed here rather than declared per command, because they apply to
@@ -149,6 +159,7 @@ function main(): void {
 					args: parseArguments(invocation.commandArgs, CmdRoot.flags),
 					config,
 					files: fs,
+					setLanguage,
 					terminal,
 				})
 			: runCommand(terminal, config, command, invocation.commandArgs);

@@ -13,6 +13,7 @@ function context(read: ConfigStore['read']) {
 		args: parseArguments([], CmdRun.flags),
 		config: { path: PATH, read, write: () => {} },
 		files: { readFileSync: () => '', writeFileSync: () => {} },
+		setLanguage: () => {},
 		terminal: makeTerminal(() => {}, false),
 	};
 }
