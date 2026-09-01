@@ -56,6 +56,9 @@
 	"field_control": {
 		"defaultMessage": "contrôle"
 	},
+	"field_controllers": {
+		"defaultMessage": "contrôleurs"
+	},
 	"field_name": {
 		"defaultMessage": "nom"
 	},
@@ -89,9 +92,6 @@
 	"flag_pair_reset": {
 		"defaultMessage": "oublier les connexions actuelles et générer un nouveau code"
 	},
-	"flag_pair_status": {
-		"defaultMessage": "afficher l'état d'association actuel"
-	},
 	"flag_port": {
 		"defaultMessage": "port d'écoute du serveur de contrôle"
 	},
@@ -116,20 +116,17 @@
 	"init_help_short": {
 		"defaultMessage": "créer la configuration du lecteur"
 	},
-	"not_implemented": {
-		"defaultMessage": "pas encore implémenté"
-	},
 	"pair_help_long": {
 		"defaultMessage": "TODO"
 	},
 	"pair_help_short": {
 		"defaultMessage": "associer ce lecteur à votre appareil"
 	},
-	"pairing_code_heading": {
-		"defaultMessage": "code d'association"
-	},
 	"pairing_instructions": {
-		"defaultMessage": "saisissez-le dans atolla sur votre téléphone : Réglages → Lecteurs → Ajouter un lecteur"
+		"defaultMessage": "saisissez le code d'association dans l'app > lecteurs > ajouter"
+	},
+	"pairing_reset": {
+		"defaultMessage": "association réinitialisée — les appareils associés auparavant doivent s'associer à nouveau"
 	},
 	"root_description": {
 		"defaultMessage": "lecteur atolla sans interface"

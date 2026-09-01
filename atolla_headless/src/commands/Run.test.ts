@@ -84,6 +84,15 @@ describe('CmdRun', () => {
 		expect(lines.some((line) => /\b[0-9a-f]{16}\b/.test(line))).toBe(true);
 	});
 
+	it('banners a controller count of zero before anything has paired', async () => {
+		const lines: Array<string> = [];
+
+		void CmdRun.run(context(() => CONFIG, lines));
+		await flush();
+
+		expect(lines.some((line) => /fieldControllers\s+0$/.test(line))).toBe(true);
+	});
+
 	it('reuses the player id persisted under the configured data directory', async () => {
 		const first: Array<string> = [];
 		const second: Array<string> = [];

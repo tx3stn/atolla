@@ -2,7 +2,8 @@ import { version } from 'atolla_core/src/version';
 import Strings from 'atolla_headless/src/Strings';
 import { filterLogWriter, startDaemon } from '../Daemon';
 import { makeFileKeyValueStore } from '../FileKeyValueStore';
-import { type PlayerConfig, stateDir } from '../PlayerConfig';
+import { loadPairing, type Pairing } from '../Pairing';
+import { type PlayerConfig, secretsDir, stateDir } from '../PlayerConfig';
 import { loadPlayerIdentity, type PlayerIdentity } from '../PlayerIdentity';
 import { beside, fields } from '../terminal/Layout';
 import { LOGO_WIDTH, logoLines } from '../terminal/Logo';
@@ -31,8 +32,12 @@ export const CmdRun = {
 			randomBytes,
 			current.name,
 		);
+		const pairing = await loadPairing(
+			makeFileKeyValueStore(files, secretsDir(current)),
+			randomBytes,
+		);
 
-		banner(terminal, current, identity);
+		banner(terminal, current, identity, pairing);
 
 		return startDaemon({
 			config: current,
@@ -42,7 +47,12 @@ export const CmdRun = {
 	},
 } satisfies Cmd;
 
-function banner(terminal: Terminal, config: PlayerConfig, identity: PlayerIdentity): void {
+function banner(
+	terminal: Terminal,
+	config: PlayerConfig,
+	identity: PlayerIdentity,
+	pairing: Pairing,
+): void {
 	terminal.write('');
 
 	const summary = [
@@ -55,6 +65,7 @@ function banner(terminal: Terminal, config: PlayerConfig, identity: PlayerIdenti
 			{ label: Strings.fieldPlayerId(), value: identity.id },
 			{ label: Strings.fieldControl(), value: `http://0.0.0.0:${config.port}` },
 			{ label: Strings.fieldAudioDevice(), value: config.audioDevice },
+			{ label: Strings.fieldControllers(), value: `${pairing.controllers.length}` },
 			{ label: Strings.fieldState(), value: Strings.stateIdle() },
 		]),
 	];

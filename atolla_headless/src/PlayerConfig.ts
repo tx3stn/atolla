@@ -87,6 +87,10 @@ export function readPort(value: string): number {
 	return port;
 }
 
+export function secretsDir(config: PlayerConfig): string {
+	return `${config.dataDir}/secrets`;
+}
+
 export function stateDir(config: PlayerConfig): string {
 	return `${config.dataDir}/state`;
 }

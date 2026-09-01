@@ -17,6 +17,7 @@ export const FLAG_LOG_LEVEL = '--log-level';
 export const FLAG_NAME = '--name';
 export const FLAG_NO_COLOR = '--no-color';
 export const FLAG_PORT = '--port';
+export const FLAG_RESET = '--reset';
 export const FLAG_VERSION = '--version';
 
 // --config, --log-level and --no-color are consumed before dispatch because they apply to every
