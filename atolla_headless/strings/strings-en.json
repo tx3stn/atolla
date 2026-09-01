@@ -126,7 +126,7 @@
 		"defaultMessage": "enter the pairing code in the app > players > add"
 	},
 	"pairing_reset": {
-		"defaultMessage": "pairing reset — devices paired before now must pair again"
+		"defaultMessage": "pairing reset, devices paired before now must pair again"
 	},
 	"root_description": {
 		"defaultMessage": "atolla headless player"

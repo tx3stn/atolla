@@ -14,6 +14,7 @@ valdi_module(
         exclude = ["src/**/*.test.ts"],
     ),
     exclude_patterns = [".*\\.test\\.ts$"],
+    native_deps = ["//atolla_headless/native/zig:random_module"],
     strings_dir = "strings",
     visibility = ["//visibility:public"],
     deps = [

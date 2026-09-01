@@ -3,6 +3,7 @@ import { applyLanguage } from 'atolla_core/src/Localization';
 import type { LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
+import { atollaRandomBytes } from 'atolla_headless/src/RandomNative';
 import Strings from 'atolla_headless/src/Strings';
 import { fs } from 'file_system/src/FileSystem';
 import { beginKeepAlive, endKeepAlive } from 'valdi_core/src/utils/KeepAliveCallback';
@@ -26,7 +27,6 @@ import {
 	makeConfigStore,
 	readLogLevel,
 } from './PlayerConfig';
-import { mathRandomBytes } from './Random';
 import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 
 // Importing valdi_standalone/src/ValdiStandalone pulls the whole renderer into the program, and
@@ -124,7 +124,7 @@ async function runCommand(
 		config,
 		files: fs,
 		logLevel,
-		randomBytes: mathRandomBytes,
+		randomBytes: atollaRandomBytes,
 		setLanguage,
 		terminal,
 	});
@@ -206,7 +206,7 @@ function main(): void {
 					config,
 					files: fs,
 					logLevel,
-					randomBytes: mathRandomBytes,
+					randomBytes: atollaRandomBytes,
 					setLanguage,
 					terminal,
 				})

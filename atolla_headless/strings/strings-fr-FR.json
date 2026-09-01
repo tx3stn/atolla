@@ -126,7 +126,7 @@
 		"defaultMessage": "saisissez le code d'association dans l'app > lecteurs > ajouter"
 	},
 	"pairing_reset": {
-		"defaultMessage": "association réinitialisée — les appareils associés auparavant doivent s'associer à nouveau"
+		"defaultMessage": "association réinitialisée, les appareils associés auparavant doivent s'associer à nouveau"
 	},
 	"root_description": {
 		"defaultMessage": "lecteur atolla sans interface"

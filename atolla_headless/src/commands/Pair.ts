@@ -26,6 +26,7 @@ export const CmdPair = {
 
 		if (reset) {
 			terminal.write(terminal.warning(Strings.pairingReset()));
+			terminal.write('');
 		}
 
 		terminal.write(terminal.dim(Strings.pairingInstructions()));

@@ -1,0 +1,42 @@
+load("@rules_zig//zig:defs.bzl", "zig_static_library")
+load("//atolla_app/native/zig:zig_ios_align.bzl", "zig_ios_align")
+
+package(default_visibility = ["//visibility:public"])
+
+zig_static_library(
+    name = "atolla_headless_zig",
+    srcs = ["random_bytes.zig"],
+    main = "atolla_headless.zig",
+    zigopts = ["-fPIC"],
+)
+
+zig_ios_align(
+    name = "atolla_headless_zig_apple",
+    zig_lib = ":atolla_headless_zig",
+)
+
+cc_library(
+    name = "random_bytes",
+    hdrs = ["random_bytes.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:macos": [":atolla_headless_zig_apple"],
+        "//conditions:default": [":atolla_headless_zig"],
+    }),
+)
+
+# alwayslink: the module registers itself through a static initialiser, which the linker would
+# otherwise drop because nothing references it.
+cc_library(
+    name = "random_module",
+    srcs = select({
+        "@valdi//bzl/conditions:linux": ["AtollaRandomModuleFactory.cpp"],
+        "@valdi//bzl/conditions:macos": ["AtollaRandomModuleFactory.cpp"],
+        "//conditions:default": [],
+    }),
+    alwayslink = 1,
+    deps = [
+        ":random_bytes",
+        "@valdi//valdi_core",
+    ],
+)
