@@ -7,7 +7,7 @@ import {
 } from 'atolla_core/src/services/Logger';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
-import type { PlayerConfig } from './PlayerConfig';
+import { type PlayerConfig, stateDir } from './PlayerConfig';
 
 export interface DaemonDeps {
 	config: PlayerConfig;
@@ -31,7 +31,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const log = getLogger('daemon');
 	log.debug('started', { dataDir: deps.config.dataDir, name: deps.config.name });
 
-	const state = `${deps.config.dataDir}/state`;
+	const state = stateDir(deps.config);
 	const playback = new PlaybackStore();
 	await playback.setPersistence({
 		progress: makeFileKeyValueStore(deps.files, state),

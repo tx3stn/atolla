@@ -26,6 +26,7 @@ import {
 	makeConfigStore,
 	readLogLevel,
 } from './PlayerConfig';
+import { mathRandomBytes } from './Random';
 import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 
 // Importing valdi_standalone/src/ValdiStandalone pulls the whole renderer into the program, and
@@ -123,6 +124,7 @@ async function runCommand(
 		config,
 		files: fs,
 		logLevel,
+		randomBytes: mathRandomBytes,
 		setLanguage,
 		terminal,
 	});
@@ -204,6 +206,7 @@ function main(): void {
 					config,
 					files: fs,
 					logLevel,
+					randomBytes: mathRandomBytes,
 					setLanguage,
 					terminal,
 				})

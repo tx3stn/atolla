@@ -35,6 +35,7 @@ function context(argv: Array<string>) {
 			},
 			files: { readFileSync: () => '', writeFileSync: () => {} },
 			logLevel: CONFIG.logLevel,
+			randomBytes: (count: number) => new Uint8Array(count),
 			setLanguage: () => {},
 			terminal: makeTerminal((text) => lines.push(text.replace(/\n$/, '')), false),
 		},

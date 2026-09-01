@@ -87,6 +87,10 @@ export function readPort(value: string): number {
 	return port;
 }
 
+export function stateDir(config: PlayerConfig): string {
+	return `${config.dataDir}/state`;
+}
+
 function isLanguageCode(value: unknown): value is LanguageCode {
 	return LANGUAGE_OPTIONS.some((option) => option.code === value);
 }
