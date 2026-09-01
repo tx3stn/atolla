@@ -34,4 +34,15 @@ describe('makeFileKeyValueStore', () => {
 		expect(await store.fetchString('queue')).toBe('q');
 		expect(await store.fetchString('progress')).toBe('p');
 	});
+
+	it('rejects rather than throwing when the write fails', async () => {
+		const files = {
+			...fakeFiles(),
+			writeFileSync: () => {
+				throw new Error('read-only file system');
+			},
+		};
+
+		expect(makeFileKeyValueStore(files, DIR).storeString('queue', 'q')).rejects.toThrow();
+	});
 });

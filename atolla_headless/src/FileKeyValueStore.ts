@@ -17,7 +17,12 @@ export function makeFileKeyValueStore(files: StoreFiles, directory: string): Key
 			}
 		},
 		storeString: (key, value) => {
-			files.writeFileSync(`${directory}/${key}`, value);
+			try {
+				files.writeFileSync(`${directory}/${key}`, value);
+			} catch (error) {
+				return Promise.reject(error);
+			}
+
 			return Promise.resolve();
 		},
 	};
