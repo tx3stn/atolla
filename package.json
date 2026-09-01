@@ -14,7 +14,7 @@
 		"appium": "^3.7.0",
 		"appium-inspector-plugin": "^2026.7.1",
 		"appium-uiautomator2-driver": "^8.5.0",
-		"appium-xcuitest-driver": "^12.8.2",
+		"appium-xcuitest-driver": "^12.7.0",
 		"fast-check": "^4.9.0",
 		"lefthook": "^2.1.12",
 		"sharp": "^0.35.4",
