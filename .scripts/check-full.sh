@@ -17,6 +17,10 @@ echo ""
 echo "=== Running component tests ==="
 bun run test:components
 
+echo ""
+echo "=== Building headless player ==="
+bun run build:headless
+
 # Wait for devices to be ready now that we actually need them.
 echo ""
 echo "=== Waiting for e2e devices ==="
