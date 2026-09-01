@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: tx3stn/vrsn@e5ff48117222d97f5f1b2624b56d71f1f827b1d6 # 2.0.3
+      - uses: tx3stn/vrsn@c1f3fe0778151d3c0de9cd991125ef6e8353a077 # 2.0.4
         with:
           command: set
           args: ${{ github.ref_name }}
@@ -25,7 +25,7 @@ jobs:
             BUILD.bazel
             atolla_app/native/android/AndroidManifest.prod.xml
           if-no-files-found: error
-      - uses: tx3stn/vrsn@e5ff48117222d97f5f1b2624b56d71f1f827b1d6 # 2.0.3
+      - uses: tx3stn/vrsn@c1f3fe0778151d3c0de9cd991125ef6e8353a077 # 2.0.4
         with:
           command: get
           args: --git-tag=false
@@ -114,7 +114,7 @@ jobs:
       # covering both artifacts, verifiable with `gh attestation verify --bundle`.
       - name: attest build provenance
         id: attest
-        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             atolla-${{ github.ref_name }}.apk
