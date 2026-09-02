@@ -16,10 +16,6 @@ export interface CliGlobals {
 	logLevel?: string;
 }
 
-export function cliPath(): string {
-	return process.env.ATOLLA_CLI ?? join(REPO_ROOT, 'build/atolla');
-}
-
 export function pairingCode(stdout: string): string {
 	const match = stdout.match(/^code: (\d{4}) (\d{4})$/m);
 	if (match === null) {
@@ -30,10 +26,9 @@ export function pairingCode(stdout: string): string {
 }
 
 export class Cli {
-	constructor(
-		private readonly binary: string,
-		private readonly globals: CliGlobals = {},
-	) {}
+	private readonly binary = process.env.ATOLLA_CLI ?? join(REPO_ROOT, 'build/atolla');
+
+	constructor(private readonly globals: CliGlobals = {}) {}
 
 	config(...args: Array<string>): CliResult {
 		return this.exec(['config', ...args]);

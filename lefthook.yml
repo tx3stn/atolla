@@ -17,6 +17,8 @@ pre-push:
             run: bun run test
           - name: test:zig
             run: bun run test:zig
+          - name: test:cli
+            run: bun run test:e2e:cli
     - name: bazel
       group:
         jobs:

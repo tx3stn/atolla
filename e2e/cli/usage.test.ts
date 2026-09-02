@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { Cli, cliPath } from './cli';
+import { Cli } from './cli';
 
-const cli = new Cli(cliPath());
+const cli = new Cli();
 
 describe('atolla', () => {
 	it('reports a version', () => {
