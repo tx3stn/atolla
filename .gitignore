@@ -45,8 +45,8 @@ generated/
 TODO*.md
 image-cache-plan.md
 atolla_app/native/ios/Assets.xcassets/AppIcon.icon/Assets/*.svg
-e2e/screenshots/*.jpg
-e2e/screenshots/*.txt
+e2e/app/screenshots/*.jpg
+e2e/app/screenshots/*.txt
 atolla-offline-status.json
 tools/palettes-preview/samples/*.png
 tools/palettes-preview/samples/*.jpg

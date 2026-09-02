@@ -66,4 +66,4 @@ exec env \
 	E2E_IOS_UDIDS="$E2E_IOS_UDIDS" \
 	E2E_ANDROID_DEVICE_NAMES="$E2E_ANDROID_DEVICE_NAMES" \
 	E2E_IOS_DEVICE_NAMES="$E2E_IOS_DEVICE_NAMES" \
-	wdio run ./e2e/wdio.conf.parallel.ts
+	wdio run ./e2e/app/wdio.conf.parallel.ts

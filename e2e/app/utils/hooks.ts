@@ -1,12 +1,15 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { ConnectionPage } from '../pages/ConnectionPage';
 import { ConnectivityFabPage } from '../pages/ConnectivityFabPage';
 import { FooterPage } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 
-const SCREENSHOT_DIR = 'e2e/screenshots';
+// resolved from this file rather than the working directory: a cwd-relative literal silently writes
+// to the wrong place if the suite moves or is run from elsewhere
+const SCREENSHOT_DIR = fileURLToPath(new URL('../screenshots', import.meta.url));
 
 // the android emulator reaches the host via 10.0.2.2; the iOS simulator shares the host network,
 // so localhost works. full http:// is required — a bare host is forced to https by the app.
