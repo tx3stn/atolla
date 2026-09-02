@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { Cli } from './cli';
 
-const cli = new Cli();
-
 describe('atolla', () => {
+	const cli = new Cli();
+
 	it('reports a version', () => {
 		const result = cli.version();
 

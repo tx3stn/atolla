@@ -9,29 +9,29 @@ const FRENCH_STRINGS = fileURLToPath(
 	new URL('../../atolla_headless/strings/strings-fr-FR.json', import.meta.url),
 );
 
-let dir: string;
-let configPath: string;
-let cli: Cli;
-
 function french(key: string): string {
 	return JSON.parse(readFileSync(FRENCH_STRINGS, 'utf8'))[key].defaultMessage;
 }
 
-function stored(): Record<string, unknown> {
-	return JSON.parse(readFileSync(configPath, 'utf8'));
-}
-
-beforeEach(() => {
-	dir = mkdtempSync(join(tmpdir(), 'atolla-cli-'));
-	configPath = join(dir, 'etc', 'player.json');
-	cli = new Cli({ config: configPath });
-});
-
-afterEach(() => {
-	rmSync(dir, { force: true, recursive: true });
-});
-
 describe('atolla config', () => {
+	let dir: string;
+	let configPath: string;
+	let cli: Cli;
+
+	function stored(): Record<string, unknown> {
+		return JSON.parse(readFileSync(configPath, 'utf8'));
+	}
+
+	beforeEach(() => {
+		dir = mkdtempSync(join(tmpdir(), 'atolla-cli-'));
+		configPath = join(dir, 'etc', 'player.json');
+		cli = new Cli({ config: configPath });
+	});
+
+	afterEach(() => {
+		rmSync(dir, { force: true, recursive: true });
+	});
+
 	it('updates a config written moments earlier by init', () => {
 		cli.init('--name', 'Kitchen');
 
@@ -88,8 +88,6 @@ describe('atolla config', () => {
 		expect(result.stdout).toContain('atolla init');
 	});
 
-	// the only test that exercises the generated strings bundle: every unit test replaces
-	// atolla_headless/src/Strings with a proxy, so none of them prove it is linked into the binary
 	it('reports in the configured language', () => {
 		cli.init('--language', 'fr', '--name', 'Cuisine');
 

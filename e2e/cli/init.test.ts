@@ -4,22 +4,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Cli } from './cli';
 
-let dir: string;
-let configPath: string;
-let cli: Cli;
-
-beforeEach(() => {
-	dir = mkdtempSync(join(tmpdir(), 'atolla-cli-'));
-	// nested, so "the parent directory does not exist" is the default posture rather than a special case
-	configPath = join(dir, 'etc', 'player.json');
-	cli = new Cli({ config: configPath });
-});
-
-afterEach(() => {
-	rmSync(dir, { force: true, recursive: true });
-});
-
 describe('atolla init', () => {
+	let dir: string;
+	let configPath: string;
+	let cli: Cli;
+
+	beforeEach(() => {
+		dir = mkdtempSync(join(tmpdir(), 'atolla-cli-'));
+		// nested, so "the parent directory does not exist" is the default posture rather than a special case
+		configPath = join(dir, 'etc', 'player.json');
+		cli = new Cli({ config: configPath });
+	});
+
+	afterEach(() => {
+		rmSync(dir, { force: true, recursive: true });
+	});
+
 	it('creates the config when its parent directory does not exist', () => {
 		const result = cli.init('--name', 'Kitchen');
 
