@@ -112,6 +112,38 @@ jobs:
           path: build/atolla_android.apk
           if-no-files-found: error
 
+  # Every headless build runs the same suite: the platform differences this catches only show up in
+  # the binary, and arm64 is where both known ones behaved differently from amd64.
+  e2e-cli:
+    needs:
+      - headless-linux-amd64
+      - headless-linux-arm64
+    if: ${{ !inputs.upload-artifacts }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: headless-linux-amd64
+            binary: atolla
+            runner: ubuntu-latest
+          - artifact: headless-linux-arm64
+            binary: atolla_arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ matrix.artifact }}
+          path: build
+      - run: chmod +x build/${{ matrix.binary }}
+      - run: bun run test:e2e:cli
+        env:
+          ATOLLA_CLI: ${{ github.workspace }}/build/${{ matrix.binary }}
+
   # The headless player for an x86 box — a mini-PC, NAS or HTPC. Native, so it needs nothing beyond
   # what every other linux bazel job here needs.
   headless-linux-amd64:
@@ -130,12 +162,11 @@ jobs:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
       - uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run build:headless
-      # - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      #   if: inputs.upload-artifacts
-      #   with:
-      #     name: headless-linux-amd64
-      #     path: build/atolla
-      #     if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: headless-linux-amd64
+          path: build/atolla
+          if-no-files-found: error
 
   # The headless player for a Pi. Cross-built from an amd64 runner, not natively: Valdi's prebuilt
   # valdi_compiler and pngquant select on darwin / linux_x86_64 with no arm64 build, so a native
@@ -161,12 +192,11 @@ jobs:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
       - uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run build:headless:arm64
-      # - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      #   if: inputs.upload-artifacts
-      #   with:
-      #     name: headless-linux-arm64
-      #     path: build/atolla_arm64
-      #     if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: headless-linux-arm64
+          path: build/atolla_arm64
+          if-no-files-found: error
 
   ios:
     runs-on: macos-latest
