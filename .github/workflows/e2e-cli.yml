@@ -1,0 +1,40 @@
+name: CLI end to end
+
+# Runs the CLI suite against a built headless binary. Parameterised by architecture so each headless
+# build can call it as soon as that build finishes, rather than waiting for the others.
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: Name of the artifact holding the built binary.
+        type: string
+        required: true
+      binary:
+        description: File name of the binary inside that artifact.
+        type: string
+        required: true
+      runner:
+        description: Runner label matching the binary's architecture.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  cli-test:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.artifact }}
+          path: build
+      # artifact archives do not carry the executable bit
+      - run: chmod +x build/${{ inputs.binary }}
+      - run: bun run test:e2e:cli
+        env:
+          ATOLLA_CLI: ${{ github.workspace }}/build/${{ inputs.binary }}
