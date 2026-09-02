@@ -24,6 +24,7 @@ function capture(): { entries: Array<string>; log: LogWriter } {
 
 function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 	return {
+		createDirectorySync: () => true,
 		readFileSync: (path) => {
 			const value = contents.get(path);
 			if (value === undefined) {
@@ -80,6 +81,7 @@ describe('startDaemon', () => {
 		void startDaemon({
 			config: { ...CONFIG, dataDir: '/mnt/usb/atolla' },
 			files: {
+				createDirectorySync: () => true,
 				readFileSync: (path) => {
 					reads.push(path);
 					throw new Error('no such file');

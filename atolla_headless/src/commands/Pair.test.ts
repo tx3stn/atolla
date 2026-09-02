@@ -28,6 +28,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 				args: parseArguments(argv, CmdPair.flags),
 				config: { path: PATH, read, write: () => {} },
 				files: {
+					createDirectorySync: () => true,
 					readFileSync: (path: string) => {
 						const value = stored.get(path);
 						if (value === undefined) {

@@ -26,6 +26,7 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 		args: parseArguments([], CmdRun.flags),
 		config: { path: PATH, read, write: () => {} },
 		files: {
+			createDirectorySync: () => true,
 			readFileSync: (path: string) => {
 				const value = stored.get(path);
 				if (value === undefined) {

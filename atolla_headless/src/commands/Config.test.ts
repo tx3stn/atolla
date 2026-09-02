@@ -33,7 +33,7 @@ function context(argv: Array<string>) {
 					stored = config;
 				},
 			},
-			files: { readFileSync: () => '', writeFileSync: () => {} },
+			files: { createDirectorySync: () => true, readFileSync: () => '', writeFileSync: () => {} },
 			logLevel: CONFIG.logLevel,
 			randomBytes: (count: number) => new Uint8Array(count),
 			setLanguage: () => {},

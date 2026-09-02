@@ -7,6 +7,7 @@ function fakeFiles(): StoreFiles {
 	const contents = new Map<string, string>();
 
 	return {
+		createDirectorySync: () => true,
 		readFileSync: (path) => {
 			const value = contents.get(path);
 			if (value === undefined) {
@@ -33,6 +34,29 @@ describe('makeFileKeyValueStore', () => {
 
 		expect(await store.fetchString('queue')).toBe('q');
 		expect(await store.fetchString('progress')).toBe('p');
+	});
+
+	it('creates the directory before writing, so a fresh install can persist', async () => {
+		const created: Array<string> = [];
+		const files = { ...fakeFiles(), createDirectorySync: (path: string) => created.push(path) > 0 };
+
+		await makeFileKeyValueStore(files, DIR).storeString('queue', 'q');
+
+		expect(created).toEqual([DIR]);
+	});
+
+	it('still writes when the directory is already there', async () => {
+		const files = {
+			...fakeFiles(),
+			createDirectorySync: () => {
+				throw new Error('Could not create directory');
+			},
+		};
+		const store = makeFileKeyValueStore(files, DIR);
+
+		await store.storeString('queue', 'q');
+
+		expect(await store.fetchString('queue')).toBe('q');
 	});
 
 	it('rejects rather than throwing when the write fails', async () => {
