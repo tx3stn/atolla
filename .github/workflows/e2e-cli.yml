@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  cli-test:
+  test:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     steps:

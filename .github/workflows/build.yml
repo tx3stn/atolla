@@ -6,8 +6,8 @@ name: Build
 on:
   workflow_call:
     inputs:
-      upload-artifacts:
-        description: Upload the built apk/ipa as workflow artifacts.
+      release:
+        description: Include the built files in a release.
         type: boolean
         default: false
       version-artifact:
@@ -106,7 +106,7 @@ jobs:
       - name: build apk
         run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: inputs.upload-artifacts
+        if: inputs.release
         with:
           name: android-apk
           path: build/atolla_android.apk
@@ -115,7 +115,7 @@ jobs:
   # The headless player for an x86 box — a mini-PC, NAS or HTPC. Native, so it needs nothing beyond
   # what every other linux bazel job here needs.
   cli-linux-amd64:
-    if: ${{ !inputs.upload-artifacts }}
+    if: ${{ !inputs.release }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -141,7 +141,7 @@ jobs:
   # arm64 build cannot finish analysis, while a cross build keeps them in the exec configuration.
   # The only extra it needs over the amd64 job is the arm64 sysroot.
   cli-linux-arm64:
-    if: ${{ !inputs.upload-artifacts }}
+    if: ${{ !inputs.release }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -224,7 +224,7 @@ jobs:
       - name: build ipa
         run: IOS_CPUS=arm64 bun run build:ipa
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: inputs.upload-artifacts
+        if: inputs.release
         with:
           name: ios-ipa
           path: build/atolla_ios.ipa
@@ -233,18 +233,18 @@ jobs:
   # Each headless build runs the same suite against its own binary, as soon as that build finishes.
   # The if lives here rather than on needs: when the binary becomes a release artifact these builds
   # start running on releases, and the tests should not follow them there.
-  e2e-cli-amd64:
+  e2e-amd64:
     needs: cli-linux-amd64
-    if: ${{ !inputs.upload-artifacts }}
+    if: ${{ !inputs.release }}
     uses: ./.github/workflows/e2e-cli.yml
     with:
       artifact: cli-linux-amd64
       binary: atolla
       runner: ubuntu-latest
 
-  e2e-cli-arm64:
+  e2e-arm64:
     needs: cli-linux-arm64
-    if: ${{ !inputs.upload-artifacts }}
+    if: ${{ !inputs.release }}
     uses: ./.github/workflows/e2e-cli.yml
     with:
       artifact: cli-linux-arm64

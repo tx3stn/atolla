@@ -34,7 +34,7 @@ jobs:
     needs: set-version
     uses: ./.github/workflows/build.yml
     with:
-      upload-artifacts: true
+      release: true
       version-artifact: version-files
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
