@@ -15,8 +15,8 @@ describe('atolla pair', () => {
 		writeFileSync(configPath, JSON.stringify({ dataDir, language: 'en', name: 'Kitchen' }));
 	}
 
-	function storedPairing(): { code: string; controllers: Array<unknown> } {
-		return JSON.parse(readFileSync(join(dataDir, 'secrets', 'pairing'), 'utf8'));
+	function storedCode(): string {
+		return readFileSync(join(dataDir, 'secrets', 'pairing'), 'utf8');
 	}
 
 	beforeEach(() => {
@@ -43,7 +43,8 @@ describe('atolla pair', () => {
 	it('prints the code it stored', () => {
 		const result = cli.pair();
 
-		expect(pairingCode(result.stdout)).toBe(storedPairing().code);
+		expect(pairingCode(result.stdout)).toBe(storedCode());
+		expect(storedCode()).toMatch(/^\d{8}$/);
 	});
 
 	it('returns the same code when asked again', () => {

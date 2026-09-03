@@ -114,14 +114,21 @@ describe('CmdPair', () => {
 		const pair = harness();
 		await pair.run();
 		pair.stored.set(
-			`${DEFAULT_DATA_DIR}/secrets/pairing`,
-			JSON.stringify({ code: '12345678', controllers: [{ id: 'c1', name: 'Phone' }] }),
+			`${DEFAULT_DATA_DIR}/secrets/controllers`,
+			JSON.stringify([
+				{
+					controllerId: 'c1',
+					controllerName: 'Phone',
+					pairedAt: 1756857600000,
+					token: 'a3f1c85da3f1c85da3f1c85da3f1c85da3f1c85da3f1c85da3f1c85da3f1c85d',
+				},
+			]),
 		);
 
 		await pair.run(['--reset']);
 
 		expect(
-			JSON.parse(pair.stored.get(`${DEFAULT_DATA_DIR}/secrets/pairing`) ?? '{}').controllers,
+			JSON.parse(pair.stored.get(`${DEFAULT_DATA_DIR}/secrets/controllers`) ?? 'null'),
 		).toEqual([]);
 	});
 });

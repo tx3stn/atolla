@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
-import { formatCode, loadPairing, PAIRING_KEY, resetPairing, verifyCode } from './Pairing';
+import {
+	CONTROLLERS_KEY,
+	formatCode,
+	loadPairing,
+	PAIRING_KEY,
+	type PairedController,
+	resetPairing,
+} from './Pairing';
 import type { RandomBytes } from './Random';
+
+const CONTROLLER: PairedController = {
+	controllerId: 'c1',
+	controllerName: 'Phone',
+	pairedAt: 1756857600000,
+	token: 'a3f1c85da3f1c85da3f1c85da3f1c85da3f1c85da3f1c85da3f1c85da3f1c85d',
+};
 
 function counting(start = 0): RandomBytes {
 	let next = start;
@@ -15,6 +29,14 @@ describe('loadPairing', () => {
 		expect(pairing.code).toMatch(/^\d{8}$/);
 	});
 
+	it('stores the code as bare digits so a credentials file needs no parsing', async () => {
+		const store = new InMemoryKeyValueStore();
+
+		const pairing = await loadPairing(store, counting());
+
+		expect(await store.fetchString(PAIRING_KEY)).toBe(pairing.code);
+	});
+
 	it('persists the generated code so it survives a restart', async () => {
 		const store = new InMemoryKeyValueStore();
 
@@ -24,34 +46,49 @@ describe('loadPairing', () => {
 		expect(second.code).toBe(first.code);
 	});
 
+	it('accepts a stored code surrounded by whitespace', async () => {
+		const store = new InMemoryKeyValueStore();
+		await store.storeString(PAIRING_KEY, ' 12345678\n');
+
+		expect((await loadPairing(store, counting())).code).toBe('12345678');
+	});
+
 	it('starts with no paired controllers', async () => {
 		expect((await loadPairing(new InMemoryKeyValueStore(), counting())).controllers).toEqual([]);
 	});
 
-	it('keeps controllers that were already stored', async () => {
+	it('does not write a controllers file it has nothing to put in', async () => {
 		const store = new InMemoryKeyValueStore();
-		await store.storeString(
-			PAIRING_KEY,
-			JSON.stringify({ code: '12345678', controllers: [{ id: 'c1', name: 'Phone' }] }),
-		);
 
-		expect((await loadPairing(store, counting())).controllers).toEqual([
-			{ id: 'c1', name: 'Phone' },
-		]);
+		await loadPairing(store, counting());
+
+		expect(await store.exists(CONTROLLERS_KEY)).toBe(false);
+	});
+
+	it('reads controllers from their own key', async () => {
+		const store = new InMemoryKeyValueStore();
+		await store.storeString(PAIRING_KEY, '12345678');
+		await store.storeString(CONTROLLERS_KEY, JSON.stringify([CONTROLLER]));
+
+		expect((await loadPairing(store, counting())).controllers).toEqual([CONTROLLER]);
 	});
 
 	it('replaces a stored code that is not 8 digits', async () => {
 		const store = new InMemoryKeyValueStore();
-		await store.storeString(PAIRING_KEY, JSON.stringify({ code: '123', controllers: [] }));
+		await store.storeString(PAIRING_KEY, '123');
 
 		expect((await loadPairing(store, counting())).code).toMatch(/^\d{8}$/);
 	});
 
-	it('replaces unparseable stored pairing state', async () => {
+	it('keeps the code readable when the controllers file is corrupt', async () => {
 		const store = new InMemoryKeyValueStore();
-		await store.storeString(PAIRING_KEY, 'not json');
+		await store.storeString(PAIRING_KEY, '12345678');
+		await store.storeString(CONTROLLERS_KEY, 'not json');
 
-		expect((await loadPairing(store, counting())).code).toMatch(/^\d{8}$/);
+		const pairing = await loadPairing(store, counting());
+
+		expect(pairing.code).toBe('12345678');
+		expect(pairing.controllers).toEqual([]);
 	});
 
 	it('rejects when the code cannot be persisted', async () => {
@@ -83,41 +120,23 @@ describe('resetPairing', () => {
 
 	it('forgets paired controllers', async () => {
 		const store = new InMemoryKeyValueStore();
-		await store.storeString(
-			PAIRING_KEY,
-			JSON.stringify({ code: '12345678', controllers: [{ id: 'c1', name: 'Phone' }] }),
-		);
+		await store.storeString(CONTROLLERS_KEY, JSON.stringify([CONTROLLER]));
 
 		expect((await resetPairing(store, counting())).controllers).toEqual([]);
+	});
+
+	it('empties the stored controllers file', async () => {
+		const store = new InMemoryKeyValueStore();
+		await store.storeString(CONTROLLERS_KEY, JSON.stringify([CONTROLLER]));
+
+		await resetPairing(store, counting());
+
+		expect(JSON.parse(await store.fetchString(CONTROLLERS_KEY))).toEqual([]);
 	});
 });
 
 describe('formatCode', () => {
 	it('groups the code into two blocks of four', () => {
 		expect(formatCode('12345678')).toBe('1234 5678');
-	});
-});
-
-describe('verifyCode', () => {
-	const pairing = { code: '12345678', controllers: [] };
-
-	it('accepts the bare code', () => {
-		expect(verifyCode(pairing, '12345678')).toBe(true);
-	});
-
-	it('accepts the code as it is displayed', () => {
-		expect(verifyCode(pairing, formatCode('12345678'))).toBe(true);
-	});
-
-	it('accepts a code retyped with stray whitespace', () => {
-		expect(verifyCode(pairing, '  1234  5678 ')).toBe(true);
-	});
-
-	it('rejects a different code', () => {
-		expect(verifyCode(pairing, '87654321')).toBe(false);
-	});
-
-	it('rejects a code that only shares a prefix', () => {
-		expect(verifyCode(pairing, '1234')).toBe(false);
 	});
 });

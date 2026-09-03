@@ -1,6 +1,7 @@
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { RandomBytes } from './Random';
 
+export const CONTROLLERS_KEY = 'controllers';
 export const PAIRING_KEY = 'pairing';
 
 const CODE_DIGITS = 8;
@@ -10,8 +11,10 @@ const CODE_PATTERN = /^\d{8}$/;
 const DIGIT_CEILING = 250;
 
 export interface PairedController {
-	id: string;
-	name: string;
+	controllerId: string;
+	controllerName: string;
+	pairedAt: number;
+	token: string;
 }
 
 export interface Pairing {
@@ -27,20 +30,22 @@ export async function loadPairing(
 	store: KeyValueStore,
 	randomBytes: RandomBytes,
 ): Promise<Pairing> {
-	const stored = parse(await store.fetchString(PAIRING_KEY).catch(() => ''));
-
-	return stored ?? persist(store, { code: generateCode(randomBytes), controllers: [] });
+	return {
+		code: await loadOrCreateCode(store, randomBytes),
+		controllers: await readControllers(store),
+	};
 }
 
 export async function resetPairing(
 	store: KeyValueStore,
 	randomBytes: RandomBytes,
 ): Promise<Pairing> {
-	return persist(store, { code: generateCode(randomBytes), controllers: [] });
-}
+	const code = generateCode(randomBytes);
 
-export function verifyCode(pairing: Pairing, candidate: string): boolean {
-	return candidate.replace(/\s/g, '') === pairing.code;
+	await store.storeString(PAIRING_KEY, code);
+	await store.storeString(CONTROLLERS_KEY, JSON.stringify([]));
+
+	return { code, controllers: [] };
 }
 
 function generateCode(randomBytes: RandomBytes): string {
@@ -56,29 +61,25 @@ function generateCode(randomBytes: RandomBytes): string {
 	return digits;
 }
 
-function parse(raw: string): Pairing | undefined {
-	let value: unknown;
-	try {
-		value = JSON.parse(raw);
-	} catch {
-		return undefined;
+async function loadOrCreateCode(store: KeyValueStore, randomBytes: RandomBytes): Promise<string> {
+	const stored = (await store.fetchString(PAIRING_KEY).catch(() => '')).trim();
+	if (CODE_PATTERN.test(stored)) {
+		return stored;
 	}
 
-	const stored = value as { code?: unknown; controllers?: unknown };
-	if (typeof stored.code !== 'string' || !CODE_PATTERN.test(stored.code)) {
-		return undefined;
-	}
+	const code = generateCode(randomBytes);
+	await store.storeString(PAIRING_KEY, code);
 
-	return {
-		code: stored.code,
-		controllers: Array.isArray(stored.controllers)
-			? (stored.controllers as Array<PairedController>)
-			: [],
-	};
+	return code;
 }
 
-async function persist(store: KeyValueStore, pairing: Pairing): Promise<Pairing> {
-	await store.storeString(PAIRING_KEY, JSON.stringify(pairing));
+async function readControllers(store: KeyValueStore): Promise<Array<PairedController>> {
+	let value: unknown;
+	try {
+		value = JSON.parse(await store.fetchString(CONTROLLERS_KEY));
+	} catch {
+		return [];
+	}
 
-	return pairing;
+	return Array.isArray(value) ? (value as Array<PairedController>) : [];
 }
