@@ -3,4 +3,5 @@ const std = @import("std");
 
 comptime {
     _ = @import("random_bytes.zig");
+    _ = @import("rate_limit.zig");
 }

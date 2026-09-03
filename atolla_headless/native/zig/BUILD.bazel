@@ -9,7 +9,10 @@ package(default_visibility = ["//visibility:public"])
 # while the arm64 cross-build and the macOS host both pass.
 zig_static_library(
     name = "atolla_headless_zig",
-    srcs = ["random_bytes.zig"],
+    srcs = [
+        "random_bytes.zig",
+        "rate_limit.zig",
+    ],
     main = "atolla_headless.zig",
     zigopts = [
         "-fPIC",
