@@ -33,6 +33,32 @@ zig_ios_align(
 )
 
 cc_library(
+    name = "http_server",
+    hdrs = ["http_server.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:macos": [":atolla_headless_zig_apple"],
+        "//conditions:default": [":atolla_headless_zig"],
+    }),
+)
+
+# alwayslink: the module registers itself through a static initialiser, which the linker would
+# otherwise drop because nothing references it.
+cc_library(
+    name = "http_module",
+    srcs = select({
+        "@valdi//bzl/conditions:linux": ["AtollaHttpModuleFactory.cpp"],
+        "@valdi//bzl/conditions:macos": ["AtollaHttpModuleFactory.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":http_server",
+        "@valdi//valdi_core",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "random_bytes",
     hdrs = ["random_bytes.h"],
     includes = ["."],

@@ -3,6 +3,7 @@ import { applyLanguage } from 'atolla_core/src/Localization';
 import type { LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
+import { atollaHttpStart, atollaHttpStop } from 'atolla_headless/src/HttpNative';
 import { atollaRandomBytes } from 'atolla_headless/src/RandomNative';
 import Strings from 'atolla_headless/src/Strings';
 import { fs } from 'file_system/src/FileSystem';
@@ -20,6 +21,7 @@ import {
 	RootFlags,
 } from './commands/Flags';
 import { commandHelp, help } from './commands/Help';
+import type { HttpServer } from './Http';
 import {
 	type ConfigStore,
 	DEFAULT_CONFIG_PATH,
@@ -33,6 +35,8 @@ import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 // valdi_core/src/utils/Buffer.ts does not typecheck under TypeScript 7, so declare the two members
 // of the global this CLI actually uses.
 declare const valdiStandalone: { arguments: Array<string>; exit(code: number): void };
+
+const httpServer: HttpServer = { start: atollaHttpStart, stop: atollaHttpStop };
 
 interface Invocation {
 	colour: boolean;
@@ -123,6 +127,7 @@ async function runCommand(
 		args: parseArguments(commandArgs, cmd.flags),
 		config,
 		files: fs,
+		httpServer,
 		logLevel,
 		randomBytes: atollaRandomBytes,
 		setLanguage,
@@ -205,6 +210,7 @@ function main(): void {
 					args: parseArguments(invocation.commandArgs, CmdRoot.flags),
 					config,
 					files: fs,
+					httpServer,
 					logLevel,
 					randomBytes: atollaRandomBytes,
 					setLanguage,

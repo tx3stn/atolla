@@ -1,6 +1,7 @@
 import type { LanguageCode } from 'atolla_core/src/Language';
 import type { LogLevel } from 'atolla_core/src/services/Logger';
 import type { StoreFiles } from '../FileKeyValueStore';
+import type { HttpServer } from '../Http';
 import type { ConfigStore } from '../PlayerConfig';
 import type { RandomBytes } from '../Random';
 import type { Terminal } from '../terminal/Terminal';
@@ -13,6 +14,7 @@ export interface CommandContext {
 	args: ParsedArguments;
 	config: ConfigStore;
 	files: StoreFiles;
+	httpServer: HttpServer;
 	// the level this invocation prints at: the global --log-level, or the configured level
 	logLevel: LogLevel;
 	randomBytes: RandomBytes;

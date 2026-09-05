@@ -7,6 +7,7 @@ import {
 } from 'atolla_core/src/services/Logger';
 import { filterLogWriter, startDaemon } from './Daemon';
 import type { StoreFiles } from './FileKeyValueStore';
+import type { HttpServer } from './Http';
 
 const CONFIG = {
 	audioDevice: 'default',
@@ -35,6 +36,16 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 		writeFileSync: (path, data) => {
 			contents.set(path, data);
 		},
+	};
+}
+
+function fakeHttpServer(started: Array<number> = []): HttpServer {
+	return {
+		start: (port) => {
+			started.push(port);
+			return port;
+		},
+		stop: () => {},
 	};
 }
 
@@ -68,7 +79,12 @@ describe('startDaemon', () => {
 	it('routes logging from anywhere in the process to the injected writer', async () => {
 		const { entries, log } = capture();
 
-		void startDaemon({ config: { ...CONFIG }, files: fakeFiles(), log });
+		void startDaemon({
+			config: { ...CONFIG },
+			files: fakeFiles(),
+			httpServer: fakeHttpServer(),
+			log,
+		});
 		getLogger('PlaybackStore').warn('queue restore failed');
 
 		expect(entries.some((entry) => entry.includes('[PlaybackStore]'))).toBe(true);
@@ -88,6 +104,7 @@ describe('startDaemon', () => {
 				},
 				writeFileSync: () => {},
 			},
+			httpServer: fakeHttpServer(),
 			log,
 		});
 		await Promise.resolve();
@@ -95,10 +112,57 @@ describe('startDaemon', () => {
 		expect(reads).toContain('/mnt/usb/atolla/state/queue');
 	});
 
+	it('starts the control server on the configured port', async () => {
+		const { log } = capture();
+		const started: Array<number> = [];
+
+		void startDaemon({
+			config: { ...CONFIG, port: 45890 },
+			files: fakeFiles(),
+			httpServer: fakeHttpServer(started),
+			log,
+		});
+
+		expect(started).toEqual([45890]);
+	});
+
+	it('starts the control server before reading the queue, so a slow restore cannot delay it', async () => {
+		const { log } = capture();
+		const order: Array<string> = [];
+
+		void startDaemon({
+			config: { ...CONFIG },
+			files: {
+				createDirectorySync: () => true,
+				readFileSync: () => {
+					order.push('read');
+					throw new Error('no such file');
+				},
+				writeFileSync: () => {},
+			},
+			httpServer: {
+				start: (port) => {
+					order.push('listen');
+					return port;
+				},
+				stop: () => {},
+			},
+			log,
+		});
+		await Promise.resolve();
+
+		expect(order[0]).toBe('listen');
+	});
+
 	it('returns a promise that does not settle', async () => {
 		const { log } = capture();
 
-		const daemon = startDaemon({ config: { ...CONFIG }, files: fakeFiles(), log });
+		const daemon = startDaemon({
+			config: { ...CONFIG },
+			files: fakeFiles(),
+			httpServer: fakeHttpServer(),
+			log,
+		});
 		const settled = await Promise.race([daemon, Promise.resolve('pending')]);
 
 		expect(settled).toBe('pending');

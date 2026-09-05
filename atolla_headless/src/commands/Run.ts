@@ -18,6 +18,7 @@ export const CmdRun = {
 	run: async ({
 		config,
 		files,
+		httpServer,
 		logLevel,
 		randomBytes,
 		terminal,
@@ -42,6 +43,7 @@ export const CmdRun = {
 		return startDaemon({
 			config: current,
 			files,
+			httpServer,
 			log: filterLogWriter(logLevel, terminal.write),
 		});
 	},

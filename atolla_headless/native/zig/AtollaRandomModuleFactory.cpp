@@ -51,6 +51,6 @@ public:
     }
 };
 
-auto kRegisterModule = Valdi::RegisterModuleFactory::registerTyped<AtollaRandomModule>();
+static auto kRegisterModule = Valdi::RegisterModuleFactory::registerTyped<AtollaRandomModule>();
 
 } // namespace atolla::headless

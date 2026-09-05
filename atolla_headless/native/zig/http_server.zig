@@ -41,7 +41,13 @@ pub const Server = struct {
         return .{
             .active = .init(0),
             .io = io,
-            .listener = try net.IpAddress.listen(address, io, .{ .mode = .stream }),
+            // reuse_address: a restarted daemon must rebind immediately. Without it the
+            // sockets left in TIME_WAIT by the previous run refuse the port for a minute
+            // or so, which turns systemd's Restart=always into a minute of silence.
+            .listener = try net.IpAddress.listen(address, io, .{
+                .mode = .stream,
+                .reuse_address = true,
+            }),
             .options = options,
             .running = .init(true),
         };
@@ -165,6 +171,48 @@ fn discardPending(stream: net.Stream) void {
 
         remaining -|= read;
     }
+}
+
+/// `run` blocks, so the C ABI owns a thread for it and hands C++ back an opaque
+/// handle rather than a singleton: nothing about the transport needs there to
+/// be only one, and a handle keeps start/stop testable in a loop.
+const Hosted = struct {
+    server: Server,
+    thread: std.Thread,
+};
+
+export fn atolla_http_start(port: u16) ?*Hosted {
+    const hosted = std.heap.c_allocator.create(Hosted) catch return null;
+    const address: net.IpAddress = .{ .ip4 = .unspecified(port) };
+
+    hosted.server = Server.listen(
+        std.Io.Threaded.global_single_threaded.io(),
+        &address,
+        .{},
+    ) catch {
+        std.heap.c_allocator.destroy(hosted);
+        return null;
+    };
+
+    hosted.thread = std.Thread.spawn(.{}, Server.run, .{&hosted.server}) catch {
+        hosted.server.deinit();
+        std.heap.c_allocator.destroy(hosted);
+        return null;
+    };
+
+    return hosted;
+}
+
+export fn atolla_http_port(hosted: *Hosted) u16 {
+    return hosted.server.port();
+}
+
+export fn atolla_http_stop(hosted: *Hosted) void {
+    hosted.server.stop();
+    hosted.thread.join();
+    hosted.server.deinit();
+
+    std.heap.c_allocator.destroy(hosted);
 }
 
 fn oversizeReply(http: *std.http.Server, err: std.http.Server.ReceiveHeadError) void {
@@ -408,4 +456,25 @@ test "http_server: answers 503 once the connection cap is reached" {
     defer for (held) |connection| connection.close();
 
     try testing.expectEqual(503, try get(server.port()));
+}
+
+test "http_server: serves and shuts down through the C ABI" {
+    const hosted = atolla_http_start(0) orelse return error.StartFailed;
+
+    try testing.expectEqual(404, try get(atolla_http_port(hosted)));
+
+    atolla_http_stop(hosted);
+}
+
+test "http_server: a second server can be hosted after the first is stopped" {
+    const first = atolla_http_start(0) orelse return error.StartFailed;
+    const port = atolla_http_port(first);
+    atolla_http_stop(first);
+
+    const second = atolla_http_start(0) orelse return error.StartFailed;
+    defer atolla_http_stop(second);
+
+    try testing.expect(atolla_http_port(second) != 0);
+    try testing.expectEqual(404, try get(atolla_http_port(second)));
+    try testing.expect(port != 0);
 }

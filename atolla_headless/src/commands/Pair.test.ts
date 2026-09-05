@@ -40,6 +40,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 						stored.set(path, data);
 					},
 				},
+				httpServer: { start: (port: number) => port, stop: () => {} },
 				logLevel: CONFIG.logLevel,
 				randomBytes: (count: number) => Uint8Array.from({ length: count }, () => next++ & 0xff),
 				setLanguage: () => {},
