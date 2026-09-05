@@ -23,6 +23,20 @@ public:
 
     Valdi::Value loadModule() final {
         return Valdi::Value()
+            .setMapValue("atollaHttpSetLogLevel",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const int32_t level = callContext.getParameterAsInt(0);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 if (level >= 0 && level <= 3) {
+                                     atolla_http_set_log_level(static_cast<uint8_t>(level));
+                                 }
+
+                                 return Valdi::Value::undefined();
+                             })))
             .setMapValue("atollaHttpSetHelloBody",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {

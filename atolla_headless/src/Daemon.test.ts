@@ -50,6 +50,7 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 function fakeHttpServer(started: Array<number> = []): HttpServer {
 	return {
 		setHelloBody: () => {},
+		setLogLevel: () => {},
 		start: (port) => {
 			started.push(port);
 			return port;
@@ -94,6 +95,7 @@ describe('startDaemon', () => {
 			httpServer: fakeHttpServer(),
 			identity: IDENTITY,
 			log,
+			logLevel: 'info',
 		});
 		getLogger('PlaybackStore').warn('queue restore failed');
 
@@ -117,6 +119,7 @@ describe('startDaemon', () => {
 			httpServer: fakeHttpServer(),
 			identity: IDENTITY,
 			log,
+			logLevel: 'info',
 		});
 		await Promise.resolve();
 
@@ -133,6 +136,7 @@ describe('startDaemon', () => {
 			httpServer: fakeHttpServer(started),
 			identity: IDENTITY,
 			log,
+			logLevel: 'info',
 		});
 
 		expect(started).toEqual([45890]);
@@ -154,6 +158,7 @@ describe('startDaemon', () => {
 			},
 			httpServer: {
 				setHelloBody: () => {},
+				setLogLevel: () => {},
 				start: (port) => {
 					order.push('listen');
 					return port;
@@ -162,6 +167,7 @@ describe('startDaemon', () => {
 			},
 			identity: IDENTITY,
 			log,
+			logLevel: 'info',
 		});
 		await Promise.resolve();
 
@@ -177,6 +183,7 @@ describe('startDaemon', () => {
 			httpServer: fakeHttpServer(),
 			identity: IDENTITY,
 			log,
+			logLevel: 'info',
 		});
 		const settled = await Promise.race([daemon, Promise.resolve('pending')]);
 

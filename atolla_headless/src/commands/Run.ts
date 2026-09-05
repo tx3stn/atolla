@@ -46,6 +46,7 @@ export const CmdRun = {
 			httpServer,
 			identity,
 			log: filterLogWriter(logLevel, terminal.write),
+			logLevel,
 		});
 	},
 } satisfies Cmd;

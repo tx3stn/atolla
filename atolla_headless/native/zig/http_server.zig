@@ -1,6 +1,7 @@
 const std = @import("std");
 const net = std.Io.net;
 const hello = @import("hello.zig");
+const log = @import("log.zig");
 const router = @import("router.zig");
 
 /// `std.http.Server` caps the head at the size of the reader's buffer, so this
@@ -10,6 +11,10 @@ const head_buffer_bytes = 8 * 1024;
 /// Sent from the accept thread, so its timeout is short: a client that will not
 /// read its own rejection must not hold up the next connection.
 const reject_timeout_ms = 1_000;
+
+const max_logged_target_bytes = 128;
+
+const log_name = "server";
 
 const over_capacity_response =
     "HTTP/1.1 503 Service Unavailable\r\n" ++
@@ -149,23 +154,26 @@ pub const Server = struct {
 
             var request = http.receiveHead() catch |err| return oversizeReply(&http, err);
 
-            // A request carrying neither a length nor chunked encoding has no body, but
-            // `std.http` asserts one of the two is present before discarding the body of a
-            // method that may have one — and a failed assert is a panic that would take the
-            // whole daemon down with it. Saying "no body" explicitly keeps that assert true.
             if (request.head.content_length == null and request.head.transfer_encoding == .none) {
                 request.head.content_length = 0;
             }
 
+            var target_buffer: [max_logged_target_bytes]u8 = undefined;
+            const method = @tagName(request.head.method);
+            const target = clamped(&target_buffer, request.head.target);
+
             // An unrecognised `Expect` fails before anything is written, so the connection is
             // still owed an answer rather than a silent close.
-            respond(&request, self.options.max_body_bytes) catch |err| {
+            const status = respond(&request, self.options.max_body_bytes) catch |err| {
                 if (err == error.HttpExpectationFailed) {
                     rawReply(&http, "HTTP/1.1 417 Expectation Failed\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                    log.info(log_name, "{s} {s} {f}", .{ method, target, log.fields(.{ .status = 417 }) });
                 }
 
                 return;
             };
+
+            log.info(log_name, "{s} {s} {f}", .{ method, target, log.fields(.{ .status = status }) });
 
             if (!request.head.keep_alive) return;
 
@@ -174,10 +182,6 @@ pub const Server = struct {
     }
 };
 
-/// Closing a socket with data still unread makes the kernel send RST, and an
-/// RST discards whatever the peer has not yet read — including the error
-/// response explaining why it was refused. Bounded, because the peer that
-/// overran a limit is exactly the one that might keep talking forever.
 fn discardPending(stream: net.Stream) void {
     var scratch: [4 * 1024]u8 = undefined;
     var remaining: usize = 64 * 1024;
@@ -221,6 +225,10 @@ export fn atolla_http_start(port: u16) ?*Hosted {
     return hosted;
 }
 
+export fn atolla_http_set_log_level(level: u8) void {
+    log.setLevel(log.Level.fromInt(level) orelse return);
+}
+
 export fn atolla_http_set_hello_body(bytes: [*]const u8, len: usize) bool {
     hello.set(bytes[0..len]) catch return false;
 
@@ -239,6 +247,13 @@ export fn atolla_http_stop(hosted: *Hosted) void {
     std.heap.c_allocator.destroy(hosted);
 }
 
+fn clamped(buffer: []u8, text: []const u8) []const u8 {
+    const length = @min(buffer.len, text.len);
+    @memcpy(buffer[0..length], text[0..length]);
+
+    return buffer[0..length];
+}
+
 /// For the answers that cannot go through `Request.respond`, because there is no usable `Request`
 /// or because responding is what failed.
 fn rawReply(http: *std.http.Server, response: []const u8) void {
@@ -252,22 +267,34 @@ fn oversizeReply(http: *std.http.Server, err: std.http.Server.ReceiveHeadError) 
     rawReply(http, "HTTP/1.1 431 Request Header Fields Too Large\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
 }
 
-fn respond(request: *std.http.Server.Request, max_body_bytes: u64) !void {
+/// The status it answered with, so the caller can log what happened without deciding it twice.
+fn respond(request: *std.http.Server.Request, max_body_bytes: u64) !u16 {
     if (request.head.transfer_encoding == .chunked) {
-        return request.respond("", .{ .status = .length_required, .keep_alive = false });
+        try request.respond("", .{ .status = .length_required, .keep_alive = false });
+        return 411;
     }
 
     if ((request.head.content_length orelse 0) > max_body_bytes) {
-        return request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
+        try request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
+        return 413;
     }
 
-    return switch (router.resolve(request.head.method, request.head.target)) {
+    switch (router.resolve(request.head.method, request.head.target)) {
         .route => |route| switch (route) {
-            .hello => hello.respond(request),
+            .hello => {
+                try hello.respond(request);
+                return 200;
+            },
         },
-        .method_not_allowed => request.respond("", .{ .status = .method_not_allowed }),
-        .not_found => request.respond("", .{ .status = .not_found }),
-    };
+        .method_not_allowed => {
+            try request.respond("", .{ .status = .method_not_allowed });
+            return 405;
+        },
+        .not_found => {
+            try request.respond("", .{ .status = .not_found });
+            return 404;
+        },
+    }
 }
 
 fn setTimeout(stream: net.Stream, comptime direction: enum { receive, send }, milliseconds: i32) !void {

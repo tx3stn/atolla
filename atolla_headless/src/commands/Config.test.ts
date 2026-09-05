@@ -34,7 +34,12 @@ function context(argv: Array<string>) {
 				},
 			},
 			files: { createDirectorySync: () => true, readFileSync: () => '', writeFileSync: () => {} },
-			httpServer: { setHelloBody: () => {}, start: (port: number) => port, stop: () => {} },
+			httpServer: {
+				setHelloBody: () => {},
+				setLogLevel: () => {},
+				start: (port: number) => port,
+				stop: () => {},
+			},
 			logLevel: CONFIG.logLevel,
 			randomBytes: (count: number) => new Uint8Array(count),
 			setLanguage: () => {},

@@ -8,6 +8,7 @@ zig_binary(
     srcs = [
         "hello.zig",
         "http_server.zig",
+        "log.zig",
         "router.zig",
     ],
     main = "dev_serve.zig",
@@ -22,6 +23,7 @@ zig_static_library(
     srcs = [
         "hello.zig",
         "http_server.zig",
+        "log.zig",
         "random_bytes.zig",
         "rate_limit.zig",
         "router.zig",

@@ -38,7 +38,12 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 				stored.set(path, data);
 			},
 		},
-		httpServer: { setHelloBody: () => {}, start: (port: number) => port, stop: () => {} },
+		httpServer: {
+			setHelloBody: () => {},
+			setLogLevel: () => {},
+			start: (port: number) => port,
+			stop: () => {},
+		},
 		logLevel: CONFIG.logLevel,
 		randomBytes: (count: number) => Uint8Array.from({ length: count }, () => next++ & 0xff),
 		setLanguage: () => {},

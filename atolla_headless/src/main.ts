@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
 import { applyLanguage } from 'atolla_core/src/Localization';
-import type { LogLevel } from 'atolla_core/src/services/Logger';
+import { LOG_LEVELS, type LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import {
 	atollaHttpSetHelloBody,
+	atollaHttpSetLogLevel,
 	atollaHttpStart,
 	atollaHttpStop,
 } from 'atolla_headless/src/HttpNative';
@@ -40,8 +41,10 @@ import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 // of the global this CLI actually uses.
 declare const valdiStandalone: { arguments: Array<string>; exit(code: number): void };
 
+// the numeric encoding of a level stops at the bridge: LOG_LEVELS is ordered, so its index is it
 const httpServer: HttpServer = {
 	setHelloBody: atollaHttpSetHelloBody,
+	setLogLevel: (level) => atollaHttpSetLogLevel(LOG_LEVELS.indexOf(level)),
 	start: atollaHttpStart,
 	stop: atollaHttpStop,
 };

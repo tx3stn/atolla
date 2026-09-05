@@ -18,6 +18,7 @@ export interface DaemonDeps {
 	httpServer: HttpServer;
 	identity: PlayerIdentity;
 	log: LogWriter;
+	logLevel: LogLevel;
 }
 
 export function filterLogWriter(minimum: LogLevel, write: (entry: string) => void): LogWriter {
@@ -38,6 +39,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 
 	// before the queue is restored, so a bad port fails fast and so the control surface is up while
 	// a large queue is still being read
+	deps.httpServer.setLogLevel(deps.logLevel);
 	deps.httpServer.setHelloBody(helloBody(deps.identity));
 	log.info('listening', { port: deps.httpServer.start(deps.config.port) });
 
