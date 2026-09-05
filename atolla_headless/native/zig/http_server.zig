@@ -1,5 +1,7 @@
 const std = @import("std");
 const net = std.Io.net;
+const hello = @import("hello.zig");
+const router = @import("router.zig");
 
 /// `std.http.Server` caps the head at the size of the reader's buffer, so this
 /// constant is the 8 KiB header limit rather than merely sizing an allocation.
@@ -147,7 +149,23 @@ pub const Server = struct {
 
             var request = http.receiveHead() catch |err| return oversizeReply(&http, err);
 
-            respond(&request, self.options.max_body_bytes) catch return;
+            // A request carrying neither a length nor chunked encoding has no body, but
+            // `std.http` asserts one of the two is present before discarding the body of a
+            // method that may have one — and a failed assert is a panic that would take the
+            // whole daemon down with it. Saying "no body" explicitly keeps that assert true.
+            if (request.head.content_length == null and request.head.transfer_encoding == .none) {
+                request.head.content_length = 0;
+            }
+
+            // An unrecognised `Expect` fails before anything is written, so the connection is
+            // still owed an answer rather than a silent close.
+            respond(&request, self.options.max_body_bytes) catch |err| {
+                if (err == error.HttpExpectationFailed) {
+                    rawReply(&http, "HTTP/1.1 417 Expectation Failed\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                }
+
+                return;
+            };
 
             if (!request.head.keep_alive) return;
 
@@ -203,6 +221,12 @@ export fn atolla_http_start(port: u16) ?*Hosted {
     return hosted;
 }
 
+export fn atolla_http_set_hello_body(bytes: [*]const u8, len: usize) bool {
+    hello.set(bytes[0..len]) catch return false;
+
+    return true;
+}
+
 export fn atolla_http_port(hosted: *Hosted) u16 {
     return hosted.server.port();
 }
@@ -215,11 +239,17 @@ export fn atolla_http_stop(hosted: *Hosted) void {
     std.heap.c_allocator.destroy(hosted);
 }
 
+/// For the answers that cannot go through `Request.respond`, because there is no usable `Request`
+/// or because responding is what failed.
+fn rawReply(http: *std.http.Server, response: []const u8) void {
+    http.out.writeAll(response) catch return;
+    http.out.flush() catch return;
+}
+
 fn oversizeReply(http: *std.http.Server, err: std.http.Server.ReceiveHeadError) void {
     if (err != error.HttpHeadersOversize) return;
 
-    http.out.writeAll("HTTP/1.1 431 Request Header Fields Too Large\r\ncontent-length: 0\r\nconnection: close\r\n\r\n") catch return;
-    http.out.flush() catch return;
+    rawReply(http, "HTTP/1.1 431 Request Header Fields Too Large\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
 }
 
 fn respond(request: *std.http.Server.Request, max_body_bytes: u64) !void {
@@ -231,7 +261,13 @@ fn respond(request: *std.http.Server.Request, max_body_bytes: u64) !void {
         return request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
     }
 
-    return request.respond("", .{ .status = .not_found });
+    return switch (router.resolve(request.head.method, request.head.target)) {
+        .route => |route| switch (route) {
+            .hello => hello.respond(request),
+        },
+        .method_not_allowed => request.respond("", .{ .status = .method_not_allowed }),
+        .not_found => request.respond("", .{ .status = .not_found }),
+    };
 }
 
 fn setTimeout(stream: net.Stream, comptime direction: enum { receive, send }, milliseconds: i32) !void {
@@ -456,6 +492,105 @@ test "http_server: answers 503 once the connection cap is reached" {
     defer for (held) |connection| connection.close();
 
     try testing.expectEqual(503, try get(server.port()));
+}
+
+test "http_server: serves the hello body it was given" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try hello.set("{\"id\":\"kitchen\"}");
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("GET /hello HTTP/1.1\r\nHost: t\r\n\r\n");
+
+    try testing.expectEqual(200, try connection.status());
+}
+
+test "http_server: answers 405 for a route reached with the wrong method" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /hello HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+
+    try testing.expectEqual(405, try connection.status());
+}
+
+// A panic in a connection thread aborts the process, so a request nobody meant to send must
+// still get an answer. Each of these once had, or could have, a path into `unreachable`.
+test "http_server: survives request shapes that carry no length header" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const hostile = [_][]const u8{
+        "POST /hello HTTP/1.1\r\nHost: t\r\n\r\n",
+        "POST /nope HTTP/1.1\r\nHost: t\r\n\r\n",
+        "PUT /hello HTTP/1.1\r\nHost: t\r\n\r\n",
+        "PATCH /nope HTTP/1.1\r\nHost: t\r\n\r\n",
+        "DELETE /hello HTTP/1.1\r\nHost: t\r\n\r\n",
+        "POST /hello HTTP/1.1\r\nHost: t\r\nExpect: 100-continue\r\n\r\n",
+        "POST /hello HTTP/1.1\r\nHost: t\r\nExpect: something-else\r\n\r\n",
+        "HEAD /hello HTTP/1.1\r\nHost: t\r\n\r\n",
+        "OPTIONS /hello HTTP/1.1\r\nHost: t\r\n\r\n",
+    };
+
+    for (hostile) |raw| {
+        const connection = try Connection.open(server.port());
+        defer connection.close();
+
+        try connection.send(raw);
+        _ = connection.status() catch {};
+    }
+
+    try testing.expectEqual(404, try get(server.port()));
+}
+
+test "http_server: answers 417 for an expectation it cannot meet" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("GET /hello HTTP/1.1\r\nHost: t\r\nExpect: nonsense\r\n\r\n");
+
+    try testing.expectEqual(417, try connection.status());
+}
+
+test "http_server: answers a body-bearing method that declares no length" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /hello HTTP/1.1\r\nHost: t\r\n\r\n");
+
+    try testing.expectEqual(405, try connection.status());
 }
 
 test "http_server: serves and shuts down through the C ABI" {

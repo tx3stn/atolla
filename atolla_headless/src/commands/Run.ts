@@ -44,6 +44,7 @@ export const CmdRun = {
 			config: current,
 			files,
 			httpServer,
+			identity,
 			log: filterLogWriter(logLevel, terminal.write),
 		});
 	},

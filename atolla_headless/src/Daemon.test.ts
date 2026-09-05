@@ -8,6 +8,7 @@ import {
 import { filterLogWriter, startDaemon } from './Daemon';
 import type { StoreFiles } from './FileKeyValueStore';
 import type { HttpServer } from './Http';
+import type { PlayerIdentity } from './PlayerIdentity';
 
 const CONFIG = {
 	audioDevice: 'default',
@@ -17,6 +18,13 @@ const CONFIG = {
 	name: 'Kitchen',
 	port: 45889,
 } as const;
+
+const IDENTITY: PlayerIdentity = {
+	id: 'c2be50c9b97e1c53',
+	name: 'Kitchen',
+	tier: 'tight',
+	version: '0.0.0',
+};
 
 function capture(): { entries: Array<string>; log: LogWriter } {
 	const entries: Array<string> = [];
@@ -41,6 +49,7 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 
 function fakeHttpServer(started: Array<number> = []): HttpServer {
 	return {
+		setHelloBody: () => {},
 		start: (port) => {
 			started.push(port);
 			return port;
@@ -83,6 +92,7 @@ describe('startDaemon', () => {
 			config: { ...CONFIG },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(),
+			identity: IDENTITY,
 			log,
 		});
 		getLogger('PlaybackStore').warn('queue restore failed');
@@ -105,6 +115,7 @@ describe('startDaemon', () => {
 				writeFileSync: () => {},
 			},
 			httpServer: fakeHttpServer(),
+			identity: IDENTITY,
 			log,
 		});
 		await Promise.resolve();
@@ -120,6 +131,7 @@ describe('startDaemon', () => {
 			config: { ...CONFIG, port: 45890 },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(started),
+			identity: IDENTITY,
 			log,
 		});
 
@@ -141,12 +153,14 @@ describe('startDaemon', () => {
 				writeFileSync: () => {},
 			},
 			httpServer: {
+				setHelloBody: () => {},
 				start: (port) => {
 					order.push('listen');
 					return port;
 				},
 				stop: () => {},
 			},
+			identity: IDENTITY,
 			log,
 		});
 		await Promise.resolve();
@@ -161,6 +175,7 @@ describe('startDaemon', () => {
 			config: { ...CONFIG },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(),
+			identity: IDENTITY,
 			log,
 		});
 		const settled = await Promise.race([daemon, Promise.resolve('pending')]);

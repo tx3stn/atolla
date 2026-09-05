@@ -3,7 +3,11 @@ import { applyLanguage } from 'atolla_core/src/Localization';
 import type { LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
-import { atollaHttpStart, atollaHttpStop } from 'atolla_headless/src/HttpNative';
+import {
+	atollaHttpSetHelloBody,
+	atollaHttpStart,
+	atollaHttpStop,
+} from 'atolla_headless/src/HttpNative';
 import { atollaRandomBytes } from 'atolla_headless/src/RandomNative';
 import Strings from 'atolla_headless/src/Strings';
 import { fs } from 'file_system/src/FileSystem';
@@ -36,7 +40,11 @@ import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 // of the global this CLI actually uses.
 declare const valdiStandalone: { arguments: Array<string>; exit(code: number): void };
 
-const httpServer: HttpServer = { start: atollaHttpStart, stop: atollaHttpStop };
+const httpServer: HttpServer = {
+	setHelloBody: atollaHttpSetHelloBody,
+	start: atollaHttpStart,
+	stop: atollaHttpStop,
+};
 
 interface Invocation {
 	colour: boolean;

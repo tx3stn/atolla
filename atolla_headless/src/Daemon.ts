@@ -7,13 +7,16 @@ import {
 } from 'atolla_core/src/services/Logger';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
+import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
 import { type PlayerConfig, stateDir } from './PlayerConfig';
+import type { PlayerIdentity } from './PlayerIdentity';
 
 export interface DaemonDeps {
 	config: PlayerConfig;
 	files: StoreFiles;
 	httpServer: HttpServer;
+	identity: PlayerIdentity;
 	log: LogWriter;
 }
 
@@ -35,6 +38,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 
 	// before the queue is restored, so a bad port fails fast and so the control surface is up while
 	// a large queue is still being read
+	deps.httpServer.setHelloBody(helloBody(deps.identity));
 	log.info('listening', { port: deps.httpServer.start(deps.config.port) });
 
 	const state = stateDir(deps.config);

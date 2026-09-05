@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'bun:test';
+import { helloBody, PROTOCOL_VERSION } from './Hello';
+import type { PlayerIdentity } from './PlayerIdentity';
+
+const IDENTITY: PlayerIdentity = {
+	id: 'c2be50c9b97e1c53',
+	name: 'Kitchen',
+	tier: 'tight',
+	version: '0.11.3',
+};
+
+describe('helloBody', () => {
+	it('identifies the player', () => {
+		expect(JSON.parse(helloBody(IDENTITY))).toEqual({
+			id: 'c2be50c9b97e1c53',
+			name: 'Kitchen',
+			protocolVersions: [PROTOCOL_VERSION],
+			tier: 'tight',
+			v: PROTOCOL_VERSION,
+			version: '0.11.3',
+		});
+	});
+
+	it('survives a name that needs escaping', () => {
+		const body = helloBody({ ...IDENTITY, name: 'Tristan\'s "Den"' });
+
+		expect(JSON.parse(body).name).toBe('Tristan\'s "Den"');
+	});
+});
