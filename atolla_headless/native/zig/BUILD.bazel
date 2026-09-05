@@ -1,7 +1,13 @@
-load("@rules_zig//zig:defs.bzl", "zig_static_library")
+load("@rules_zig//zig:defs.bzl", "zig_binary", "zig_static_library")
 load("//atolla_app/native/zig:zig_ios_align.bzl", "zig_ios_align")
 
 package(default_visibility = ["//visibility:public"])
+
+zig_binary(
+    name = "dev_serve",
+    srcs = ["http_server.zig"],
+    main = "dev_serve.zig",
+)
 
 # -fcompiler-rt: std.Io has stack frames large enough that ReleaseSafe emits __zig_probe_stack
 # calls, and bazel links this archive with clang/lld rather than zig, so nothing else supplies
@@ -10,6 +16,7 @@ package(default_visibility = ["//visibility:public"])
 zig_static_library(
     name = "atolla_headless_zig",
     srcs = [
+        "http_server.zig",
         "random_bytes.zig",
         "rate_limit.zig",
     ],
@@ -44,9 +51,9 @@ cc_library(
         "@valdi//bzl/conditions:macos": ["AtollaRandomModuleFactory.cpp"],
         "//conditions:default": [],
     }),
-    alwayslink = 1,
     deps = [
         ":random_bytes",
         "@valdi//valdi_core",
     ],
+    alwayslink = 1,
 )
