@@ -267,30 +267,39 @@ jobs:
   # Each headless build runs the same suite against its own binary, as soon as that build finishes.
   # The if lives here rather than on needs: when the binary becomes a release artifact these builds
   # start running on releases, and the tests should not follow them there.
-  e2e-amd64:
+  e2e-cli-amd64:
     needs: cli-linux-amd64
     if: ${{ !inputs.release }}
-    uses: ./.github/workflows/e2e-cli.yml
-    with:
-      artifact: cli-linux-amd64
-      binary: atolla
-      runner: ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/e2e-cli
+        with:
+          artifact: cli-linux-amd64
+          binary: atolla
 
-  e2e-arm64:
+  e2e-cli-arm64:
     needs: cli-linux-arm64
     if: ${{ !inputs.release }}
-    uses: ./.github/workflows/e2e-cli.yml
-    with:
-      artifact: cli-linux-arm64
-      binary: atolla_arm64
-      runner: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/e2e-cli
+        with:
+          artifact: cli-linux-arm64
+          binary: atolla_arm64
 
-  e2e-macos:
+  e2e-cli-macos:
     needs: cli-macos-arm64
     if: ${{ !inputs.release }}
-    uses: ./.github/workflows/e2e-cli.yml
-    with:
-      artifact: cli-macos-arm64
-      binary: atolla
-      runner: macos-latest
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/e2e-cli
+        with:
+          artifact: cli-macos-arm64
+          binary: atolla
 
