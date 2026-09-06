@@ -107,7 +107,9 @@ pub const Table = struct {
     }
 
     pub fn complete(self: *Table, io: std.Io, id: u64, status: u16, body: []const u8) bool {
-        if (id == 0 or body.len > max_body_bytes) return false;
+        // A zero status is the slot's "unanswered" marker, so accepting one would leave the slot
+        // open for a second answer to allocate over the first.
+        if (id == 0 or status == 0 or body.len > max_body_bytes) return false;
 
         self.mutex.lockUncancelable(io);
         defer self.mutex.unlock(io);
@@ -205,6 +207,19 @@ test "bridge: only the first answer counts" {
     try testing.expect(!table.complete(io, id, 500, "second"));
 
     try testing.expectEqualStrings("first", table.awaitResponse(io, id, 1_000).?.body);
+}
+
+test "bridge: refuses an answer with no status, which would not mark the slot answered" {
+    var table: Table = .{};
+    const io = testIo();
+
+    const id = table.claim(io).?;
+    defer table.release(io, id);
+
+    try testing.expect(!table.complete(io, id, 0, "unanswered"));
+    try testing.expect(table.complete(io, id, 200, "answered"));
+
+    try testing.expectEqualStrings("answered", table.awaitResponse(io, id, 1_000).?.body);
 }
 
 test "bridge: refuses a request once every slot is taken" {
