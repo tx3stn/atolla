@@ -114,9 +114,8 @@ jobs:
 
   # The headless player for an x86 box — a mini-PC, NAS or HTPC. Native, so it needs nothing beyond
   # what every other linux bazel job here needs.
-  # Intentionally using ubunutu 22. 
-  # A native get glibc version floor from the runner. On 24.04 that comes out at 2.38 — above Debian 
-  # bookworm's 2.36, so the binary would not run on much of what it targets. 
+  # Deliberately 22.04, a native build takes its glibc floor from the runner, and 24.04 puts that at 
+  # 2.38, above Debian bookworm's 2.36, so the binary would not run on much of what it targets. 
   cli-linux-amd64:
     if: ${{ !inputs.release }}
     runs-on: ubuntu-22.04
@@ -131,6 +130,7 @@ jobs:
         uses: ./.github/actions/configure-bazel-caching
         with:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          remote-instance-name: ubuntu-2204
       - uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run build:headless
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -161,6 +161,7 @@ jobs:
         uses: ./.github/actions/configure-bazel-caching
         with:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          remote-instance-name: ubuntu-2204
       - uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run build:headless:arm64
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -19,6 +19,13 @@ inputs:
       it off when the job saves bazel-out artifacts or restores a warm base.
     required: false
     default: "false"
+  remote-instance-name:
+    description: >-
+      Cache namespace to isolate this job's artifacts under. Empty (the default)
+      shares the one namespace every job reads and writes. Set it when the job runs
+      on a different runner image to the rest of the matrix. See the script.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -26,6 +33,7 @@ runs:
       env:
         BUILDBUDDY_API_KEY: ${{ inputs.buildbuddy-api-key }}
         REMOTE_DOWNLOAD_MINIMAL: ${{ inputs.remote-download-minimal }}
+        REMOTE_INSTANCE_NAME: ${{ inputs.remote-instance-name }}
       run: |
         set -euo pipefail
         {
@@ -46,6 +54,16 @@ runs:
               # `minimal` fetches only what actions actually need (this is a build, not an
               # artifact we keep) — same scope as .bazelrc's toplevel, home rc wins → minimal.
               echo "build:remote-cache --remote_download_minimal"
+            fi
+            if [ -n "$REMOTE_INSTANCE_NAME" ]; then
+              # Bazel's action keys don't record the runner's glibc, so a job on a different
+              # ubuntu image hashes host tools to the same keys as the rest of the matrix and
+              # takes their binaries from the cache. glibc is backwards compatible, so this
+              # fails in one direction only: a tool built on the newer image reaches the older
+              # one and dies at exec with "GLIBC_x.yz not found". Target objects cross the same
+              # way, raising the shipped binary's glibc floor to the newer image's on a build
+              # that otherwise passed. A separate namespace stops both.
+              echo "build:remote-cache --remote_instance_name=$REMOTE_INSTANCE_NAME"
             fi
           fi
         } >> ~/.bazelrc
