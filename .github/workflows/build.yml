@@ -114,9 +114,12 @@ jobs:
 
   # The headless player for an x86 box — a mini-PC, NAS or HTPC. Native, so it needs nothing beyond
   # what every other linux bazel job here needs.
+  # Intentionally using ubunutu 22. 
+  # A native get glibc version floor from the runner. On 24.04 that comes out at 2.38 — above Debian 
+  # bookworm's 2.36, so the binary would not run on much of what it targets. 
   cli-linux-amd64:
     if: ${{ !inputs.release }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,7 +145,7 @@ jobs:
   # The only extra it needs over the amd64 job is the arm64 sysroot.
   cli-linux-arm64:
     if: ${{ !inputs.release }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -264,13 +267,11 @@ jobs:
           path: build/atolla_ios.ipa
           if-no-files-found: error
 
-  # Each headless build runs the same suite against its own binary, as soon as that build finishes.
-  # The if lives here rather than on needs: when the binary becomes a release artifact these builds
-  # start running on releases, and the tests should not follow them there.
+  # Each headless build runs the same test suite against its own binary.
   e2e-cli-amd64:
     needs: cli-linux-amd64
     if: ${{ !inputs.release }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -282,7 +283,7 @@ jobs:
   e2e-cli-arm64:
     needs: cli-linux-arm64
     if: ${{ !inputs.release }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-22.04-arm
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
