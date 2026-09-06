@@ -3,9 +3,6 @@ load("//atolla_app/native/zig:zig_ios_align.bzl", "zig_ios_align")
 
 package(default_visibility = ["//visibility:public"])
 
-# Both targets need -lc: the http server and bridge allocate with std.heap.c_allocator, which needs
-# libc linked. Zig links it implicitly for darwin, so only linux fails without this.
-
 zig_binary(
     name = "dev_serve",
     srcs = [
@@ -16,7 +13,6 @@ zig_binary(
         "router.zig",
     ],
     main = "dev_serve.zig",
-    zigopts = ["-lc"],
 )
 
 # -fcompiler-rt: std.Io has stack frames large enough that ReleaseSafe emits __zig_probe_stack
@@ -37,7 +33,6 @@ zig_static_library(
     zigopts = [
         "-fPIC",
         "-fcompiler-rt",
-        "-lc",
     ],
 )
 
