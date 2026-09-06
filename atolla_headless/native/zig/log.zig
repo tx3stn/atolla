@@ -67,7 +67,8 @@ pub fn fields(value: anytype) std.json.Formatter(@TypeOf(value)) {
     return std.json.fmt(value, .{});
 }
 
-/// One `write` of a whole line, so lines from connection threads cannot interleave.
+/// The line is composed in full before it is written, so lines from connection threads cannot
+/// interleave.
 fn write(level: Level, scope: []const u8, comptime format: []const u8, args: anytype) void {
     if (!enabled(level)) return;
 
@@ -77,7 +78,7 @@ fn write(level: Level, scope: []const u8, comptime format: []const u8, args: any
     var buffer: [max_line_bytes]u8 = undefined;
     const line = compose(&buffer, now.toMilliseconds(), level, scope, format, args);
 
-    _ = std.c.write(std.posix.STDOUT_FILENO, line.ptr, line.len);
+    std.Io.File.stdout().writeStreamingAll(io, line) catch {};
 }
 
 /// Split from `write` so the format is testable without capturing stdout.

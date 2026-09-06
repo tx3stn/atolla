@@ -181,7 +181,7 @@ pub const Server = struct {
 
     fn serve(self: *Server, stream: net.Stream) void {
         defer {
-            discardPending(stream);
+            discardPending(self.io, stream);
             stream.close(self.io);
             _ = self.active.fetchSub(1, .acq_rel);
         }
@@ -230,12 +230,15 @@ pub const Server = struct {
     }
 };
 
-fn discardPending(stream: net.Stream) void {
+fn discardPending(io: std.Io, stream: net.Stream) void {
     var scratch: [4 * 1024]u8 = undefined;
+    var unbuffered: [0]u8 = .{};
+    var reader = stream.reader(io, &unbuffered);
     var remaining: usize = 64 * 1024;
 
     while (remaining > 0 and waitReadable(stream, 0)) {
-        const read = std.posix.read(stream.socket.handle, &scratch) catch return;
+        var data: [1][]u8 = .{&scratch};
+        const read = reader.interface.readVec(&data) catch return;
 
         if (read == 0) return;
 

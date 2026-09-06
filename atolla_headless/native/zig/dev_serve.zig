@@ -2,6 +2,7 @@ const std = @import("std");
 const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const http_server = @import("http_server.zig");
+const log = @import("log.zig");
 
 const default_port = 45889;
 
@@ -39,7 +40,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     });
     defer server.deinit();
 
-    std.debug.print("listening on http://127.0.0.1:{d}\n", .{server.port()});
+    log.info("dev_serve", "listening on http://127.0.0.1:{d}", .{server.port()});
 
     server.run();
 }
