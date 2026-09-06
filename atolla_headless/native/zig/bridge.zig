@@ -117,7 +117,7 @@ pub const Table = struct {
         const slot = &self.slots[id & slot_mask];
         if (slot.id != id or slot.status != 0) return false;
 
-        const copy = std.heap.smp_allocator.alloc(u8, body.len) catch return false;
+        const copy = std.heap.c_allocator.alloc(u8, body.len) catch return false;
         @memcpy(copy, body);
 
         slot.body = copy;
@@ -134,7 +134,7 @@ pub const Table = struct {
         const slot = &self.slots[id & slot_mask];
         if (slot.id != id) return;
 
-        if (slot.body.len > 0) std.heap.smp_allocator.free(slot.body);
+        if (slot.body.len > 0) std.heap.c_allocator.free(slot.body);
 
         slot.* = .free;
     }
@@ -256,8 +256,8 @@ test "bridge: refuses a body too large to hold" {
     const id = table.claim(io).?;
     defer table.release(io, id);
 
-    const oversize = std.heap.smp_allocator.alloc(u8, max_body_bytes + 1) catch unreachable;
-    defer std.heap.smp_allocator.free(oversize);
+    const oversize = std.heap.c_allocator.alloc(u8, max_body_bytes + 1) catch unreachable;
+    defer std.heap.c_allocator.free(oversize);
 
     try testing.expect(!table.complete(io, id, 200, oversize));
 }

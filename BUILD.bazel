@@ -75,6 +75,40 @@ toolchain(
     toolchain_type = "@rules_zig//zig/target:toolchain_type",
 )
 
+# rules_zig defaults linux to gnu.2.17, which no longer works now the archive links libc: below
+# glibc 2.25 std.Io's randomSecure calls the raw getrandom syscall but reads the result with libc's
+# errno convention, so every draw fails. 2.35 clears that check. It is also the floor the arm64
+# sysroot already pins, under Pi OS bookworm's 2.36.
+zig_target_toolchain(
+    name = "zig_target_linux_amd64",
+    target = "x86_64-linux-gnu.2.35",
+)
+
+toolchain(
+    name = "zig_toolchain_linux_amd64",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchain = ":zig_target_linux_amd64",
+    toolchain_type = "@rules_zig//zig/target:toolchain_type",
+)
+
+zig_target_toolchain(
+    name = "zig_target_linux_arm64",
+    target = "aarch64-linux-gnu.2.35",
+)
+
+toolchain(
+    name = "zig_toolchain_linux_arm64",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+    toolchain = ":zig_target_linux_arm64",
+    toolchain_type = "@rules_zig//zig/target:toolchain_type",
+)
+
 filegroup(
     name = "app_sources",
     srcs = glob([

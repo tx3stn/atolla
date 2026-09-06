@@ -117,12 +117,12 @@ describe('makeConfigStore read', () => {
 });
 
 describe('makeConfigStore write', () => {
-	it('creates the containing directory before writing', () => {
+	it('creates every level of the containing directory before writing', () => {
 		const { directories, files } = fakeFiles();
 
 		makeConfigStore(files, PATH).write({ ...CONFIG, name: 'living room' });
 
-		expect(directories).toEqual(['/etc/atolla']);
+		expect(directories).toEqual(['/etc', '/etc/atolla']);
 	});
 
 	it('round-trips through read', () => {

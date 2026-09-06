@@ -5,6 +5,11 @@
 #   build-headless.sh          for this host
 #   build-headless.sh arm64    cross-build for a Pi
 #
+#   ATOLLA_HEADLESS_OUTPUT=path   write the binary there instead
+#
+# A host build inside a linux container lands on the same build/atolla a darwin build does, and
+# whichever ran last wins, so the container build needs somewhere else to put it.
+#
 # arm64 has to be a cross build: Valdi's prebuilt valdi_compiler and pngquant select on
 # darwin / linux_x86_64 with no arm64 build, so a native arm64 build cannot finish analysis. Built
 # from an amd64 host they stay in the exec configuration, where the selects resolve. It needs the
@@ -20,11 +25,11 @@ ARCH="${1:-host}"
 case "$ARCH" in
 host)
 	config=()
-	output=build/atolla
+	output="${ATOLLA_HEADLESS_OUTPUT:-build/atolla}"
 	;;
 arm64)
 	config=(--config=linux-arm64)
-	output=build/atolla_arm64
+	output="${ATOLLA_HEADLESS_OUTPUT:-build/atolla_arm64}"
 	;;
 *)
 	echo "usage: $(basename "$0") [arm64]" >&2

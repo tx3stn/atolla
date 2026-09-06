@@ -2,6 +2,7 @@ import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from 'atolla_co
 import { LOG_LEVELS, type LogLevel } from 'atolla_core/src/services/Logger';
 import Strings from 'atolla_headless/src/Strings';
 import { CLI_ERROR } from './commands/Errors';
+import { ensureDirectory } from './EnsureDirectory';
 
 export const DEFAULT_AUDIO_DEVICE = 'default';
 export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
@@ -47,11 +48,7 @@ export function makeConfigStore(files: ConfigFiles, path: string): ConfigStore {
 		write: (config) => {
 			const directory = path.substring(0, path.lastIndexOf('/'));
 			if (directory !== '') {
-				try {
-					files.createDirectorySync(directory, true);
-				} catch {
-					// already present
-				}
+				ensureDirectory(files, directory);
 			}
 
 			files.writeFileSync(path, `${JSON.stringify(config, null, '\t')}\n`);

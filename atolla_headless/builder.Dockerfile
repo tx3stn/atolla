@@ -1,5 +1,5 @@
 # Linux build environment for the headless player, for developing on a machine that isn't linux.
-# CI needs none of this — its runners are already linux and build directly.
+# CI needs none of this, its runners are already linux and build directly.
 #
 # jammy on purpose: libtinfo5, which valdi's hermetic LLVM 16 clang links, is a plain apt install
 # here and gone from 24.04.

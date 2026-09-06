@@ -36,13 +36,13 @@ describe('makeFileKeyValueStore', () => {
 		expect(await store.fetchString('progress')).toBe('p');
 	});
 
-	it('creates the directory before writing, so a fresh install can persist', async () => {
+	it('creates every level of the directory before writing, so a fresh install can persist', async () => {
 		const created: Array<string> = [];
 		const files = { ...fakeFiles(), createDirectorySync: (path: string) => created.push(path) > 0 };
 
 		await makeFileKeyValueStore(files, DIR).storeString('queue', 'q');
 
-		expect(created).toEqual([DIR]);
+		expect(created).toEqual(['/var', '/var/lib', '/var/lib/atolla', DIR]);
 	});
 
 	it('still writes when the directory is already there', async () => {

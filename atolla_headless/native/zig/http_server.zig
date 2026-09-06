@@ -254,7 +254,7 @@ const Hosted = struct {
 };
 
 export fn atolla_http_start(port: u16, dispatch: ?bridge.Dispatch, context: ?*anyopaque) ?*Hosted {
-    const hosted = std.heap.smp_allocator.create(Hosted) catch return null;
+    const hosted = std.heap.c_allocator.create(Hosted) catch return null;
     const address: net.IpAddress = .{ .ip4 = .unspecified(port) };
 
     hosted.server = Server.listen(
@@ -262,13 +262,13 @@ export fn atolla_http_start(port: u16, dispatch: ?bridge.Dispatch, context: ?*an
         &address,
         .{ .handler = .{ .context = context, .dispatch = dispatch } },
     ) catch {
-        std.heap.smp_allocator.destroy(hosted);
+        std.heap.c_allocator.destroy(hosted);
         return null;
     };
 
     hosted.thread = std.Thread.spawn(.{}, Server.run, .{&hosted.server}) catch {
         hosted.server.deinit();
-        std.heap.smp_allocator.destroy(hosted);
+        std.heap.c_allocator.destroy(hosted);
         return null;
     };
 
@@ -294,7 +294,7 @@ export fn atolla_http_stop(hosted: *Hosted) void {
     hosted.thread.join();
     hosted.server.deinit();
 
-    std.heap.smp_allocator.destroy(hosted);
+    std.heap.c_allocator.destroy(hosted);
 }
 
 fn clamped(buffer: []u8, text: []const u8) []const u8 {
