@@ -8,14 +8,16 @@
 
 const std = @import("std");
 
-/// `target` lives only as long as the request. The connection thread blocks for that whole time,
-/// so an implementation that answers later must copy it.
+/// `target` and `body` live only as long as the request. The connection thread blocks for that
+/// whole time, so an implementation that answers later must copy them.
 pub const Dispatch = *const fn (
     context: ?*anyopaque,
     request_id: u64,
     route: u32,
     target: [*]const u8,
     target_len: usize,
+    body: [*]const u8,
+    body_len: usize,
 ) callconv(.c) void;
 
 pub const Handler = struct {

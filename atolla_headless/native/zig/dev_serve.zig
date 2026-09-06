@@ -12,7 +12,15 @@ const dev_hello =
 ;
 
 // No JavaScript here to answer a routed request, so say so rather than hang until the timeout.
-fn notImplemented(_: ?*anyopaque, request_id: u64, _: u32, _: [*]const u8, _: usize) callconv(.c) void {
+fn notImplemented(
+    _: ?*anyopaque,
+    request_id: u64,
+    _: u32,
+    _: [*]const u8,
+    _: usize,
+    _: [*]const u8,
+    _: usize,
+) callconv(.c) void {
     const body = "{\"error\":\"notImplemented\"}";
 
     _ = bridge.atolla_http_respond(request_id, 501, body, body.len);

@@ -17,24 +17,28 @@ static Valdi::Ref<Valdi::ValueFunction> gHandler;
 
 // Called from a connection thread, which stays blocked until the answer comes back through
 // atollaHttpRespond. The Ref self-marshals onto the JavaScript thread, so this returns straight
-// away and `target` does not outlive it. Hence the copy.
+// away and neither `target` nor `body` outlives it. Hence the copies.
 static void dispatchToJavaScript(void* context,
                                  uint64_t requestId,
                                  uint32_t route,
                                  const unsigned char* target,
-                                 size_t targetLen) {
+                                 size_t targetLen,
+                                 const unsigned char* body,
+                                 size_t bodyLen) {
     (void)context;
 
     if (gHandler.get() == nullptr) {
         return;
     }
 
-    const std::string copied(reinterpret_cast<const char*>(target), targetLen);
+    const std::string copiedTarget(reinterpret_cast<const char*>(target), targetLen);
+    const std::string copiedBody(reinterpret_cast<const char*>(body), bodyLen);
 
     // A double carries the u64 id exactly until 2^53, far more requests than this will see.
     (void)(*gHandler)({Valdi::Value(static_cast<double>(requestId)),
                        Valdi::Value(static_cast<int32_t>(route)),
-                       Valdi::Value(Valdi::StringBox::fromString(copied))});
+                       Valdi::Value(Valdi::StringBox::fromString(copiedTarget)),
+                       Valdi::Value(Valdi::StringBox::fromString(copiedBody))});
 }
 
 class AtollaHttpModule : public snap::valdi_core::ModuleFactory {

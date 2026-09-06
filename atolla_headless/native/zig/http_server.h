@@ -10,13 +10,15 @@ extern "C" {
 typedef struct AtollaHttpServer AtollaHttpServer;
 
 // Called on a connection thread for a request the server cannot answer itself. That thread stays
-// blocked until atolla_http_respond carries the answer back, which is what keeps `target` alive.
-// An implementation that answers later must copy it.
+// blocked until atolla_http_respond carries the answer back, which is what keeps `target` and
+// `body` alive. An implementation that answers later must copy them.
 typedef void (*AtollaHttpDispatch)(void *context,
                                    uint64_t request_id,
                                    uint32_t route,
                                    const unsigned char *target,
-                                   size_t target_len);
+                                   size_t target_len,
+                                   const unsigned char *body,
+                                   size_t body_len);
 
 // Answers a dispatched request, from any thread. False if nothing is waiting for it any more,
 // which is the normal outcome for an answer that arrives after its timeout.

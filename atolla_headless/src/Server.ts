@@ -17,19 +17,21 @@ export interface Answer {
 const log = getLogger('server-js');
 
 export function attachServer(httpServer: HttpServer): void {
-	httpServer.setHandler((requestId, route, target) => {
-		const answer = answerFor(route, target);
+	httpServer.setHandler((requestId, route, target, body) => {
+		const answer = answerFor(route, target, body);
 
 		httpServer.respond(requestId, answer.status, answer.body);
 	});
 }
 
-export function answerFor(route: number, target: string): Answer {
+// `body` is the raw request body. The server has already checked whatever it can reject without
+// crossing, so a handler decodes the domain payload and nothing else.
+export function answerFor(route: number, target: string, body: string): Answer {
 	switch (route) {
 		case ROUTE.pair:
 		case ROUTE.intent:
 		case ROUTE.state:
-			log.warn('route not implemented', { route, target });
+			log.warn('route not implemented', { bodyBytes: body.length, route, target });
 			return { body: JSON.stringify({ error: 'notImplemented' }), status: 501 };
 		default:
 			log.error('route has no handler', { route, target });

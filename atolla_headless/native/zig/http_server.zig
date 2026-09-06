@@ -4,10 +4,16 @@ const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
 const router = @import("router.zig");
+const socket_reader = @import("socket_reader.zig");
 
 /// `std.http.Server` caps the head at the reader buffer's size, so this is the header limit and
 /// not just an allocation.
 const head_buffer_bytes = 8 * 1024;
+
+/// A bridged body is read whole onto the connection thread's stack before it crosses, so this is
+/// the ceiling for every routed body. Slice G2 replaces it with a comptime max over the per-route
+/// caps the route files declare.
+const bridged_body_bytes = 8 * 1024;
 
 const reject_timeout_ms = 1_000;
 
@@ -110,7 +116,13 @@ pub const Server = struct {
         stream.close(self.io);
     }
 
-    fn crossBridge(self: *Server, request: *std.http.Server.Request, route: router.Route, target: []const u8) !u16 {
+    fn crossBridge(
+        self: *Server,
+        request: *std.http.Server.Request,
+        route: router.Route,
+        target: []const u8,
+        body: []const u8,
+    ) !u16 {
         const dispatch = self.options.handler.dispatch orelse {
             log.err(log_name, "no handler attached {f}", .{log.fields(.{ .route = @tagName(route) })});
             try request.respond("", .{ .status = .service_unavailable, .keep_alive = false });
@@ -124,7 +136,15 @@ pub const Server = struct {
         };
         defer bridge.pending.release(self.io, id);
 
-        dispatch(self.options.handler.context, id, @intFromEnum(route), target.ptr, target.len);
+        dispatch(
+            self.options.handler.context,
+            id,
+            @intFromEnum(route),
+            target.ptr,
+            target.len,
+            body.ptr,
+            body.len,
+        );
 
         const answer = bridge.pending.awaitResponse(self.io, id, self.options.handler_timeout_ms) orelse {
             log.warn(log_name, "handler did not answer {f}", .{log.fields(.{ .route = @tagName(route) })});
@@ -166,7 +186,24 @@ pub const Server = struct {
                     try hello.respond(request);
                     return 200;
                 },
-                else => return self.crossBridge(request, route, target),
+                else => {
+                    if ((request.head.content_length orelse 0) > bridged_body_bytes) {
+                        try request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
+                        return 413;
+                    }
+
+                    // Reading the body invalidates every string in the head, so nothing may read
+                    // one after this point. `target` is already a copy taken by `serve`.
+                    var body_buffer: [bridged_body_bytes]u8 = undefined;
+                    const body = readBody(request, &body_buffer) catch |err| {
+                        if (err == error.HttpExpectationFailed) return err;
+
+                        try request.respond("", .{ .status = .bad_request, .keep_alive = false });
+                        return 400;
+                    };
+
+                    return self.crossBridge(request, route, target, body);
+                },
             },
             .method_not_allowed => {
                 try request.respond("", .{ .status = .method_not_allowed });
@@ -181,17 +218,22 @@ pub const Server = struct {
 
     fn serve(self: *Server, stream: net.Stream) void {
         defer {
-            discardPending(self.io, stream);
+            discardPending(stream);
             stream.close(self.io);
             _ = self.active.fetchSub(1, .acq_rel);
         }
 
+        // Only the send side takes a socket timeout: the read deadline is `socket_reader`'s poll,
+        // because SO_RCVTIMEO surfaces as EAGAIN and std.Io treats that as a programmer bug.
         setTimeout(stream, .send, self.options.write_timeout_ms) catch return;
-        setTimeout(stream, .receive, self.options.head_timeout_ms) catch return;
 
         var head_buffer: [head_buffer_bytes]u8 = undefined;
         var out_buffer: [4 * 1024]u8 = undefined;
-        var reader = stream.reader(self.io, &head_buffer);
+        var reader: socket_reader.Reader = .init(
+            stream.socket.handle,
+            &head_buffer,
+            self.options.head_timeout_ms,
+        );
         var writer = stream.writer(self.io, &out_buffer);
 
         var http: std.http.Server = .init(&reader.interface, &writer.interface);
@@ -230,13 +272,23 @@ pub const Server = struct {
     }
 };
 
-fn discardPending(io: std.Io, stream: net.Stream) void {
+/// The returned slice points into `buffer`, and so lives exactly as long as the caller's frame.
+/// `readerExpectContinue` answers an `Expect` before anything else is written, which is what keeps
+/// a rejection ahead of the upload it is meant to prevent.
+fn readBody(request: *std.http.Server.Request, buffer: []u8) ![]const u8 {
+    const length = request.head.content_length orelse 0;
+    const reader = try request.readerExpectContinue(buffer);
+
+    return if (length == 0) "" else reader.take(@intCast(length));
+}
+
+fn discardPending(stream: net.Stream) void {
     var scratch: [4 * 1024]u8 = undefined;
     var unbuffered: [0]u8 = .{};
-    var reader = stream.reader(io, &unbuffered);
+    var reader: socket_reader.Reader = .init(stream.socket.handle, &unbuffered, 0);
     var remaining: usize = 64 * 1024;
 
-    while (remaining > 0 and waitReadable(stream, 0)) {
+    while (remaining > 0) {
         var data: [1][]u8 = .{&scratch};
         const read = reader.interface.readVec(&data) catch return;
 
@@ -506,6 +558,25 @@ test "http_server: holds a silent connection for the head timeout, not the keep-
     try testing.expectError(error.EndOfStream, connection.status());
 }
 
+// A head that arrives in pieces and then stops: the poll before `receiveHead` is satisfied, so the
+// deadline has to hold inside the read as well, and the connection slot has to come back.
+test "http_server: gives up on a head that stops half way through" {
+    var server: Server = undefined;
+    try testServer(&server, .{ .max_connections = 1, .head_timeout_ms = 50, .idle_timeout_ms = 50 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const stalled = try Connection.open(server.port());
+    defer stalled.close();
+
+    try stalled.send("GET /hel");
+
+    try testing.expectError(error.EndOfStream, stalled.status());
+    try testing.expectEqual(404, try get(server.port()));
+}
+
 test "http_server: survives a client that vanishes before reading the response" {
     var server: Server = undefined;
     try testServer(&server, test_options);
@@ -643,13 +714,28 @@ test "http_server: answers a body-bearing method that declares no length" {
 const StubHandler = struct {
     status: u16,
     body: []const u8,
+    seen: [64]u8 = undefined,
+    seen_len: usize = 0,
 
-    fn dispatch(context: ?*anyopaque, request_id: u64, route: u32, target: [*]const u8, target_len: usize) callconv(.c) void {
+    fn dispatch(
+        context: ?*anyopaque,
+        request_id: u64,
+        route: u32,
+        target: [*]const u8,
+        target_len: usize,
+        body: [*]const u8,
+        body_len: usize,
+    ) callconv(.c) void {
         _ = route;
         _ = target;
         _ = target_len;
 
         const self: *StubHandler = @ptrCast(@alignCast(context.?));
+
+        // Copied here, because the slice dies with the request the connection thread is holding.
+        self.seen_len = @min(self.seen.len, body_len);
+        @memcpy(self.seen[0..self.seen_len], body[0..self.seen_len]);
+
         const thread = std.Thread.spawn(.{}, answer, .{ self, request_id }) catch return;
 
         thread.detach();
@@ -682,9 +768,106 @@ test "http_server: carries a handler's answer back to the client" {
     try testing.expectEqual(501, try connection.status());
 }
 
+test "http_server: hands the handler the body it was sent" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 13\r\n\r\n{\"code\":\"12\"}");
+
+    try testing.expectEqual(200, try connection.status());
+    try testing.expectEqualStrings("{\"code\":\"12\"}", stub.seen[0..stub.seen_len]);
+}
+
+test "http_server: hands the handler an empty body when the request carries none" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = 99 };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+
+    try testing.expectEqual(200, try connection.status());
+    try testing.expectEqual(0, stub.seen_len);
+}
+
+// libcurl sends this for bodies over ~1KB, and Valdi's HTTP stack is libcurl.
+test "http_server: hands the handler a body that was announced with an expectation" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(
+        "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 4\r\nExpect: 100-continue\r\n\r\nabcd",
+    );
+
+    try testing.expectEqual(100, try connection.status());
+    try testing.expectEqual(200, try connection.status());
+    try testing.expectEqualStrings("abcd", stub.seen[0..stub.seen_len]);
+}
+
+test "http_server: refuses a bridged body larger than it can hold" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 8193\r\n\r\n");
+
+    try testing.expectEqual(413, try connection.status());
+}
+
+test "http_server: answers 400 for a body that stops short of its length" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 20\r\n\r\nshort");
+
+    try testing.expectEqual(400, try connection.status());
+}
+
 test "http_server: answers 504 when the handler never does" {
     const silent = struct {
-        fn dispatch(_: ?*anyopaque, _: u64, _: u32, _: [*]const u8, _: usize) callconv(.c) void {}
+        fn dispatch(_: ?*anyopaque, _: u64, _: u32, _: [*]const u8, _: usize, _: [*]const u8, _: usize) callconv(.c) void {}
     };
 
     var server: Server = undefined;
@@ -724,7 +907,7 @@ test "http_server: answers 503 when nothing is attached to answer" {
 
 test "http_server: answers /hello without reaching the handler" {
     const refuses = struct {
-        fn dispatch(_: ?*anyopaque, _: u64, _: u32, _: [*]const u8, _: usize) callconv(.c) void {
+        fn dispatch(_: ?*anyopaque, _: u64, _: u32, _: [*]const u8, _: usize, _: [*]const u8, _: usize) callconv(.c) void {
             unreachable;
         }
     };

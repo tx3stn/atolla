@@ -9,4 +9,5 @@ comptime {
     _ = @import("random_bytes.zig");
     _ = @import("rate_limit.zig");
     _ = @import("router.zig");
+    _ = @import("socket_reader.zig");
 }
