@@ -1,8 +1,10 @@
 const std = @import("std");
 const net = std.Io.net;
+const api_version = @import("api_version.zig");
 const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
+const pair = @import("pair.zig");
 const router = @import("router.zig");
 const socket_reader = @import("socket_reader.zig");
 
@@ -10,10 +12,17 @@ const socket_reader = @import("socket_reader.zig");
 /// not just an allocation.
 const head_buffer_bytes = 8 * 1024;
 
-/// A bridged body is read whole onto the connection thread's stack before it crosses, so this is
-/// the ceiling for every routed body. Slice G2 replaces it with a comptime max over the per-route
-/// caps the route files declare.
-const bridged_body_bytes = 8 * 1024;
+/// The cap for routes that do not yet declare their own.
+const unrouted_body_bytes = 4 * 1024;
+
+/// One buffer per connection thread, sized for the largest cap any route declares. A body over
+/// its own route's cap is refused from the content-length, before a byte of it is read.
+const max_route_body_bytes = blk: {
+    var most: usize = 0;
+    for (std.enums.values(router.Route)) |route| most = @max(most, bodyLimit(route));
+
+    break :blk most;
+};
 
 const reject_timeout_ms = 1_000;
 
@@ -23,6 +32,7 @@ const log_name = "server";
 
 const over_capacity_response =
     "HTTP/1.1 503 Service Unavailable\r\n" ++
+    "atolla-api-version: 1\r\n" ++
     "content-length: 0\r\n" ++
     "retry-after: 1\r\n" ++
     "connection: close\r\n\r\n";
@@ -125,13 +135,21 @@ pub const Server = struct {
     ) !u16 {
         const dispatch = self.options.handler.dispatch orelse {
             log.err(log_name, "no handler attached {f}", .{log.fields(.{ .route = @tagName(route) })});
-            try request.respond("", .{ .status = .service_unavailable, .keep_alive = false });
+            try request.respond("", .{
+                .status = .service_unavailable,
+                .keep_alive = false,
+                .extra_headers = &.{api_version.response_header},
+            });
             return 503;
         };
 
         const id = bridge.pending.claim(self.io) orelse {
             log.warn(log_name, "no free slot to answer in {f}", .{log.fields(.{ .route = @tagName(route) })});
-            try request.respond("", .{ .status = .service_unavailable, .keep_alive = false });
+            try request.respond("", .{
+                .status = .service_unavailable,
+                .keep_alive = false,
+                .extra_headers = &.{api_version.response_header},
+            });
             return 503;
         };
         defer bridge.pending.release(self.io, id);
@@ -148,11 +166,18 @@ pub const Server = struct {
 
         const answer = bridge.pending.awaitResponse(self.io, id, self.options.handler_timeout_ms) orelse {
             log.warn(log_name, "handler did not answer {f}", .{log.fields(.{ .route = @tagName(route) })});
-            try request.respond("", .{ .status = .gateway_timeout, .keep_alive = false });
+            try request.respond("", .{
+                .status = .gateway_timeout,
+                .keep_alive = false,
+                .extra_headers = &.{api_version.response_header},
+            });
             return 504;
         };
 
-        try request.respond(answer.body, .{ .status = @enumFromInt(answer.status) });
+        try request.respond(answer.body, .{
+            .status = @enumFromInt(answer.status),
+            .extra_headers = &.{ api_version.response_header, api_version.json_header },
+        });
 
         return answer.status;
     }
@@ -171,12 +196,20 @@ pub const Server = struct {
 
     fn respond(self: *Server, request: *std.http.Server.Request, target: []const u8) !u16 {
         if (request.head.transfer_encoding == .chunked) {
-            try request.respond("", .{ .status = .length_required, .keep_alive = false });
+            try request.respond("", .{
+                .status = .length_required,
+                .keep_alive = false,
+                .extra_headers = &.{api_version.response_header},
+            });
             return 411;
         }
 
         if ((request.head.content_length orelse 0) > self.options.max_body_bytes) {
-            try request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
+            try request.respond("", .{
+                .status = .payload_too_large,
+                .keep_alive = false,
+                .extra_headers = &.{api_version.response_header},
+            });
             return 413;
         }
 
@@ -187,30 +220,60 @@ pub const Server = struct {
                     return 200;
                 },
                 else => {
-                    if ((request.head.content_length orelse 0) > bridged_body_bytes) {
-                        try request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
+                    // Both checks run before the body is read, so a rejection goes out ahead of
+                    // the `100 Continue` that would invite the upload it is meant to prevent.
+                    if (!api_version.accepted(request)) {
+                        try request.respond(api_version.rejection, .{
+                            .status = .bad_request,
+                            .extra_headers = &.{ api_version.response_header, api_version.json_header },
+                        });
+                        return 400;
+                    }
+
+                    const limit = bodyLimit(route);
+                    if ((request.head.content_length orelse 0) > limit) {
+                        try request.respond("", .{
+                            .status = .payload_too_large,
+                            .keep_alive = false,
+                            .extra_headers = &.{api_version.response_header},
+                        });
                         return 413;
                     }
 
                     // Reading the body invalidates every string in the head, so nothing may read
                     // one after this point. `target` is already a copy taken by `serve`.
-                    var body_buffer: [bridged_body_bytes]u8 = undefined;
-                    const body = readBody(request, &body_buffer) catch |err| {
+                    var body_buffer: [max_route_body_bytes]u8 = undefined;
+                    const body = readBody(request, body_buffer[0..limit]) catch |err| {
                         if (err == error.HttpExpectationFailed) return err;
 
-                        try request.respond("", .{ .status = .bad_request, .keep_alive = false });
+                        try request.respond("", .{
+                            .status = .bad_request,
+                            .keep_alive = false,
+                            .extra_headers = &.{api_version.response_header},
+                        });
                         return 400;
                     };
+
+                    switch (try routeBody(request, route, body)) {
+                        .answered => |status| return status,
+                        .cross => {},
+                    }
 
                     return self.crossBridge(request, route, target, body);
                 },
             },
             .method_not_allowed => {
-                try request.respond("", .{ .status = .method_not_allowed });
+                try request.respond("", .{
+                    .status = .method_not_allowed,
+                    .extra_headers = &.{api_version.response_header},
+                });
                 return 405;
             },
             .not_found => {
-                try request.respond("", .{ .status = .not_found });
+                try request.respond("", .{
+                    .status = .not_found,
+                    .extra_headers = &.{api_version.response_header},
+                });
                 return 404;
             },
         }
@@ -223,7 +286,7 @@ pub const Server = struct {
             _ = self.active.fetchSub(1, .acq_rel);
         }
 
-        // Only the send side takes a socket timeout: the read deadline is `socket_reader`'s poll,
+        // Only the send side takes a socket timeout. The read deadline is `socket_reader`'s poll,
         // because SO_RCVTIMEO surfaces as EAGAIN and std.Io treats that as a programmer bug.
         setTimeout(stream, .send, self.options.write_timeout_ms) catch return;
 
@@ -256,7 +319,7 @@ pub const Server = struct {
             // still owed an answer rather than a silent close.
             const status = self.respond(&request, target) catch |err| {
                 if (err == error.HttpExpectationFailed) {
-                    rawReply(&http, "HTTP/1.1 417 Expectation Failed\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+                    rawReply(&http, "HTTP/1.1 417 Expectation Failed\r\natolla-api-version: 1\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
                     log.info(log_name, "{s} {s} {f}", .{ method, target, log.fields(.{ .status = 417 }) });
                 }
 
@@ -272,9 +335,29 @@ pub const Server = struct {
     }
 };
 
-/// The returned slice points into `buffer`, and so lives exactly as long as the caller's frame.
-/// `readerExpectContinue` answers an `Expect` before anything else is written, which is what keeps
-/// a rejection ahead of the upload it is meant to prevent.
+fn bodyLimit(route: router.Route) usize {
+    return switch (route) {
+        .hello => 0,
+        .pair => pair.max_body_bytes,
+        .intent, .state => unrouted_body_bytes,
+    };
+}
+
+/// A route either answers the client itself or says the body is legal and it is TypeScript's turn.
+fn routeBody(
+    request: *std.http.Server.Request,
+    route: router.Route,
+    body: []const u8,
+) !pair.Outcome {
+    return switch (route) {
+        .pair => pair.handle(request, body),
+        .hello, .intent, .state => .cross,
+    };
+}
+
+/// The returned slice points into `buffer` and lives as long as the caller's frame.
+/// `readerExpectContinue` answers an `Expect` before anything else is written, which keeps a
+/// rejection ahead of the upload it is meant to prevent.
 fn readBody(request: *std.http.Server.Request, buffer: []u8) ![]const u8 {
     const length = request.head.content_length orelse 0;
     const reader = try request.readerExpectContinue(buffer);
@@ -366,7 +449,7 @@ fn rawReply(http: *std.http.Server, response: []const u8) void {
 fn oversizeReply(http: *std.http.Server, err: std.http.Server.ReceiveHeadError) void {
     if (err != error.HttpHeadersOversize) return;
 
-    rawReply(http, "HTTP/1.1 431 Request Header Fields Too Large\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+    rawReply(http, "HTTP/1.1 431 Request Header Fields Too Large\r\natolla-api-version: 1\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
 }
 
 fn setTimeout(stream: net.Stream, comptime direction: enum { receive, send }, milliseconds: i32) !void {
@@ -470,7 +553,24 @@ const Connection = struct {
 
         return std.fmt.parseInt(u16, parts.next() orelse return error.NoStatus, 10);
     }
+
+    /// Searches the raw response rather than parsing it, and consumes what it reads, so it cannot
+    /// be mixed with `status` on one connection. Every answer here arrives whole.
+    fn hasHeader(self: *Connection, header: []const u8) !bool {
+        var response: [1024]u8 = undefined;
+        var unbuffered: [0]u8 = .{};
+        var reader = self.stream.reader(self.io, &unbuffered);
+        var data: [1][]u8 = .{&response};
+
+        const count = try reader.interface.readVec(&data);
+
+        return std.mem.indexOf(u8, response[0..count], header) != null;
+    }
 };
+
+const valid_pair_body =
+    \\{"code":"19524002","controllerId":"phone-1","controllerName":"Phone"}
+;
 
 /// No route will ever match this, so these tests keep asserting 404 as routes are added.
 const unrouted = "/no-such-route";
@@ -732,7 +832,7 @@ const StubHandler = struct {
 
         const self: *StubHandler = @ptrCast(@alignCast(context.?));
 
-        // Copied here, because the slice dies with the request the connection thread is holding.
+        // Copied: the slice dies with the request the connection thread is holding.
         self.seen_len = @min(self.seen.len, body_len);
         @memcpy(self.seen[0..self.seen_len], body[0..self.seen_len]);
 
@@ -763,7 +863,7 @@ test "http_server: carries a handler's answer back to the client" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(501, try connection.status());
 }
@@ -781,7 +881,7 @@ test "http_server: hands the handler the body it was sent" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 13\r\n\r\n{\"code\":\"12\"}");
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 13\r\n\r\n{\"code\":\"12\"}");
 
     try testing.expectEqual(200, try connection.status());
     try testing.expectEqualStrings("{\"code\":\"12\"}", stub.seen[0..stub.seen_len]);
@@ -800,7 +900,7 @@ test "http_server: hands the handler an empty body when the request carries none
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(200, try connection.status());
     try testing.expectEqual(0, stub.seen_len);
@@ -821,7 +921,7 @@ test "http_server: hands the handler a body that was announced with an expectati
     defer connection.close();
 
     try connection.send(
-        "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 4\r\nExpect: 100-continue\r\n\r\nabcd",
+        "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 4\r\nExpect: 100-continue\r\n\r\nabcd",
     );
 
     try testing.expectEqual(100, try connection.status());
@@ -842,7 +942,10 @@ test "http_server: refuses a bridged body larger than it can hold" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 8193\r\n\r\n");
+    try connection.send(std.fmt.comptimePrint(
+        "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n",
+        .{unrouted_body_bytes + 1},
+    ));
 
     try testing.expectEqual(413, try connection.status());
 }
@@ -860,9 +963,143 @@ test "http_server: answers 400 for a body that stops short of its length" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 20\r\n\r\nshort");
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 20\r\n\r\nshort");
 
     try testing.expectEqual(400, try connection.status());
+}
+
+test "http_server: refuses a version it does not speak, before reading the body" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(
+        "POST /pair HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: 9\r\ncontent-length: 2\r\n\r\n{}",
+    );
+
+    try testing.expectEqual(400, try connection.status());
+    try testing.expectEqual(0, stub.seen_len);
+}
+
+test "http_server: takes a request that names no version as the current one" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(std.fmt.comptimePrint(
+        "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n{s}",
+        .{ valid_pair_body.len, valid_pair_body },
+    ));
+
+    try testing.expectEqual(200, try connection.status());
+}
+
+test "http_server: answers /hello whatever version was asked for" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try hello.set("{}");
+
+    for ([_][]const u8{ "1", "9", "banana" }) |version| {
+        const connection = try Connection.open(server.port());
+        defer connection.close();
+
+        var request_buffer: [128]u8 = undefined;
+        const request = try std.fmt.bufPrint(
+            &request_buffer,
+            "GET /hello HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: {s}\r\n\r\n",
+            .{version},
+        );
+
+        try connection.send(request);
+        try testing.expectEqual(200, try connection.status());
+    }
+}
+
+test "http_server: refuses a pair body it cannot parse, without crossing" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 7\r\n\r\nnot me!");
+
+    try testing.expectEqual(400, try connection.status());
+    try testing.expectEqual(0, stub.seen_len);
+}
+
+test "http_server: refuses a pair body over the route's own cap" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(std.fmt.comptimePrint(
+        "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n",
+        .{pair.max_body_bytes + 1},
+    ));
+
+    try testing.expectEqual(413, try connection.status());
+}
+
+test "http_server: names its api version on every answer" {
+    var stub: StubHandler = .{ .status = 501, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try hello.set("{}");
+
+    const requests = [_][]const u8{
+        "GET /hello HTTP/1.1\r\nHost: t\r\n\r\n",
+        "GET /no-such-route HTTP/1.1\r\nHost: t\r\n\r\n",
+        "GET /pair HTTP/1.1\r\nHost: t\r\n\r\n",
+        "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n",
+    };
+
+    for (requests) |raw| {
+        const connection = try Connection.open(server.port());
+        defer connection.close();
+
+        try connection.send(raw);
+        try testing.expect(try connection.hasHeader("atolla-api-version: 1"));
+    }
 }
 
 test "http_server: answers 504 when the handler never does" {
@@ -884,7 +1121,7 @@ test "http_server: answers 504 when the handler never does" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(504, try connection.status());
 }
@@ -900,7 +1137,7 @@ test "http_server: answers 503 when nothing is attached to answer" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(503, try connection.status());
 }

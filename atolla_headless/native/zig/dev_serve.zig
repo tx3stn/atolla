@@ -8,7 +8,7 @@ const default_port = 45889;
 
 // stands in for the body the daemon builds from its real identity
 const dev_hello =
-    \\{"id":"0000000000000000","name":"dev_serve","protocolVersions":[1],"tier":"tight","v":1,"version":"dev"}
+    \\{"apiVersions":[1],"id":"0000000000000000","name":"dev_serve","tier":"tight","v":1,"version":"dev"}
 ;
 
 // No JavaScript here to answer a routed request, so say so rather than hang until the timeout.

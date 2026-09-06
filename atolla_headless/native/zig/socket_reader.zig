@@ -2,20 +2,16 @@
 //! `SO_RCVTIMEO`.
 //!
 //! `std.Io.net.Stream.Reader` reads through `std.Io.Threaded`, whose errno table treats `EAGAIN`
-//! as a programmer bug: it panics on one in Debug and returns `error.Unexpected` otherwise.
-//! `SO_RCVTIMEO` expiry *is* `EAGAIN`, so the one socket option that bounds a read is the one that
-//! path cannot express — a stalled client aborts `zig test` and reaches the daemon as an error
-//! indistinguishable from a bug. Waiting for readiness instead keeps the deadline and leaves a
-//! stall as an ordinary `error.Timeout` in every optimization mode.
+//! as a programmer bug: it panics in Debug and returns `error.Unexpected` otherwise. `SO_RCVTIMEO`
+//! expiry is `EAGAIN`, so that path cannot express a read deadline at all. Polling for readiness
+//! gives the same deadline and reports a stall as `error.Timeout` in every optimization mode.
 //!
-//! **The writer deliberately stays on `std.Io.net.Stream.Writer`.** Its `sendmsg` carries
-//! `MSG_NOSIGNAL`, and nothing else in this daemon does — a hand-rolled writer would hand back the
-//! SIGPIPE that kills a process writing to a peer that has gone away.
+//! The writer stays on `std.Io.net.Stream.Writer` on purpose. Its `sendmsg` passes `MSG_NOSIGNAL`
+//! and nothing else here does, so replacing it would let a write to a departed peer raise SIGPIPE.
 
 const std = @import("std");
 const posix = std.posix;
 
-/// What `std.Io.net` allows itself, and readv is bounded the same way.
 const max_vectors = 8;
 
 pub const Error = error{
@@ -28,7 +24,6 @@ pub const Error = error{
 };
 
 pub const Reader = struct {
-    /// Why `readVec` failed, which the interface flattens to `error.ReadFailed`.
     err: ?Error = null,
     handle: posix.fd_t,
     interface: std.Io.Reader,
@@ -97,8 +92,8 @@ pub const Reader = struct {
             switch (posix.errno(result)) {
                 .SUCCESS => return @intCast(result),
                 .INTR => continue,
-                // Readiness is not a promise — a segment can fail its checksum between the poll
-                // and the read — so this waits again rather than reporting a stall that is not one.
+                // A poll can say readable and the read still return EAGAIN, so wait again
+                // rather than call it a timeout.
                 .AGAIN => continue,
                 .CONNRESET => return error.ConnectionResetByPeer,
                 .NETDOWN => return error.NetworkDown,
@@ -117,7 +112,7 @@ pub const Reader = struct {
             .revents = 0,
         }};
 
-        // poix.poll retries EINTR itself, so anything left is a real failure.
+        // posix.poll retries EINTR itself, so anything left is a real failure.
         const count = posix.poll(&fds, self.timeout_ms) catch return error.Unexpected;
 
         return count != 0;
@@ -132,7 +127,6 @@ fn testIo() std.Io {
     return std.Io.Threaded.global_single_threaded.io();
 }
 
-/// A connected loopback pair, so a test can hold one end silent.
 const Pair = struct {
     client: net.Stream,
     client_open: bool = true,
@@ -188,7 +182,6 @@ test "socket_reader: reads what the peer sent" {
     try testing.expectEqualStrings("hello", try reader.interface.take(5));
 }
 
-// The case that panics through std.Io.net.Stream.Reader, and the reason this file exists.
 test "socket_reader: reports a peer that goes quiet as a timeout, not a panic" {
     var pair = try Pair.open();
     defer pair.close();

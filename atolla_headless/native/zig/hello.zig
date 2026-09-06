@@ -1,4 +1,5 @@
 const std = @import("std");
+const api_version = @import("api_version.zig");
 
 const max_body_bytes = 1024;
 
@@ -18,7 +19,7 @@ pub fn set(bytes: []const u8) SetError!void {
 
 pub fn respond(request: *std.http.Server.Request) !void {
     return request.respond(body[0..body_len], .{
-        .extra_headers = &.{.{ .name = "content-type", .value = "application/json" }},
+        .extra_headers = &.{ api_version.response_header, api_version.json_header },
     });
 }
 

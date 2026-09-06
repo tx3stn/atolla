@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { helloBody, PROTOCOL_VERSION } from './Hello';
+import { API_VERSION, helloBody } from './Hello';
 import type { PlayerIdentity } from './PlayerIdentity';
 
 const IDENTITY: PlayerIdentity = {
@@ -12,11 +12,11 @@ const IDENTITY: PlayerIdentity = {
 describe('helloBody', () => {
 	it('identifies the player', () => {
 		expect(JSON.parse(helloBody(IDENTITY))).toEqual({
+			apiVersions: [API_VERSION],
 			id: 'c2be50c9b97e1c53',
 			name: 'Kitchen',
-			protocolVersions: [PROTOCOL_VERSION],
 			tier: 'tight',
-			v: PROTOCOL_VERSION,
+			v: API_VERSION,
 			version: '0.11.3',
 		});
 	});

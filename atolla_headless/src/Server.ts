@@ -24,8 +24,8 @@ export function attachServer(httpServer: HttpServer): void {
 	});
 }
 
-// `body` is the raw request body. The server has already checked whatever it can reject without
-// crossing, so a handler decodes the domain payload and nothing else.
+// The server has already rejected whatever it could without crossing, so a handler decodes the
+// domain payload and nothing else.
 export function answerFor(route: number, target: string, body: string): Answer {
 	switch (route) {
 		case ROUTE.pair:
