@@ -5,6 +5,7 @@ const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
 const pair = @import("pair.zig");
+const problem = @import("problem.zig");
 const router = @import("router.zig");
 const socket_reader = @import("socket_reader.zig");
 
@@ -24,18 +25,13 @@ const max_route_body_bytes = blk: {
     break :blk most;
 };
 
+const json_content_type: std.http.Header = .{ .name = "content-type", .value = "application/json" };
+
 const reject_timeout_ms = 1_000;
 
 const max_logged_target_bytes = 128;
 
 const log_name = "server";
-
-const over_capacity_response =
-    "HTTP/1.1 503 Service Unavailable\r\n" ++
-    "atolla-api-version: 1\r\n" ++
-    "content-length: 0\r\n" ++
-    "retry-after: 1\r\n" ++
-    "connection: close\r\n\r\n";
 
 pub const Options = struct {
     max_connections: usize = 32,
@@ -135,22 +131,12 @@ pub const Server = struct {
     ) !u16 {
         const dispatch = self.options.handler.dispatch orelse {
             log.err(log_name, "no handler attached {f}", .{log.fields(.{ .route = @tagName(route) })});
-            try request.respond("", .{
-                .status = .service_unavailable,
-                .keep_alive = false,
-                .extra_headers = &.{api_version.response_header},
-            });
-            return 503;
+            return problem.response(request, problem.unavailable, .{ .keep_alive = false });
         };
 
         const id = bridge.pending.claim(self.io) orelse {
             log.warn(log_name, "no free slot to answer in {f}", .{log.fields(.{ .route = @tagName(route) })});
-            try request.respond("", .{
-                .status = .service_unavailable,
-                .keep_alive = false,
-                .extra_headers = &.{api_version.response_header},
-            });
-            return 503;
+            return problem.response(request, problem.unavailable, .{ .keep_alive = false });
         };
         defer bridge.pending.release(self.io, id);
 
@@ -166,17 +152,15 @@ pub const Server = struct {
 
         const answer = bridge.pending.awaitResponse(self.io, id, self.options.handler_timeout_ms) orelse {
             log.warn(log_name, "handler did not answer {f}", .{log.fields(.{ .route = @tagName(route) })});
-            try request.respond("", .{
-                .status = .gateway_timeout,
-                .keep_alive = false,
-                .extra_headers = &.{api_version.response_header},
-            });
-            return 504;
+            return problem.response(request, problem.handler_timeout, .{ .keep_alive = false });
         };
 
+        // TypeScript answers a problem body on an error status and a plain one otherwise.
         try request.respond(answer.body, .{
             .status = @enumFromInt(answer.status),
-            .extra_headers = &.{ api_version.response_header, api_version.json_header },
+            .extra_headers = &.{
+                if (answer.status >= 400) problem.content_type else json_content_type,
+            },
         });
 
         return answer.status;
@@ -187,30 +171,19 @@ pub const Server = struct {
 
         setTimeout(stream, .send, reject_timeout_ms) catch return;
 
-        var out_buffer: [128]u8 = undefined;
+        var out_buffer: [problem.max_bytes * 2]u8 = undefined;
         var writer = stream.writer(self.io, &out_buffer);
 
-        writer.interface.writeAll(over_capacity_response) catch return;
-        writer.interface.flush() catch return;
+        writeProblem(&writer.interface, problem.busy);
     }
 
     fn respond(self: *Server, request: *std.http.Server.Request, target: []const u8) !u16 {
         if (request.head.transfer_encoding == .chunked) {
-            try request.respond("", .{
-                .status = .length_required,
-                .keep_alive = false,
-                .extra_headers = &.{api_version.response_header},
-            });
-            return 411;
+            return problem.response(request, problem.length_required, .{ .keep_alive = false });
         }
 
         if ((request.head.content_length orelse 0) > self.options.max_body_bytes) {
-            try request.respond("", .{
-                .status = .payload_too_large,
-                .keep_alive = false,
-                .extra_headers = &.{api_version.response_header},
-            });
-            return 413;
+            return problem.response(request, problem.body_too_large, .{ .keep_alive = false });
         }
 
         switch (router.resolve(request.head.method, request.head.target)) {
@@ -223,21 +196,12 @@ pub const Server = struct {
                     // Both checks run before the body is read, so a rejection goes out ahead of
                     // the `100 Continue` that would invite the upload it is meant to prevent.
                     if (!api_version.accepted(request)) {
-                        try request.respond(api_version.rejection, .{
-                            .status = .bad_request,
-                            .extra_headers = &.{ api_version.response_header, api_version.json_header },
-                        });
-                        return 400;
+                        return problem.response(request, api_version.unsupported, .{});
                     }
 
                     const limit = bodyLimit(route);
                     if ((request.head.content_length orelse 0) > limit) {
-                        try request.respond("", .{
-                            .status = .payload_too_large,
-                            .keep_alive = false,
-                            .extra_headers = &.{api_version.response_header},
-                        });
-                        return 413;
+                        return problem.response(request, problem.body_too_large, .{ .keep_alive = false });
                     }
 
                     // Reading the body invalidates every string in the head, so nothing may read
@@ -246,36 +210,19 @@ pub const Server = struct {
                     const body = readBody(request, body_buffer[0..limit]) catch |err| {
                         if (err == error.HttpExpectationFailed) return err;
 
-                        try request.respond("", .{
-                            .status = .bad_request,
-                            .keep_alive = false,
-                            .extra_headers = &.{api_version.response_header},
-                        });
-                        return 400;
+                        return problem.response(request, problem.incomplete_body, .{ .keep_alive = false });
                     };
 
-                    switch (try routeBody(request, route, body)) {
-                        .answered => |status| return status,
+                    switch (routeBody(route, body)) {
+                        .problem => |value| return problem.response(request, value, .{}),
                         .cross => {},
                     }
 
                     return self.crossBridge(request, route, target, body);
                 },
             },
-            .method_not_allowed => {
-                try request.respond("", .{
-                    .status = .method_not_allowed,
-                    .extra_headers = &.{api_version.response_header},
-                });
-                return 405;
-            },
-            .not_found => {
-                try request.respond("", .{
-                    .status = .not_found,
-                    .extra_headers = &.{api_version.response_header},
-                });
-                return 404;
-            },
+            .method_not_allowed => return problem.response(request, problem.method_not_allowed, .{}),
+            .not_found => return problem.response(request, problem.not_found, .{}),
         }
     }
 
@@ -316,13 +263,19 @@ pub const Server = struct {
             const target = clamped(&target_buffer, request.head.target);
 
             // An unrecognised `Expect` fails before anything is written, so the connection is
-            // still owed an answer rather than a silent close.
+            // still owed an answer rather than a silent close. Clearing it is what lets that
+            // answer go out the normal way: `respondUnflushed` tries to meet the expectation
+            // again otherwise, and `readerExpectNone` documents null as how a caller says it has
+            // handled one itself.
             const status = self.respond(&request, target) catch |err| {
-                if (err == error.HttpExpectationFailed) {
-                    rawReply(&http, "HTTP/1.1 417 Expectation Failed\r\natolla-api-version: 1\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
-                    log.info(log_name, "{s} {s} {f}", .{ method, target, log.fields(.{ .status = 417 }) });
-                }
+                if (err != error.HttpExpectationFailed) return;
 
+                request.head.expect = null;
+                const refused = problem.response(&request, problem.expectation_failed, .{
+                    .keep_alive = false,
+                }) catch return;
+
+                log.info(log_name, "{s} {s} {f}", .{ method, target, log.fields(.{ .status = refused }) });
                 return;
             };
 
@@ -343,14 +296,11 @@ fn bodyLimit(route: router.Route) usize {
     };
 }
 
-/// A route either answers the client itself or says the body is legal and it is TypeScript's turn.
-fn routeBody(
-    request: *std.http.Server.Request,
-    route: router.Route,
-    body: []const u8,
-) !pair.Outcome {
+/// A route either names the problem to answer with or says the body is legal and it is
+/// TypeScript's turn. Writing the answer is this file's job either way.
+fn routeBody(route: router.Route, body: []const u8) pair.Outcome {
     return switch (route) {
-        .pair => pair.handle(request, body),
+        .pair => pair.handle(body),
         .hello, .intent, .state => .cross,
     };
 }
@@ -439,17 +389,33 @@ fn clamped(buffer: []u8, text: []const u8) []const u8 {
     return buffer[0..length];
 }
 
-/// For answers that cannot go through `Request.respond`, either because there is no usable
-/// `Request` or because responding is what failed.
-fn rawReply(http: *std.http.Server, response: []const u8) void {
-    http.out.writeAll(response) catch return;
-    http.out.flush() catch return;
+/// The same JSON body as any other answer, with the status line and headers framed by hand because
+/// these two have no parsed request to respond through: the head never arrived intact, or the
+/// connection was refused before one was read at all.
+fn writeProblem(out: *std.Io.Writer, value: problem.Problem) void {
+    const status: std.http.Status = @enumFromInt(value.status);
+
+    var body_buffer: [problem.max_bytes]u8 = undefined;
+    const body = problem.render(&body_buffer, value);
+
+    var retry_buffer: [32]u8 = undefined;
+    const retry = if (value.retry_after_seconds) |seconds|
+        std.fmt.bufPrint(&retry_buffer, "retry-after: {d}\r\n", .{seconds}) catch ""
+    else
+        "";
+
+    out.print(
+        "HTTP/1.1 {d} {s}\r\ncontent-type: {s}\r\ncontent-length: {d}\r\n{s}connection: close\r\n\r\n{s}",
+        .{ value.status, status.phrase() orelse "", problem.content_type.value, body.len, retry, body },
+    ) catch return;
+
+    out.flush() catch return;
 }
 
 fn oversizeReply(http: *std.http.Server, err: std.http.Server.ReceiveHeadError) void {
     if (err != error.HttpHeadersOversize) return;
 
-    rawReply(http, "HTTP/1.1 431 Request Header Fields Too Large\r\natolla-api-version: 1\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
+    writeProblem(http.out, problem.headers_too_large);
 }
 
 fn setTimeout(stream: net.Stream, comptime direction: enum { receive, send }, milliseconds: i32) !void {
@@ -517,6 +483,8 @@ fn testServer(server: *Server, options: Options) !void {
 const Connection = struct {
     io: std.Io,
     read_buffer: [4 * 1024]u8 = undefined,
+    response: [4 * 1024]u8 = undefined,
+    response_len: usize = 0,
     stream: net.Stream,
     write_buffer: [1024]u8 = undefined,
 
@@ -526,6 +494,7 @@ const Connection = struct {
 
         connection.* = .{
             .io = testIo(),
+            .response_len = 0,
             .stream = try net.IpAddress.connect(&address, testIo(), .{ .mode = .stream }),
         };
 
@@ -554,17 +523,19 @@ const Connection = struct {
         return std.fmt.parseInt(u16, parts.next() orelse return error.NoStatus, 10);
     }
 
-    /// Searches the raw response rather than parsing it, and consumes what it reads, so it cannot
-    /// be mixed with `status` on one connection. Every answer here arrives whole.
-    fn hasHeader(self: *Connection, header: []const u8) !bool {
-        var response: [1024]u8 = undefined;
-        var unbuffered: [0]u8 = .{};
-        var reader = self.stream.reader(self.io, &unbuffered);
-        var data: [1][]u8 = .{&response};
+    /// Searches the raw answer rather than parsing it, so a header and a body member match the same
+    /// way. The answer is read once and kept, so asking twice does not find the stream drained.
+    /// Cannot be mixed with `status`, which reads the same response.
+    fn contains(self: *Connection, text: []const u8) !bool {
+        if (self.response_len == 0) {
+            var unbuffered: [0]u8 = .{};
+            var reader = self.stream.reader(self.io, &unbuffered);
+            var data: [1][]u8 = .{&self.response};
 
-        const count = try reader.interface.readVec(&data);
+            self.response_len = try reader.interface.readVec(&data);
+        }
 
-        return std.mem.indexOf(u8, response[0..count], header) != null;
+        return std.mem.indexOf(u8, self.response[0..self.response_len], text) != null;
     }
 };
 
@@ -1074,31 +1045,45 @@ test "http_server: refuses a pair body over the route's own cap" {
     try testing.expectEqual(413, try connection.status());
 }
 
-test "http_server: names its api version on every answer" {
-    var stub: StubHandler = .{ .status = 501, .body = "{}" };
-
+test "http_server: answers every refusal with a problem, whatever refused it" {
     var server: Server = undefined;
-    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    try testServer(&server, .{ .head_timeout_ms = 1_000 });
     defer server.deinit();
 
     var harness = try Harness.start(&server);
     defer harness.stop();
 
-    try hello.set("{}");
-
-    const requests = [_][]const u8{
-        "GET /hello HTTP/1.1\r\nHost: t\r\n\r\n",
-        "GET /no-such-route HTTP/1.1\r\nHost: t\r\n\r\n",
-        "GET /pair HTTP/1.1\r\nHost: t\r\n\r\n",
-        "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n",
+    const refusals = [_]struct { request: []const u8, code: []const u8 }{
+        .{ .request = "GET /no-such-route HTTP/1.1\r\nHost: t\r\n\r\n", .code = "not_found" },
+        .{ .request = "GET /pair HTTP/1.1\r\nHost: t\r\n\r\n", .code = "method_not_allowed" },
+        .{
+            .request = "POST /pair HTTP/1.1\r\nHost: t\r\ntransfer-encoding: chunked\r\n\r\n",
+            .code = "length_required",
+        },
+        .{
+            .request = "POST /pair HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: 9\r\ncontent-length: 2\r\n\r\n{}",
+            .code = "unsupported_api_version",
+        },
+        .{
+            .request = "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 7\r\n\r\nnope!!!",
+            .code = "malformed_body",
+        },
+        // Nothing is attached to answer a routed request in this server.
+        .{
+            .request = "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n",
+            .code = "unavailable",
+        },
+        .{ .request = "GET /hello HTTP/1.1\r\nHost: t\r\nExpect: nonsense\r\n\r\n", .code = "expectation_failed" },
     };
 
-    for (requests) |raw| {
+    for (refusals) |refusal| {
         const connection = try Connection.open(server.port());
         defer connection.close();
 
-        try connection.send(raw);
-        try testing.expect(try connection.hasHeader("atolla-api-version: 1"));
+        try connection.send(refusal.request);
+
+        try testing.expect(try connection.contains("content-type: application/problem+json"));
+        try testing.expect(try connection.contains(refusal.code));
     }
 }
 

@@ -8,6 +8,7 @@ comptime {
     _ = @import("http_server.zig");
     _ = @import("log.zig");
     _ = @import("pair.zig");
+    _ = @import("problem.zig");
     _ = @import("random_bytes.zig");
     _ = @import("rate_limit.zig");
     _ = @import("router.zig");

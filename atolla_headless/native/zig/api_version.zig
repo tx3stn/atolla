@@ -1,14 +1,20 @@
 const std = @import("std");
+const problem = @import("problem.zig");
 
-pub const current = 1;
+/// The one source: the membership check and the problem's `supported` member both come from here,
+/// so neither can drift from the other.
+pub const supported_versions = [_]u16{1};
 
+/// The version travels on requests only. A client learns what the daemon speaks from `/hello`,
+/// which is the endpoint that exists to tell it, and a rejection carries `supported` in its body.
 pub const request_header = "atolla-api-version";
 
-pub const response_header: std.http.Header = .{ .name = request_header, .value = "1" };
-
-pub const json_header: std.http.Header = .{ .name = "content-type", .value = "application/json" };
-
-pub const rejection = "{\"error\":\"unsupportedApiVersion\",\"supported\":[1]}";
+pub const unsupported: problem.Problem = .{
+    .code = "unsupported_api_version",
+    .status = 400,
+    .supported = &supported_versions,
+    .title = "unsupported api version",
+};
 
 pub fn accepted(request: *const std.http.Server.Request) bool {
     var headers = request.iterateHeaders();
@@ -24,9 +30,9 @@ pub fn accepted(request: *const std.http.Server.Request) bool {
 pub fn supported(value: ?[]const u8) bool {
     const given = value orelse return true;
     const trimmed = std.mem.trim(u8, given, " \t");
-    const requested = std.fmt.parseInt(u32, trimmed, 10) catch return false;
+    const requested = std.fmt.parseInt(u16, trimmed, 10) catch return false;
 
-    return requested == current;
+    return std.mem.indexOfScalar(u16, &supported_versions, requested) != null;
 }
 
 const testing = std.testing;
@@ -63,7 +69,12 @@ test "api_version: refuses a number too large to be one" {
     try testing.expect(!supported("9" ** 64));
 }
 
-test "api_version: the rejection names what it does speak" {
-    try testing.expect(std.mem.indexOf(u8, rejection, "unsupportedApiVersion") != null);
-    try testing.expect(std.mem.indexOf(u8, rejection, "[1]") != null);
+test "api_version: the rejection reports the versions it does speak" {
+    var buffer: [problem.max_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings(
+        \\{"code":"unsupported_api_version","status":400,"supported":[1],"title":"unsupported api version"}
+    ,
+        problem.render(&buffer, unsupported),
+    );
 }

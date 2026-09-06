@@ -56,7 +56,6 @@ describe('atolla run', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toBe('application/json');
-		expect(response.headers.get('atolla-api-version')).toBe('1');
 		expect(await response.json()).toEqual({
 			apiVersions: [1],
 			id: expect.stringMatching(/^[0-9a-f]{16}$/),

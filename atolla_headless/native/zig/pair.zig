@@ -6,7 +6,7 @@
 //! definition in TypeScript, and a copy here would drift from it.
 
 const std = @import("std");
-const api_version = @import("api_version.zig");
+const problem = @import("problem.zig");
 
 /// A code, two identifiers and four short strings. Nothing this route takes needs more, and the
 /// unauthenticated surface is worth keeping small.
@@ -17,8 +17,6 @@ const max_id_bytes = 64;
 const max_name_bytes = 128;
 const max_token_bytes = 512;
 const max_url_bytes = 512;
-
-pub const rejection = "{\"error\":\"malformedBody\"}";
 
 /// Neutral by name: the daemon stores whatever media server provisioned it, and only the contents
 /// are Jellyfin-shaped today.
@@ -36,22 +34,17 @@ pub const Body = struct {
     mediaServer: ?MediaServer = null,
 };
 
+/// A route says what the answer is. The transport owns how it is written, so nothing here needs a
+/// `Request` and this stays testable without a socket.
 pub const Outcome = union(enum) {
-    answered: u16,
+    problem: problem.Problem,
     cross,
 };
 
 pub const ParseError = error{Malformed};
 
-pub fn handle(request: *std.http.Server.Request, body: []const u8) !Outcome {
-    _ = parse(body) catch {
-        try request.respond(rejection, .{
-            .status = .bad_request,
-            .extra_headers = &.{ api_version.response_header, api_version.json_header },
-        });
-
-        return .{ .answered = 400 };
-    };
+pub fn handle(body: []const u8) Outcome {
+    _ = parse(body) catch return .{ .problem = problem.malformed_body };
 
     return .cross;
 }
@@ -197,4 +190,12 @@ test "pair: refuses a body large enough to exhaust its scratch" {
     buffer[0] = '{';
 
     try testing.expectError(error.Malformed, parse(&buffer));
+}
+
+test "pair: hands a legal body on to be answered elsewhere" {
+    try testing.expectEqual(Outcome.cross, handle(minimal));
+}
+
+test "pair: answers a body it cannot parse itself" {
+    try testing.expectEqualStrings("malformed_body", handle("nope").problem.code);
 }
