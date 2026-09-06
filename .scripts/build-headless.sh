@@ -35,12 +35,12 @@ esac
 source "$SCRIPT_DIR/stamp-dev-version.sh"
 stamp_dev_version "$SCRIPT_DIR/.."
 
-bazel build "${config[@]}" "$TARGET"
+bazel build ${config[@]+"${config[@]}"} "$TARGET"
 
 # cquery prints a path relative to the execution root, and --symlink_prefix builds have no
 # bazel-out symlink in the workspace to resolve it against.
-root="$(bazel info "${config[@]}" execution_root)"
-binary="$(bazel cquery "${config[@]}" --output=files "$TARGET" 2>/dev/null | head -1)"
+root="$(bazel info ${config[@]+"${config[@]}"} execution_root)"
+binary="$(bazel cquery ${config[@]+"${config[@]}"} --output=files "$TARGET" 2>/dev/null | head -1)"
 
 mkdir -p build
 cp -f "$root/$binary" "$output"
