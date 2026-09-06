@@ -6,6 +6,7 @@ package(default_visibility = ["//visibility:public"])
 zig_binary(
     name = "dev_serve",
     srcs = [
+        "bridge.zig",
         "hello.zig",
         "http_server.zig",
         "log.zig",
@@ -21,6 +22,7 @@ zig_binary(
 zig_static_library(
     name = "atolla_headless_zig",
     srcs = [
+        "bridge.zig",
         "hello.zig",
         "http_server.zig",
         "log.zig",

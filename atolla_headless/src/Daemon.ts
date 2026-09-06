@@ -11,6 +11,7 @@ import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
 import { type PlayerConfig, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
+import { attachServer } from './Server';
 
 export interface DaemonDeps {
 	config: PlayerConfig;
@@ -37,10 +38,11 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const log = getLogger('daemon');
 	log.debug('started', { dataDir: deps.config.dataDir, name: deps.config.name });
 
-	// before the queue is restored, so a bad port fails fast and so the control surface is up while
-	// a large queue is still being read
+	// Before the queue is restored, so a bad port fails fast and the server answers while a large
+	// queue is still being read.
 	deps.httpServer.setLogLevel(deps.logLevel);
 	deps.httpServer.setHelloBody(helloBody(deps.identity));
+	attachServer(deps.httpServer);
 	log.info('listening', { port: deps.httpServer.start(deps.config.port) });
 
 	const state = stateDir(deps.config);

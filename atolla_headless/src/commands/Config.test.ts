@@ -35,6 +35,8 @@ function context(argv: Array<string>) {
 			},
 			files: { createDirectorySync: () => true, readFileSync: () => '', writeFileSync: () => {} },
 			httpServer: {
+				respond: () => true,
+				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
 				start: (port: number) => port,

@@ -2,8 +2,8 @@ import type { PlayerIdentity } from './PlayerIdentity';
 
 export const PROTOCOL_VERSION = 1;
 
-// Only fields that are fixed for the life of the process: the server serves these bytes verbatim
-// without asking JavaScript again, so anything that changes belongs in the beacon or /state.
+// Process-lifetime fields only. The server serves these bytes verbatim without asking again, so
+// anything that changes belongs in the beacon or /state.
 export function helloBody(identity: PlayerIdentity): string {
 	return JSON.stringify({
 		id: identity.id,

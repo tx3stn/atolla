@@ -8,9 +8,34 @@ namespace atolla::headless {
 // resolves to nothing at runtime.
 constexpr const char* kModulePath = "atolla_headless/src/HttpNative";
 
-// The daemon runs one control server. Zig hands back a handle rather than owning a singleton, so
-// the "only one" lives here, where there is genuinely one JavaScript runtime to own it.
+// Zig hands back a handle rather than owning a singleton, so the "only one" lives here, where
+// there is genuinely one JavaScript runtime to own it.
 static AtollaHttpServer* gServer = nullptr;
+
+// Set by atollaHttpSetHandler before the server starts, and read from the connection threads.
+static Valdi::Ref<Valdi::ValueFunction> gHandler;
+
+// Called from a connection thread, which stays blocked until the answer comes back through
+// atollaHttpRespond. The Ref self-marshals onto the JavaScript thread, so this returns straight
+// away and `target` does not outlive it. Hence the copy.
+static void dispatchToJavaScript(void* context,
+                                 uint64_t requestId,
+                                 uint32_t route,
+                                 const unsigned char* target,
+                                 size_t targetLen) {
+    (void)context;
+
+    if (gHandler.get() == nullptr) {
+        return;
+    }
+
+    const std::string copied(reinterpret_cast<const char*>(target), targetLen);
+
+    // A double carries the u64 id exactly until 2^53, far more requests than this will see.
+    (void)(*gHandler)({Valdi::Value(static_cast<double>(requestId)),
+                       Valdi::Value(static_cast<int32_t>(route)),
+                       Valdi::Value(Valdi::StringBox::fromString(copied))});
+}
 
 class AtollaHttpModule : public snap::valdi_core::ModuleFactory {
 public:
@@ -23,6 +48,34 @@ public:
 
     Valdi::Value loadModule() final {
         return Valdi::Value()
+            .setMapValue("atollaHttpSetHandler",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 gHandler = callContext.getParameterAsFunction(0);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 return Valdi::Value::undefined();
+                             })))
+            .setMapValue("atollaHttpRespond",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const double requestId = callContext.getParameterAsDouble(0);
+                                 const int32_t status = callContext.getParameterAsInt(1);
+                                 const Valdi::StringBox body = callContext.getParameterAsString(2);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 const std::string_view bytes = body.toStringView();
+
+                                 return Valdi::Value(atolla_http_respond(
+                                     static_cast<uint64_t>(requestId),
+                                     static_cast<uint16_t>(status),
+                                     reinterpret_cast<const unsigned char*>(bytes.data()),
+                                     bytes.size()));
+                             })))
             .setMapValue("atollaHttpSetLogLevel",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
@@ -75,7 +128,8 @@ public:
                                      return Valdi::Value::undefined();
                                  }
 
-                                 gServer = atolla_http_start(static_cast<uint16_t>(port));
+                                 gServer = atolla_http_start(
+                                     static_cast<uint16_t>(port), dispatchToJavaScript, nullptr);
                                  if (gServer == nullptr) {
                                      callContext.getExceptionTracker().onError(
                                          Valdi::Error("atollaHttpStart: could not bind the port"));

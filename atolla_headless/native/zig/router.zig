@@ -1,23 +1,45 @@
 const std = @import("std");
 
-pub const Route = enum { hello };
+/// The values cross the C ABI to the `switch` in `Server.ts`, so they are explicit and only ever
+/// appended to.
+pub const Route = enum(u32) {
+    hello = 0,
+    pair = 1,
+    intent = 2,
+    state = 3,
+};
 
 pub const Outcome = union(enum) {
     route: Route,
-    /// No route claims this path, whatever the method.
     not_found,
-    /// A route claims the path, but not with this method.
     method_not_allowed,
+};
+
+const Entry = struct {
+    method: std.http.Method,
+    path: []const u8,
+    route: Route,
+};
+
+const table = [_]Entry{
+    .{ .method = .GET, .path = "/hello", .route = .hello },
+    .{ .method = .POST, .path = "/pair", .route = .pair },
+    .{ .method = .POST, .path = "/intent", .route = .intent },
+    .{ .method = .GET, .path = "/state", .route = .state },
 };
 
 pub fn resolve(method: std.http.Method, target: []const u8) Outcome {
     const path = target[0 .. std.mem.indexOfScalar(u8, target, '?') orelse target.len];
+    var claimed = false;
 
-    if (std.mem.eql(u8, path, "/hello")) {
-        return if (method == .GET) .{ .route = .hello } else .method_not_allowed;
+    for (table) |entry| {
+        if (!std.mem.eql(u8, path, entry.path)) continue;
+        if (entry.method == method) return .{ .route = entry.route };
+
+        claimed = true;
     }
 
-    return .not_found;
+    return if (claimed) .method_not_allowed else .not_found;
 }
 
 const testing = std.testing;
@@ -44,4 +66,22 @@ test "router: does not claim a path that merely starts with a route" {
 test "router: an unknown path is not found whatever the method" {
     try testing.expectEqual(Outcome.not_found, resolve(.GET, "/nope"));
     try testing.expectEqual(Outcome.not_found, resolve(.POST, "/nope"));
+}
+
+test "router: resolves every route in the table" {
+    try testing.expectEqual(Outcome{ .route = .pair }, resolve(.POST, "/pair"));
+    try testing.expectEqual(Outcome{ .route = .intent }, resolve(.POST, "/intent"));
+    try testing.expectEqual(Outcome{ .route = .state }, resolve(.GET, "/state?since=4"));
+}
+
+test "router: a route is reachable only by its own method" {
+    try testing.expectEqual(Outcome.method_not_allowed, resolve(.GET, "/pair"));
+    try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/state"));
+}
+
+test "router: route ids are stable" {
+    try testing.expectEqual(0, @intFromEnum(Route.hello));
+    try testing.expectEqual(1, @intFromEnum(Route.pair));
+    try testing.expectEqual(2, @intFromEnum(Route.intent));
+    try testing.expectEqual(3, @intFromEnum(Route.state));
 }

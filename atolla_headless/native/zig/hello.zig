@@ -7,9 +7,8 @@ var body_len: usize = 0;
 
 pub const SetError = error{BodyTooLarge};
 
-/// Copied, because the bytes arrive from JavaScript through the C ABI and do not outlive that
-/// call. Set before the first connection is served and never after, so the connection threads
-/// only ever read it.
+/// Copied: the bytes come from JavaScript and do not outlive the call. Set before the first
+/// connection, never after, so connection threads only read it.
 pub fn set(bytes: []const u8) SetError!void {
     if (bytes.len > max_body_bytes) return error.BodyTooLarge;
 

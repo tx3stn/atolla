@@ -4,6 +4,8 @@ import { LOG_LEVELS, type LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import {
+	atollaHttpRespond,
+	atollaHttpSetHandler,
 	atollaHttpSetHelloBody,
 	atollaHttpSetLogLevel,
 	atollaHttpStart,
@@ -41,8 +43,9 @@ import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 // of the global this CLI actually uses.
 declare const valdiStandalone: { arguments: Array<string>; exit(code: number): void };
 
-// the numeric encoding of a level stops at the bridge: LOG_LEVELS is ordered, so its index is it
 const httpServer: HttpServer = {
+	respond: atollaHttpRespond,
+	setHandler: atollaHttpSetHandler,
 	setHelloBody: atollaHttpSetHelloBody,
 	setLogLevel: (level) => atollaHttpSetLogLevel(LOG_LEVELS.indexOf(level)),
 	start: atollaHttpStart,

@@ -109,7 +109,6 @@ export class Cli {
 		return this.exec(['--version']);
 	}
 
-	// every field is optional: the file is whatever a test wrote, and the daemon defaults the rest
 	private configFile(): PlayerConfigFile {
 		const { config } = this.globals;
 		if (config === undefined) {
@@ -146,7 +145,7 @@ export class Cli {
 	}
 }
 
-// any answer means the port is bound; the status is the test's business, not readiness'
+// Any answer means the port is bound. The status is the test's business, not readiness'.
 async function responds(port: number): Promise<boolean> {
 	try {
 		await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(READY_POLL_MS * 10) });

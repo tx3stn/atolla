@@ -48,8 +48,7 @@ describe('atolla run', () => {
 		expect(second.status).toBe(404);
 	});
 
-	// the whole bridge in one assertion: TypeScript built this body from the stored identity and
-	// handed it to the server as bytes
+	// The whole bridge in one assertion: TypeScript built this body and the server serves it.
 	it('identifies itself on /hello without a credential', async () => {
 		daemon = await cli.run();
 
@@ -67,8 +66,7 @@ describe('atolla run', () => {
 		});
 	});
 
-	// a panic in a connection thread aborts the process, so anything reachable from the LAN
-	// must be answerable without taking the daemon down
+	// A panic in a connection thread aborts the process.
 	it('keeps running after requests it has no route for', async () => {
 		daemon = await cli.run();
 
@@ -87,6 +85,18 @@ describe('atolla run', () => {
 		const response = await fetch(`http://127.0.0.1:${PORT}/hello`);
 
 		expect(response.status).toBe(200);
+	});
+
+	// 503 means nothing was attached to handle the route and 504 means it never replied, so
+	// neither would show the request reaching JavaScript. What it answers is the route's business.
+	it('answers a request that has to cross into JavaScript', async () => {
+		daemon = await cli.run();
+
+		const response = await fetch(`http://127.0.0.1:${PORT}/pair`, { method: 'POST' });
+
+		expect(response.status).not.toBe(503);
+		expect(response.status).not.toBe(504);
+		expect(await response.json()).toBeDefined();
 	});
 
 	it('stops listening once the daemon exits', async () => {

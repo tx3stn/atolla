@@ -1,5 +1,5 @@
-//! The server's own log, written straight to stdout rather than through the daemon's
-//! JavaScript logger, in the same format as it.
+//! The server's own log. Written straight to stdout in the daemon's log format, rather than
+//! through its JavaScript logger.
 //!
 //! Routing it through the bridge would block the js thread and not all commands
 //! actually want to do that.
@@ -63,7 +63,6 @@ pub fn err(scope: []const u8, comptime format: []const u8, args: anytype) void {
     write(.@"error", scope, format, args);
 }
 
-/// Structured fields, rendered with `{f}` to match the JavaScript logger's JSON suffix.
 pub fn fields(value: anytype) std.json.Formatter(@TypeOf(value)) {
     return std.json.fmt(value, .{});
 }
@@ -81,8 +80,7 @@ fn write(level: Level, scope: []const u8, comptime format: []const u8, args: any
     _ = std.c.write(std.posix.STDOUT_FILENO, line.ptr, line.len);
 }
 
-/// Separate from `write` so the format is testable without capturing stdout. Truncation is
-/// deliberate: a line too long for the buffer is still worth most of itself.
+/// Split from `write` so the format is testable without capturing stdout.
 fn compose(
     buffer: []u8,
     now_ms: i64,

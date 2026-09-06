@@ -49,6 +49,8 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 
 function fakeHttpServer(started: Array<number> = []): HttpServer {
 	return {
+		respond: () => true,
+		setHandler: () => {},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
 		start: (port) => {
@@ -157,6 +159,8 @@ describe('startDaemon', () => {
 				writeFileSync: () => {},
 			},
 			httpServer: {
+				respond: () => true,
+				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
 				start: (port) => {

@@ -1,4 +1,5 @@
 const std = @import("std");
+const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const http_server = @import("http_server.zig");
 
@@ -8,6 +9,13 @@ const default_port = 45889;
 const dev_hello =
     \\{"id":"0000000000000000","name":"dev_serve","protocolVersions":[1],"tier":"tight","v":1,"version":"dev"}
 ;
+
+// No JavaScript here to answer a routed request, so say so rather than hang until the timeout.
+fn notImplemented(_: ?*anyopaque, request_id: u64, _: u32, _: [*]const u8, _: usize) callconv(.c) void {
+    const body = "{\"error\":\"notImplemented\"}";
+
+    _ = bridge.atolla_http_respond(request_id, 501, body, body.len);
+}
 
 pub fn main(init: std.process.Init.Minimal) !void {
     var args: std.process.Args.Iterator = .init(init.args);
@@ -26,7 +34,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     try hello.set(dev_hello);
 
-    var server = try http_server.Server.listen(io, &address, .{});
+    var server = try http_server.Server.listen(io, &address, .{
+        .handler = .{ .dispatch = notImplemented },
+    });
     defer server.deinit();
 
     std.debug.print("listening on http://127.0.0.1:{d}\n", .{server.port()});

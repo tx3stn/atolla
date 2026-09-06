@@ -1,15 +1,14 @@
 const std = @import("std");
 const net = std.Io.net;
+const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
 const router = @import("router.zig");
 
-/// `std.http.Server` caps the head at the size of the reader's buffer, so this
-/// constant is the 8 KiB header limit rather than merely sizing an allocation.
+/// `std.http.Server` caps the head at the reader buffer's size, so this is the header limit and
+/// not just an allocation.
 const head_buffer_bytes = 8 * 1024;
 
-/// Sent from the accept thread, so its timeout is short: a client that will not
-/// read its own rejection must not hold up the next connection.
 const reject_timeout_ms = 1_000;
 
 const max_logged_target_bytes = 128;
@@ -23,16 +22,13 @@ const over_capacity_response =
     "connection: close\r\n\r\n";
 
 pub const Options = struct {
-    /// Reached in normal use rather than only under attack, since each
-    /// long-poll holds a connection, so exceeding it is answered not dropped.
     max_connections: usize = 32,
     max_body_bytes: u64 = 1024 * 1024,
-    /// Granted only once a connection has completed a request. Until then a
-    /// silent client gets `head_timeout_ms`, so it cannot squat a slot for
-    /// thirty seconds without ever reaching the rate limiter.
     idle_timeout_ms: i32 = 30_000,
     head_timeout_ms: i32 = 5_000,
     write_timeout_ms: i32 = 30_000,
+    handler_timeout_ms: u64 = 28_000,
+    handler: bridge.Handler = .{},
 };
 
 pub const ListenError = net.IpAddress.ListenError;
@@ -48,9 +44,8 @@ pub const Server = struct {
         return .{
             .active = .init(0),
             .io = io,
-            // reuse_address: a restarted daemon must rebind immediately. Without it the
-            // sockets left in TIME_WAIT by the previous run refuse the port for a minute
-            // or so, which turns systemd's Restart=always into a minute of silence.
+            // Without reuse_address the previous run's sockets hold the port through TIME_WAIT,
+            // so a restarted daemon cannot rebind for about a minute.
             .listener = try net.IpAddress.listen(address, io, .{
                 .mode = .stream,
                 .reuse_address = true,
@@ -60,9 +55,8 @@ pub const Server = struct {
         };
     }
 
-    /// Waits for the connection threads, which are detached and hold `self`
-    /// until they decrement `active` as their last act. Without this, tearing
-    /// down after `stop` frees the listener under a thread still using it.
+    /// Connection threads are detached and hold `self` until they decrement `active`, so
+    /// without this wait a teardown frees the listener under one still using it.
     pub fn deinit(self: *Server) void {
         while (self.active.load(.acquire) != 0) std.Thread.yield() catch {};
 
@@ -73,7 +67,6 @@ pub const Server = struct {
         return self.listener.socket.address.getPort();
     }
 
-    /// Blocks until `stop` is called.
     pub fn run(self: *Server) void {
         while (true) {
             const stream = self.listener.accept(self.io) catch |err| switch (err) {
@@ -102,11 +95,9 @@ pub const Server = struct {
         }
     }
 
-    /// Safe to call from another thread; unblocks `run`.
-    ///
-    /// Connects to our own listener to wake it: `shutdown` on a listening
-    /// socket unblocks `accept` on Linux but is a no-op on Darwin, and
-    /// `socketpair` needs a unix family `std.Io.net` cannot express.
+    /// Callable from any thread. Wakes `accept` by connecting to our own listener, because
+    /// `shutdown` on a listening socket does nothing on Darwin and `std.Io.net` has no unix
+    /// family for a socketpair.
     pub fn stop(self: *Server) void {
         self.running.store(false, .release);
 
@@ -119,6 +110,33 @@ pub const Server = struct {
         stream.close(self.io);
     }
 
+    fn crossBridge(self: *Server, request: *std.http.Server.Request, route: router.Route, target: []const u8) !u16 {
+        const dispatch = self.options.handler.dispatch orelse {
+            log.err(log_name, "no handler attached {f}", .{log.fields(.{ .route = @tagName(route) })});
+            try request.respond("", .{ .status = .service_unavailable, .keep_alive = false });
+            return 503;
+        };
+
+        const id = bridge.pending.claim(self.io) orelse {
+            log.warn(log_name, "no free slot to answer in {f}", .{log.fields(.{ .route = @tagName(route) })});
+            try request.respond("", .{ .status = .service_unavailable, .keep_alive = false });
+            return 503;
+        };
+        defer bridge.pending.release(self.io, id);
+
+        dispatch(self.options.handler.context, id, @intFromEnum(route), target.ptr, target.len);
+
+        const answer = bridge.pending.awaitResponse(self.io, id, self.options.handler_timeout_ms) orelse {
+            log.warn(log_name, "handler did not answer {f}", .{log.fields(.{ .route = @tagName(route) })});
+            try request.respond("", .{ .status = .gateway_timeout, .keep_alive = false });
+            return 504;
+        };
+
+        try request.respond(answer.body, .{ .status = @enumFromInt(answer.status) });
+
+        return answer.status;
+    }
+
     fn reject(self: *Server, stream: net.Stream) void {
         defer stream.close(self.io);
 
@@ -129,6 +147,36 @@ pub const Server = struct {
 
         writer.interface.writeAll(over_capacity_response) catch return;
         writer.interface.flush() catch return;
+    }
+
+    fn respond(self: *Server, request: *std.http.Server.Request, target: []const u8) !u16 {
+        if (request.head.transfer_encoding == .chunked) {
+            try request.respond("", .{ .status = .length_required, .keep_alive = false });
+            return 411;
+        }
+
+        if ((request.head.content_length orelse 0) > self.options.max_body_bytes) {
+            try request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
+            return 413;
+        }
+
+        switch (router.resolve(request.head.method, request.head.target)) {
+            .route => |route| switch (route) {
+                .hello => {
+                    try hello.respond(request);
+                    return 200;
+                },
+                else => return self.crossBridge(request, route, target),
+            },
+            .method_not_allowed => {
+                try request.respond("", .{ .status = .method_not_allowed });
+                return 405;
+            },
+            .not_found => {
+                try request.respond("", .{ .status = .not_found });
+                return 404;
+            },
+        }
     }
 
     fn serve(self: *Server, stream: net.Stream) void {
@@ -164,7 +212,7 @@ pub const Server = struct {
 
             // An unrecognised `Expect` fails before anything is written, so the connection is
             // still owed an answer rather than a silent close.
-            const status = respond(&request, self.options.max_body_bytes) catch |err| {
+            const status = self.respond(&request, target) catch |err| {
                 if (err == error.HttpExpectationFailed) {
                     rawReply(&http, "HTTP/1.1 417 Expectation Failed\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
                     log.info(log_name, "{s} {s} {f}", .{ method, target, log.fields(.{ .status = 417 }) });
@@ -195,22 +243,21 @@ fn discardPending(stream: net.Stream) void {
     }
 }
 
-/// `run` blocks, so the C ABI owns a thread for it and hands C++ back an opaque
-/// handle rather than a singleton: nothing about the transport needs there to
-/// be only one, and a handle keeps start/stop testable in a loop.
+/// `run` blocks, so the C ABI owns a thread for it. A handle rather than a singleton, so start
+/// and stop can be tested in a loop.
 const Hosted = struct {
     server: Server,
     thread: std.Thread,
 };
 
-export fn atolla_http_start(port: u16) ?*Hosted {
+export fn atolla_http_start(port: u16, dispatch: ?bridge.Dispatch, context: ?*anyopaque) ?*Hosted {
     const hosted = std.heap.c_allocator.create(Hosted) catch return null;
     const address: net.IpAddress = .{ .ip4 = .unspecified(port) };
 
     hosted.server = Server.listen(
         std.Io.Threaded.global_single_threaded.io(),
         &address,
-        .{},
+        .{ .handler = .{ .context = context, .dispatch = dispatch } },
     ) catch {
         std.heap.c_allocator.destroy(hosted);
         return null;
@@ -254,8 +301,8 @@ fn clamped(buffer: []u8, text: []const u8) []const u8 {
     return buffer[0..length];
 }
 
-/// For the answers that cannot go through `Request.respond`, because there is no usable `Request`
-/// or because responding is what failed.
+/// For answers that cannot go through `Request.respond`, either because there is no usable
+/// `Request` or because responding is what failed.
 fn rawReply(http: *std.http.Server, response: []const u8) void {
     http.out.writeAll(response) catch return;
     http.out.flush() catch return;
@@ -265,36 +312,6 @@ fn oversizeReply(http: *std.http.Server, err: std.http.Server.ReceiveHeadError) 
     if (err != error.HttpHeadersOversize) return;
 
     rawReply(http, "HTTP/1.1 431 Request Header Fields Too Large\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
-}
-
-/// The status it answered with, so the caller can log what happened without deciding it twice.
-fn respond(request: *std.http.Server.Request, max_body_bytes: u64) !u16 {
-    if (request.head.transfer_encoding == .chunked) {
-        try request.respond("", .{ .status = .length_required, .keep_alive = false });
-        return 411;
-    }
-
-    if ((request.head.content_length orelse 0) > max_body_bytes) {
-        try request.respond("", .{ .status = .payload_too_large, .keep_alive = false });
-        return 413;
-    }
-
-    switch (router.resolve(request.head.method, request.head.target)) {
-        .route => |route| switch (route) {
-            .hello => {
-                try hello.respond(request);
-                return 200;
-            },
-        },
-        .method_not_allowed => {
-            try request.respond("", .{ .status = .method_not_allowed });
-            return 405;
-        },
-        .not_found => {
-            try request.respond("", .{ .status = .not_found });
-            return 404;
-        },
-    }
 }
 
 fn setTimeout(stream: net.Stream, comptime direction: enum { receive, send }, milliseconds: i32) !void {
@@ -400,8 +417,7 @@ const Connection = struct {
     }
 };
 
-/// A target no route will ever claim, so these transport tests keep asserting
-/// 404 once slice E starts routing.
+/// No route will ever match this, so these tests keep asserting 404 as routes are added.
 const unrouted = "/no-such-route";
 
 const unrouted_request = "GET " ++ unrouted ++ " HTTP/1.1\r\nHost: t\r\n\r\n";
@@ -555,8 +571,8 @@ test "http_server: answers 405 for a route reached with the wrong method" {
     try testing.expectEqual(405, try connection.status());
 }
 
-// A panic in a connection thread aborts the process, so a request nobody meant to send must
-// still get an answer. Each of these once had, or could have, a path into `unreachable`.
+// A panic in a connection thread aborts the process, so every shape reachable from the LAN has
+// to be answerable.
 test "http_server: survives request shapes that carry no length header" {
     var server: Server = undefined;
     try testServer(&server, test_options);
@@ -620,8 +636,115 @@ test "http_server: answers a body-bearing method that declares no length" {
     try testing.expectEqual(405, try connection.status());
 }
 
+/// Answers on another thread, like the bridge does, so the wait is not skipped.
+const StubHandler = struct {
+    status: u16,
+    body: []const u8,
+
+    fn dispatch(context: ?*anyopaque, request_id: u64, route: u32, target: [*]const u8, target_len: usize) callconv(.c) void {
+        _ = route;
+        _ = target;
+        _ = target_len;
+
+        const self: *StubHandler = @ptrCast(@alignCast(context.?));
+        const thread = std.Thread.spawn(.{}, answer, .{ self, request_id }) catch return;
+
+        thread.detach();
+    }
+
+    fn answer(self: *StubHandler, request_id: u64) void {
+        _ = bridge.atolla_http_respond(request_id, self.status, self.body.ptr, self.body.len);
+    }
+
+    fn handler(self: *StubHandler) bridge.Handler {
+        return .{ .context = self, .dispatch = dispatch };
+    }
+};
+
+test "http_server: carries a handler's answer back to the client" {
+    var stub: StubHandler = .{ .status = 501, .body = "{\"error\":\"notImplemented\"}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+
+    try testing.expectEqual(501, try connection.status());
+}
+
+test "http_server: answers 504 when the handler never does" {
+    const silent = struct {
+        fn dispatch(_: ?*anyopaque, _: u64, _: u32, _: [*]const u8, _: usize) callconv(.c) void {}
+    };
+
+    var server: Server = undefined;
+    try testServer(&server, .{
+        .handler = .{ .dispatch = silent.dispatch },
+        .handler_timeout_ms = 50,
+        .head_timeout_ms = 1_000,
+    });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+
+    try testing.expectEqual(504, try connection.status());
+}
+
+test "http_server: answers 503 when nothing is attached to answer" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+
+    try testing.expectEqual(503, try connection.status());
+}
+
+test "http_server: answers /hello without reaching the handler" {
+    const refuses = struct {
+        fn dispatch(_: ?*anyopaque, _: u64, _: u32, _: [*]const u8, _: usize) callconv(.c) void {
+            unreachable;
+        }
+    };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = .{ .dispatch = refuses.dispatch }, .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try hello.set("{}");
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("GET /hello HTTP/1.1\r\nHost: t\r\n\r\n");
+
+    try testing.expectEqual(200, try connection.status());
+}
+
 test "http_server: serves and shuts down through the C ABI" {
-    const hosted = atolla_http_start(0) orelse return error.StartFailed;
+    const hosted = atolla_http_start(0, null, null) orelse return error.StartFailed;
 
     try testing.expectEqual(404, try get(atolla_http_port(hosted)));
 
@@ -629,11 +752,11 @@ test "http_server: serves and shuts down through the C ABI" {
 }
 
 test "http_server: a second server can be hosted after the first is stopped" {
-    const first = atolla_http_start(0) orelse return error.StartFailed;
+    const first = atolla_http_start(0, null, null) orelse return error.StartFailed;
     const port = atolla_http_port(first);
     atolla_http_stop(first);
 
-    const second = atolla_http_start(0) orelse return error.StartFailed;
+    const second = atolla_http_start(0, null, null) orelse return error.StartFailed;
     defer atolla_http_stop(second);
 
     try testing.expect(atolla_http_port(second) != 0);
