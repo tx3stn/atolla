@@ -115,7 +115,8 @@ public:
             .setMapValue("atollaHttpStart",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
-                                 const int32_t port = callContext.getParameterAsInt(0);
+                                 const Valdi::StringBox host = callContext.getParameterAsString(0);
+                                 const int32_t port = callContext.getParameterAsInt(1);
                                  if (!callContext.getExceptionTracker()) {
                                      return Valdi::Value::undefined();
                                  }
@@ -132,11 +133,17 @@ public:
                                      return Valdi::Value::undefined();
                                  }
 
+                                 const std::string_view bytes = host.toStringView();
+
                                  gServer = atolla_http_start(
-                                     static_cast<uint16_t>(port), dispatchToJavaScript, nullptr);
+                                     reinterpret_cast<const unsigned char*>(bytes.data()),
+                                     bytes.size(),
+                                     static_cast<uint16_t>(port),
+                                     dispatchToJavaScript,
+                                     nullptr);
                                  if (gServer == nullptr) {
-                                     callContext.getExceptionTracker().onError(
-                                         Valdi::Error("atollaHttpStart: could not bind the port"));
+                                     callContext.getExceptionTracker().onError(Valdi::Error(
+                                         "atollaHttpStart: could not bind that host and port"));
                                      return Valdi::Value::undefined();
                                  }
 

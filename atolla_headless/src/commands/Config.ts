@@ -38,6 +38,7 @@ export const CmdConfig = {
 
 		const updated = {
 			audioDevice: audioDevice ?? current.audioDevice,
+			bindAddress: current.bindAddress,
 			dataDir: current.dataDir,
 			language: language === undefined ? current.language : readLanguage(language),
 			logLevel: current.logLevel,

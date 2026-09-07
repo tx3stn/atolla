@@ -43,7 +43,10 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	deps.httpServer.setLogLevel(deps.logLevel);
 	deps.httpServer.setHelloBody(helloBody(deps.identity));
 	attachServer(deps.httpServer);
-	log.info('listening', { port: deps.httpServer.start(deps.config.port) });
+	log.info('listening', {
+		host: deps.config.bindAddress,
+		port: deps.httpServer.start(deps.config.bindAddress, deps.config.port),
+	});
 
 	const state = stateDir(deps.config);
 	const playback = new PlaybackStore();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
-import { DEFAULT_DATA_DIR, type PlayerConfig } from '../PlayerConfig';
+import { DEFAULT_BIND_ADDRESS, DEFAULT_DATA_DIR, type PlayerConfig } from '../PlayerConfig';
 import { makeTerminal } from '../terminal/Terminal';
 import { parseArguments } from './Arguments';
 import { CmdConfig } from './Config';
@@ -10,6 +10,7 @@ const PATH = '/etc/atolla/player.json';
 
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
+	bindAddress: DEFAULT_BIND_ADDRESS,
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: 'info',
@@ -39,7 +40,7 @@ function context(argv: Array<string>) {
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
-				start: (port: number) => port,
+				start: (_host: string, port: number) => port,
 				stop: () => {},
 			},
 			logLevel: CONFIG.logLevel,

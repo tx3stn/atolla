@@ -4,6 +4,7 @@ import { CLI_ERROR } from './commands/Errors';
 import {
 	type ConfigFiles,
 	DEFAULT_AUDIO_DEVICE,
+	DEFAULT_BIND_ADDRESS,
 	DEFAULT_DATA_DIR,
 	DEFAULT_LOG_LEVEL,
 	DEFAULT_PORT,
@@ -17,6 +18,7 @@ const PATH = '/etc/atolla/player.json';
 
 const CONFIG: PlayerConfig = {
 	audioDevice: DEFAULT_AUDIO_DEVICE,
+	bindAddress: DEFAULT_BIND_ADDRESS,
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: DEFAULT_LOG_LEVEL,
@@ -86,6 +88,20 @@ describe('makeConfigStore read', () => {
 			const { files } = fakeFiles(`{"name":"kitchen","port":${port}}`);
 
 			expect(makeConfigStore(files, PATH).read()?.port).toBe(DEFAULT_PORT);
+		}
+	});
+
+	it('reads a bind address that names one interface', () => {
+		const { files } = fakeFiles('{"bindAddress":"192.168.1.42","name":"kitchen"}');
+
+		expect(makeConfigStore(files, PATH).read()?.bindAddress).toBe('192.168.1.42');
+	});
+
+	it('falls back on a bind address that is not one', () => {
+		for (const address of ['"localhost"', '"192.168.1"', '"192.168.1.256"', '"::1"', '45889']) {
+			const { files } = fakeFiles(`{"bindAddress":${address},"name":"kitchen"}`);
+
+			expect(makeConfigStore(files, PATH).read()?.bindAddress).toBe(DEFAULT_BIND_ADDRESS);
 		}
 	});
 

@@ -22,7 +22,7 @@ pub const Problem = struct {
     /// Left null by default: naming the field that failed tells an unauthenticated caller which
     /// field to fix, and `/pair` is the one body a stranger on the LAN can post.
     detail: ?[]const u8 = null,
-    retry_after_seconds: ?u32 = null,
+    retryAfterSeconds: ?u32 = null,
     status: u16,
     supported: ?[]const u16 = null,
     title: []const u8,
@@ -62,7 +62,7 @@ fn writeRetryAfter(
     buffer: *[retry_after_bytes]u8,
     problem: Problem,
 ) usize {
-    const seconds = problem.retry_after_seconds orelse return 1;
+    const seconds = problem.retryAfterSeconds orelse return 1;
 
     headers[1] = .{
         .name = "retry-after",
@@ -142,7 +142,7 @@ pub const unavailable: Problem = .{
 
 pub const busy: Problem = .{
     .code = "busy",
-    .retry_after_seconds = 1,
+    .retryAfterSeconds = 1,
     .status = 503,
     .title = "busy",
 };

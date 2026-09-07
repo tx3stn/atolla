@@ -5,6 +5,7 @@ import { CLI_ERROR } from './commands/Errors';
 import { ensureDirectory } from './EnsureDirectory';
 
 export const DEFAULT_AUDIO_DEVICE = 'default';
+export const DEFAULT_BIND_ADDRESS = '0.0.0.0';
 export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
 export const DEFAULT_DATA_DIR = '/var/lib/atolla';
 export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
@@ -12,6 +13,7 @@ export const DEFAULT_PORT = 45889;
 
 export interface PlayerConfig {
 	audioDevice: string;
+	bindAddress: string;
 	dataDir: string;
 	language: LanguageCode;
 	logLevel: LogLevel;
@@ -92,6 +94,20 @@ export function stateDir(config: PlayerConfig): string {
 	return `${config.dataDir}/state`;
 }
 
+// the native side parses it again and refuses to bind what it cannot read; this is only so a typo
+// falls back to the default with the other fields rather than failing at startup
+function isBindAddress(value: unknown): value is string {
+	if (typeof value !== 'string') {
+		return false;
+	}
+
+	const octets = value.split('.');
+
+	return (
+		octets.length === 4 && octets.every((octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255)
+	);
+}
+
 function isLanguageCode(value: unknown): value is LanguageCode {
 	return LANGUAGE_OPTIONS.some((option) => option.code === value);
 }
@@ -116,6 +132,7 @@ function parse(raw: string, path: string): PlayerConfig {
 
 	const value = parsed as {
 		audioDevice?: unknown;
+		bindAddress?: unknown;
 		dataDir?: unknown;
 		language?: unknown;
 		logLevel?: unknown;
@@ -128,6 +145,7 @@ function parse(raw: string, path: string): PlayerConfig {
 			typeof value.audioDevice === 'string' && value.audioDevice !== ''
 				? value.audioDevice
 				: DEFAULT_AUDIO_DEVICE,
+		bindAddress: isBindAddress(value.bindAddress) ? value.bindAddress : DEFAULT_BIND_ADDRESS,
 		dataDir:
 			typeof value.dataDir === 'string' && value.dataDir !== '' ? value.dataDir : DEFAULT_DATA_DIR,
 		language: isLanguageCode(value.language) ? value.language : DEFAULT_LANGUAGE,

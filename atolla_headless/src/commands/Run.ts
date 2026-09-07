@@ -67,7 +67,7 @@ function banner(
 		...fields(terminal, [
 			{ label: Strings.fieldName(), value: config.name },
 			{ label: Strings.fieldPlayerId(), value: identity.id },
-			{ label: Strings.fieldControl(), value: `http://0.0.0.0:${config.port}` },
+			{ label: Strings.fieldControl(), value: `http://${config.bindAddress}:${config.port}` },
 			{ label: Strings.fieldAudioDevice(), value: config.audioDevice },
 			{ label: Strings.fieldControllers(), value: `${pairing.controllers.length}` },
 			{ label: Strings.fieldState(), value: Strings.stateIdle() },

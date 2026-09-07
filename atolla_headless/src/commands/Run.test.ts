@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { consoleLogWriter, Logger } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
-import { type ConfigStore, DEFAULT_DATA_DIR, type PlayerConfig } from '../PlayerConfig';
+import {
+	type ConfigStore,
+	DEFAULT_BIND_ADDRESS,
+	DEFAULT_DATA_DIR,
+	type PlayerConfig,
+} from '../PlayerConfig';
 import { makeTerminal } from '../terminal/Terminal';
 import { parseArguments } from './Arguments';
 import { CLI_ERROR } from './Errors';
@@ -11,6 +16,7 @@ const PATH = '/etc/atolla/player.json';
 
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
+	bindAddress: DEFAULT_BIND_ADDRESS,
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: 'info',
@@ -43,7 +49,7 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 			setHandler: () => {},
 			setHelloBody: () => {},
 			setLogLevel: () => {},
-			start: (port: number) => port,
+			start: (_host: string, port: number) => port,
 			stop: () => {},
 		},
 		logLevel: CONFIG.logLevel,
@@ -74,14 +80,15 @@ describe('CmdRun', () => {
 		throw new Error('expected a cli error');
 	});
 
-	it('banners the configured audio device and control port', async () => {
+	it('banners the configured audio device and control address', async () => {
 		const lines: Array<string> = [];
+		const config = { ...CONFIG, audioDevice: 'hw:2,0', bindAddress: '192.168.1.42', port: 45890 };
 
-		void CmdRun.run(context(() => ({ ...CONFIG, audioDevice: 'hw:2,0', port: 45890 }), lines));
+		void CmdRun.run(context(() => config, lines));
 		await flush();
 
 		expect(lines.some((line) => line.includes('hw:2,0'))).toBe(true);
-		expect(lines.some((line) => line.includes('http://0.0.0.0:45890'))).toBe(true);
+		expect(lines.some((line) => line.includes('http://192.168.1.42:45890'))).toBe(true);
 	});
 
 	it('banners the real player id rather than a placeholder', async () => {

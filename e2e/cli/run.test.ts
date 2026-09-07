@@ -19,7 +19,13 @@ describe('atolla run', () => {
 		mkdirSync(dirname(configPath), { recursive: true });
 		writeFileSync(
 			configPath,
-			JSON.stringify({ dataDir: join(dir, 'data'), language: 'en', name: 'Kitchen', port: PORT }),
+			JSON.stringify({
+				bindAddress: '127.0.0.1',
+				dataDir: join(dir, 'data'),
+				language: 'en',
+				name: 'Kitchen',
+				port: PORT,
+			}),
 		);
 
 		cli = new Cli({ config: configPath });

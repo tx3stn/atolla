@@ -12,6 +12,7 @@ import type { PlayerIdentity } from './PlayerIdentity';
 
 const CONFIG = {
 	audioDevice: 'default',
+	bindAddress: '0.0.0.0',
 	dataDir: '/var/lib/atolla',
 	language: 'en',
 	logLevel: 'info',
@@ -47,14 +48,14 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 	};
 }
 
-function fakeHttpServer(started: Array<number> = []): HttpServer {
+function fakeHttpServer(started: Array<string> = []): HttpServer {
 	return {
 		respond: () => true,
 		setHandler: () => {},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
-		start: (port) => {
-			started.push(port);
+		start: (host, port) => {
+			started.push(`${host}:${port}`);
 			return port;
 		},
 		stop: () => {},
@@ -128,12 +129,12 @@ describe('startDaemon', () => {
 		expect(reads).toContain('/mnt/usb/atolla/state/queue');
 	});
 
-	it('starts the control server on the configured port', async () => {
+	it('starts the control server on the configured host and port', async () => {
 		const { log } = capture();
-		const started: Array<number> = [];
+		const started: Array<string> = [];
 
 		void startDaemon({
-			config: { ...CONFIG, port: 45890 },
+			config: { ...CONFIG, bindAddress: '127.0.0.1', port: 45890 },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(started),
 			identity: IDENTITY,
@@ -141,7 +142,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 		});
 
-		expect(started).toEqual([45890]);
+		expect(started).toEqual(['127.0.0.1:45890']);
 	});
 
 	it('starts the control server before reading the queue, so a slow restore cannot delay it', async () => {
@@ -163,7 +164,7 @@ describe('startDaemon', () => {
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
-				start: (port) => {
+				start: (_host, port) => {
 					order.push('listen');
 					return port;
 				},

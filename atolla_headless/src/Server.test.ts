@@ -15,7 +15,7 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 		},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
-		start: (port) => port,
+		start: (_host, port) => port,
 		stop: () => {},
 	};
 

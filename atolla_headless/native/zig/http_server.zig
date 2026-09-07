@@ -338,9 +338,15 @@ const Hosted = struct {
     thread: std.Thread,
 };
 
-export fn atolla_http_start(port: u16, dispatch: ?bridge.Dispatch, context: ?*anyopaque) ?*Hosted {
+export fn atolla_http_start(
+    host: [*]const u8,
+    host_len: usize,
+    port: u16,
+    dispatch: ?bridge.Dispatch,
+    context: ?*anyopaque,
+) ?*Hosted {
+    const address = net.IpAddress.parseIp4(host[0..host_len], port) catch return null;
     const hosted = std.heap.c_allocator.create(Hosted) catch return null;
-    const address: net.IpAddress = .{ .ip4 = .unspecified(port) };
 
     hosted.server = Server.listen(
         std.Io.Threaded.global_single_threaded.io(),
@@ -399,7 +405,7 @@ fn writeProblem(out: *std.Io.Writer, value: problem.Problem) void {
     const body = problem.render(&body_buffer, value);
 
     var retry_buffer: [32]u8 = undefined;
-    const retry = if (value.retry_after_seconds) |seconds|
+    const retry = if (value.retryAfterSeconds) |seconds|
         std.fmt.bufPrint(&retry_buffer, "retry-after: {d}\r\n", .{seconds}) catch ""
     else
         "";
@@ -1152,7 +1158,8 @@ test "http_server: answers /hello without reaching the handler" {
 }
 
 test "http_server: serves and shuts down through the C ABI" {
-    const hosted = atolla_http_start(0, null, null) orelse return error.StartFailed;
+    const host = "127.0.0.1";
+    const hosted = atolla_http_start(host, host.len, 0, null, null) orelse return error.StartFailed;
 
     try testing.expectEqual(404, try get(atolla_http_port(hosted)));
 
@@ -1160,14 +1167,22 @@ test "http_server: serves and shuts down through the C ABI" {
 }
 
 test "http_server: a second server can be hosted after the first is stopped" {
-    const first = atolla_http_start(0, null, null) orelse return error.StartFailed;
+    const host = "127.0.0.1";
+
+    const first = atolla_http_start(host, host.len, 0, null, null) orelse return error.StartFailed;
     const port = atolla_http_port(first);
     atolla_http_stop(first);
 
-    const second = atolla_http_start(0, null, null) orelse return error.StartFailed;
+    const second = atolla_http_start(host, host.len, 0, null, null) orelse return error.StartFailed;
     defer atolla_http_stop(second);
 
     try testing.expect(atolla_http_port(second) != 0);
     try testing.expectEqual(404, try get(atolla_http_port(second)));
     try testing.expect(port != 0);
+}
+
+test "http_server: refuses a host it cannot parse rather than binding something else" {
+    const host = "not-an-address";
+
+    try testing.expectEqual(null, atolla_http_start(host, host.len, 0, null, null));
 }

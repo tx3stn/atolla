@@ -15,7 +15,7 @@ export function atollaHttpRespond(requestId: number, status: number, body: strin
 export function atollaHttpSetLogLevel(level: number): void;
 
 // Returns the port actually bound, which differs from the one asked for when 0 requests an
-// ephemeral one.
-export function atollaHttpStart(port: number): number;
+// ephemeral one. `host` is an IPv4 address; 0.0.0.0 serves every interface.
+export function atollaHttpStart(host: string, port: number): number;
 
 export function atollaHttpStop(): void;
