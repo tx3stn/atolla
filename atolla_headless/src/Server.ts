@@ -1,7 +1,7 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
-import type { HttpServer } from './Http';
+import type { Answer, HttpServer } from './Http';
+import { handlePair, type PairDeps } from './routes/Pair';
 
-// Mirrors the Route enum in native/zig/router.zig. The server sends the number, never the name.
 export const ROUTE = {
 	hello: 0,
 	intent: 2,
@@ -9,32 +9,37 @@ export const ROUTE = {
 	state: 3,
 } as const;
 
-export interface Answer {
-	body: string;
-	status: number;
+export interface ServerDeps {
+	pair: PairDeps;
 }
 
 const log = getLogger('server-js');
 
-export function attachServer(httpServer: HttpServer): void {
+export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 	httpServer.setHandler((requestId, route, target, body) => {
-		const answer = answerFor(route, target, body);
+		let answer: Promise<Answer>;
 
-		httpServer.respond(requestId, answer.status, answer.body);
+		switch (route) {
+			case ROUTE.pair:
+				answer = handlePair(deps.pair, body);
+				break;
+
+			default:
+				log.warn('route not implemented', { bodyBytes: body.length, route, target });
+				answer = Promise.resolve({
+					body: JSON.stringify({ error: 'notImplemented' }),
+					status: 501,
+				});
+		}
+
+		answer.then(
+			(resolved) => {
+				httpServer.respond(requestId, resolved.status, resolved.body);
+			},
+			(error: unknown) => {
+				log.error('route threw', { error: String(error), route, target });
+				httpServer.respond(requestId, 500, JSON.stringify({ error: 'internalError' }));
+			},
+		);
 	});
-}
-
-// The server has already rejected whatever it could without crossing, so a handler decodes the
-// domain payload and nothing else.
-export function answerFor(route: number, target: string, body: string): Answer {
-	switch (route) {
-		case ROUTE.pair:
-		case ROUTE.intent:
-		case ROUTE.state:
-			log.warn('route not implemented', { bodyBytes: body.length, route, target });
-			return { body: JSON.stringify({ error: 'notImplemented' }), status: 501 };
-		default:
-			log.error('route has no handler', { route, target });
-			return { body: JSON.stringify({ error: 'unknownRoute' }), status: 500 };
-	}
 }

@@ -35,6 +35,8 @@ bool atolla_http_set_hello_body(const unsigned char *bytes, size_t len);
 // writes its own lines, so a stalled JavaScript thread does not take the log with it.
 void atolla_http_set_log_level(uint8_t level);
 
+bool atolla_http_set_pairing_code_path(const unsigned char *path, size_t len);
+
 // Binds the given IPv4 host and port and serves on its own thread. Port 0 binds an ephemeral one,
 // readable back with atolla_http_port. NULL if the host would not parse or the bind failed.
 AtollaHttpServer *atolla_http_start(const unsigned char *host,

@@ -98,6 +98,12 @@ pub const malformed_body: Problem = .{
     .title = "malformed body",
 };
 
+pub const invalid_pairing_code: Problem = .{
+    .code = "invalid_pairing_code",
+    .status = 401,
+    .title = "invalid pairing code",
+};
+
 pub const not_found: Problem = .{
     .code = "not_found",
     .status = 404,
@@ -127,6 +133,15 @@ pub const expectation_failed: Problem = .{
     .status = 417,
     .title = "expectation failed",
 };
+
+pub fn tooManyAttempts(seconds: u32) Problem {
+    return .{
+        .code = "too_many_attempts",
+        .retryAfterSeconds = seconds,
+        .status = 429,
+        .title = "too many attempts",
+    };
+}
 
 pub const headers_too_large: Problem = .{
     .code = "headers_too_large",
@@ -188,6 +203,16 @@ test "problem: renders a detail when one is given" {
         \\{"code":"busy","detail":"try later","status":503,"title":"busy"}
     ,
         render(&buffer, .{ .code = "busy", .detail = "try later", .status = 503, .title = "busy" }),
+    );
+}
+
+test "problem: renders the backoff a throttled caller must wait out" {
+    var buffer: [max_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings(
+        \\{"code":"too_many_attempts","retryAfterSeconds":4,"status":429,"title":"too many attempts"}
+    ,
+        render(&buffer, tooManyAttempts(4)),
     );
 }
 

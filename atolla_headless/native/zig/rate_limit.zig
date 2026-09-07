@@ -2,7 +2,12 @@ const std = @import("std");
 
 pub const Key = u128;
 
-pub const Outcome = enum { failure, success };
+pub const Scope = enum { key, key_and_global };
+
+pub const Outcome = union(enum) {
+    failure: Scope,
+    success,
+};
 
 pub const Decision = union(enum) {
     allow,
@@ -53,26 +58,13 @@ pub const Limiter = struct {
     }
 
     pub fn record(self: *Limiter, now_ms: i64, key: Key, outcome: Outcome) void {
-        if (outcome == .success) {
-            self.global_failures = 0;
-            self.global_last_failure_ms = 0;
-            self.forget(key);
-            return;
-        }
-
-        if (now_ms - self.global_last_failure_ms >= global_quiet_ms) self.global_failures = 0;
-
-        self.global_failures +|= 1;
-        self.global_last_failure_ms = now_ms;
-
-        if (self.indexOf(key)) |index| {
-            self.entries[index].failures +|= 1;
-            self.entries[index].last_failure_ms = now_ms;
-            return;
-        }
-
-        if (self.slotFor(now_ms)) |entry| {
-            entry.* = .{ .failures = 1, .key = key, .last_failure_ms = now_ms };
+        switch (outcome) {
+            .failure => |scope| self.recordFailure(now_ms, key, scope),
+            .success => {
+                self.global_failures = 0;
+                self.global_last_failure_ms = 0;
+                self.forget(key);
+            },
         }
     }
 
@@ -89,6 +81,25 @@ pub const Limiter = struct {
         }
 
         return null;
+    }
+
+    fn recordFailure(self: *Limiter, now_ms: i64, key: Key, scope: Scope) void {
+        if (scope == .key_and_global) {
+            if (now_ms - self.global_last_failure_ms >= global_quiet_ms) self.global_failures = 0;
+
+            self.global_failures +|= 1;
+            self.global_last_failure_ms = now_ms;
+        }
+
+        if (self.indexOf(key)) |index| {
+            self.entries[index].failures +|= 1;
+            self.entries[index].last_failure_ms = now_ms;
+            return;
+        }
+
+        if (self.slotFor(now_ms)) |entry| {
+            entry.* = .{ .failures = 1, .key = key, .last_failure_ms = now_ms };
+        }
     }
 
     fn slotFor(self: *Limiter, now_ms: i64) ?*Entry {
@@ -128,7 +139,7 @@ const key_a: Key = 0x0a00_0001;
 const key_b: Key = 0x0a00_0002;
 
 fn failTimes(limiter: *Limiter, now_ms: i64, key: Key, times: u32) void {
-    for (0..times) |_| limiter.record(now_ms, key, .failure);
+    for (0..times) |_| limiter.record(now_ms, key, .{ .failure = .key_and_global });
 }
 
 test "rate_limit: allows an attempt from a key that has never failed" {
@@ -142,7 +153,7 @@ test "rate_limit: answers the first three failures without a delay" {
 
     for (0..3) |_| {
         try testing.expectEqual(Decision.allow, limiter.check(0, key_a));
-        limiter.record(0, key_a, .failure);
+        limiter.record(0, key_a, .{ .failure = .key_and_global });
     }
 
     try testing.expectEqual(Decision{ .deny_seconds = 1 }, limiter.check(0, key_a));
@@ -156,7 +167,7 @@ test "rate_limit: doubles the delay with each further failure" {
 
     for (expected) |seconds| {
         try testing.expectEqual(Decision{ .deny_seconds = seconds }, limiter.check(0, key_a));
-        limiter.record(0, key_a, .failure);
+        limiter.record(0, key_a, .{ .failure = .key_and_global });
     }
 }
 
@@ -164,7 +175,7 @@ test "rate_limit: caps the delay at sixty seconds" {
     var limiter: Limiter = .empty;
 
     failTimes(&limiter, 0, key_a, 40);
-    limiter.record(backoff_cap_ms, key_a, .failure);
+    limiter.record(backoff_cap_ms, key_a, .{ .failure = .key_and_global });
 
     try testing.expectEqual(Decision{ .deny_seconds = 60 }, limiter.check(backoff_cap_ms, key_a));
 }
@@ -182,7 +193,7 @@ test "rate_limit: never locks a key out permanently" {
     var limiter: Limiter = .empty;
 
     failTimes(&limiter, 0, key_a, 1000);
-    limiter.record(backoff_cap_ms, key_a, .failure);
+    limiter.record(backoff_cap_ms, key_a, .{ .failure = .key_and_global });
 
     try testing.expectEqual(Decision{ .deny_seconds = 60 }, limiter.check(backoff_cap_ms, key_a));
     try testing.expectEqual(Decision.allow, limiter.check(backoff_cap_ms * 2, key_a));
@@ -203,7 +214,7 @@ test "rate_limit: a key's failures are not forgotten by waiting" {
     failTimes(&limiter, 0, key_a, key_free_failures + backoff_max_steps);
 
     try testing.expectEqual(Decision.allow, limiter.check(backoff_cap_ms, key_a));
-    limiter.record(backoff_cap_ms, key_a, .failure);
+    limiter.record(backoff_cap_ms, key_a, .{ .failure = .key_and_global });
 
     try testing.expectEqual(Decision{ .deny_seconds = 60 }, limiter.check(backoff_cap_ms, key_a));
 }
@@ -220,7 +231,7 @@ test "rate_limit: a success clears the failures behind it" {
 test "rate_limit: a success frees the table slot it held" {
     var limiter: Limiter = .empty;
 
-    limiter.record(0, key_a, .failure);
+    limiter.record(0, key_a, .{ .failure = .key_and_global });
     limiter.record(0, key_a, .success);
 
     try testing.expectEqual(@as(usize, 0), limiter.used);
@@ -243,9 +254,27 @@ test "rate_limit: a success clears the global counter too" {
     var limiter: Limiter = .empty;
 
     for (0..global_free_failures) |index| {
-        limiter.record(0, @intCast(index), .failure);
+        limiter.record(0, @intCast(index), .{ .failure = .key_and_global });
     }
     limiter.record(0, key_a, .success);
+
+    try testing.expectEqual(Decision.allow, limiter.check(0, key_b));
+}
+
+test "rate_limit: a failure scoped to one key still moves that key's own curve" {
+    var limiter: Limiter = .empty;
+
+    for (0..key_free_failures) |_| limiter.record(0, key_a, .{ .failure = .key });
+
+    try testing.expectEqual(Decision{ .deny_seconds = 1 }, limiter.check(0, key_a));
+}
+
+test "rate_limit: a failure scoped to one key leaves the global counter alone" {
+    var limiter: Limiter = .empty;
+
+    for (0..global_free_failures * 2) |index| {
+        limiter.record(0, @intCast(index), .{ .failure = .key });
+    }
 
     try testing.expectEqual(Decision.allow, limiter.check(0, key_b));
 }
@@ -262,7 +291,7 @@ test "rate_limit: the global counter engages once enough keys have failed" {
     var limiter: Limiter = .empty;
 
     for (0..global_free_failures) |index| {
-        limiter.record(0, @intCast(index), .failure);
+        limiter.record(0, @intCast(index), .{ .failure = .key_and_global });
     }
 
     try testing.expectEqual(Decision{ .deny_seconds = 1 }, limiter.check(0, key_b));
@@ -272,7 +301,7 @@ test "rate_limit: the global delay follows the same curve" {
     var limiter: Limiter = .empty;
 
     for (0..global_free_failures + 3) |index| {
-        limiter.record(0, @intCast(index), .failure);
+        limiter.record(0, @intCast(index), .{ .failure = .key_and_global });
     }
 
     try testing.expectEqual(Decision{ .deny_seconds = 8 }, limiter.check(0, key_b));
@@ -285,7 +314,7 @@ test "rate_limit: a slow attacker cannot hold the global gate shut" {
 
     var now: i64 = backoff_cap_ms;
     for (0..5) |_| {
-        limiter.record(now, key_a, .failure);
+        limiter.record(now, key_a, .{ .failure = .key_and_global });
 
         try testing.expectEqual(Decision.allow, limiter.check(now, key_b));
         now += backoff_cap_ms;
@@ -296,13 +325,13 @@ test "rate_limit: the global counter forgets a burst that has gone quiet" {
     var limiter: Limiter = .empty;
 
     for (0..global_free_failures + backoff_max_steps) |index| {
-        limiter.record(0, @intCast(index), .failure);
+        limiter.record(0, @intCast(index), .{ .failure = .key_and_global });
     }
 
     try testing.expectEqual(Decision{ .deny_seconds = 60 }, limiter.check(0, key_b));
     try testing.expectEqual(Decision.allow, limiter.check(backoff_cap_ms, key_b));
 
-    limiter.record(backoff_cap_ms, key_a, .failure);
+    limiter.record(backoff_cap_ms, key_a, .{ .failure = .key_and_global });
 
     try testing.expectEqual(Decision.allow, limiter.check(backoff_cap_ms, key_b));
 }
@@ -311,7 +340,7 @@ test "rate_limit: holds the full table before evicting anything" {
     var limiter: Limiter = .empty;
 
     for (0..max_entries) |index| {
-        limiter.record(0, @intCast(index), .failure);
+        limiter.record(0, @intCast(index), .{ .failure = .key_and_global });
     }
 
     try testing.expectEqual(max_entries, limiter.used);
@@ -324,7 +353,7 @@ test "rate_limit: evicts an entry that has stopped blocking to admit a new key" 
     for (0..max_entries) |index| {
         failTimes(&limiter, 0, @intCast(index), key_free_failures);
     }
-    limiter.record(backoff_cap_ms, key_b, .failure);
+    limiter.record(backoff_cap_ms, key_b, .{ .failure = .key_and_global });
 
     try testing.expectEqual(max_entries, limiter.used);
     try testing.expect(limiter.indexOf(key_b) != null);
@@ -338,10 +367,10 @@ test "rate_limit: an evicted key starts its curve again" {
     for (0..max_entries) |index| {
         failTimes(&limiter, 0, @intCast(index), key_free_failures);
     }
-    limiter.record(backoff_cap_ms, key_b, .failure);
+    limiter.record(backoff_cap_ms, key_b, .{ .failure = .key_and_global });
 
-    limiter.record(backoff_cap_ms, victim, .failure);
-    limiter.record(backoff_cap_ms, survivor, .failure);
+    limiter.record(backoff_cap_ms, victim, .{ .failure = .key_and_global });
+    limiter.record(backoff_cap_ms, survivor, .{ .failure = .key_and_global });
 
     try testing.expectEqual(Decision.allow, limiter.check(backoff_cap_ms, victim));
     try testing.expectEqual(Decision{ .deny_seconds = 2 }, limiter.check(backoff_cap_ms, survivor));
@@ -353,7 +382,7 @@ test "rate_limit: refuses to evict an entry that is still blocking" {
     for (0..max_entries) |index| {
         failTimes(&limiter, 0, @intCast(index), key_free_failures);
     }
-    limiter.record(0, key_b, .failure);
+    limiter.record(0, key_b, .{ .failure = .key_and_global });
 
     try testing.expect(limiter.indexOf(key_b) == null);
 }
@@ -364,7 +393,7 @@ test "rate_limit: a key the full table could not admit is still blocked globally
     for (0..max_entries) |index| {
         failTimes(&limiter, 0, @intCast(index), key_free_failures);
     }
-    limiter.record(0, key_b, .failure);
+    limiter.record(0, key_b, .{ .failure = .key_and_global });
 
     try testing.expectEqual(Decision{ .deny_seconds = 60 }, limiter.check(0, key_b));
 }
@@ -375,7 +404,7 @@ test "rate_limit: evicting the oldest entry keeps the newer ones counting" {
     for (0..max_entries) |index| {
         failTimes(&limiter, @intCast(index), @intCast(index), key_free_failures);
     }
-    limiter.record(backoff_cap_ms * 2, key_b, .failure);
+    limiter.record(backoff_cap_ms * 2, key_b, .{ .failure = .key_and_global });
 
     try testing.expect(limiter.indexOf(0) == null);
     try testing.expect(limiter.indexOf(max_entries - 1) != null);

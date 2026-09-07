@@ -1,7 +1,9 @@
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
-import type { RandomBytes } from './Random';
+import { type RandomBytes, randomHex } from './Random';
 
 export const CONTROLLERS_KEY = 'controllers';
+export const MAX_CONTROLLERS = 32;
+export const MEDIA_SERVER_KEY = 'mediaServer';
 export const PAIRING_KEY = 'pairing';
 
 const CODE_DIGITS = 8;
@@ -9,6 +11,14 @@ const CODE_GROUP = 4;
 const CODE_PATTERN = /^\d{8}$/;
 // bytes at or above this would make the low digits more likely than the high ones
 const DIGIT_CEILING = 250;
+const TOKEN_BYTES = 32;
+
+export interface MediaServerCredentials {
+	accessToken: string;
+	baseUrl: string;
+	deviceId: string;
+	userId: string;
+}
 
 export interface PairedController {
 	controllerId: string;
@@ -20,6 +30,24 @@ export interface PairedController {
 export interface Pairing {
 	code: string;
 	controllers: Array<PairedController>;
+}
+
+export async function addController(
+	store: KeyValueStore,
+	randomBytes: RandomBytes,
+	controller: { controllerId: string; controllerName: string },
+): Promise<string> {
+	const token = randomHex(randomBytes, TOKEN_BYTES);
+	const kept = (await readControllers(store)).filter(
+		(held) => held.controllerId !== controller.controllerId,
+	);
+
+	kept.push({ ...controller, pairedAt: Date.now(), token });
+	kept.sort((left, right) => left.pairedAt - right.pairedAt);
+
+	await store.storeString(CONTROLLERS_KEY, JSON.stringify(kept.slice(-MAX_CONTROLLERS)));
+
+	return token;
 }
 
 export function formatCode(code: string): string {

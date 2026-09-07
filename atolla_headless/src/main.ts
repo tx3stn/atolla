@@ -8,6 +8,7 @@ import {
 	atollaHttpSetHandler,
 	atollaHttpSetHelloBody,
 	atollaHttpSetLogLevel,
+	atollaHttpSetPairingCodePath,
 	atollaHttpStart,
 	atollaHttpStop,
 } from 'atolla_headless/src/HttpNative';
@@ -48,6 +49,7 @@ const httpServer: HttpServer = {
 	setHandler: atollaHttpSetHandler,
 	setHelloBody: atollaHttpSetHelloBody,
 	setLogLevel: (level) => atollaHttpSetLogLevel(LOG_LEVELS.indexOf(level)),
+	setPairingCodePath: atollaHttpSetPairingCodePath,
 	start: atollaHttpStart,
 	stop: atollaHttpStop,
 };

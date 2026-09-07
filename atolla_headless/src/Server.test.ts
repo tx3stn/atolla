@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'bun:test';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { HttpServer, RequestHandler } from './Http';
-import { answerFor, attachServer, ROUTE } from './Server';
+import type { RandomBytes } from './Random';
+import { attachServer, ROUTE, type ServerDeps } from './Server';
+
+const PAIR_BODY = JSON.stringify({ controllerId: 'c1', controllerName: 'Phone' });
+
+function counting(): RandomBytes {
+	let next = 0;
+	return (count) => Uint8Array.from({ length: count }, () => next++ & 0xff);
+}
+
+function deps(): ServerDeps {
+	return { pair: { randomBytes: counting(), secrets: new InMemoryKeyValueStore() } };
+}
 
 function fakeHttpServer(answers: Array<{ body: string; requestId: number; status: number }>) {
 	let handler: RequestHandler | undefined;
@@ -15,6 +28,7 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 		},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
+		setPairingCodePath: () => {},
 		start: (_host, port) => port,
 		stop: () => {},
 	};
@@ -22,47 +36,47 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 	return { dispatch: (...args: Parameters<RequestHandler>) => handler?.(...args), httpServer };
 }
 
-describe('answerFor', () => {
-	it('reports a route the server knows but this side has not implemented', () => {
-		for (const route of [ROUTE.pair, ROUTE.intent, ROUTE.state]) {
-			const answer = answerFor(route, '/whatever', '');
-
-			expect(answer.status).toBe(501);
-			expect(JSON.parse(answer.body)).toEqual({ error: 'notImplemented' });
-		}
-	});
-
-	// the server should never send one, so it means the two route tables have drifted apart
-	it('reports a route it has never heard of', () => {
-		const answer = answerFor(99, '/whatever', '');
-
-		expect(answer.status).toBe(500);
-		expect(JSON.parse(answer.body)).toEqual({ error: 'unknownRoute' });
-	});
-});
-
 describe('attachServer', () => {
-	it('answers the request it was dispatched, against its id', () => {
+	it('answers the request it was dispatched, against its id', async () => {
 		const answers: Array<{ body: string; requestId: number; status: number }> = [];
 		const { dispatch, httpServer } = fakeHttpServer(answers);
 
-		attachServer(httpServer);
-		dispatch(4242, ROUTE.pair, '/pair', '');
+		attachServer(httpServer, deps());
+		dispatch(4242, ROUTE.intent, '/intent', '');
+		await Promise.resolve();
 
 		expect(answers).toEqual([
 			{ body: JSON.stringify({ error: 'notImplemented' }), requestId: 4242, status: 501 },
 		]);
 	});
 
-	it('answers a request that carries a body', () => {
+	it('answers a request whose handler works asynchronously', async () => {
 		const answers: Array<{ body: string; requestId: number; status: number }> = [];
 		const { dispatch, httpServer } = fakeHttpServer(answers);
 
-		attachServer(httpServer);
-		dispatch(7, ROUTE.pair, '/pair', '{"code":"19524002"}');
+		attachServer(httpServer, deps());
+		dispatch(7, ROUTE.pair, '/pair', PAIR_BODY);
+		await settled();
+
+		expect(answers).toHaveLength(1);
+		expect(answers[0].requestId).toBe(7);
+		expect(answers[0].status).toBe(200);
+	});
+
+	it('still answers when a handler rejects, so the connection is not left waiting', async () => {
+		const answers: Array<{ body: string; requestId: number; status: number }> = [];
+		const { dispatch, httpServer } = fakeHttpServer(answers);
+
+		attachServer(httpServer, deps());
+		dispatch(9, ROUTE.pair, '/pair', 'not json');
+		await settled();
 
 		expect(answers).toEqual([
-			{ body: JSON.stringify({ error: 'notImplemented' }), requestId: 7, status: 501 },
+			{ body: JSON.stringify({ error: 'internalError' }), requestId: 9, status: 500 },
 		]);
 	});
 });
+
+function settled(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
+}

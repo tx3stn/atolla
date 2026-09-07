@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import {
+	addController,
 	CONTROLLERS_KEY,
 	formatCode,
 	loadPairing,
+	MAX_CONTROLLERS,
 	PAIRING_KEY,
 	type PairedController,
 	resetPairing,
@@ -138,5 +140,73 @@ describe('resetPairing', () => {
 describe('formatCode', () => {
 	it('groups the code into two blocks of four', () => {
 		expect(formatCode('12345678')).toBe('1234 5678');
+	});
+});
+
+describe('addController', () => {
+	const PHONE = { controllerId: 'phone-1', controllerName: 'Phone' };
+
+	async function storedControllers(store: KeyValueStore): Promise<Array<PairedController>> {
+		return JSON.parse(await store.fetchString(CONTROLLERS_KEY));
+	}
+
+	it('mints a token of 32 bytes, which nobody has to type', async () => {
+		const token = await addController(new InMemoryKeyValueStore(), counting(), PHONE);
+
+		expect(token).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	it('records the controller so the token can be looked up later', async () => {
+		const store = new InMemoryKeyValueStore();
+
+		const token = await addController(store, counting(), PHONE);
+
+		expect(await storedControllers(store)).toEqual([
+			{ ...PHONE, pairedAt: expect.any(Number), token },
+		]);
+	});
+
+	it('replaces the record a controller already had, so its old token dies', async () => {
+		const store = new InMemoryKeyValueStore();
+		const random = counting();
+
+		const first = await addController(store, random, PHONE);
+		const second = await addController(store, random, PHONE);
+
+		expect(second).not.toBe(first);
+		expect(await storedControllers(store)).toEqual([
+			{ ...PHONE, pairedAt: expect.any(Number), token: second },
+		]);
+	});
+
+	it('leaves the other controllers alone when one re-pairs', async () => {
+		const store = new InMemoryKeyValueStore();
+		await store.storeString(CONTROLLERS_KEY, JSON.stringify([CONTROLLER]));
+
+		await addController(store, counting(), PHONE);
+
+		expect((await storedControllers(store)).map((held) => held.controllerId)).toEqual([
+			CONTROLLER.controllerId,
+			PHONE.controllerId,
+		]);
+	});
+
+	// The Zig side parses this file into a fixed buffer, so a household that pairs its way past the
+	// cap must lose the oldest rather than the whole file.
+	it('drops the oldest controller once the cap is reached', async () => {
+		const store = new InMemoryKeyValueStore();
+		const held = Array.from({ length: MAX_CONTROLLERS }, (_, index) => ({
+			...CONTROLLER,
+			controllerId: `c${index}`,
+			pairedAt: index + 1,
+		}));
+		await store.storeString(CONTROLLERS_KEY, JSON.stringify(held));
+
+		await addController(store, counting(), PHONE);
+		const after = await storedControllers(store);
+
+		expect(after).toHaveLength(MAX_CONTROLLERS);
+		expect(after.map((one) => one.controllerId)).not.toContain('c0');
+		expect(after[after.length - 1].controllerId).toBe(PHONE.controllerId);
 	});
 });

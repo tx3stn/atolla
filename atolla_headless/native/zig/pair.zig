@@ -1,15 +1,10 @@
-//! `POST /pair`: the route's own body shape, size cap and rejections.
-//!
-//! This is the only unauthenticated body that reaches a parser, so it is checked here rather than
-//! across the bridge, and a malformed one never wakes the JavaScript thread. Every field is a
-//! primitive, which is what makes that safe. A domain payload like a track array has its one
-//! definition in TypeScript, and a copy here would drift from it.
+// POST /pair
 
 const std = @import("std");
+const credentials = @import("credentials.zig");
 const problem = @import("problem.zig");
+const rate_limit = @import("rate_limit.zig");
 
-/// A code, two identifiers and four short strings. Nothing this route takes needs more, and the
-/// unauthenticated surface is worth keeping small.
 pub const max_body_bytes = 4 * 1024;
 
 const max_code_bytes = 32;
@@ -18,8 +13,6 @@ const max_name_bytes = 128;
 const max_token_bytes = 512;
 const max_url_bytes = 512;
 
-/// Neutral by name: the daemon stores whatever media server provisioned it, and only the contents
-/// are Jellyfin-shaped today.
 pub const MediaServer = struct {
     accessToken: []const u8,
     baseUrl: []const u8,
@@ -34,8 +27,6 @@ pub const Body = struct {
     mediaServer: ?MediaServer = null,
 };
 
-/// A route says what the answer is. The transport owns how it is written, so nothing here needs a
-/// `Request` and this stays testable without a socket.
 pub const Outcome = union(enum) {
     problem: problem.Problem,
     cross,
@@ -43,8 +34,62 @@ pub const Outcome = union(enum) {
 
 pub const ParseError = error{Malformed};
 
-pub fn handle(body: []const u8) Outcome {
-    _ = parse(body) catch return .{ .problem = problem.malformed_body };
+pub const SetPathError = error{PathTooLong};
+
+pub const Gate = struct {
+    limiter: rate_limit.Limiter = .empty,
+    mutex: std.Io.Mutex = .init,
+
+    pub const Held = struct {
+        gate: *Gate,
+        io: std.Io,
+
+        pub fn release(self: Held) void {
+            self.gate.mutex.unlock(self.io);
+        }
+    };
+
+    pub fn acquire(self: *Gate, io: std.Io) Held {
+        self.mutex.lockUncancelable(io);
+
+        return .{ .gate = self, .io = io };
+    }
+};
+
+var code_path: [std.Io.Dir.max_path_bytes]u8 = undefined;
+var code_path_len: usize = 0;
+
+pub fn setCodePath(path: []const u8) SetPathError!void {
+    if (path.len > code_path.len) return error.PathTooLong;
+
+    @memcpy(code_path[0..path.len], path);
+    code_path_len = path.len;
+}
+
+pub fn handle(held: Gate.Held, now_ms: i64, key: rate_limit.Key, body: []const u8) Outcome {
+    const limiter = &held.gate.limiter;
+
+    switch (limiter.check(now_ms, key)) {
+        .deny_seconds => |seconds| return .{ .problem = problem.tooManyAttempts(seconds) },
+        .allow => {},
+    }
+
+    const parsed = parse(body) catch {
+        limiter.record(now_ms, key, .{ .failure = .key });
+        return .{ .problem = problem.malformed_body };
+    };
+
+    const authorised = if (credentials.read(held.io, code_path[0..code_path_len])) |stored|
+        credentials.matches(parsed.code, stored)
+    else
+        false;
+
+    if (!authorised) {
+        limiter.record(now_ms, key, .{ .failure = .key_and_global });
+        return .{ .problem = problem.invalid_pairing_code };
+    }
+
+    limiter.record(now_ms, key, .success);
 
     return .cross;
 }
@@ -81,6 +126,10 @@ const testing = std.testing;
 
 const minimal =
     \\{"code":"19524002","controllerId":"phone-1","controllerName":"Tristan's phone"}
+;
+
+const wrong_code =
+    \\{"code":"00000000","controllerId":"phone-1","controllerName":"Phone"}
 ;
 
 const provisioned =
@@ -192,10 +241,129 @@ test "pair: refuses a body large enough to exhaust its scratch" {
     try testing.expectError(error.Malformed, parse(&buffer));
 }
 
-test "pair: hands a legal body on to be answered elsewhere" {
-    try testing.expectEqual(Outcome.cross, handle(minimal));
+const unprovisioned = "/nonexistent/atolla/pairing";
+
+const caller: rate_limit.Key = 0x0a00_0001;
+
+fn provision(tmp: *testing.TmpDir, buffer: []u8, code: []const u8) !void {
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "pairing", .data = code });
+
+    try setCodePath(try std.fmt.bufPrint(buffer, ".zig-cache/tmp/{s}/pairing", .{tmp.sub_path}));
 }
 
-test "pair: answers a body it cannot parse itself" {
-    try testing.expectEqualStrings("malformed_body", handle("nope").problem.code);
+test "pair: hands a body carrying the provisioned code on to be answered elsewhere" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    try provision(&tmp, &buffer, "19524002");
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    try testing.expectEqual(Outcome.cross, handle(held, 0, caller, minimal));
+}
+
+test "pair: refuses a body it cannot parse without consulting the code" {
+    try setCodePath(unprovisioned);
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    try testing.expectEqualStrings("malformed_body", handle(held, 0, caller, "nope").problem.code);
+}
+
+test "pair: refuses every attempt while no code is provisioned" {
+    try setCodePath(unprovisioned);
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    const outcome = handle(held, 0, caller, minimal);
+
+    try testing.expectEqualStrings("invalid_pairing_code", outcome.problem.code);
+    try testing.expectEqual(401, outcome.problem.status);
+}
+
+test "pair: refuses a code that is not the provisioned one" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    try provision(&tmp, &buffer, "00000000");
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    try testing.expectEqualStrings("invalid_pairing_code", handle(held, 0, caller, minimal).problem.code);
+}
+
+test "pair: throttles once a caller has spent its free attempts" {
+    try setCodePath(unprovisioned);
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    for (0..3) |_| {
+        try testing.expectEqual(401, handle(held, 0, caller, minimal).problem.status);
+    }
+
+    const throttled = handle(held, 0, caller, minimal).problem;
+
+    try testing.expectEqualStrings("too_many_attempts", throttled.code);
+    try testing.expectEqual(429, throttled.status);
+    try testing.expectEqual(1, throttled.retryAfterSeconds);
+}
+
+test "pair: a throttled attempt does not extend the block it was refused by" {
+    try setCodePath(unprovisioned);
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    for (0..5) |_| _ = handle(held, 0, caller, minimal);
+
+    try testing.expectEqualStrings(
+        "invalid_pairing_code",
+        handle(held, 1_000, caller, minimal).problem.code,
+    );
+}
+
+test "pair: a malformed body does not throttle a different caller" {
+    try setCodePath(unprovisioned);
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    for (0..20) |index| _ = handle(held, 0, @intCast(index), "nope");
+
+    try testing.expectEqualStrings("invalid_pairing_code", handle(held, 0, caller, minimal).problem.code);
+}
+
+test "pair: a successful pair clears the failures behind it" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    try provision(&tmp, &buffer, "19524002");
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    for (0..3) |_| _ = handle(held, 0, caller, wrong_code);
+
+    try testing.expectEqual(Outcome.cross, handle(held, 1_000, caller, minimal));
+    try testing.expectEqual(Outcome.cross, handle(held, 1_000, caller, minimal));
+}
+
+test "pair: refuses a path too long to hold" {
+    try testing.expectError(error.PathTooLong, setCodePath(&[_]u8{'x'} ** (std.Io.Dir.max_path_bytes + 1)));
 }

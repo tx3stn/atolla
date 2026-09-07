@@ -54,6 +54,7 @@ function fakeHttpServer(started: Array<string> = []): HttpServer {
 		setHandler: () => {},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
+		setPairingCodePath: () => {},
 		start: (host, port) => {
 			started.push(`${host}:${port}`);
 			return port;
@@ -99,6 +100,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
 		});
 		getLogger('PlaybackStore').warn('queue restore failed');
 
@@ -123,6 +125,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
 		});
 		await Promise.resolve();
 
@@ -140,6 +143,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
 		});
 
 		expect(started).toEqual(['127.0.0.1:45890']);
@@ -164,6 +168,7 @@ describe('startDaemon', () => {
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
+				setPairingCodePath: () => {},
 				start: (_host, port) => {
 					order.push('listen');
 					return port;
@@ -173,6 +178,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
 		});
 		await Promise.resolve();
 
@@ -189,6 +195,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
 		});
 		const settled = await Promise.race([daemon, Promise.resolve('pending')]);
 

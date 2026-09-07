@@ -6,6 +6,7 @@ const hello = @import("hello.zig");
 const log = @import("log.zig");
 const pair = @import("pair.zig");
 const problem = @import("problem.zig");
+const rate_limit = @import("rate_limit.zig");
 const router = @import("router.zig");
 const socket_reader = @import("socket_reader.zig");
 
@@ -50,6 +51,7 @@ pub const Server = struct {
     io: std.Io,
     listener: net.Server,
     options: Options,
+    pair_gate: pair.Gate,
     running: std.atomic.Value(bool),
 
     pub fn listen(io: std.Io, address: *const net.IpAddress, options: Options) ListenError!Server {
@@ -63,6 +65,7 @@ pub const Server = struct {
                 .reuse_address = true,
             }),
             .options = options,
+            .pair_gate = .{},
             .running = .init(true),
         };
     }
@@ -177,7 +180,12 @@ pub const Server = struct {
         writeProblem(&writer.interface, problem.busy);
     }
 
-    fn respond(self: *Server, request: *std.http.Server.Request, target: []const u8) !u16 {
+    fn respond(
+        self: *Server,
+        request: *std.http.Server.Request,
+        key: rate_limit.Key,
+        target: []const u8,
+    ) !u16 {
         if (request.head.transfer_encoding == .chunked) {
             return problem.response(request, problem.length_required, .{ .keep_alive = false });
         }
@@ -213,10 +221,7 @@ pub const Server = struct {
                         return problem.response(request, problem.incomplete_body, .{ .keep_alive = false });
                     };
 
-                    switch (routeBody(route, body)) {
-                        .problem => |value| return problem.response(request, value, .{}),
-                        .cross => {},
-                    }
+                    if (route == .pair) return self.servePair(request, key, target, body);
 
                     return self.crossBridge(request, route, target, body);
                 },
@@ -248,6 +253,7 @@ pub const Server = struct {
 
         var http: std.http.Server = .init(&reader.interface, &writer.interface);
         var head_wait_ms = self.options.head_timeout_ms;
+        const key = limiterKey(stream.socket.address);
 
         while (self.running.load(.acquire)) {
             if (!waitReadable(stream, head_wait_ms)) return;
@@ -267,7 +273,7 @@ pub const Server = struct {
             // answer go out the normal way: `respondUnflushed` tries to meet the expectation
             // again otherwise, and `readerExpectNone` documents null as how a caller says it has
             // handled one itself.
-            const status = self.respond(&request, target) catch |err| {
+            const status = self.respond(&request, key, target) catch |err| {
                 if (err != error.HttpExpectationFailed) return;
 
                 request.head.expect = null;
@@ -286,22 +292,43 @@ pub const Server = struct {
             head_wait_ms = self.options.idle_timeout_ms;
         }
     }
+
+    fn servePair(
+        self: *Server,
+        request: *std.http.Server.Request,
+        key: rate_limit.Key,
+        target: []const u8,
+        body: []const u8,
+    ) !u16 {
+        const held = self.pair_gate.acquire(self.io);
+        defer held.release();
+
+        return switch (pair.handle(held, nowMs(self.io), key, body)) {
+            .problem => |value| problem.response(request, value, .{}),
+            .cross => self.crossBridge(request, .pair, target, body),
+        };
+    }
 };
+
+fn limiterKey(address: net.IpAddress) rate_limit.Key {
+    return switch (address) {
+        .ip4 => |ip4| std.mem.readInt(u32, &ip4.bytes, .big),
+        .ip6 => |ip6| if (net.Ip4Address.fromIp6(ip6)) |ip4|
+            std.mem.readInt(u32, &ip4.bytes, .big)
+        else
+            std.mem.readInt(u128, &ip6.bytes, .big),
+    };
+}
+
+fn nowMs(io: std.Io) i64 {
+    return @intCast(@divTrunc(std.Io.Clock.boot.now(io).nanoseconds, std.time.ns_per_ms));
+}
 
 fn bodyLimit(route: router.Route) usize {
     return switch (route) {
         .hello => 0,
         .pair => pair.max_body_bytes,
         .intent, .state => unrouted_body_bytes,
-    };
-}
-
-/// A route either names the problem to answer with or says the body is legal and it is
-/// TypeScript's turn. Writing the answer is this file's job either way.
-fn routeBody(route: router.Route, body: []const u8) pair.Outcome {
-    return switch (route) {
-        .pair => pair.handle(body),
-        .hello, .intent, .state => .cross,
     };
 }
 
@@ -372,6 +399,12 @@ export fn atolla_http_set_log_level(level: u8) void {
 
 export fn atolla_http_set_hello_body(bytes: [*]const u8, len: usize) bool {
     hello.set(bytes[0..len]) catch return false;
+
+    return true;
+}
+
+export fn atolla_http_set_pairing_code_path(bytes: [*]const u8, len: usize) bool {
+    pair.setCodePath(bytes[0..len]) catch return false;
 
     return true;
 }
@@ -546,7 +579,7 @@ const Connection = struct {
 };
 
 const valid_pair_body =
-    \\{"code":"19524002","controllerId":"phone-1","controllerName":"Phone"}
+    \\{"code":"19524002","controllerId":"p","controllerName":"Phone"}
 ;
 
 /// No route will ever match this, so these tests keep asserting 404 as routes are added.
@@ -979,12 +1012,64 @@ test "http_server: takes a request that names no version as the current one" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 2\r\n\r\n{}");
+
+    try testing.expectEqual(200, try connection.status());
+}
+
+test "http_server: crosses a pair request carrying the provisioned code" {
+    var stub: StubHandler = .{ .status = 200, .body = "{\"token\":\"t\"}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "pairing", .data = "19524002" });
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try std.fmt.bufPrint(&path_buffer, ".zig-cache/tmp/{s}/pairing", .{tmp.sub_path});
+
+    try testing.expect(atolla_http_set_pairing_code_path(path.ptr, path.len));
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
     try connection.send(std.fmt.comptimePrint(
         "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n{s}",
         .{ valid_pair_body.len, valid_pair_body },
     ));
 
     try testing.expectEqual(200, try connection.status());
+    try testing.expectEqualStrings(valid_pair_body, stub.seen[0..stub.seen_len]);
+}
+
+test "http_server: an unprovisioned daemon refuses to pair rather than crossing" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    try pair.setCodePath("/nonexistent/atolla/pairing");
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(std.fmt.comptimePrint(
+        "POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n{s}",
+        .{ valid_pair_body.len, valid_pair_body },
+    ));
+
+    try testing.expectEqual(401, try connection.status());
+    try testing.expectEqual(0, stub.seen_len);
 }
 
 test "http_server: answers /hello whatever version was asked for" {
@@ -1179,6 +1264,31 @@ test "http_server: a second server can be hosted after the first is stopped" {
     try testing.expect(atolla_http_port(second) != 0);
     try testing.expectEqual(404, try get(atolla_http_port(second)));
     try testing.expect(port != 0);
+}
+
+const peer: net.Ip4Address = .{ .bytes = .{ 10, 0, 0, 1 }, .port = 51_000 };
+
+test "http_server: keys a connection on the peer it came from" {
+    try testing.expectEqual(0x0a00_0001, limiterKey(.{ .ip4 = peer }));
+}
+
+test "http_server: keys the same peer whatever port it dialled from" {
+    const redialled: net.Ip4Address = .{ .bytes = peer.bytes, .port = 62_000 };
+
+    try testing.expectEqual(limiterKey(.{ .ip4 = peer }), limiterKey(.{ .ip4 = redialled }));
+}
+
+test "http_server: keys a v4-mapped address the same as the bare one" {
+    try testing.expectEqual(
+        limiterKey(.{ .ip4 = peer }),
+        limiterKey(.{ .ip6 = .fromIp4(peer) }),
+    );
+}
+
+test "http_server: keys two peers separately" {
+    const neighbour: net.Ip4Address = .{ .bytes = .{ 10, 0, 0, 2 }, .port = peer.port };
+
+    try testing.expect(limiterKey(.{ .ip4 = peer }) != limiterKey(.{ .ip4 = neighbour }));
 }
 
 test "http_server: refuses a host it cannot parse rather than binding something else" {

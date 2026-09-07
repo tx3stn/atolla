@@ -9,8 +9,10 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
-import { type PlayerConfig, stateDir } from './PlayerConfig';
+import { PAIRING_KEY } from './Pairing';
+import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
+import type { RandomBytes } from './Random';
 import { attachServer } from './Server';
 
 export interface DaemonDeps {
@@ -20,6 +22,7 @@ export interface DaemonDeps {
 	identity: PlayerIdentity;
 	log: LogWriter;
 	logLevel: LogLevel;
+	randomBytes: RandomBytes;
 }
 
 export function filterLogWriter(minimum: LogLevel, write: (entry: string) => void): LogWriter {
@@ -38,11 +41,19 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const log = getLogger('daemon');
 	log.debug('started', { dataDir: deps.config.dataDir, name: deps.config.name });
 
+	const secrets = secretsDir(deps.config);
+
 	// Before the queue is restored, so a bad port fails fast and the server answers while a large
 	// queue is still being read.
 	deps.httpServer.setLogLevel(deps.logLevel);
 	deps.httpServer.setHelloBody(helloBody(deps.identity));
-	attachServer(deps.httpServer);
+	deps.httpServer.setPairingCodePath(`${secrets}/${PAIRING_KEY}`);
+	attachServer(deps.httpServer, {
+		pair: {
+			randomBytes: deps.randomBytes,
+			secrets: makeFileKeyValueStore(deps.files, secrets),
+		},
+	});
 	log.info('listening', {
 		host: deps.config.bindAddress,
 		port: deps.httpServer.start(deps.config.bindAddress, deps.config.port),

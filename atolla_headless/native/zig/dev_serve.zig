@@ -3,6 +3,7 @@ const bridge = @import("bridge.zig");
 const hello = @import("hello.zig");
 const http_server = @import("http_server.zig");
 const log = @import("log.zig");
+const pair = @import("pair.zig");
 
 const default_port = 45889;
 
@@ -37,6 +38,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
         }
     else
         default_port;
+
+    if (args.next()) |path| {
+        try pair.setCodePath(path);
+        log.info("dev_serve", "pairing against the code in {s}", .{path});
+    }
 
     const io = std.Io.Threaded.global_single_threaded.io();
     const address: std.Io.net.IpAddress = .{ .ip4 = .unspecified(port) };

@@ -1,6 +1,6 @@
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { version } from 'atolla_core/src/version';
-import type { RandomBytes } from './Random';
+import { type RandomBytes, randomHex } from './Random';
 
 export const IDENTITY_KEY = 'identity';
 
@@ -24,17 +24,13 @@ export async function loadPlayerIdentity(
 	return { id: await loadOrCreateId(store, randomBytes), name, tier: 'tight', version };
 }
 
-function generateId(randomBytes: RandomBytes): string {
-	return Array.from(randomBytes(ID_BYTES), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 async function loadOrCreateId(store: KeyValueStore, randomBytes: RandomBytes): Promise<string> {
 	const stored = (await store.fetchString(IDENTITY_KEY).catch(() => '')).trim();
 	if (ID_PATTERN.test(stored)) {
 		return stored;
 	}
 
-	const id = generateId(randomBytes);
+	const id = randomHex(randomBytes, ID_BYTES);
 	await store.storeString(IDENTITY_KEY, id);
 
 	return id;

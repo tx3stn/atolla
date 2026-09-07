@@ -112,6 +112,24 @@ public:
 
                                  return Valdi::Value::undefined();
                              })))
+            .setMapValue("atollaHttpSetPairingCodePath",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const Valdi::StringBox path = callContext.getParameterAsString(0);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 const std::string_view bytes = path.toStringView();
+                                 if (!atolla_http_set_pairing_code_path(
+                                         reinterpret_cast<const unsigned char*>(bytes.data()),
+                                         bytes.size())) {
+                                     callContext.getExceptionTracker().onError(Valdi::Error(
+                                         "atollaHttpSetPairingCodePath: path too long to hold"));
+                                 }
+
+                                 return Valdi::Value::undefined();
+                             })))
             .setMapValue("atollaHttpStart",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {

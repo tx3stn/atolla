@@ -51,6 +51,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 					setHandler: () => {},
 					setHelloBody: () => {},
 					setLogLevel: () => {},
+					setPairingCodePath: () => {},
 					start: (_host: string, port: number) => port,
 					stop: () => {},
 				},

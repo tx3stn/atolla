@@ -1,3 +1,4 @@
+.zig-cache/
 node_modules/
 modules/app_shell/test/fixtures/jellyfin/library/artwork/*.jpg
 dist/

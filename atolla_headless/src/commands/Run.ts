@@ -47,6 +47,7 @@ export const CmdRun = {
 			identity,
 			log: filterLogWriter(logLevel, terminal.write),
 			logLevel,
+			randomBytes,
 		});
 	},
 } satisfies Cmd;

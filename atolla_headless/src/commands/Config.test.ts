@@ -40,6 +40,7 @@ function context(argv: Array<string>) {
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
+				setPairingCodePath: () => {},
 				start: (_host: string, port: number) => port,
 				stop: () => {},
 			},
