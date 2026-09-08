@@ -1,18 +1,13 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import type { PairRequest } from 'atolla_sync/src/api/generated';
 import type { Answer } from '../Http';
-import { addController, MEDIA_SERVER_KEY, type MediaServerCredentials } from '../Pairing';
+import { addController, MEDIA_SERVER_KEY } from '../Pairing';
 import type { RandomBytes } from '../Random';
 
 export interface PairDeps {
 	randomBytes: RandomBytes;
 	secrets: KeyValueStore;
-}
-
-interface PairRequest {
-	controllerId: string;
-	controllerName: string;
-	mediaServer?: MediaServerCredentials;
 }
 
 const log = getLogger('pair');

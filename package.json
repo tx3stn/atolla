@@ -56,7 +56,7 @@
 		"mock:generate": "bun tools/mock-server/generate.ts",
 		"mock:serve": "bun tools/mock-server/serve.ts",
 		"openapi:check": "bun run openapi:generate && git diff --exit-code -- atolla_sync/src/api/generated.ts",
-		"openapi:generate": "bunx --bun openapi-typescript@7.13.0 atolla_sync/openapi.yaml -o atolla_sync/src/api/generated.ts",
+		"openapi:generate": "bunx --bun openapi-typescript@7.13.0 atolla_sync/openapi.yaml --root-types --root-types-no-schema-prefix -o atolla_sync/src/api/generated.ts",
 		"openapi:lint": "vacuum lint atolla_sync/openapi.yaml --no-banner --all-results --details --hard-mode --silent",
 		"palette:preview": "bun ./tools/palette-preview/run.ts",
 		"projectsync": "bunx valdi projectsync --target //atolla_core:atolla_core_projectsync --target //atolla_jellyfin:atolla_jellyfin_projectsync --target //atolla_player:atolla_player_projectsync --target //atolla_sync:atolla_sync_projectsync --target //atolla_app:atolla_app_projectsync --target //atolla_headless:atolla_headless_projectsync",

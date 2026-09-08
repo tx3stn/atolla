@@ -13,13 +13,6 @@ const CODE_PATTERN = /^\d{8}$/;
 const DIGIT_CEILING = 250;
 const TOKEN_BYTES = 32;
 
-export interface MediaServerCredentials {
-	accessToken: string;
-	baseUrl: string;
-	deviceId: string;
-	userId: string;
-}
-
 export interface PairedController {
 	controllerId: string;
 	controllerName: string;

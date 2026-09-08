@@ -23,6 +23,7 @@ valdi_module(
     deps = [
         "//atolla_core",
         "//atolla_player",
+        "//atolla_sync",
         "@valdi//src/valdi_modules/src/valdi/file_system",
         "@valdi//src/valdi_modules/src/valdi/valdi_core",
     ],

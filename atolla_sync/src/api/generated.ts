@@ -488,6 +488,30 @@ export interface components {
     };
     pathItems: never;
 }
+export type ApiVersion = components['schemas']['ApiVersion'];
+export type Problem = components['schemas']['Problem'];
+export type HandlerError = components['schemas']['HandlerError'];
+export type Hello = components['schemas']['Hello'];
+export type MediaServer = components['schemas']['MediaServer'];
+export type PairRequest = components['schemas']['PairRequest'];
+export type PairAccepted = components['schemas']['PairAccepted'];
+export type ResponseBadRequest = components['responses']['BadRequest'];
+export type ResponsePairBadRequest = components['responses']['PairBadRequest'];
+export type ResponseInvalidPairingCode = components['responses']['InvalidPairingCode'];
+export type ResponseNotFound = components['responses']['NotFound'];
+export type ResponseMethodNotAllowed = components['responses']['MethodNotAllowed'];
+export type ResponseLengthRequired = components['responses']['LengthRequired'];
+export type ResponseBodyTooLarge = components['responses']['BodyTooLarge'];
+export type ResponseExpectationFailed = components['responses']['ExpectationFailed'];
+export type ResponseTooManyAttempts = components['responses']['TooManyAttempts'];
+export type ResponseHeadersTooLarge = components['responses']['HeadersTooLarge'];
+export type ResponseUnavailable = components['responses']['Unavailable'];
+export type ResponseBusy = components['responses']['Busy'];
+export type ResponseHandlerTimeout = components['responses']['HandlerTimeout'];
+export type ResponseNotImplemented = components['responses']['NotImplemented'];
+export type ResponseHandlerFailed = components['responses']['HandlerFailed'];
+export type ParameterApiVersion = components['parameters']['ApiVersion'];
+export type HeaderRetryAfter = components['headers']['RetryAfter'];
 export type $defs = Record<string, never>;
 export interface operations {
     getHello: {
