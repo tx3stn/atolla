@@ -41,17 +41,17 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const log = getLogger('daemon');
 	log.debug('started', { dataDir: deps.config.dataDir, name: deps.config.name });
 
-	const secrets = secretsDir(deps.config);
+	const secrets = makeFileKeyValueStore(deps.files, secretsDir(deps.config));
 
 	// Before the queue is restored, so a bad port fails fast and the server answers while a large
 	// queue is still being read.
 	deps.httpServer.setLogLevel(deps.logLevel);
 	deps.httpServer.setHelloBody(helloBody(deps.identity));
-	deps.httpServer.setPairingCodePath(`${secrets}/${PAIRING_KEY}`);
+	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
 	attachServer(deps.httpServer, {
 		pair: {
 			randomBytes: deps.randomBytes,
-			secrets: makeFileKeyValueStore(deps.files, secrets),
+			secrets,
 		},
 	});
 	log.info('listening', {

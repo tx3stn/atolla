@@ -301,9 +301,10 @@ pub const Server = struct {
         body: []const u8,
     ) !u16 {
         const held = self.pair_gate.acquire(self.io);
-        defer held.release();
+        const outcome = pair.handle(held, nowMs(self.io), key, body);
+        held.release();
 
-        return switch (pair.handle(held, nowMs(self.io), key, body)) {
+        return switch (outcome) {
             .problem => |value| problem.response(request, value, .{}),
             .cross => self.crossBridge(request, .pair, target, body),
         };
@@ -1032,6 +1033,7 @@ test "http_server: crosses a pair request carrying the provisioned code" {
     const path = try std.fmt.bufPrint(&path_buffer, ".zig-cache/tmp/{s}/pairing", .{tmp.sub_path});
 
     try testing.expect(atolla_http_set_pairing_code_path(path.ptr, path.len));
+    defer pair.setCodePath("/nonexistent/atolla/pairing") catch unreachable;
 
     var harness = try Harness.start(&server);
     defer harness.stop();

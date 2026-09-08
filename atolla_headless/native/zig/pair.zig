@@ -74,7 +74,9 @@ pub fn handle(held: Gate.Held, now_ms: i64, key: rate_limit.Key, body: []const u
         .allow => {},
     }
 
-    const parsed = parse(body) catch {
+    var scratch: [max_body_bytes]u8 = undefined;
+
+    const parsed = parse(&scratch, body) catch {
         limiter.record(now_ms, key, .{ .failure = .key });
         return .{ .problem = problem.malformed_body };
     };
@@ -94,12 +96,12 @@ pub fn handle(held: Gate.Held, now_ms: i64, key: rate_limit.Key, body: []const u
     return .cross;
 }
 
-/// The returned strings point into `body` and live as long as it does.
-pub fn parse(body: []const u8) ParseError!Body {
+/// The returned strings point into `body`, or into `scratch` for a string that had to be
+/// unescaped, and live as long as those buffers do.
+pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
     // Bounded rather than the heap, so an oversized body is a parse error instead of an
     // allocation failure on a Pi Zero.
-    var scratch: [max_body_bytes]u8 = undefined;
-    var fixed: std.heap.FixedBufferAllocator = .init(&scratch);
+    var fixed: std.heap.FixedBufferAllocator = .init(scratch);
 
     // The version header gates compatibility, so a v1 daemon must not refuse a body that a later
     // client added a field to.
@@ -125,11 +127,19 @@ pub fn parse(body: []const u8) ParseError!Body {
 const testing = std.testing;
 
 const minimal =
-    \\{"code":"19524002","controllerId":"phone-1","controllerName":"Tristan's phone"}
+    \\{"code":"19524002","controllerId":"phone-1","controllerName":"phone"}
 ;
 
 const wrong_code =
     \\{"code":"00000000","controllerId":"phone-1","controllerName":"Phone"}
+;
+
+const escaped_code =
+    \\{"code":"1952400\u0032","controllerId":"phone-1","controllerName":"Phone"}
+;
+
+const letters_code =
+    \\{"code":"password","controllerId":"phone-1","controllerName":"Phone"}
 ;
 
 const provisioned =
@@ -138,17 +148,34 @@ const provisioned =
     \\ "accessToken":"tok","deviceId":"d1"}}
 ;
 
+fn pointsInto(slice: []const u8, buffer: []const u8) bool {
+    const start = @intFromPtr(buffer.ptr);
+    const address = @intFromPtr(slice.ptr);
+
+    return address >= start and address + slice.len <= start + buffer.len;
+}
+
+test "pair: the strings it returns live in the buffers the caller owns" {
+    var scratch: [max_body_bytes]u8 = undefined;
+    const body = try parse(&scratch, escaped_code);
+
+    try testing.expect(pointsInto(body.code, &scratch));
+    try testing.expect(pointsInto(body.controllerId, escaped_code));
+}
+
 test "pair: reads the fields a controller must send" {
-    const body = try parse(minimal);
+    var scratch: [max_body_bytes]u8 = undefined;
+    const body = try parse(&scratch, minimal);
 
     try testing.expectEqualStrings("19524002", body.code);
     try testing.expectEqualStrings("phone-1", body.controllerId);
-    try testing.expectEqualStrings("Tristan's phone", body.controllerName);
+    try testing.expectEqualStrings("phone", body.controllerName);
     try testing.expectEqual(null, body.mediaServer);
 }
 
 test "pair: reads the provisioning payload when one is sent" {
-    const body = try parse(provisioned);
+    var scratch: [max_body_bytes]u8 = undefined;
+    const body = try parse(&scratch, provisioned);
     const media_server = body.mediaServer.?;
 
     try testing.expectEqualStrings("http://jellyfin.local:8096", media_server.baseUrl);
@@ -158,34 +185,43 @@ test "pair: reads the provisioning payload when one is sent" {
 }
 
 test "pair: a body without a media server is legal" {
-    try testing.expect((try parse(minimal)).mediaServer == null);
+    var scratch: [max_body_bytes]u8 = undefined;
+
+    try testing.expect((try parse(&scratch, minimal)).mediaServer == null);
 }
 
 test "pair: refuses a body that is not JSON at all" {
-    try testing.expectError(error.Malformed, parse(""));
-    try testing.expectError(error.Malformed, parse("{"));
-    try testing.expectError(error.Malformed, parse("not json"));
-    try testing.expectError(error.Malformed, parse("[]"));
-    try testing.expectError(error.Malformed, parse("null"));
+    var scratch: [max_body_bytes]u8 = undefined;
+
+    try testing.expectError(error.Malformed, parse(&scratch, ""));
+    try testing.expectError(error.Malformed, parse(&scratch, "{"));
+    try testing.expectError(error.Malformed, parse(&scratch, "not json"));
+    try testing.expectError(error.Malformed, parse(&scratch, "[]"));
+    try testing.expectError(error.Malformed, parse(&scratch, "null"));
 }
 
 test "pair: refuses a body missing a field it needs" {
-    try testing.expectError(error.Malformed, parse("{\"code\":\"19524002\"}"));
+    var scratch: [max_body_bytes]u8 = undefined;
+
+    try testing.expectError(error.Malformed, parse(&scratch, "{\"code\":\"19524002\"}"));
     try testing.expectError(
         error.Malformed,
-        parse("{\"controllerId\":\"phone-1\",\"controllerName\":\"Phone\"}"),
+        parse(&scratch, "{\"controllerId\":\"phone-1\",\"controllerName\":\"Phone\"}"),
     );
 }
 
 test "pair: refuses a field of the wrong type" {
+    var scratch: [max_body_bytes]u8 = undefined;
+
     try testing.expectError(
         error.Malformed,
-        parse("{\"code\":19524002,\"controllerId\":\"p\",\"controllerName\":\"P\"}"),
+        parse(&scratch, "{\"code\":19524002,\"controllerId\":\"p\",\"controllerName\":\"P\"}"),
     );
 }
 
 test "pair: ignores a field it does not know" {
-    const body = try parse(
+    var scratch: [max_body_bytes]u8 = undefined;
+    const body = try parse(&scratch,
         \\{"code":"19524002","controllerId":"p","controllerName":"P","futureThing":{"a":[1,2]}}
     );
 
@@ -193,17 +229,20 @@ test "pair: ignores a field it does not know" {
 }
 
 test "pair: refuses an empty code or identifier" {
+    var scratch: [max_body_bytes]u8 = undefined;
+
     try testing.expectError(
         error.Malformed,
-        parse("{\"code\":\"\",\"controllerId\":\"p\",\"controllerName\":\"P\"}"),
+        parse(&scratch, "{\"code\":\"\",\"controllerId\":\"p\",\"controllerName\":\"P\"}"),
     );
     try testing.expectError(
         error.Malformed,
-        parse("{\"code\":\"19524002\",\"controllerId\":\"\",\"controllerName\":\"P\"}"),
+        parse(&scratch, "{\"code\":\"19524002\",\"controllerId\":\"\",\"controllerName\":\"P\"}"),
     );
 }
 
 test "pair: refuses a field longer than its cap" {
+    var scratch: [max_body_bytes]u8 = undefined;
     var buffer: [max_body_bytes]u8 = undefined;
     const long = try std.fmt.bufPrint(
         &buffer,
@@ -211,22 +250,26 @@ test "pair: refuses a field longer than its cap" {
         .{"n" ** (max_name_bytes + 1)},
     );
 
-    try testing.expectError(error.Malformed, parse(long));
+    try testing.expectError(error.Malformed, parse(&scratch, long));
 }
 
 test "pair: refuses a provisioning payload with a field missing" {
+    var scratch: [max_body_bytes]u8 = undefined;
+
     try testing.expectError(
         error.Malformed,
-        parse(
+        parse(&scratch,
             \\{"code":"1","controllerId":"p","controllerName":"P","mediaServer":{"baseUrl":"http://x"}}
         ),
     );
 }
 
 test "pair: refuses a provisioning payload with an empty field" {
+    var scratch: [max_body_bytes]u8 = undefined;
+
     try testing.expectError(
         error.Malformed,
-        parse(
+        parse(&scratch,
             \\{"code":"1","controllerId":"p","controllerName":"P","mediaServer":{"baseUrl":"",
             \\ "userId":"u","accessToken":"t","deviceId":"d"}}
         ),
@@ -234,11 +277,12 @@ test "pair: refuses a provisioning payload with an empty field" {
 }
 
 test "pair: refuses a body large enough to exhaust its scratch" {
+    var scratch: [max_body_bytes]u8 = undefined;
     var buffer: [max_body_bytes]u8 = undefined;
     @memset(&buffer, 'x');
     buffer[0] = '{';
 
-    try testing.expectError(error.Malformed, parse(&buffer));
+    try testing.expectError(error.Malformed, parse(&scratch, &buffer));
 }
 
 const unprovisioned = "/nonexistent/atolla/pairing";
@@ -257,12 +301,28 @@ test "pair: hands a body carrying the provisioned code on to be answered elsewhe
 
     var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     try provision(&tmp, &buffer, "19524002");
+    defer setCodePath(unprovisioned) catch unreachable;
 
     var gate: Gate = .{};
     const held = gate.acquire(testing.io);
     defer held.release();
 
     try testing.expectEqual(Outcome.cross, handle(held, 0, caller, minimal));
+}
+
+test "pair: accepts a code sent with a json escape in it" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    try provision(&tmp, &buffer, "19524002");
+    defer setCodePath(unprovisioned) catch unreachable;
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    try testing.expectEqual(Outcome.cross, handle(held, 0, caller, escaped_code));
 }
 
 test "pair: refuses a body it cannot parse without consulting the code" {
@@ -288,12 +348,31 @@ test "pair: refuses every attempt while no code is provisioned" {
     try testing.expectEqual(401, outcome.problem.status);
 }
 
+test "pair: refuses a code file a person could have typed by hand" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    try provision(&tmp, &buffer, "password");
+    defer setCodePath(unprovisioned) catch unreachable;
+
+    var gate: Gate = .{};
+    const held = gate.acquire(testing.io);
+    defer held.release();
+
+    try testing.expectEqualStrings(
+        "invalid_pairing_code",
+        handle(held, 0, caller, letters_code).problem.code,
+    );
+}
+
 test "pair: refuses a code that is not the provisioned one" {
     var tmp = testing.tmpDir(.{});
     defer tmp.cleanup();
 
     var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     try provision(&tmp, &buffer, "00000000");
+    defer setCodePath(unprovisioned) catch unreachable;
 
     var gate: Gate = .{};
     const held = gate.acquire(testing.io);
@@ -353,6 +432,7 @@ test "pair: a successful pair clears the failures behind it" {
 
     var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     try provision(&tmp, &buffer, "19524002");
+    defer setCodePath(unprovisioned) catch unreachable;
 
     var gate: Gate = .{};
     const held = gate.acquire(testing.io);

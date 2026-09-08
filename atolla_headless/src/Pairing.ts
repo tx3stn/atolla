@@ -81,6 +81,11 @@ function generateCode(randomBytes: RandomBytes): string {
 
 	while (digits.length < CODE_DIGITS) {
 		const [byte] = randomBytes(1);
+
+		if (byte === undefined) {
+			throw new Error('entropy source returned no bytes');
+		}
+
 		if (byte < DIGIT_CEILING) {
 			digits += byte % 10;
 		}

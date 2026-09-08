@@ -14,6 +14,11 @@ describe('randomHex', () => {
 		expect(randomHex(bytes([0x00, 0x05, 0x0f]), 3)).toBe('00050f');
 	});
 
+	it('refuses fewer bytes than it asked for', () => {
+		expect(() => randomHex(bytes([]), 32)).toThrow();
+		expect(() => randomHex(bytes([0xa3]), 32)).toThrow();
+	});
+
 	it('asks the generator for the number of bytes it was told', () => {
 		let asked = 0;
 

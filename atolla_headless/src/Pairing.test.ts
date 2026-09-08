@@ -191,8 +191,6 @@ describe('addController', () => {
 		]);
 	});
 
-	// The Zig side parses this file into a fixed buffer, so a household that pairs its way past the
-	// cap must lose the oldest rather than the whole file.
 	it('drops the oldest controller once the cap is reached', async () => {
 		const store = new InMemoryKeyValueStore();
 		const held = Array.from({ length: MAX_CONTROLLERS }, (_, index) => ({

@@ -27,6 +27,7 @@ fn normalized(text: []const u8) ?Code {
 
     for (text) |byte| {
         if (std.ascii.isWhitespace(byte)) continue;
+        if (!std.ascii.isDigit(byte)) return null;
         if (length == digits) return null;
 
         code[length] = byte;
@@ -76,6 +77,11 @@ test "credentials: reads a file provisioned with the code spaced out" {
 test "credentials: refuses a file holding the wrong number of digits" {
     try testing.expectEqual(null, try readFixture("1952400"));
     try testing.expectEqual(null, try readFixture("195240021"));
+}
+
+test "credentials: refuses a file holding something other than digits" {
+    try testing.expectEqual(null, try readFixture("password"));
+    try testing.expectEqual(null, try readFixture("1952400x"));
 }
 
 test "credentials: refuses a file with no code in it" {

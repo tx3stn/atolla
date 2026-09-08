@@ -6,8 +6,10 @@ import {
 	type LogWriter,
 } from 'atolla_core/src/services/Logger';
 import { filterLogWriter, startDaemon } from './Daemon';
-import type { StoreFiles } from './FileKeyValueStore';
+import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import type { HttpServer } from './Http';
+import { PAIRING_KEY } from './Pairing';
+import { secretsDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 
 const CONFIG = {
@@ -147,6 +149,33 @@ describe('startDaemon', () => {
 		});
 
 		expect(started).toEqual(['127.0.0.1:45890']);
+	});
+
+	it('points the native side at the file the secrets store keeps the code in', async () => {
+		const { log } = capture();
+		const contents = new Map<string, string>();
+		let codePath = '';
+
+		void startDaemon({
+			config: { ...CONFIG },
+			files: fakeFiles(contents),
+			httpServer: {
+				...fakeHttpServer(),
+				setPairingCodePath: (path) => {
+					codePath = path;
+				},
+			},
+			identity: IDENTITY,
+			log,
+			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
+		});
+		await makeFileKeyValueStore(fakeFiles(contents), secretsDir(CONFIG)).storeString(
+			PAIRING_KEY,
+			'19524002',
+		);
+
+		expect(contents.get(codePath)).toBe('19524002');
 	});
 
 	it('starts the control server before reading the queue, so a slow restore cannot delay it', async () => {

@@ -22,8 +22,8 @@ describe('helloBody', () => {
 	});
 
 	it('survives a name that needs escaping', () => {
-		const body = helloBody({ ...IDENTITY, name: 'Tristan\'s "Den"' });
+		const body = helloBody({ ...IDENTITY, name: 'Big Dave\'s "Den"' });
 
-		expect(JSON.parse(body).name).toBe('Tristan\'s "Den"');
+		expect(JSON.parse(body).name).toBe('Big Dave\'s "Den"');
 	});
 });

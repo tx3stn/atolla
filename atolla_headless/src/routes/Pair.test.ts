@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { consoleLogWriter, Logger, type LogWriter } from 'atolla_core/src/services/Logger';
+import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { CONTROLLERS_KEY, MEDIA_SERVER_KEY } from '../Pairing';
 import type { RandomBytes } from '../Random';
@@ -34,20 +33,7 @@ function body(extra: Record<string, unknown> = {}): string {
 	});
 }
 
-function _capture(): Array<string> {
-	const entries: Array<string> = [];
-	const writer: LogWriter = (_level, entry) => entries.push(entry);
-
-	Logger.setWriter(writer);
-
-	return entries;
-}
-
 describe('handlePair', () => {
-	afterEach(() => {
-		Logger.setWriter(consoleLogWriter);
-	});
-
 	it('answers with the token it minted', async () => {
 		const answer = await handlePair(fixture().deps, body());
 
