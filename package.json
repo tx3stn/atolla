@@ -55,6 +55,7 @@
 		"mobsf:ui": "docker run -it --rm -p 8000:8000 opensecurity/mobile-security-framework-mobsf:latest",
 		"mock:generate": "bun tools/mock-server/generate.ts",
 		"mock:serve": "bun tools/mock-server/serve.ts",
+		"openapi:lint": "vacuum lint atolla_headless/openapi.yaml --no-banner --all-results --details --hard-mode --silent",
 		"palette:preview": "bun ./tools/palette-preview/run.ts",
 		"projectsync": "bunx valdi projectsync --target //atolla_core:atolla_core_projectsync --target //atolla_jellyfin:atolla_jellyfin_projectsync --target //atolla_player:atolla_player_projectsync --target //atolla_app:atolla_app_projectsync --target //atolla_headless:atolla_headless_projectsync",
 		"projectsync:all": "bun run projectsync --target //atolla_app_dev:atolla_app_dev_projectsync --target //tools/palette-preview:palette-preview_projectsync",

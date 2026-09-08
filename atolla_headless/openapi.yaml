@@ -1,0 +1,800 @@
+openapi: 3.1.0
+x-lint-ignore:
+  - owasp-rate-limit
+
+info:
+  title: atolla control API
+  version: '1'
+  summary: The HTTP surface a controller uses to pair with and drive a headless atolla player.
+  contact:
+    email: no@email.com
+    name: atolla
+    url: https://github.com/tx3stn/atolla
+  license:
+    name: GPL-3.0-only
+    url: https://www.gnu.org/licenses/gpl-3.0.html
+  description: |
+    One daemon per speaker-attached device, listening on port 45889 by default. This document
+    describes what the daemon answers today, not what the protocol will grow into.
+
+    `http_server.zig` answers anything it can reject without crossing into TypeScript: framing,
+    per-connection limits, method and path matching, the version header, the pairing-code
+    comparison, and the protocol shape of a body. Surviving requests cross the bridge once, and
+    `Server.ts` switches on the route.
+
+    ### Answers that precede route selection
+
+    Four refusals are decided before an operation is chosen, so they are listed under
+    `components.responses` rather than on any operation:
+
+    | Response | Cause |
+    |---|---|
+    | `NotFound` | a path not in the router's table |
+    | `MethodNotAllowed` | a path in the table reached with another method |
+    | `HeadersTooLarge` | a request head over 8 KiB |
+    | `Busy` | the connection cap (32) was already reached, so no request was read |
+
+servers:
+  - url: http://{host}:{port}
+    description: A player on the local network.
+    variables:
+      host:
+        default: 127.0.0.1
+        description: The address the daemon bound, or the one a beacon advertised.
+      port:
+        default: '45889'
+        description: The control port, overridable with `atolla config --port`.
+    x-lint-ignore: owasp-security-hosts-https-oas3
+
+tags:
+  - name: discovery
+    description: Learning what a player is and what it speaks, before holding a credential.
+  - name: pairing
+    description: Trading the player's pairing code for a controller token.
+  - name: control
+    description: Driving playback and mirroring player state.
+
+paths:
+  /hello:
+    get:
+      operationId: getHello
+      tags: [discovery]
+      security: []
+      summary: Identity and the API versions this player speaks.
+      description: |
+        Unauthenticated, and the one route that answers whatever version it is asked for: refusing
+        discovery on a version mismatch would leave a mixed-version fleet unable to find out why.
+
+        The body is built once at startup and served verbatim by the server, so it keeps answering
+        while the JS thread is busy. Every field is a process-lifetime constant; anything that
+        changes lives in the beacon or `/state`. Takes no body.
+      responses:
+        '200':
+          description: The player's identity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hello'
+              example:
+                apiVersions: [1]
+                id: 4f3c9a1de8b27065
+                name: Kitchen
+                tier: tight
+                v: 1
+                version: 0.0.0
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+
+  /pair:
+    post:
+      operationId: pair
+      tags: [pairing]
+      security: []
+      x-lint-ignore: 
+        - owasp-protection-global-unsafe-strict
+        - owasp-protection-global-unsafe
+      summary: Trade the player's pairing code for a controller token.
+      description: |
+        The code is compared by the server, so a wrong one never reaches TypeScript. Whitespace is
+        stripped before the comparison, which is what lets a controller submit the spaced form the
+        player displays. A daemon with no code provisioned refuses every attempt.
+
+        The body may carry a media server for the player to use. That is a Jellyfin token the
+        controller mints for this player, not the user's own session token, so a compromised
+        speaker costs one revocable credential.
+
+        Bodies are capped at 4 KiB and must declare a `Content-Length`.
+
+        Failed attempts are throttled per caller address. Three refusals earn a `429` carrying
+        `Retry-After: 1`. A throttled attempt records nothing, so hammering does not extend the
+        block: wait it out and the next wrong code is a `401` again, with the one after it held for
+        2 seconds, then 4. A successful pair clears the failures behind it.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: true
+        description: |
+          The pairing code, who is pairing, and optionally the media server credential the player
+          should use on its own behalf.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairRequest'
+            examples:
+              minimal:
+                summary: Pair without provisioning a media server.
+                value:
+                  code: '19524002'
+                  controllerId: phone-1
+                  controllerName: pixel 8
+              provisioned:
+                summary: Pair and hand the player its own Jellyfin credential.
+                value:
+                  code: '19524002'
+                  controllerId: phone-1
+                  controllerName: pixel 9
+                  mediaServer:
+                    accessToken: 3d9f0c1b7a5e4826
+                    baseUrl: http://jellyfin.local:8096
+                    deviceId: atolla-kitchen
+                    userId: 8b1f2c3d4e5f6071
+      responses:
+        '200':
+          description: Paired. The token authenticates every later request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairAccepted'
+              example:
+                token: 7c1e5a9b3d8f204617ca0be9352d8f7461a0c3d95e28b7f4016cad3928bf5e7d
+        '400':
+          $ref: '#/components/responses/PairBadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidPairingCode'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyAttempts'
+        '500':
+          $ref: '#/components/responses/HandlerFailed'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/HandlerTimeout'
+
+  /intent:
+    post:
+      operationId: sendIntent
+      tags: [control]
+      security: []
+      x-lint-ignore: 
+       - owasp-protection-global-unsafe-strict
+       - owasp-protection-global-unsafe
+      summary: Act on the player's queue or playback.
+      description: |
+        Not implemented: the body is read, capped at 4 KiB, handed across the bridge and answered
+        `501`. The intent vocabulary and the token check arrive together in the intent slice, and
+        until then this route is reachable by anything on the LAN.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: false
+        description: |
+          Read and counted against the 4 KiB cap, then handed across the bridge, where nothing
+          looks at it yet.
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Any JSON object. Nothing reads it yet.
+            example: {}
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/HandlerTimeout'
+
+  /state:
+    get:
+      operationId: getState
+      tags: [control]
+      security: []
+      summary: The player's queue, playback and group state.
+      description: |
+        Not implemented: the request crosses the bridge and is answered `501`. A query string is
+        accepted and passed through, but nothing reads it, so the `?since=` long poll and the
+        snapshot schema belong to the state slice. Until then this route is reachable by anything
+        on the LAN.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/HandlerTimeout'
+
+components:
+  parameters:
+    ApiVersion:
+      name: Atolla-API-Version
+      in: header
+      required: false
+      description: |
+        The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
+        it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
+        including a non-integer, is refused with `unsupported_api_version`, whose `supported`
+        member reports what the daemon does speak. `GET /hello` is the documented exception and
+        answers any version.
+      schema:
+        $ref: '#/components/schemas/ApiVersion'
+        default: 1
+
+  headers:
+    RetryAfter:
+      description: Seconds to wait before trying again, repeating the body's `retryAfterSeconds`.
+      required: true
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 60
+        description: The throttle doubles from 1 second and the limiter caps it at 60.
+        examples: [1]
+
+  schemas:
+    ApiVersion:
+      type: integer
+      format: int32
+      const: 1
+      minimum: 1
+      maximum: 1
+      description: |
+        A version of this contract. There is one, and this is the single place that changes when a
+        second one lands.
+      examples: [1]
+
+    Problem:
+      type: object
+      description: |
+        RFC 9457 problem details, served as `application/problem+json`. `type` is omitted rather
+        than written as `about:blank`, which the RFC says is what an absent `type` means, keeping
+        it free for a documentation URL later. Extension members are flat alongside the standard
+        ones and are dropped when a given problem does not carry them.
+
+        `code` is the stable vocabulary a client switches on. `title` is prose and may be reworded.
+      required: [code, status, title]
+      additionalProperties: false
+      examples:
+        - code: not_found
+          status: 404
+          title: not found
+      properties:
+        code:
+          type: string
+          description: |
+            The machine-readable name of this refusal, and the whole vocabulary the daemon can
+            answer with. `internal` is the fallback body used when a problem will not fit its
+            render buffer, which is a bug rather than a runtime condition.
+          enum:
+            - body_too_large
+            - busy
+            - expectation_failed
+            - handler_timeout
+            - headers_too_large
+            - incomplete_body
+            - internal
+            - invalid_pairing_code
+            - length_required
+            - malformed_body
+            - method_not_allowed
+            - not_found
+            - too_many_attempts
+            - unavailable
+            - unsupported_api_version
+          examples: [invalid_pairing_code]
+        detail:
+          type: string
+          maxLength: 128
+          pattern: '^[ -~]+$'
+          description: |
+            Rarely sent. Naming the field that failed tells an unauthenticated caller which field
+            to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
+            and short: the whole rendered problem has to fit a 256-byte buffer or the daemon falls
+            back to `internal`.
+          examples: ['try later']
+        retryAfterSeconds:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 60
+          description: |
+            How long to wait before trying again, repeated in the `Retry-After` header. The
+            throttle doubles from 1 second and the limiter caps it at 60.
+          examples: [1]
+        status:
+          type: integer
+          format: int32
+          minimum: 400
+          maximum: 599
+          description: The HTTP status this body accompanies.
+          examples: [400]
+        supported:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiVersion'
+          description: The API versions the daemon speaks. Sent with `unsupported_api_version`.
+          examples:
+            - [1]
+        title:
+          type: string
+          maxLength: 64
+          pattern: '^[a-z ]+$'
+          description: |
+            A short human-readable summary of the refusal. Every one the daemon carries is
+            lowercase words, and it is prose: switch on `code`, not on this.
+          examples: ['not found']
+
+    HandlerError:
+      type: object
+      description: |
+        What a TypeScript handler answers when it is not implemented or it threw. Served under
+        `application/problem+json` despite not being a problem, because the bridge picks the
+        content type from the status alone.
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+          enum: [internalError, notImplemented]
+          description: Which of the two handler failures this is.
+          examples: [notImplemented]
+
+    Hello:
+      type: object
+      description: A player's identity, constant for the life of the process.
+      required: [apiVersions, id, name, tier, v, version]
+      additionalProperties: false
+      properties:
+        apiVersions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiVersion'
+          minItems: 1
+          description: Every version of this contract the daemon speaks.
+          examples:
+            - [1]
+        id:
+          type: string
+          pattern: '^[0-9a-f]{16}$'
+          description: The player's stable identifier, minted once and kept in its data directory.
+          examples: [4f3c9a1de8b27065]
+        name:
+          type: string
+          maxLength: 256
+          pattern: '^[^\r\n]*$'
+          description: |
+            The display name from the player's config, empty if none was set. The whole `/hello`
+            body has to fit a 1 KiB buffer, so a very long name stops the route answering at all.
+          examples: [Kitchen]
+        tier:
+          type: string
+          enum: [loose, tight]
+          description: |
+            How tightly this player can synchronise. A daemon is `tight`; a phone joining a group
+            is `loose`.
+          examples: [tight]
+        v:
+          $ref: '#/components/schemas/ApiVersion'
+          description: |
+            The current API version, duplicating `apiVersions`' last entry. Short because the
+            beacon repeats it in every datagram, where there is no header to carry it.
+          examples: [1]
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$'
+          description: The atolla build the daemon is running.
+          examples: ['0.0.0']
+
+    MediaServer:
+      type: object
+      description: A media server credential for the player to use on its own behalf.
+      required: [accessToken, baseUrl, deviceId, userId]
+      additionalProperties: true
+      properties:
+        accessToken:
+          type: string
+          minLength: 1
+          maxLength: 512
+          pattern: '^[ -~]+$'
+          description: A token minted for this player, revocable without touching the user's login.
+          examples: [3d9f0c1b7a5e4826]
+        baseUrl:
+          type: string
+          minLength: 1
+          maxLength: 512
+          format: uri
+          description: Where the media server answers.
+          examples: ['http://jellyfin.local:8096']
+        deviceId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          description: The device the token was minted against.
+          examples: [atolla-kitchen]
+        userId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          description: The media server account the token belongs to.
+          examples: [8b1f2c3d4e5f6071]
+
+    PairRequest:
+      type: object
+      description: |
+        Every length cap here is enforced by `pair.zig` before the request crosses the bridge, and
+        an unknown member is ignored so a v1 daemon does not refuse a body a later controller added
+        a field to.
+      required: [code, controllerId, controllerName]
+      additionalProperties: true
+      properties:
+        code:
+          type: string
+          minLength: 8
+          maxLength: 8
+          pattern: '^\d{8}$'
+          description: |
+            The player's pairing code. The daemon strips whitespace before comparing, so the
+            spaced form the player displays is accepted too, and it enforces only a 32-byte cap
+            here: a code of the wrong shape is a `401` rather than a `400`, so the caller learns
+            nothing about it.
+          examples: ['19524002']
+        controllerId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          description: |
+            Stable per controller. Pairing again under an id the player already knows replaces that
+            record, so the old token dies.
+          examples: [phone-1]
+        controllerName:
+          type: string
+          maxLength: 128
+          pattern: '^[^\r\n]*$'
+          description: |
+            Shown to the user when they review what is paired. May be empty, but must be present:
+            a body omitting it is refused.
+          examples: ['pixel 8']
+        mediaServer:
+          $ref: '#/components/schemas/MediaServer'
+
+    PairAccepted:
+      type: object
+      description: The credential the controller sends on every later request.
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: |
+            256 bits of entropy, hex encoded. Nothing types this, so it shares no shape with the
+            pairing code.
+          examples:
+            - 7c1e5a9b3d8f204617ca0be9352d8f7461a0c3d95e28b7f4016cad3928bf5e7d
+
+  examples:
+    incompleteBody:
+      description: The body stopped short of its declared length.
+      value:
+        code: incomplete_body
+        status: 400
+        title: incomplete body
+    malformedBody:
+      description: The body is not the shape this route accepts.
+      value:
+        code: malformed_body
+        status: 400
+        title: malformed body
+    unsupportedApiVersion:
+      description: The version header named something the daemon does not speak.
+      value:
+        code: unsupported_api_version
+        status: 400
+        supported: [1]
+        title: unsupported api version
+    invalidPairingCode:
+      description: The code did not match, or the daemon has none provisioned.
+      value:
+        code: invalid_pairing_code
+        status: 401
+        title: invalid pairing code
+    notFound:
+      description: No route serves this path.
+      value:
+        code: not_found
+        status: 404
+        title: not found
+    methodNotAllowed:
+      description: A route serves this path, but not by this method.
+      value:
+        code: method_not_allowed
+        status: 405
+        title: method not allowed
+    lengthRequired:
+      description: The request was chunked, so its length was not known up front.
+      value:
+        code: length_required
+        status: 411
+        title: length required
+    bodyTooLarge:
+      description: The declared length exceeds the route's cap, so no byte of it was read.
+      value:
+        code: body_too_large
+        status: 413
+        title: body too large
+    expectationFailed:
+      description: The request carried an `Expect` the daemon cannot meet.
+      value:
+        code: expectation_failed
+        status: 417
+        title: expectation failed
+    tooManyAttempts:
+      description: This caller has spent its pairing attempts.
+      value:
+        code: too_many_attempts
+        retryAfterSeconds: 1
+        status: 429
+        title: too many attempts
+    headersTooLarge:
+      description: The request head did not fit the daemon's buffer.
+      value:
+        code: headers_too_large
+        status: 431
+        title: headers too large
+    unavailable:
+      description: Nothing was attached to answer, or every bridge slot was in use.
+      value:
+        code: unavailable
+        status: 503
+        title: unavailable
+    busy:
+      description: The connection cap was reached, so the request was refused unread.
+      value:
+        code: busy
+        retryAfterSeconds: 1
+        status: 503
+        title: busy
+    handlerTimeout:
+      description: The handler did not answer within 28 seconds.
+      value:
+        code: handler_timeout
+        status: 504
+        title: handler timeout
+    notImplemented:
+      description: The route is in the table but nothing serves it yet.
+      value:
+        error: notImplemented
+    internalError:
+      description: The handler threw.
+      value:
+        error: internalError
+
+  responses:
+    BadRequest:
+      description: |
+        Refused before the route could act. `incomplete_body` means the connection went quiet
+        mid-body; `unsupported_api_version` means the version header named something else.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            incompleteBody:
+              $ref: '#/components/examples/incompleteBody'
+            unsupportedApiVersion:
+              $ref: '#/components/examples/unsupportedApiVersion'
+
+    PairBadRequest:
+      description: |
+        As `BadRequest`, plus `malformed_body` for a body that is not JSON, is missing a member, or
+        carries one past its cap. The pairing code is not consulted, and the attempt counts against
+        this caller's address only.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            incompleteBody:
+              $ref: '#/components/examples/incompleteBody'
+            malformedBody:
+              $ref: '#/components/examples/malformedBody'
+            unsupportedApiVersion:
+              $ref: '#/components/examples/unsupportedApiVersion'
+
+    InvalidPairingCode:
+      description: |
+        The submitted code is not the provisioned one, or nothing is provisioned. The two are
+        deliberately indistinguishable.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidPairingCode:
+              $ref: '#/components/examples/invalidPairingCode'
+
+    NotFound:
+      description: No route serves the requested path. Answered before an operation is selected.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            notFound:
+              $ref: '#/components/examples/notFound'
+
+    MethodNotAllowed:
+      description: |
+        A route serves the path, but not by the method used. Answered before an operation is
+        selected.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            methodNotAllowed:
+              $ref: '#/components/examples/methodNotAllowed'
+
+    LengthRequired:
+      description: |
+        The request used chunked transfer encoding. The daemon refuses a body whose size it cannot
+        know before reading it.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            lengthRequired:
+              $ref: '#/components/examples/lengthRequired'
+
+    BodyTooLarge:
+      description: |
+        The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
+        for any request and tighter per route: 4 KiB for `/pair`, `/intent` and `/state`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            bodyTooLarge:
+              $ref: '#/components/examples/bodyTooLarge'
+
+    ExpectationFailed:
+      description: |
+        The request carried an `Expect` other than `100-continue`. `100-continue` itself is
+        honoured, and answered before a rejection that would otherwise invite the upload it exists
+        to prevent.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            expectationFailed:
+              $ref: '#/components/examples/expectationFailed'
+
+    TooManyAttempts:
+      description: This caller must wait before pairing again.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            tooManyAttempts:
+              $ref: '#/components/examples/tooManyAttempts'
+
+    HeadersTooLarge:
+      description: |
+        The request head exceeded 8 KiB, so it was never parsed. Answered before an operation is
+        selected, with the status line framed by hand.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            headersTooLarge:
+              $ref: '#/components/examples/headersTooLarge'
+
+    Unavailable:
+      description: |
+        The request could not be handed to TypeScript: nothing is attached to answer, or every
+        bridge slot was in use.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            unavailable:
+              $ref: '#/components/examples/unavailable'
+
+    Busy:
+      description: |
+        The daemon is already serving its maximum of 32 connections, so this one was refused
+        without a request being read.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            busy:
+              $ref: '#/components/examples/busy'
+
+    HandlerTimeout:
+      description: The handler was given the request but did not answer within 28 seconds.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            handlerTimeout:
+              $ref: '#/components/examples/handlerTimeout'
+
+    NotImplemented:
+      description: |
+        The route is in the router's table but no handler serves it yet. The body is not a problem
+        despite the content type.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HandlerError'
+          examples:
+            notImplemented:
+              $ref: '#/components/examples/notImplemented'
+
+    HandlerFailed:
+      description: |
+        The handler threw. The body is not a problem despite the content type, and the daemon's log
+        holds what went wrong.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/HandlerError'
+          examples:
+            internalError:
+              $ref: '#/components/examples/internalError'
