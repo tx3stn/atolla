@@ -18,6 +18,7 @@
 		"includes": [
 			"**",
 			"!**/assets",
+			"!atolla_sync/src/api/generated.ts",
 			"!tools/mock-server/spec",
 			"!!**/build",
 			"!!**/coverage",

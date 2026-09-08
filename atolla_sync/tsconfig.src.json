@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"forceConsistentCasingInFileNames": true,
+		"skipLibCheck": true,
+		"strict": true
+	},
+	"exclude": ["src/**/*.test.ts"],
+	"extends": "./tsconfig.json",
+	"include": ["src/**/*.ts", "src/**/*.d.ts"]
+}

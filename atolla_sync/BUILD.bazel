@@ -1,0 +1,22 @@
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+# The control API wire contract: openapi.yaml and the types generated from it. Both ends of the
+# protocol generate from here — the daemon that serves it and the app that calls it — so this
+# module must not import from either, or the arrow it exists to keep straight bends back.
+valdi_module(
+    name = "atolla_sync",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.d.ts",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    exclude_patterns = [".*\\.test\\.ts$"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+    ],
+)
