@@ -32,3 +32,13 @@ pre-push:
             run: bun run test:ios
           - name: test:android
             run: bun run test:android
+    - name: openapi
+      group:
+        parallel: true
+        jobs:
+          - name: lint
+            glob: "atolla_sync/openapi.yaml"
+            run: bun run openapi:lint
+          - name: generate
+            glob: "atolla_sync/openapi.yaml"
+            run: bun run openapi:generate
