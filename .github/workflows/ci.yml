@@ -160,6 +160,29 @@ jobs:
             atolla_headless/tsconfig.json
           key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_headless/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
+  openapi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - name: install vacuum
+        uses: jaxxstorm/action-install-gh-release@25e24d2d23ae098373794ef1d6faecb48ee52da8 # v3.0.0
+        with:
+          repo: daveshanley/vacuum
+          tag: v0.30.3
+          digest: 973b8ed30cd36533da4cdb76729e833324a3043bad48c74f61b6a1cc3df40b78
+          cache: enable
+      - run: bun run openapi:lint
+      - run: bun run openapi:check
+
   zig-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 30

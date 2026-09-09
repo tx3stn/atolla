@@ -60,3 +60,6 @@ neotest*-xml.txt
 # bazel-out config, bazel-<workspace> symlink name, bzlmod canonical repo name)
 atolla_*/tsconfig.json
 tools/palette-preview/tsconfig.json
+
+# scratch requests from `bun run openapi:http`, regenerated on demand
+atolla_sync/*.http
