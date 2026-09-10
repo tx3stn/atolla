@@ -5,6 +5,9 @@
 		"jsx": "preserve",
 		"module": "ESNext",
 		"moduleResolution": "Bundler",
+		"paths": {
+			"atolla_sync/*": ["./atolla_sync/*"]
+		},
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"strict": true,

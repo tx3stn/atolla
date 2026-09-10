@@ -72,7 +72,7 @@
 		"serve:http": "bazel run //atolla_headless/native/zig:dev_serve --",
 		"setup": "bun install && bun run projectsync:all",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",
-		"test": "bun test ./atolla_core/src ./atolla_jellyfin/src ./atolla_player/src ./atolla_app/src ./atolla_headless/src",
+		"test": "bun test ./atolla_core/src ./atolla_jellyfin/src ./atolla_player/src ./atolla_sync/src ./atolla_app/src ./atolla_headless/src",
 		"test:android": "bazel test //atolla_app/native/android/test/... //:valdi_editor_anchor --legacy_external_runfiles --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:components": "bazel test //atolla_app:test --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:e2e": "./.scripts/test-e2e-parallel.sh",
