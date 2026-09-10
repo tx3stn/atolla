@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import type { PairAccepted, PairRequest, Problem } from 'atolla_sync/src/api/generated';
+import { type PlayerAnswer, PlayerClient } from 'atolla_sync/src/api/PlayerClient';
+import type { PendingRequest } from 'atolla_sync/src/api/Transport';
 import { Cli, type Daemon, pairingCode } from './cli';
+import { FetchTransport } from './transport';
 
 // away from the 45889 default and from run.test.ts, so neither a daemon left running on this
 // machine nor a sibling suite can make these pass
@@ -15,6 +19,8 @@ const MEDIA_SERVER = {
 	userId: '8b1f2c3d4e5f6071',
 };
 
+type Pairing = PendingRequest<PlayerAnswer<PairAccepted | Problem>>;
+
 interface PairedController {
 	controllerId: string;
 	controllerName: string;
@@ -24,6 +30,7 @@ interface PairedController {
 
 describe('POST /pair', () => {
 	let cli: Cli;
+	let client: PlayerClient;
 	let code: string;
 	let daemon: Daemon;
 	let dataDir: string;
@@ -33,15 +40,7 @@ describe('POST /pair', () => {
 		return JSON.parse(secret('controllers')) as Array<PairedController>;
 	}
 
-	function post(body: unknown): Promise<Response> {
-		return fetch(`http://127.0.0.1:${PORT}/pair`, {
-			body: JSON.stringify(body),
-			headers: { 'Content-Type': 'application/json' },
-			method: 'POST',
-		});
-	}
-
-	function request(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	function request(overrides: Partial<PairRequest> = {}): PairRequest {
 		return { code, controllerId: 'phone-1', controllerName: 'pixel 8', ...overrides };
 	}
 
@@ -49,10 +48,13 @@ describe('POST /pair', () => {
 		return readFileSync(join(dataDir, 'secrets', name), 'utf8');
 	}
 
-	async function tokenFrom(response: Promise<Response>): Promise<string> {
-		const { token } = (await (await response).json()) as { token: string };
+	async function tokenFrom(pairing: Pairing): Promise<string> {
+		const { json } = await pairing;
+		if (!('token' in json)) {
+			throw new Error(`expected a token, got ${JSON.stringify(json)}`);
+		}
 
-		return token;
+		return json.token;
 	}
 
 	// one digit off the provisioned code, so it cannot collide with it the way a literal might
@@ -80,6 +82,7 @@ describe('POST /pair', () => {
 		cli = new Cli({ config: configPath });
 		code = pairingCode(cli.pair().stdout);
 		daemon = await cli.run();
+		client = new PlayerClient(`http://127.0.0.1:${PORT}`, new FetchTransport());
 	});
 
 	afterEach(async () => {
@@ -88,15 +91,15 @@ describe('POST /pair', () => {
 	});
 
 	it('trades the provisioned code for a token', async () => {
-		const response = await post(request());
+		const answer = await client.pair(request());
 
-		expect(response.status).toBe(200);
-		expect(response.headers.get('content-type')).toBe('application/json');
-		expect(await response.json()).toEqual({ token: expect.stringMatching(/^[0-9a-f]{64}$/) });
+		expect(answer.status).toBe(200);
+		expect(answer.headers['content-type']).toBe('application/json');
+		expect(answer.json).toEqual({ token: expect.stringMatching(/^[0-9a-f]{64}$/) });
 	});
 
 	it('stores the controller against the token it returned', async () => {
-		const token = await tokenFrom(post(request()));
+		const token = await tokenFrom(client.pair(request()));
 
 		expect(controllers()).toEqual([
 			{
@@ -109,38 +112,38 @@ describe('POST /pair', () => {
 	});
 
 	it('writes the media server credential when the body carries one', async () => {
-		await post(request({ mediaServer: MEDIA_SERVER }));
+		await client.pair(request({ mediaServer: MEDIA_SERVER }));
 
 		expect(JSON.parse(secret('mediaServer'))).toEqual(MEDIA_SERVER);
 	});
 
 	it('writes no media server credential when the body carries none', async () => {
-		await post(request());
+		await client.pair(request());
 
 		expect(existsSync(join(dataDir, 'secrets', 'mediaServer'))).toBe(false);
 	});
 
 	it('replaces the record when the same controller pairs again', async () => {
-		const first = await tokenFrom(post(request()));
-		const second = await tokenFrom(post(request()));
+		const first = await tokenFrom(client.pair(request()));
+		const second = await tokenFrom(client.pair(request()));
 
 		expect(second).not.toBe(first);
 		expect(controllers()).toEqual([expect.objectContaining({ token: second })]);
 	});
 
 	it('keeps a second controller alongside the first', async () => {
-		await post(request());
-		await post(request({ controllerId: 'phone-2', controllerName: 'pixel 9' }));
+		await client.pair(request());
+		await client.pair(request({ controllerId: 'phone-2', controllerName: 'pixel 9' }));
 
 		expect(controllers().map((held) => held.controllerId)).toEqual(['phone-1', 'phone-2']);
 	});
 
 	it('refuses a wrong code without recording a controller', async () => {
-		const response = await post(request({ code: wrongCode() }));
+		const answer = await client.pair(request({ code: wrongCode() }));
 
-		expect(response.status).toBe(401);
-		expect(response.headers.get('content-type')).toBe('application/problem+json');
-		expect(await response.json()).toMatchObject({ code: 'invalid_pairing_code', status: 401 });
+		expect(answer.status).toBe(401);
+		expect(answer.headers['content-type']).toBe('application/problem+json');
+		expect(answer.json).toMatchObject({ code: 'invalid_pairing_code', status: 401 });
 		expect(existsSync(join(dataDir, 'secrets', 'controllers'))).toBe(false);
 	});
 
@@ -150,23 +153,23 @@ describe('POST /pair', () => {
 		const wrong = request({ code: wrongCode() });
 
 		for (const _ of [1, 2, 3]) {
-			expect((await post(wrong)).status).toBe(401);
+			expect((await client.pair(wrong)).status).toBe(401);
 		}
 
-		const blocked = await post(wrong);
+		const blocked = await client.pair(wrong);
 		expect(blocked.status).toBe(429);
-		expect(blocked.headers.get('retry-after')).toBe('1');
-		expect(await blocked.json()).toMatchObject({ code: 'too_many_attempts', status: 429 });
+		expect(blocked.headers['retry-after']).toBe('1');
+		expect(blocked.json).toMatchObject({ code: 'too_many_attempts', status: 429 });
 
-		expect((await post(wrong)).headers.get('retry-after')).toBe('1');
+		expect((await client.pair(wrong)).headers['retry-after']).toBe('1');
 
 		await new Promise((resolve) => setTimeout(resolve, 1_100));
 
-		expect((await post(wrong)).status).toBe(401);
+		expect((await client.pair(wrong)).status).toBe(401);
 
-		const doubled = await post(wrong);
+		const doubled = await client.pair(wrong);
 		expect(doubled.status).toBe(429);
-		expect(doubled.headers.get('retry-after')).toBe('2');
+		expect(doubled.headers['retry-after']).toBe('2');
 	});
 
 	// the gate is in front of the code comparison, so the block is not something a controller can
@@ -175,13 +178,13 @@ describe('POST /pair', () => {
 		const wrong = request({ code: wrongCode() });
 
 		for (const _ of [1, 2, 3]) {
-			await post(wrong);
+			await client.pair(wrong);
 		}
 
-		const response = await post(request());
+		const answer = await client.pair(request());
 
-		expect(response.status).toBe(429);
-		expect(await response.json()).toMatchObject({ code: 'too_many_attempts' });
+		expect(answer.status).toBe(429);
+		expect(answer.json).toMatchObject({ code: 'too_many_attempts' });
 	});
 
 	// two failures stay under the free allowance, so the pair below is reached rather than blocked.
@@ -190,13 +193,13 @@ describe('POST /pair', () => {
 		const wrong = request({ code: wrongCode() });
 
 		for (const _ of [1, 2]) {
-			await post(wrong);
+			await client.pair(wrong);
 		}
 
-		expect((await post(request())).status).toBe(200);
+		expect((await client.pair(request())).status).toBe(200);
 
 		for (const _ of [1, 2, 3]) {
-			expect((await post(wrong)).status).toBe(401);
+			expect((await client.pair(wrong)).status).toBe(401);
 		}
 	});
 });
