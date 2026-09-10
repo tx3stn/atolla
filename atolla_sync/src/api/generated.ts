@@ -135,12 +135,12 @@ export interface components {
         Problem: {
             /**
              * @description The machine-readable name of this refusal, and the whole vocabulary the daemon can
-             *     answer with. `internal` is the fallback body used when a problem will not fit its
-             *     render buffer, which is a bug rather than a runtime condition.
+             *     answer with. `internal` is what a handler that threw answers, and doubles as the
+             *     fallback body when a problem will not fit its render buffer.
              * @example invalid_pairing_code
              * @enum {string}
              */
-            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "length_required" | "malformed_body" | "method_not_allowed" | "not_found" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
+            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "length_required" | "malformed_body" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
             /**
              * @description Rarely sent. Naming the field that failed tells an unauthenticated caller which field
              *     to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
@@ -175,19 +175,6 @@ export interface components {
              * @example not found
              */
             title: string;
-        };
-        /**
-         * @description What a TypeScript handler answers when it is not implemented or it threw. Served under
-         *     `application/problem+json` despite not being a problem, because the bridge picks the
-         *     content type from the status alone.
-         */
-        HandlerError: {
-            /**
-             * @description Which of the two handler failures this is.
-             * @example notImplemented
-             * @enum {string}
-             */
-            error: "internalError" | "notImplemented";
         };
         /** @description A player's identity, constant for the life of the process. */
         Hello: {
@@ -446,28 +433,25 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /**
-         * @description The route is in the router's table but no handler serves it yet. The body is not a problem
-         *     despite the content type.
-         */
+        /** @description The route is in the router's table but no handler serves it yet. */
         NotImplemented: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/problem+json": components["schemas"]["HandlerError"];
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
         /**
-         * @description The handler threw. The body is not a problem despite the content type, and the daemon's log
-         *     holds what went wrong.
+         * @description The handler threw. The daemon's log holds what went wrong; the problem says only that
+         *     something did, since a caller on the LAN has no business knowing more.
          */
         HandlerFailed: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/problem+json": components["schemas"]["HandlerError"];
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
     };
@@ -490,7 +474,6 @@ export interface components {
 }
 export type ApiVersion = components['schemas']['ApiVersion'];
 export type Problem = components['schemas']['Problem'];
-export type HandlerError = components['schemas']['HandlerError'];
 export type Hello = components['schemas']['Hello'];
 export type MediaServer = components['schemas']['MediaServer'];
 export type PairRequest = components['schemas']['PairRequest'];

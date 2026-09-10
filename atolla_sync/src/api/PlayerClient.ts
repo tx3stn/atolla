@@ -1,11 +1,4 @@
-import type {
-	ApiVersion,
-	HandlerError,
-	Hello,
-	PairAccepted,
-	PairRequest,
-	Problem,
-} from './generated';
+import type { ApiVersion, Hello, PairAccepted, PairRequest, Problem } from './generated';
 import type { HttpHeaders, HttpResponse, HttpTransport, PendingRequest } from './Transport';
 
 export const REQUEST_CANCELLED = 'request cancelled';
@@ -29,7 +22,7 @@ export class PlayerClient {
 		return this.settled(this.transport.get(this.url('/hello')));
 	}
 
-	pair(body: PairRequest): PendingRequest<PlayerAnswer<PairAccepted | Problem | HandlerError>> {
+	pair(body: PairRequest): PendingRequest<PlayerAnswer<PairAccepted | Problem>> {
 		const headers: HttpHeaders = { 'Content-Type': 'application/json' };
 		if (this.apiVersion !== undefined) {
 			headers['Atolla-API-Version'] = String(this.apiVersion);

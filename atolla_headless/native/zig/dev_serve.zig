@@ -22,9 +22,7 @@ fn notImplemented(
     _: [*]const u8,
     _: usize,
 ) callconv(.c) void {
-    const body = "{\"error\":\"notImplemented\"}";
-
-    _ = bridge.atolla_http_respond(request_id, 501, body, body.len);
+    _ = bridge.atolla_http_respond(request_id, 501, "", 0);
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {

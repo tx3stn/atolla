@@ -26,10 +26,7 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 
 			default:
 				log.warn('route not implemented', { bodyBytes: body.length, route, target });
-				answer = Promise.resolve({
-					body: JSON.stringify({ error: 'notImplemented' }),
-					status: 501,
-				});
+				answer = Promise.resolve({ body: '', status: 501 });
 		}
 
 		answer.then(
@@ -38,7 +35,7 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 			},
 			(error: unknown) => {
 				log.error('route threw', { error: String(error), route, target });
-				httpServer.respond(requestId, 500, JSON.stringify({ error: 'internalError' }));
+				httpServer.respond(requestId, 500, '');
 			},
 		);
 	});

@@ -149,6 +149,18 @@ pub const headers_too_large: Problem = .{
     .title = "headers too large",
 };
 
+pub const internal: Problem = .{
+    .code = "internal",
+    .status = 500,
+    .title = "internal error",
+};
+
+pub const not_implemented: Problem = .{
+    .code = "not_implemented",
+    .status = 501,
+    .title = "not implemented",
+};
+
 pub const unavailable: Problem = .{
     .code = "unavailable",
     .status = 503,

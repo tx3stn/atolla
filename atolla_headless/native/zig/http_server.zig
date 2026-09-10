@@ -158,12 +158,17 @@ pub const Server = struct {
             return problem.response(request, problem.handler_timeout, .{ .keep_alive = false });
         };
 
-        // TypeScript answers a problem body on an error status and a plain one otherwise.
+        // A handler names its failure with a status and nothing more, so the problem is rendered
+        // here rather than hand-rolled on the other side of the bridge.
+        if (answer.status >= 400) {
+            const failure = if (answer.status == 501) problem.not_implemented else problem.internal;
+
+            return problem.response(request, failure, .{});
+        }
+
         try request.respond(answer.body, .{
             .status = @enumFromInt(answer.status),
-            .extra_headers = &.{
-                if (answer.status >= 400) problem.content_type else json_content_type,
-            },
+            .extra_headers = &.{json_content_type},
         });
 
         return answer.status;
@@ -861,7 +866,7 @@ const StubHandler = struct {
     }
 };
 
-test "http_server: carries a handler's answer back to the client" {
+test "http_server: renders a problem when a handler answers 501" {
     var stub: StubHandler = .{ .status = 501, .body = "{\"error\":\"notImplemented\"}" };
 
     var server: Server = undefined;
@@ -876,7 +881,29 @@ test "http_server: carries a handler's answer back to the client" {
 
     try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
-    try testing.expectEqual(501, try connection.status());
+    try testing.expect(try connection.contains("501 Not Implemented"));
+    try testing.expect(try connection.contains("content-type: application/problem+json"));
+    try testing.expect(try connection.contains("\"code\":\"not_implemented\""));
+    try testing.expect(!(try connection.contains("notImplemented")));
+}
+
+test "http_server: renders an internal problem when a handler answers another error status" {
+    var stub: StubHandler = .{ .status = 500, .body = "{\"error\":\"internalError\"}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+
+    try testing.expect(try connection.contains("\"code\":\"internal\""));
+    try testing.expect(!(try connection.contains("internalError")));
 }
 
 test "http_server: hands the handler the body it was sent" {

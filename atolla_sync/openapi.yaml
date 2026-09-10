@@ -301,8 +301,8 @@ components:
           type: string
           description: |
             The machine-readable name of this refusal, and the whole vocabulary the daemon can
-            answer with. `internal` is the fallback body used when a problem will not fit its
-            render buffer, which is a bug rather than a runtime condition.
+            answer with. `internal` is what a handler that threw answers, and doubles as the
+            fallback body when a problem will not fit its render buffer.
           enum:
             - body_too_large
             - busy
@@ -316,6 +316,7 @@ components:
             - malformed_body
             - method_not_allowed
             - not_found
+            - not_implemented
             - too_many_attempts
             - unavailable
             - unsupported_api_version
@@ -361,21 +362,6 @@ components:
             A short human-readable summary of the refusal. Every one the daemon carries is
             lowercase words, and it is prose: switch on `code`, not on this.
           examples: ['not found']
-
-    HandlerError:
-      type: object
-      description: |
-        What a TypeScript handler answers when it is not implemented or it threw. Served under
-        `application/problem+json` despite not being a problem, because the bridge picks the
-        content type from the status alone.
-      required: [error]
-      additionalProperties: false
-      properties:
-        error:
-          type: string
-          enum: [internalError, notImplemented]
-          description: Which of the two handler failures this is.
-          examples: [notImplemented]
 
     Hello:
       type: object
@@ -604,11 +590,15 @@ components:
     notImplemented:
       description: The route is in the table but nothing serves it yet.
       value:
-        error: notImplemented
+        code: not_implemented
+        status: 501
+        title: not implemented
     internalError:
       description: The handler threw.
       value:
-        error: internalError
+        code: internal
+        status: 500
+        title: internal error
 
   responses:
     BadRequest:
@@ -776,25 +766,23 @@ components:
               $ref: '#/components/examples/handlerTimeout'
 
     NotImplemented:
-      description: |
-        The route is in the router's table but no handler serves it yet. The body is not a problem
-        despite the content type.
+      description: The route is in the router's table but no handler serves it yet.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/HandlerError'
+            $ref: '#/components/schemas/Problem'
           examples:
             notImplemented:
               $ref: '#/components/examples/notImplemented'
 
     HandlerFailed:
       description: |
-        The handler threw. The body is not a problem despite the content type, and the daemon's log
-        holds what went wrong.
+        The handler threw. The daemon's log holds what went wrong; the problem says only that
+        something did, since a caller on the LAN has no business knowing more.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/HandlerError'
+            $ref: '#/components/schemas/Problem'
           examples:
             internalError:
               $ref: '#/components/examples/internalError'

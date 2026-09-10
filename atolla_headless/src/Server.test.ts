@@ -45,9 +45,7 @@ describe('attachServer', () => {
 		dispatch(4242, ROUTE.intent, '/intent', '');
 		await Promise.resolve();
 
-		expect(answers).toEqual([
-			{ body: JSON.stringify({ error: 'notImplemented' }), requestId: 4242, status: 501 },
-		]);
+		expect(answers).toEqual([{ body: '', requestId: 4242, status: 501 }]);
 	});
 
 	it('answers a request whose handler works asynchronously', async () => {
@@ -71,9 +69,7 @@ describe('attachServer', () => {
 		dispatch(9, ROUTE.pair, '/pair', 'not json');
 		await settled();
 
-		expect(answers).toEqual([
-			{ body: JSON.stringify({ error: 'internalError' }), requestId: 9, status: 500 },
-		]);
+		expect(answers).toEqual([{ body: '', requestId: 9, status: 500 }]);
 	});
 });
 
