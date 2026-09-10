@@ -46,6 +46,9 @@ servers:
         description: The control port, overridable with `atolla config --port`.
     x-lint-ignore: owasp-security-hosts-https-oas3
 
+security:
+  - controllerToken: []
+
 tags:
   - name: discovery
     description: Learning what a player is and what it speaks, before holding a credential.
@@ -174,39 +177,93 @@ paths:
     post:
       operationId: sendCommand
       tags: [control]
-      security: []
-      x-lint-ignore: 
-       - owasp-protection-global-unsafe-strict
-       - owasp-protection-global-unsafe
       summary: Act on the player's queue or playback.
       description: |
-        Not implemented: the body is read, capped at 4 KiB, handed across the bridge and answered
-        `501`. The command vocabulary and the token check arrive together in the command slice, and
-        until then this route is reachable by anything on the LAN.
+        Thirteen commands share one route, discriminated on `command`. The name and the shape of
+        its members are the wire contract, so `command.zig` refuses an unknown name or a malformed
+        member before the request crosses the bridge. The `tracks` array is the exception and
+        passes through as opaque bytes: `Track` is a TypeScript interface with one source of truth,
+        so a second definition in Zig would start refusing valid queues the day a field was added,
+        and TypeScript needs the parsed object regardless.
+
+        A `202` says the command was accepted, not that it has happened. The leader applies it to
+        the queue it owns and answers with the state version that reflects it. What the speakers
+        then do is visible only through `GET /state`: a member can miss the readiness barrier, and
+        a `previous` can restart the current track instead of stepping back. A controller that
+        reads this response as the outcome will show something the players are not doing.
+
+        Commands naming a queue position may also carry the `trackId` expected there. A controller
+        acts on a mirror that can be a long poll behind, and with several controllers paired the
+        queue moves under it, so an index on its own can point at a track the user never chose.
+        When the id does not match, the player drops the command.
+
+        `setVolume` and `setMembers` appear in the design but are not accepted yet: both are group
+        state rather than queue state and arrive with the group coordinator. Until then they are
+        refused as `malformed_body`, like any other unknown name.
+
+        Bodies are capped at 1 MiB and must declare a `Content-Length`.
       parameters:
         - $ref: '#/components/parameters/ApiVersion'
       requestBody:
-        required: false
-        description: |
-          Read and counted against the 4 KiB cap, then handed across the bridge, where nothing
-          looks at it yet.
+        required: true
+        description: One command, named by its `command` member.
         content:
           application/json:
             schema:
-              type: object
-              description: Any JSON object. Nothing reads it yet.
-            example: {}
+              $ref: '#/components/schemas/Command'
+            examples:
+              pause:
+                summary: Stop playing, keeping the position.
+                value:
+                  command: pause
+              seek:
+                summary: Move to 91.234 seconds into the current track.
+                value:
+                  command: seek
+                  positionMs: 91234
+              setQueue:
+                summary: Replace the queue with an album and start at its third track.
+                value:
+                  album:
+                    id: 6f2b8c4d1e9a3705
+                    name: Selected Ambient Works
+                  command: setQueue
+                  trackIndex: 2
+                  tracks:
+                    - id: 1a2b3c4d5e6f7081
+                      name: Xtal
+                    - id: 2b3c4d5e6f708192
+                      name: Tha
+                    - id: 3c4d5e6f708192a3
+                      name: Pulsewidth
+              removeAt:
+                summary: Drop the fourth track, but only if it is still the one seen.
+                value:
+                  command: removeAt
+                  trackId: 3c4d5e6f708192a3
+                  trackIndex: 3
       responses:
+        '202':
+          description: |
+            Accepted and applied to the queue. The body names the state version that reflects it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandAccepted'
+              example:
+                version: 412
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/CommandBadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
         '411':
           $ref: '#/components/responses/LengthRequired'
         '413':
           $ref: '#/components/responses/BodyTooLarge'
         '417':
           $ref: '#/components/responses/ExpectationFailed'
-        '501':
-          $ref: '#/components/responses/NotImplemented'
+        '500':
+          $ref: '#/components/responses/HandlerFailed'
         '503':
           $ref: '#/components/responses/Unavailable'
         '504':
@@ -242,6 +299,18 @@ paths:
           $ref: '#/components/responses/HandlerTimeout'
 
 components:
+  securitySchemes:
+    controllerToken:
+      type: http
+      scheme: bearer
+      description: |
+        The token `POST /pair` returned, sent as `Authorization: Bearer <token>`. It is checked by
+        the server against `secrets/controllers`, so an unknown one never reaches TypeScript.
+
+        A token identifies a controller rather than a user. Pairing again under a `controllerId`
+        the player already knows replaces that record, killing the token it held, and a player
+        keeps at most 32 controllers: pairing a 33rd evicts the one paired longest ago.
+
   parameters:
     ApiVersion:
       name: Atolla-API-Version
@@ -285,8 +354,8 @@ components:
       type: object
       description: |
         RFC 9457 problem details, served as `application/problem+json`. `type` is omitted rather
-        than written as `about:blank`, which the RFC says is what an absent `type` means, keeping
-        it free for a documentation URL later. Extension members are flat alongside the standard
+        than written as `about:blank`, which the RFC says is what an absent `type` means, so it
+        stays free for a documentation URL later. Extension members are flat alongside the standard
         ones and are dropped when a given problem does not carry them.
 
         `code` is the stable vocabulary a client switches on. `title` is prose and may be reworded.
@@ -312,6 +381,7 @@ components:
             - incomplete_body
             - internal
             - invalid_pairing_code
+            - invalid_token
             - length_required
             - malformed_body
             - method_not_allowed
@@ -499,6 +569,263 @@ components:
           examples:
             - 7c1e5a9b3d8f204617ca0be9352d8f7461a0c3d95e28b7f4016cad3928bf5e7d
 
+    StateVersion:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 2147483647
+      description: |
+        A monotonic counter the leader bumps whenever the state a controller mirrors changes. Its
+        only job is to order changes. It does not count commands: one command can settle several
+        fields, and some changes have no command behind them at all.
+
+        The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
+        exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
+        number.
+      examples: [412]
+
+    TrackIndex:
+      type: integer
+      format: int32
+      minimum: 0
+      maximum: 100000
+      description: |
+        A position in the queue, counted from zero. The server holds no queue of its own, so the
+        bound is only a sanity check, and it sits well above what the 1 MiB body cap lets a
+        `setQueue` deliver. Whether the index falls inside the queue the player currently has is
+        settled after the request crosses the bridge.
+      examples: [3]
+
+    Tracks:
+      type: array
+      maxItems: 10000
+      description: |
+        Tracks as `atolla_core` defines them. The server hands this array across the bridge
+        without parsing it, so it enforces neither the member shape nor `maxItems`. The 1 MiB body
+        cap is what refuses an oversized queue, and it is reached first anyway. The member schema
+        arrives in this document with `StateSnapshot`, the first place the daemon answers with
+        tracks rather than passing them through.
+      items:
+        type: object
+        additionalProperties: true
+      examples:
+        - - id: 1a2b3c4d5e6f7081
+            name: Xtal
+
+    CommandBare:
+      type: object
+      description: The commands that carry no members beyond their own name.
+      required: [command]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          enum: [next, pause, play, previous, shuffle]
+          description: |
+            `play` and `pause` act on the current track, `next` and `previous` move between
+            tracks, and `shuffle` reorders what has not played yet.
+
+            `previous` follows the button rather than the word: the leader restarts the current
+            track when it is more than three seconds in, and steps back otherwise. That is what
+            the same button already does when the phone is playing.
+          examples: [pause]
+
+    CommandSeek:
+      type: object
+      description: Move within the current track.
+      required: [command, positionMs]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: seek
+        positionMs:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 86400000
+          description: |
+            Where to move to, measured from the start of the track. Milliseconds, matching
+            `/state`'s `positionMs`, though the player's own clock works in seconds and rounds.
+            The bound is a day, which no track reaches. Whether the position falls inside the
+            track being played is settled after the request crosses the bridge.
+          examples: [91234]
+
+    CommandJumpToIndex:
+      type: object
+      description: Play a track already in the queue.
+      required: [command, trackIndex]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: jumpToIndex
+        trackId:
+          $ref: '#/components/schemas/CommandTrackId'
+        trackIndex:
+          $ref: '#/components/schemas/TrackIndex'
+
+    CommandSetQueue:
+      type: object
+      description: |
+        Replace the queue outright and start playing. This is the largest body the API takes, and
+        the reason `/command`'s cap is 1 MiB rather than the 4 KiB the other routes get.
+      required: [command, tracks]
+      additionalProperties: true
+      properties:
+        album:
+          type: object
+          additionalProperties: true
+          description: |
+            The album the queue came from, when it came from one. A queue with no album behind it,
+            such as a shuffle across an artist, omits it. The server passes it through unparsed, as
+            it does `tracks`.
+          examples:
+            - id: 6f2b8c4d1e9a3705
+              name: Selected Ambient Works
+        command:
+          type: string
+          const: setQueue
+        trackIndex:
+          $ref: '#/components/schemas/TrackIndex'
+        tracks:
+          $ref: '#/components/schemas/Tracks'
+
+    CommandAddToQueue:
+      type: object
+      description: Append tracks to the end of the queue.
+      required: [command, tracks]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: addToQueue
+        tracks:
+          $ref: '#/components/schemas/Tracks'
+
+    CommandPlayNext:
+      type: object
+      description: Insert tracks directly after the current one, ahead of the rest of the queue.
+      required: [command, tracks]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: playNext
+        tracks:
+          $ref: '#/components/schemas/Tracks'
+
+    CommandRemoveAt:
+      type: object
+      description: Drop one track from the queue.
+      required: [command, trackIndex]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: removeAt
+        trackId:
+          $ref: '#/components/schemas/CommandTrackId'
+        trackIndex:
+          $ref: '#/components/schemas/TrackIndex'
+
+    CommandMove:
+      type: object
+      description: Reorder the queue by moving one track.
+      required: [command, fromIndex, toIndex]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: move
+        fromIndex:
+          $ref: '#/components/schemas/TrackIndex'
+        toIndex:
+          $ref: '#/components/schemas/TrackIndex'
+        trackId:
+          $ref: '#/components/schemas/CommandTrackId'
+
+    CommandSetLoopMode:
+      type: object
+      description: |
+        Choose how the queue repeats. The controller sends the mode it wants rather than asking the
+        player to cycle to the next one, because a mirror that is a long poll behind would cycle
+        from a mode the player has already left. Naming the mode gives the same result whatever the
+        player currently has.
+      required: [command, loopMode]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: setLoopMode
+        loopMode:
+          type: string
+          enum: [none, queue, track]
+          description: |
+            `none` stops at the end of the queue, `queue` starts it again, `track` repeats the
+            current one.
+          examples: [queue]
+
+    CommandTrackId:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: '^[ -~]+$'
+      description: |
+        The track the controller expects to find at the position it named. Optional, and worth
+        sending: the player drops the command when the id does not match, so a stale mirror cannot
+        reorder or delete the wrong track. A command that omits it is applied to whatever sits at
+        that position.
+      examples: [3c4d5e6f708192a3]
+
+    Command:
+      description: |
+        One command for the player. `command` names it and the rest of the members belong to that
+        name: an unknown name is `malformed_body`, as is a missing or wrongly typed member of a
+        name the player does know.
+
+        A member belonging to no command is ignored rather than refused, as in `PairRequest`, so a
+        v1 daemon keeps accepting a body that a later controller added a field to. That is why each
+        variant is open rather than sealed.
+      oneOf:
+        - $ref: '#/components/schemas/CommandBare'
+        - $ref: '#/components/schemas/CommandSeek'
+        - $ref: '#/components/schemas/CommandJumpToIndex'
+        - $ref: '#/components/schemas/CommandSetQueue'
+        - $ref: '#/components/schemas/CommandAddToQueue'
+        - $ref: '#/components/schemas/CommandPlayNext'
+        - $ref: '#/components/schemas/CommandRemoveAt'
+        - $ref: '#/components/schemas/CommandMove'
+        - $ref: '#/components/schemas/CommandSetLoopMode'
+      discriminator:
+        propertyName: command
+        mapping:
+          addToQueue: '#/components/schemas/CommandAddToQueue'
+          jumpToIndex: '#/components/schemas/CommandJumpToIndex'
+          move: '#/components/schemas/CommandMove'
+          next: '#/components/schemas/CommandBare'
+          pause: '#/components/schemas/CommandBare'
+          play: '#/components/schemas/CommandBare'
+          playNext: '#/components/schemas/CommandPlayNext'
+          previous: '#/components/schemas/CommandBare'
+          removeAt: '#/components/schemas/CommandRemoveAt'
+          seek: '#/components/schemas/CommandSeek'
+          setLoopMode: '#/components/schemas/CommandSetLoopMode'
+          setQueue: '#/components/schemas/CommandSetQueue'
+          shuffle: '#/components/schemas/CommandBare'
+
+    CommandAccepted:
+      type: object
+      description: |
+        The version the command produced. `GET /state?since=` with anything lower returns that
+        snapshot without blocking, so a controller can read the result of its own command without
+        waiting for the next change. It says nothing about what the speakers are doing.
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          $ref: '#/components/schemas/StateVersion'
+
   examples:
     incompleteBody:
       description: The body stopped short of its declared length.
@@ -525,6 +852,12 @@ components:
         code: invalid_pairing_code
         status: 401
         title: invalid pairing code
+    invalidToken:
+      description: The `Authorization` header was missing, malformed, or named an unknown token.
+      value:
+        code: invalid_token
+        status: 401
+        title: invalid token
     notFound:
       description: No route serves this path.
       value:
@@ -632,6 +965,23 @@ components:
             unsupportedApiVersion:
               $ref: '#/components/examples/unsupportedApiVersion'
 
+    CommandBadRequest:
+      description: |
+        As `BadRequest`, plus `malformed_body` for a body that is not JSON, does not name a command
+        this player accepts, or omits a member the named command requires. A member belonging to no
+        command is ignored rather than refused.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            incompleteBody:
+              $ref: '#/components/examples/incompleteBody'
+            malformedBody:
+              $ref: '#/components/examples/malformedBody'
+            unsupportedApiVersion:
+              $ref: '#/components/examples/unsupportedApiVersion'
+
     InvalidPairingCode:
       description: |
         The submitted code is not the provisioned one, or nothing is provisioned. The two are
@@ -643,6 +993,19 @@ components:
           examples:
             invalidPairingCode:
               $ref: '#/components/examples/invalidPairingCode'
+
+    InvalidToken:
+      description: |
+        The request carried no usable `Authorization: Bearer` token. A missing header, a malformed
+        one and an unknown token all get this same answer, so a caller learns nothing about which
+        tokens exist.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidToken:
+              $ref: '#/components/examples/invalidToken'
 
     NotFound:
       description: No route serves the requested path. Answered before an operation is selected.
@@ -681,7 +1044,8 @@ components:
     BodyTooLarge:
       description: |
         The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-        for any request and tighter per route: 4 KiB for `/pair`, `/command` and `/state`.
+        for any request and tighter per route: 4 KiB for `/pair` and `/state`. `/command` takes the
+        full 1 MiB, because a `setQueue` carries the whole queue.
       content:
         application/problem+json:
           schema:

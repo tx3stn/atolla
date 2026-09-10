@@ -73,9 +73,29 @@ export interface paths {
         put?: never;
         /**
          * Act on the player's queue or playback.
-         * @description Not implemented: the body is read, capped at 4 KiB, handed across the bridge and answered
-         *     `501`. The command vocabulary and the token check arrive together in the command slice, and
-         *     until then this route is reachable by anything on the LAN.
+         * @description Thirteen commands share one route, discriminated on `command`. The name and the shape of
+         *     its members are the wire contract, so `command.zig` refuses an unknown name or a malformed
+         *     member before the request crosses the bridge. The `tracks` array is the exception and
+         *     passes through as opaque bytes: `Track` is a TypeScript interface with one source of truth,
+         *     so a second definition in Zig would start refusing valid queues the day a field was added,
+         *     and TypeScript needs the parsed object regardless.
+         *
+         *     A `202` says the command was accepted, not that it has happened. The leader applies it to
+         *     the queue it owns and answers with the state version that reflects it. What the speakers
+         *     then do is visible only through `GET /state`: a member can miss the readiness barrier, and
+         *     a `previous` can restart the current track instead of stepping back. A controller that
+         *     reads this response as the outcome will show something the players are not doing.
+         *
+         *     Commands naming a queue position may also carry the `trackId` expected there. A controller
+         *     acts on a mirror that can be a long poll behind, and with several controllers paired the
+         *     queue moves under it, so an index on its own can point at a track the user never chose.
+         *     When the id does not match, the player drops the command.
+         *
+         *     `setVolume` and `setMembers` appear in the design but are not accepted yet: both are group
+         *     state rather than queue state and arrive with the group coordinator. Until then they are
+         *     refused as `malformed_body`, like any other unknown name.
+         *
+         *     Bodies are capped at 1 MiB and must declare a `Content-Length`.
          */
         post: operations["sendCommand"];
         delete?: never;
@@ -121,8 +141,8 @@ export interface components {
         ApiVersion: 1;
         /**
          * @description RFC 9457 problem details, served as `application/problem+json`. `type` is omitted rather
-         *     than written as `about:blank`, which the RFC says is what an absent `type` means, keeping
-         *     it free for a documentation URL later. Extension members are flat alongside the standard
+         *     than written as `about:blank`, which the RFC says is what an absent `type` means, so it
+         *     stays free for a documentation URL later. Extension members are flat alongside the standard
          *     ones and are dropped when a given problem does not carry them.
          *
          *     `code` is the stable vocabulary a client switches on. `title` is prose and may be reworded.
@@ -140,7 +160,7 @@ export interface components {
              * @example invalid_pairing_code
              * @enum {string}
              */
-            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "length_required" | "malformed_body" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
+            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
             /**
              * @description Rarely sent. Naming the field that failed tells an unauthenticated caller which field
              *     to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
@@ -280,6 +300,212 @@ export interface components {
              */
             token: string;
         };
+        /**
+         * Format: int32
+         * @description A monotonic counter the leader bumps whenever the state a controller mirrors changes. Its
+         *     only job is to order changes. It does not count commands: one command can settle several
+         *     fields, and some changes have no command behind them at all.
+         *
+         *     The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
+         *     exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
+         *     number.
+         * @example 412
+         */
+        StateVersion: number;
+        /**
+         * Format: int32
+         * @description A position in the queue, counted from zero. The server holds no queue of its own, so the
+         *     bound is only a sanity check, and it sits well above what the 1 MiB body cap lets a
+         *     `setQueue` deliver. Whether the index falls inside the queue the player currently has is
+         *     settled after the request crosses the bridge.
+         * @example 3
+         */
+        TrackIndex: number;
+        /**
+         * @description Tracks as `atolla_core` defines them. The server hands this array across the bridge
+         *     without parsing it, so it enforces neither the member shape nor `maxItems`. The 1 MiB body
+         *     cap is what refuses an oversized queue, and it is reached first anyway. The member schema
+         *     arrives in this document with `StateSnapshot`, the first place the daemon answers with
+         *     tracks rather than passing them through.
+         * @example [
+         *       {
+         *         "id": "1a2b3c4d5e6f7081",
+         *         "name": "Xtal"
+         *       }
+         *     ]
+         */
+        Tracks: {
+            [key: string]: unknown;
+        }[];
+        /** @description The commands that carry no members beyond their own name. */
+        CommandBare: {
+            /**
+             * @description `play` and `pause` act on the current track, `next` and `previous` move between
+             *     tracks, and `shuffle` reorders what has not played yet.
+             *
+             *     `previous` follows the button rather than the word: the leader restarts the current
+             *     track when it is more than three seconds in, and steps back otherwise. That is what
+             *     the same button already does when the phone is playing.
+             *      (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            command: "next" | "pause" | "play" | "previous" | "shuffle";
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Move within the current track. */
+        CommandSeek: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "seek";
+            /**
+             * Format: int64
+             * @description Where to move to, measured from the start of the track. Milliseconds, matching
+             *     `/state`'s `positionMs`, though the player's own clock works in seconds and rounds.
+             *     The bound is a day, which no track reaches. Whether the position falls inside the
+             *     track being played is settled after the request crosses the bridge.
+             * @example 91234
+             */
+            positionMs: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Play a track already in the queue. */
+        CommandJumpToIndex: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "jumpToIndex";
+            trackId?: components["schemas"]["CommandTrackId"];
+            trackIndex: components["schemas"]["TrackIndex"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description Replace the queue outright and start playing. This is the largest body the API takes, and
+         *     the reason `/command`'s cap is 1 MiB rather than the 4 KiB the other routes get.
+         */
+        CommandSetQueue: {
+            /**
+             * @description The album the queue came from, when it came from one. A queue with no album behind it,
+             *     such as a shuffle across an artist, omits it. The server passes it through unparsed, as
+             *     it does `tracks`.
+             * @example {
+             *       "id": "6f2b8c4d1e9a3705",
+             *       "name": "Selected Ambient Works"
+             *     }
+             */
+            album?: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "setQueue";
+            trackIndex?: components["schemas"]["TrackIndex"];
+            tracks: components["schemas"]["Tracks"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Append tracks to the end of the queue. */
+        CommandAddToQueue: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "addToQueue";
+            tracks: components["schemas"]["Tracks"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Insert tracks directly after the current one, ahead of the rest of the queue. */
+        CommandPlayNext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "playNext";
+            tracks: components["schemas"]["Tracks"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Drop one track from the queue. */
+        CommandRemoveAt: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "removeAt";
+            trackId?: components["schemas"]["CommandTrackId"];
+            trackIndex: components["schemas"]["TrackIndex"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Reorder the queue by moving one track. */
+        CommandMove: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "move";
+            fromIndex: components["schemas"]["TrackIndex"];
+            toIndex: components["schemas"]["TrackIndex"];
+            trackId?: components["schemas"]["CommandTrackId"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description Choose how the queue repeats. The controller sends the mode it wants rather than asking the
+         *     player to cycle to the next one, because a mirror that is a long poll behind would cycle
+         *     from a mode the player has already left. Naming the mode gives the same result whatever the
+         *     player currently has.
+         */
+        CommandSetLoopMode: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "setLoopMode";
+            /**
+             * @description `none` stops at the end of the queue, `queue` starts it again, `track` repeats the
+             *     current one.
+             * @example queue
+             * @enum {string}
+             */
+            loopMode: "none" | "queue" | "track";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description The track the controller expects to find at the position it named. Optional, and worth
+         *     sending: the player drops the command when the id does not match, so a stale mirror cannot
+         *     reorder or delete the wrong track. A command that omits it is applied to whatever sits at
+         *     that position.
+         * @example 3c4d5e6f708192a3
+         */
+        CommandTrackId: string;
+        /**
+         * @description One command for the player. `command` names it and the rest of the members belong to that
+         *     name: an unknown name is `malformed_body`, as is a missing or wrongly typed member of a
+         *     name the player does know.
+         *
+         *     A member belonging to no command is ignored rather than refused, as in `PairRequest`, so a
+         *     v1 daemon keeps accepting a body that a later controller added a field to. That is why each
+         *     variant is open rather than sealed.
+         */
+        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"];
+        /**
+         * @description The version the command produced. `GET /state?since=` with anything lower returns that
+         *     snapshot without blocking, so a controller can read the result of its own command without
+         *     waiting for the next change. It says nothing about what the speakers are doing.
+         */
+        CommandAccepted: {
+            version: components["schemas"]["StateVersion"];
+        };
     };
     responses: {
         /**
@@ -308,10 +534,36 @@ export interface components {
             };
         };
         /**
+         * @description As `BadRequest`, plus `malformed_body` for a body that is not JSON, does not name a command
+         *     this player accepts, or omits a member the named command requires. A member belonging to no
+         *     command is ignored rather than refused.
+         */
+        CommandBadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description The submitted code is not the provisioned one, or nothing is provisioned. The two are
          *     deliberately indistinguishable.
          */
         InvalidPairingCode: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The request carried no usable `Authorization: Bearer` token. A missing header, a malformed
+         *     one and an unknown token all get this same answer, so a caller learns nothing about which
+         *     tokens exist.
+         */
+        InvalidToken: {
             headers: {
                 [name: string]: unknown;
             };
@@ -354,7 +606,8 @@ export interface components {
         };
         /**
          * @description The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-         *     for any request and tighter per route: 4 KiB for `/pair`, `/command` and `/state`.
+         *     for any request and tighter per route: 4 KiB for `/pair` and `/state`. `/command` takes the
+         *     full 1 MiB, because a `setQueue` carries the whole queue.
          */
         BodyTooLarge: {
             headers: {
@@ -478,9 +731,26 @@ export type Hello = components['schemas']['Hello'];
 export type MediaServer = components['schemas']['MediaServer'];
 export type PairRequest = components['schemas']['PairRequest'];
 export type PairAccepted = components['schemas']['PairAccepted'];
+export type StateVersion = components['schemas']['StateVersion'];
+export type TrackIndex = components['schemas']['TrackIndex'];
+export type Tracks = components['schemas']['Tracks'];
+export type CommandBare = components['schemas']['CommandBare'];
+export type CommandSeek = components['schemas']['CommandSeek'];
+export type CommandJumpToIndex = components['schemas']['CommandJumpToIndex'];
+export type CommandSetQueue = components['schemas']['CommandSetQueue'];
+export type CommandAddToQueue = components['schemas']['CommandAddToQueue'];
+export type CommandPlayNext = components['schemas']['CommandPlayNext'];
+export type CommandRemoveAt = components['schemas']['CommandRemoveAt'];
+export type CommandMove = components['schemas']['CommandMove'];
+export type CommandSetLoopMode = components['schemas']['CommandSetLoopMode'];
+export type CommandTrackId = components['schemas']['CommandTrackId'];
+export type Command = components['schemas']['Command'];
+export type CommandAccepted = components['schemas']['CommandAccepted'];
 export type ResponseBadRequest = components['responses']['BadRequest'];
 export type ResponsePairBadRequest = components['responses']['PairBadRequest'];
+export type ResponseCommandBadRequest = components['responses']['CommandBadRequest'];
 export type ResponseInvalidPairingCode = components['responses']['InvalidPairingCode'];
+export type ResponseInvalidToken = components['responses']['InvalidToken'];
 export type ResponseNotFound = components['responses']['NotFound'];
 export type ResponseMethodNotAllowed = components['responses']['MethodNotAllowed'];
 export type ResponseLengthRequired = components['responses']['LengthRequired'];
@@ -599,22 +869,33 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description Read and counted against the 4 KiB cap, then handed across the bridge, where nothing
-         *     looks at it yet.
-         */
-        requestBody?: {
+        /** @description One command, named by its `command` member. */
+        requestBody: {
             content: {
-                /** @example {} */
-                "application/json": Record<string, never>;
+                "application/json": components["schemas"]["Command"];
             };
         };
         responses: {
-            400: components["responses"]["BadRequest"];
+            /** @description Accepted and applied to the queue. The body names the state version that reflects it. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "version": 412
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CommandAccepted"];
+                };
+            };
+            400: components["responses"]["CommandBadRequest"];
+            401: components["responses"]["InvalidToken"];
             411: components["responses"]["LengthRequired"];
             413: components["responses"]["BodyTooLarge"];
             417: components["responses"]["ExpectationFailed"];
-            501: components["responses"]["NotImplemented"];
+            500: components["responses"]["HandlerFailed"];
             503: components["responses"]["Unavailable"];
             504: components["responses"]["HandlerTimeout"];
         };
