@@ -3,8 +3,8 @@ import type { Answer, HttpServer } from './Http';
 import { handlePair, type PairDeps } from './routes/Pair';
 
 export const ROUTE = {
+	command: 2,
 	hello: 0,
-	intent: 2,
 	pair: 1,
 	state: 3,
 } as const;

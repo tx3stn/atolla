@@ -42,7 +42,7 @@ describe('attachServer', () => {
 		const { dispatch, httpServer } = fakeHttpServer(answers);
 
 		attachServer(httpServer, deps());
-		dispatch(4242, ROUTE.intent, '/intent', '');
+		dispatch(4242, ROUTE.command, '/command', '');
 		await Promise.resolve();
 
 		expect(answers).toEqual([{ body: '', requestId: 4242, status: 501 }]);

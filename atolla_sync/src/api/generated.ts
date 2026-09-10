@@ -62,7 +62,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/intent": {
+    "/command": {
         parameters: {
             query?: never;
             header?: never;
@@ -74,10 +74,10 @@ export interface paths {
         /**
          * Act on the player's queue or playback.
          * @description Not implemented: the body is read, capped at 4 KiB, handed across the bridge and answered
-         *     `501`. The intent vocabulary and the token check arrive together in the intent slice, and
+         *     `501`. The command vocabulary and the token check arrive together in the command slice, and
          *     until then this route is reachable by anything on the LAN.
          */
-        post: operations["sendIntent"];
+        post: operations["sendCommand"];
         delete?: never;
         options?: never;
         head?: never;
@@ -354,7 +354,7 @@ export interface components {
         };
         /**
          * @description The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-         *     for any request and tighter per route: 4 KiB for `/pair`, `/intent` and `/state`.
+         *     for any request and tighter per route: 4 KiB for `/pair`, `/command` and `/state`.
          */
         BodyTooLarge: {
             headers: {
@@ -583,7 +583,7 @@ export interface operations {
             504: components["responses"]["HandlerTimeout"];
         };
     };
-    sendIntent: {
+    sendCommand: {
         parameters: {
             query?: never;
             header?: {

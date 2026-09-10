@@ -334,7 +334,7 @@ fn bodyLimit(route: router.Route) usize {
     return switch (route) {
         .hello => 0,
         .pair => pair.max_body_bytes,
-        .intent, .state => unrouted_body_bytes,
+        .command, .state => unrouted_body_bytes,
     };
 }
 
@@ -879,7 +879,7 @@ test "http_server: renders a problem when a handler answers 501" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expect(try connection.contains("501 Not Implemented"));
     try testing.expect(try connection.contains("content-type: application/problem+json"));
@@ -900,7 +900,7 @@ test "http_server: renders an internal problem when a handler answers another er
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expect(try connection.contains("\"code\":\"internal\""));
     try testing.expect(!(try connection.contains("internalError")));
@@ -919,7 +919,7 @@ test "http_server: hands the handler the body it was sent" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 13\r\n\r\n{\"code\":\"12\"}");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 13\r\n\r\n{\"code\":\"12\"}");
 
     try testing.expectEqual(200, try connection.status());
     try testing.expectEqualStrings("{\"code\":\"12\"}", stub.seen[0..stub.seen_len]);
@@ -938,7 +938,7 @@ test "http_server: hands the handler an empty body when the request carries none
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(200, try connection.status());
     try testing.expectEqual(0, stub.seen_len);
@@ -959,7 +959,7 @@ test "http_server: hands the handler a body that was announced with an expectati
     defer connection.close();
 
     try connection.send(
-        "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 4\r\nExpect: 100-continue\r\n\r\nabcd",
+        "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 4\r\nExpect: 100-continue\r\n\r\nabcd",
     );
 
     try testing.expectEqual(100, try connection.status());
@@ -981,7 +981,7 @@ test "http_server: refuses a bridged body larger than it can hold" {
     defer connection.close();
 
     try connection.send(std.fmt.comptimePrint(
-        "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n",
+        "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n",
         .{unrouted_body_bytes + 1},
     ));
 
@@ -1001,7 +1001,7 @@ test "http_server: answers 400 for a body that stops short of its length" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 20\r\n\r\nshort");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 20\r\n\r\nshort");
 
     try testing.expectEqual(400, try connection.status());
 }
@@ -1040,7 +1040,7 @@ test "http_server: takes a request that names no version as the current one" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 2\r\n\r\n{}");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 2\r\n\r\n{}");
 
     try testing.expectEqual(200, try connection.status());
 }
@@ -1190,7 +1190,7 @@ test "http_server: answers every refusal with a problem, whatever refused it" {
         },
         // Nothing is attached to answer a routed request in this server.
         .{
-            .request = "POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n",
+            .request = "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n",
             .code = "unavailable",
         },
         .{ .request = "GET /hello HTTP/1.1\r\nHost: t\r\nExpect: nonsense\r\n\r\n", .code = "expectation_failed" },
@@ -1226,7 +1226,7 @@ test "http_server: answers 504 when the handler never does" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(504, try connection.status());
 }
@@ -1242,7 +1242,7 @@ test "http_server: answers 503 when nothing is attached to answer" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /intent HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
 
     try testing.expectEqual(503, try connection.status());
 }

@@ -5,7 +5,7 @@ const std = @import("std");
 pub const Route = enum(u32) {
     hello = 0,
     pair = 1,
-    intent = 2,
+    command = 2,
     state = 3,
 };
 
@@ -24,7 +24,7 @@ const Entry = struct {
 const table = [_]Entry{
     .{ .method = .GET, .path = "/hello", .route = .hello },
     .{ .method = .POST, .path = "/pair", .route = .pair },
-    .{ .method = .POST, .path = "/intent", .route = .intent },
+    .{ .method = .POST, .path = "/command", .route = .command },
     .{ .method = .GET, .path = "/state", .route = .state },
 };
 
@@ -70,7 +70,7 @@ test "router: an unknown path is not found whatever the method" {
 
 test "router: resolves every route in the table" {
     try testing.expectEqual(Outcome{ .route = .pair }, resolve(.POST, "/pair"));
-    try testing.expectEqual(Outcome{ .route = .intent }, resolve(.POST, "/intent"));
+    try testing.expectEqual(Outcome{ .route = .command }, resolve(.POST, "/command"));
     try testing.expectEqual(Outcome{ .route = .state }, resolve(.GET, "/state?since=4"));
 }
 
@@ -82,6 +82,6 @@ test "router: a route is reachable only by its own method" {
 test "router: route ids are stable" {
     try testing.expectEqual(0, @intFromEnum(Route.hello));
     try testing.expectEqual(1, @intFromEnum(Route.pair));
-    try testing.expectEqual(2, @intFromEnum(Route.intent));
+    try testing.expectEqual(2, @intFromEnum(Route.command));
     try testing.expectEqual(3, @intFromEnum(Route.state));
 }
