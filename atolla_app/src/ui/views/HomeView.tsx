@@ -37,13 +37,11 @@ import { MixesSection } from '../components/MixesSection';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
-import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { openHomeContextMenu } from '../flows/HomeContextMenu';
-import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { closeSlot } from '../flows/ModalSlotFlow';
+import { openAddToPlaylist, openCreatePlaylist } from '../flows/PlaylistModals';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import type { CardContextMenuCard } from '../modals/CardContextMenu';
-import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
-import { AddToPlaylistView } from './AddToPlaylistView';
 
 const log = getLogger('home');
 
@@ -87,7 +85,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedPinnedCards: Array<Card> = [];
 	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
 	private subscribedPinnedItemsStore: PinnedItemsStore | undefined;
-	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbum: Album | null = null;
 	private lastKnownGridColumns = -1;
@@ -560,10 +557,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		});
 	};
 
-	private closeModalSlot = (): void => {
-		closeSlot(this.viewModel.modalSlot);
-	};
-
 	private handleContextMenuDismiss = (): void => {
 		closeSlot(this.viewModel.modalSlot);
 		this.contextMenuAlbum = null;
@@ -572,15 +565,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	private handleAlbumContextMenuAddToPlaylist = (tracks: TrackSource): void => {
 		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.modalSlot, () => {
-			<AddToPlaylistView
-				animationsEnabled={this.viewModel.preferences.animationsEnabled}
-				gridColumns={this.viewModel.preferences.gridColumns}
-				onDismiss={this.closeModalSlot}
-				toastService={this.viewModel.toastService}
-				tracks={tracks}
-				transport={this.viewModel.transport}
-			/>;
+		openAddToPlaylist(this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			gridColumns: this.viewModel.preferences.gridColumns,
+			toastService: this.viewModel.toastService,
+			tracks,
+			transport: this.viewModel.transport,
 		});
 	};
 
@@ -592,40 +582,16 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private handleAlbumContextMenuCreatePlaylist = (tracks: TrackSource): void => {
-		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.modalSlot, () => {
-			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.preferences.animationsEnabled}
-				onCancel={this.closeModalSlot}
-				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
-			/>;
+		openCreatePlaylist(this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			onPlaylistCreated: (playlist) => {
+				this.viewModel.onOpenPlaylist?.(playlist);
+			},
+			playlistFlow: this.playlistFlow,
+			tracks,
+			transport: this.viewModel.transport,
 		});
-	};
-
-	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!tracks) return;
-		try {
-			const { alive, value: playlist } = await this.playlistFlow.run(
-				createPlaylistAndAddTracks(
-					name,
-					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-					(playlistId, trackIds) =>
-						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-					tracks,
-					{ isCancelled: () => this.isDestroyed() },
-				),
-			);
-			if (!alive) return;
-			this.pendingCreatePlaylistTracks = null;
-			this.closeModalSlot();
-			this.viewModel.onOpenPlaylist?.(playlist);
-		} catch {
-			if (this.isDestroyed()) return;
-			this.pendingCreatePlaylistTracks = null;
-			this.closeModalSlot();
-		}
 	};
 
 	private handleAlbumContextMenuEntityTap = (): void => {
@@ -641,19 +607,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
 			card: { album, kind: 'album' },
+			gridColumns: this.viewModel.preferences.gridColumns,
 			isPinned: this.viewModel.pinnedItemsStore?.isPinned('album', album.id) ?? false,
-			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
 			onArtistTap: album.artistId ? this.handleAlbumContextMenuArtistTap : undefined,
-			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleAlbumContextMenuEntityTap,
 			onPin: () => {
 				void this.viewModel.pinnedItemsStore?.pin({ album, kind: 'album' });
 			},
+			onPlaylistCreated: this.viewModel.onOpenPlaylist,
 			onUnpin: () => {
 				void this.viewModel.pinnedItemsStore?.unpin('album', album.id);
 			},
 			playbackStore,
+			playlistFlow: this.playlistFlow,
 			toastService,
 			transport,
 		});
@@ -753,22 +720,23 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
 			card,
+			gridColumns: this.viewModel.preferences.gridColumns,
 			isPinned: true,
-			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
 			onArtistTap:
 				card.kind === 'album' || card.kind === 'artist'
 					? this.handlePinnedContextMenuArtistTap
 					: undefined,
-			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handlePinnedContextMenuEntityTap,
 			onPin: () => {
 				void this.viewModel.pinnedItemsStore?.pin(card);
 			},
+			onPlaylistCreated: this.viewModel.onOpenPlaylist,
 			onUnpin: () => {
 				void this.viewModel.pinnedItemsStore?.unpin(card.kind, id);
 			},
 			playbackStore,
+			playlistFlow: this.playlistFlow,
 			toastService,
 			transport,
 		});

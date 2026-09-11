@@ -2,15 +2,54 @@ import 'jasmine/src/jasmine';
 import { ConnectionModes } from 'atolla_app/src/models/App';
 import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
-import { AlbumsView } from 'atolla_app/src/ui/views/AlbumsView';
+import { AlbumsView, type AlbumsViewModel } from 'atolla_app/src/ui/views/AlbumsView';
 import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { touchEvent } from '../util/testEvents';
+import { touchEvent, touchEventWith } from '../util/testEvents';
+
+class AlbumsViewWithSlot extends Component<AlbumsViewModel> {
+	private slot = new DetachedSlot();
+
+	onRender() {
+		<view>
+			<AlbumsView {...this.viewModel} modalSlot={this.slot} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
+
+function findByLabel(component: unknown, label: string) {
+	return elementTypeFind(
+		componentGetElements(component as never),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityLabel') === label);
+}
+
+// renders run synchronously and resume awaiting test bodies mid-render, so a fixed flush count
+// can observe a half-built tree; poll for the element instead
+async function waitForLabel(component: unknown, label: string): Promise<void> {
+	for (let i = 0; i < 50 && !findByLabel(component, label); i += 1) {
+		await Promise.resolve();
+	}
+}
+
+function longPressCard(component: unknown, label: string): void {
+	jasmine.clock().install();
+	try {
+		findByLabel(component, label)?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+		jasmine.clock().tick(500);
+	} finally {
+		jasmine.clock().uninstall();
+	}
+}
 
 const pageSize = 24;
 
@@ -445,6 +484,42 @@ describe('AlbumsView', () => {
 		component.handleAlbumCardLongPress({ id: 'album-1', kind: 'album' });
 
 		expect(component.state.contextMenuCard).toEqual({ album: albums[0], kind: 'album' });
+	});
+
+	valdiIt('opens add-to-playlist through the modal slot', async (driver) => {
+		const albums = [
+			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
+		];
+		const transport = {
+			getAlbums: async () => ({ hasMore: false, items: albums }),
+			getArtistLogoUrl: async () => null,
+			getPlaylists: async () => ({ hasMore: false, items: [] }),
+			getTracksByAlbum: async () => [{ duration: 1, id: 'track-1', name: 'Track One' }],
+			peekArtistLogoUrl: () => undefined,
+		};
+
+		const preferences = makePreferences();
+		await preferences.setAnimationsEnabled(false);
+		const viewModel = {
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences,
+			toastService: { show: () => {} },
+			transport,
+			viewCache: makeTestViewCache(),
+		};
+		const component = driver.renderComponent(
+			AlbumsViewWithSlot,
+			viewModel as unknown as AlbumsViewModel,
+			undefined,
+		);
+		await waitForLabel(component, 'card-album-1');
+
+		longPressCard(component, 'card-album-1');
+		findByLabel(component, 'card-context-add-to-playlist')?.getAttribute('onTap')?.(touchEvent);
+		await waitForLabel(component, 'add-to-playlist-view');
+
+		expect(findByLabel(component, 'add-to-playlist-view')).not.toBeUndefined();
 	});
 
 	valdiIt(

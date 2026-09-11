@@ -8,7 +8,6 @@ import type { Track } from 'atolla_core/src/models/Track';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
-import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -39,13 +38,10 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { TappableIcon } from '../components/TappableIcon';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
-import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
-import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { closeSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import type { CardContextMenuCard } from '../modals/CardContextMenu';
-import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
-import { AddToPlaylistView } from './AddToPlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
@@ -94,7 +90,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private cachedTrackEntries: Array<TrackListEntry> = [];
 	private cachedTrackEntriesSource?: Array<Track>;
 	private cardContextMenuCard: CardContextMenuCard | null = null;
-	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
@@ -315,10 +310,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.search?.cancel?.();
 		this.search = undefined;
 	}
-
-	private closeModalSlot = (): void => {
-		closeSlot(this.viewModel.modalSlot);
-	};
 
 	private createAlbumCards(albums: Array<Album>): Array<Card> {
 		if (albums !== this.cachedAlbumCardsSource) {
@@ -596,37 +587,26 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card,
+			gridColumns: this.viewModel.preferences.gridColumns,
 			isPinned: this.viewModel.pinnedItemsStore?.isPinned(card.kind, id) ?? false,
-			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
 			onArtistTap: onArtistTap,
-			onCreatePlaylist: this.handleCardContextMenuCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleCardContextMenuEntityTap,
 			onPin: () => {
 				void this.viewModel.pinnedItemsStore?.pin(card);
 			},
+			onPlaylistCreated: (playlist) => {
+				pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
+			},
 			onUnpin: () => {
 				void this.viewModel.pinnedItemsStore?.unpin(card.kind, id);
 			},
 			playbackStore: this.viewModel.playbackStore,
+			playlistFlow: this.playlistFlow,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	}
-
-	private handleCardContextMenuAddToPlaylist = (tracks: TrackSource): void => {
-		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.modalSlot, () => {
-			<AddToPlaylistView
-				animationsEnabled={this.viewModel.preferences.animationsEnabled}
-				gridColumns={this.viewModel.preferences.gridColumns}
-				onDismiss={this.closeModalSlot}
-				toastService={this.viewModel.toastService}
-				tracks={tracks}
-				transport={this.viewModel.transport}
-			/>;
-		});
-	};
 
 	private handleCardContextMenuArtistTap = (): void => {
 		const card = this.cardContextMenuCard;
@@ -648,43 +628,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		if (card.kind === 'album') this.handleAlbumTap(card.album.id);
 		if (card.kind === 'artist') this.handleArtistTap(card.artist.id);
 		if (card.kind === 'playlist') this.handlePlaylistTap(card.playlist.id);
-	};
-
-	private handleCardContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!tracks) return;
-		try {
-			const { alive, value: playlist } = await this.playlistFlow.run(
-				createPlaylistAndAddTracks(
-					name,
-					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-					(playlistId, trackIds) =>
-						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-					tracks,
-					{ isCancelled: () => this.isDestroyed() },
-				),
-			);
-			if (!alive) return;
-			this.pendingCreatePlaylistTracks = null;
-			this.closeModalSlot();
-			pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
-		} catch {
-			if (this.isDestroyed()) return;
-			this.pendingCreatePlaylistTracks = null;
-			this.closeModalSlot();
-		}
-	};
-
-	private handleCardContextMenuCreatePlaylistRequest = (tracks: TrackSource): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.modalSlot, () => {
-			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.preferences.animationsEnabled}
-				onCancel={this.closeModalSlot}
-				onCreate={this.handleCardContextMenuCreatePlaylistConfirm}
-			/>;
-		});
 	};
 
 	private handleQueryChange = (value: unknown): void => {

@@ -3,7 +3,7 @@ import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 export class CancelableController {
 	private current?: { cancel?(): void };
 
-	constructor(private readonly isDestroyed: () => boolean) {}
+	constructor(readonly isDestroyed: () => boolean) {}
 
 	cancel = (): void => {
 		this.current?.cancel?.();

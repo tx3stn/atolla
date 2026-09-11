@@ -4,7 +4,6 @@ import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
-import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -26,12 +25,9 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { EmptyState } from '../components/EmptyState';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { openCardContextMenu } from '../flows/CardContextMenu';
-import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushAlbum, pushArtist } from '../flows/PushDetail';
 import type { CardContextMenuCard } from '../modals/CardContextMenu';
-import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
-import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortAlbums } from './sort/Albums';
 
 export interface AlbumsViewModel {
@@ -53,10 +49,8 @@ export interface AlbumsViewModel {
 }
 
 interface AlbumsState {
-	addToPlaylistTracks: TrackSource | null;
 	albums: Array<Album>;
 	contextMenuCard: CardContextMenuCard | null;
-	createPlaylistTracks: TrackSource | null;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
 	isRefreshing: boolean;
@@ -72,10 +66,8 @@ interface AlbumPageResult {
 
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
 	state: AlbumsState = {
-		addToPlaylistTracks: null,
 		albums: [],
 		contextMenuCard: null,
-		createPlaylistTracks: null,
 		hasMore: true,
 		isLoadingNextPage: false,
 		isRefreshing: false,
@@ -120,9 +112,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		const { toastService, transport } = this.viewModel;
-		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
-		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
+		const { gridColumns } = this.viewModel.preferences;
 
 		const cards = this.createAlbumCards(this.getDisplayAlbums());
 		<view style={styles.container}>
@@ -150,24 +140,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				itemCount={this.state.albums.length}
 				message={Strings.nothingDownloaded()}
 			/>
-
-			{addToPlaylistTracks && (
-				<AddToPlaylistView
-					animationsEnabled={animationsEnabled}
-					gridColumns={this.viewModel.preferences.gridColumns}
-					onDismiss={this.handleAddToPlaylistDismiss}
-					toastService={toastService}
-					tracks={addToPlaylistTracks}
-					transport={transport}
-				/>
-			)}
-			{createPlaylistTracks && (
-				<CreatePlaylistModal
-					animationsEnabled={animationsEnabled}
-					onCancel={this.handleCreatePlaylistCancel}
-					onCreate={this.handleCreatePlaylistConfirm}
-				/>
-			)}
 		</view>;
 	}
 
@@ -183,8 +155,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { album, kind: 'album' },
+			gridColumns: this.viewModel.preferences.gridColumns,
 			isPinned: this.viewModel.pinnedItemsStore?.isPinned('album', album.id) ?? false,
-			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: album.artistId
 				? () => {
 						this.handleContextMenuDismiss();
@@ -198,7 +170,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 						});
 					}
 				: undefined,
-			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			onPin: () => {
@@ -208,6 +179,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				void this.viewModel.pinnedItemsStore?.unpin('album', album.id);
 			},
 			playbackStore: this.viewModel.playbackStore,
+			playlistFlow: this.playlistFlow,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
@@ -227,7 +199,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private cachedDisplayAlbumsRef: Array<Album> | null = null;
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedDisplayIsOffline = false;
-	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
 	private cacheKey(): string {
@@ -302,10 +273,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		});
 	}
 
-	private handleAddToPlaylistDismiss = (): void => {
-		this.setState({ addToPlaylistTracks: null });
-	};
-
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
@@ -338,10 +305,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.setState({ contextMenuCard: null });
 	};
 
-	private handleContextMenuAddToPlaylist = (tracks: TrackSource): void => {
-		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-	};
-
 	private handleContextMenuEntityTap = (): void => {
 		const card = this.state.contextMenuCard;
 		if (card?.kind !== 'album') {
@@ -349,41 +312,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		}
 		this.handleContextMenuDismiss();
 		pushAlbum(this.viewModel.navigationController, this.detailDeps(), card.album);
-	};
-
-	private handleCreatePlaylistCancel = (): void => {
-		this.setState({ createPlaylistTracks: null });
-		this.pendingCreatePlaylistTracks = null;
-	};
-
-	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!tracks) {
-			return;
-		}
-
-		try {
-			const { alive } = await this.playlistFlow.run(
-				createPlaylistAndAddTracks(
-					name,
-					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-					(playlistId, trackIds) =>
-						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-					tracks,
-					{ isCancelled: () => this.isDestroyed() },
-				),
-			);
-			if (!alive) return;
-		} catch {
-			if (this.isDestroyed()) return;
-		}
-		this.pendingCreatePlaylistTracks = null;
-		this.setState({ createPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistRequest = (tracks: TrackSource): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};
 
 	private createAlbumCards(albums: Array<Album>): Array<Card> {

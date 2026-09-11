@@ -4,7 +4,6 @@ import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
-import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
@@ -24,12 +23,9 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { EmptyState } from '../components/EmptyState';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { openCardContextMenu } from '../flows/CardContextMenu';
-import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushGenre } from '../flows/PushDetail';
 import type { CardContextMenuCard } from '../modals/CardContextMenu';
-import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
-import { AddToPlaylistView } from './AddToPlaylistView';
 
 interface GenresViewModel {
 	downloadService: DownloadService;
@@ -50,9 +46,7 @@ interface GenresViewModel {
 }
 
 interface GenresState {
-	addToPlaylistTracks: TrackSource | null;
 	contextMenuCard: CardContextMenuCard | null;
-	createPlaylistTracks: TrackSource | null;
 	genres: Array<Genre>;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
@@ -68,13 +62,10 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedGenreCards: Array<Card> = [];
 	private cachedGenreCardsSource: Array<Genre> | null = null;
-	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
 	state: GenresState = {
-		addToPlaylistTracks: null,
 		contextMenuCard: null,
-		createPlaylistTracks: null,
 		genres: [],
 		hasMore: true,
 		isLoadingNextPage: false,
@@ -93,9 +84,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}
 
 	onRender(): void {
-		const { toastService, transport } = this.viewModel;
-		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
-		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
+		const { gridColumns } = this.viewModel.preferences;
 		const cards = this.createGenreCards(this.getDisplayGenres());
 
 		<view style={styles.container}>
@@ -123,24 +112,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				itemCount={this.state.genres.length}
 				message={Strings.nothingDownloaded()}
 			/>
-
-			{addToPlaylistTracks && (
-				<AddToPlaylistView
-					animationsEnabled={animationsEnabled}
-					gridColumns={this.viewModel.preferences.gridColumns}
-					onDismiss={this.handleAddToPlaylistDismiss}
-					toastService={toastService}
-					tracks={addToPlaylistTracks}
-					transport={transport}
-				/>
-			)}
-			{createPlaylistTracks && (
-				<CreatePlaylistModal
-					animationsEnabled={animationsEnabled}
-					onCancel={this.handleCreatePlaylistCancel}
-					onCreate={this.handleCreatePlaylistConfirm}
-				/>
-			)}
 		</view>;
 	}
 
@@ -174,14 +145,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
-	private handleAddToPlaylistDismiss = (): void => {
-		this.setState({ addToPlaylistTracks: null });
-	};
-
-	private handleContextMenuAddToPlaylist = (tracks: TrackSource): void => {
-		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-	};
-
 	private handleContextMenuDismiss = (): void => {
 		this.setState({ contextMenuCard: null });
 	};
@@ -190,39 +153,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		const card = this.state.contextMenuCard;
 		if (card?.kind !== 'genre') return;
 		this.navigateToGenre(card.genre);
-	};
-
-	private handleCreatePlaylistCancel = (): void => {
-		this.pendingCreatePlaylistTracks = null;
-		this.setState({ createPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!tracks) return;
-
-		try {
-			const { alive } = await this.playlistFlow.run(
-				createPlaylistAndAddTracks(
-					name,
-					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-					(playlistId, trackIds) =>
-						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-					tracks,
-					{ isCancelled: () => this.isDestroyed() },
-				),
-			);
-			if (!alive) return;
-		} catch {
-			if (this.isDestroyed()) return;
-		}
-		this.pendingCreatePlaylistTracks = null;
-		this.setState({ createPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistRequest = (tracks: TrackSource): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};
 
 	private handleGenreCardTap = (card: {
@@ -244,9 +174,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { genre, kind: 'genre' },
+			gridColumns: this.viewModel.preferences.gridColumns,
 			isPinned: this.viewModel.pinnedItemsStore?.isPinned('genre', genre.id) ?? false,
-			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
-			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			onPin: () => {
@@ -256,6 +185,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				void this.viewModel.pinnedItemsStore?.unpin('genre', genre.id);
 			},
 			playbackStore: this.viewModel.playbackStore,
+			playlistFlow: this.playlistFlow,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});

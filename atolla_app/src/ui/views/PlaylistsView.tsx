@@ -5,7 +5,6 @@ import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
-import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -27,12 +26,9 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { EmptyState } from '../components/EmptyState';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { openCardContextMenu } from '../flows/CardContextMenu';
-import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushPlaylist } from '../flows/PushDetail';
 import type { CardContextMenuCard } from '../modals/CardContextMenu';
-import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
-import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortPlaylists } from './sort/Playlists';
 
 export interface PlaylistsViewModel {
@@ -56,9 +52,7 @@ export interface PlaylistsViewModel {
 }
 
 interface PlaylistsState {
-	addToPlaylistTracks: TrackSource | null;
 	contextMenuCard: CardContextMenuCard | null;
-	createPlaylistTracks: TrackSource | null;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
 	isRefreshing: boolean;
@@ -79,13 +73,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private cachedDisplayPlaylistsRef: Array<Playlist> | null = null;
 	private cachedPlaylistCards: Array<Card> = [];
 	private cachedPlaylistCardsSource: Array<Playlist> | null = null;
-	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
 	state: PlaylistsState = {
-		addToPlaylistTracks: null,
 		contextMenuCard: null,
-		createPlaylistTracks: null,
 		hasMore: true,
 		isLoadingNextPage: false,
 		isRefreshing: false,
@@ -141,9 +132,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { kind: 'playlist', playlist },
+			gridColumns: this.viewModel.preferences.gridColumns,
 			isPinned: this.viewModel.pinnedItemsStore?.isPinned('playlist', playlist.id) ?? false,
-			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
-			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			onPin: () => {
@@ -153,6 +143,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				void this.viewModel.pinnedItemsStore?.unpin('playlist', playlist.id);
 			},
 			playbackStore: this.viewModel.playbackStore,
+			playlistFlow: this.playlistFlow,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
@@ -316,10 +307,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 	}
 
-	private handleContextMenuAddToPlaylist = (tracks: TrackSource): void => {
-		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-	};
-
 	private handleContextMenuEntityTap = (): void => {
 		const card = this.state.contextMenuCard;
 		if (card?.kind !== 'playlist') {
@@ -329,48 +316,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		this.navigateToPlaylist(card.playlist);
 	};
 
-	private handleAddToPlaylistDismiss = (): void => {
-		this.setState({ addToPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistRequest = (tracks: TrackSource): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
-	};
-
-	private handleCreatePlaylistCancel = (): void => {
-		this.setState({ createPlaylistTracks: null });
-		this.pendingCreatePlaylistTracks = null;
-	};
-
-	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!tracks) {
-			return;
-		}
-
-		try {
-			const { alive } = await this.playlistFlow.run(
-				createPlaylistAndAddTracks(
-					name,
-					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-					(playlistId, trackIds) =>
-						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-					tracks,
-					{ isCancelled: () => this.isDestroyed() },
-				),
-			);
-			if (!alive) return;
-		} catch {
-			if (this.isDestroyed()) return;
-		}
-		this.pendingCreatePlaylistTracks = null;
-		this.setState({ createPlaylistTracks: null });
-	};
-
 	onRender(): void {
-		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
-
 		const cards = this.createPlaylistCards(this.getDisplayPlaylists());
 		<view style={styles.container}>
 			<RefreshableScroll
@@ -397,24 +343,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				itemCount={this.state.playlists.length}
 				message={Strings.nothingDownloaded()}
 			/>
-
-			{addToPlaylistTracks && (
-				<AddToPlaylistView
-					animationsEnabled={this.viewModel.preferences.animationsEnabled}
-					gridColumns={this.viewModel.preferences.gridColumns}
-					onDismiss={this.handleAddToPlaylistDismiss}
-					toastService={this.viewModel.toastService}
-					tracks={addToPlaylistTracks}
-					transport={this.viewModel.transport}
-				/>
-			)}
-			{createPlaylistTracks && (
-				<CreatePlaylistModal
-					animationsEnabled={this.viewModel.preferences.animationsEnabled}
-					onCancel={this.handleCreatePlaylistCancel}
-					onCreate={this.handleCreatePlaylistConfirm}
-				/>
-			)}
 		</view>;
 	}
 }
