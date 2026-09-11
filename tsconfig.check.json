@@ -1,0 +1,18 @@
+{
+	"files": [],
+	"references": [
+		{ "path": "./tsconfig.json" },
+		{ "path": "./atolla_core/tsconfig.src.json" },
+		{ "path": "./atolla_core/tsconfig.tests.json" },
+		{ "path": "./atolla_jellyfin/tsconfig.src.json" },
+		{ "path": "./atolla_jellyfin/tsconfig.tests.json" },
+		{ "path": "./atolla_player/tsconfig.src.json" },
+		{ "path": "./atolla_player/tsconfig.tests.json" },
+		{ "path": "./atolla_sync/tsconfig.src.json" },
+		{ "path": "./atolla_sync/tsconfig.tests.json" },
+		{ "path": "./atolla_app/tsconfig.src.json" },
+		{ "path": "./atolla_app/tsconfig.tests.json" },
+		{ "path": "./atolla_headless/tsconfig.src.json" },
+		{ "path": "./atolla_headless/tsconfig.tests.json" }
+	]
+}

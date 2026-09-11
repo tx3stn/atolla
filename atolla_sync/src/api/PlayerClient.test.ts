@@ -124,7 +124,9 @@ describe('PlayerClient', () => {
 
 		expect(answer.status).toBe(418);
 		expect(answer.headers).toEqual({ 'x-kept': 'yes' });
-		expect(answer.json).toEqual(cargo);
+		// Cast because the point is a body outside the declared union: `json` is what the daemon
+		// sent, not something the client has checked.
+		expect(answer.json as unknown).toEqual(cargo);
 	});
 
 	it('rejects when the body is not json', async () => {
