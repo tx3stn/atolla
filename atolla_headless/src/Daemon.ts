@@ -14,6 +14,7 @@ import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 import type { RandomBytes } from './Random';
 import { attachServer } from './Server';
+import { makeStateVersion } from './StateVersion';
 
 export interface DaemonDeps {
 	config: PlayerConfig;
@@ -42,6 +43,26 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	log.debug('started', { dataDir: deps.config.dataDir, name: deps.config.name });
 
 	const secrets = makeFileKeyValueStore(deps.files, secretsDir(deps.config));
+	const state = stateDir(deps.config);
+	const playback = new PlaybackStore();
+	const version = makeStateVersion();
+
+	playback.subscribe(() => version.bump());
+
+	// A command waits on the restore rather than the restore delaying the server. It is started on
+	// a later turn than this one because `setPersistence` reads synchronously before it yields, so
+	// starting it here would put a large queue's read ahead of the listen below.
+	const restored = Promise.resolve().then(async () => {
+		await playback.setPersistence({
+			progress: makeFileKeyValueStore(deps.files, state),
+			queue: makeFileKeyValueStore(deps.files, state),
+		});
+
+		log.info('queue restored', {
+			trackIndex: playback.trackIndex,
+			tracks: playback.tracks.length,
+		});
+	});
 
 	// Before the queue is restored, so a bad port fails fast and the server answers while a large
 	// queue is still being read.
@@ -50,6 +71,11 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	deps.httpServer.setControllersPath(secrets.pathFor(CONTROLLERS_KEY));
 	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
 	attachServer(deps.httpServer, {
+		command: {
+			playback,
+			restored,
+			version,
+		},
 		pair: {
 			randomBytes: deps.randomBytes,
 			secrets,
@@ -60,17 +86,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 		port: deps.httpServer.start(deps.config.bindAddress, deps.config.port),
 	});
 
-	const state = stateDir(deps.config);
-	const playback = new PlaybackStore();
-	await playback.setPersistence({
-		progress: makeFileKeyValueStore(deps.files, state),
-		queue: makeFileKeyValueStore(deps.files, state),
-	});
-
-	log.info('queue restored', {
-		trackIndex: playback.trackIndex,
-		tracks: playback.tracks.length,
-	});
+	await restored;
 
 	return new Promise<number>(() => {});
 }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { HttpServer, RequestHandler } from './Http';
 import type { RandomBytes } from './Random';
 import { attachServer, ROUTE, type ServerDeps } from './Server';
+import { makeStateVersion } from './StateVersion';
 
 const PAIR_BODY = JSON.stringify({ controllerId: 'c1', controllerName: 'Phone' });
 
@@ -12,7 +14,14 @@ function counting(): RandomBytes {
 }
 
 function deps(): ServerDeps {
-	return { pair: { randomBytes: counting(), secrets: new InMemoryKeyValueStore() } };
+	return {
+		command: {
+			playback: new PlaybackStore(),
+			restored: Promise.resolve(),
+			version: makeStateVersion(),
+		},
+		pair: { randomBytes: counting(), secrets: new InMemoryKeyValueStore() },
+	};
 }
 
 function fakeHttpServer(answers: Array<{ body: string; requestId: number; status: number }>) {
@@ -43,7 +52,7 @@ describe('attachServer', () => {
 		const { dispatch, httpServer } = fakeHttpServer(answers);
 
 		attachServer(httpServer, deps());
-		dispatch(4242, ROUTE.command, '/command', '');
+		dispatch(4242, ROUTE.state, '/state', '');
 		await Promise.resolve();
 
 		expect(answers).toEqual([{ body: '', requestId: 4242, status: 501 }]);

@@ -161,9 +161,15 @@ pub const Server = struct {
         };
 
         // A handler names its failure with a status and nothing more, so the problem is rendered
-        // here rather than hand-rolled on the other side of the bridge.
+        // here rather than hand-rolled on the other side of the bridge. A status with no problem of
+        // its own is `internal`, since a handler failing in a way this table does not know about is
+        // a daemon bug rather than something to describe to a caller.
         if (answer.status >= 400) {
-            const failure = if (answer.status == 501) problem.not_implemented else problem.internal;
+            const failure = switch (answer.status) {
+                400 => problem.malformed_body,
+                501 => problem.not_implemented,
+                else => problem.internal,
+            };
 
             return problem.response(request, failure, .{});
         }
@@ -930,6 +936,25 @@ const StubHandler = struct {
         return .{ .context = self, .dispatch = dispatch };
     }
 };
+
+test "http_server: renders a malformed body problem when a handler answers 400" {
+    var stub: StubHandler = .{ .status = 400, .body = "" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
+
+    try testing.expect(try connection.contains("400 Bad Request"));
+    try testing.expect(try connection.contains("\"code\":\"malformed_body\""));
+}
 
 test "http_server: renders a problem when a handler answers 501" {
     var stub: StubHandler = .{ .status = 501, .body = "{\"error\":\"notImplemented\"}" };

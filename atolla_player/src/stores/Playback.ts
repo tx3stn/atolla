@@ -188,17 +188,15 @@ export class PlaybackStore {
 	cycleLoopMode(): void {
 		switch (this.loopMode) {
 			case LoopModes.none:
-				this.loopMode = LoopModes.queue;
+				this.setLoopMode(LoopModes.queue);
 				break;
 			case LoopModes.queue:
-				this.loopMode = LoopModes.track;
+				this.setLoopMode(LoopModes.track);
 				break;
 			default:
-				this.loopMode = LoopModes.none;
+				this.setLoopMode(LoopModes.none);
 				break;
 		}
-
-		this.notify();
 	}
 
 	get artistLogoUrl(): string | null {
@@ -428,6 +426,14 @@ export class PlaybackStore {
 	// player advanced through tracks while JS was frozen and is still playing: the store must
 	// follow it rather than push a stale paused state. idempotent and side-effect-free beyond
 	// the notification (isPlaying isn't persisted)
+	setLoopMode(mode: LoopMode): void {
+		if (this.loopMode === mode) {
+			return;
+		}
+		this.loopMode = mode;
+		this.notify();
+	}
+
 	setPlaying(isPlaying: boolean): void {
 		if (this.isPlaying === isPlaying) {
 			return;
