@@ -113,10 +113,22 @@ export interface paths {
         };
         /**
          * The player's queue, playback and group state.
-         * @description Not implemented: the request crosses the bridge and is answered `501`. A query string is
-         *     accepted and passed through, but nothing reads it, so the `?since=` long poll and the
-         *     snapshot schema belong to the state slice. Until then this route is reachable by anything
-         *     on the LAN.
+         * @description Everything a controller mirrors, in one snapshot. A controller holds the last one it was
+         *     given and replaces it wholesale; there are no partial updates, because a snapshot small
+         *     enough to send whole is simpler than a diff both ends have to agree on.
+         *
+         *     The route is a long poll. Passing `since` asks for the first snapshot newer than that
+         *     version, and the daemon holds the request open for up to 25 seconds waiting for one, though
+         *     a change wakes it immediately. Twenty-five seconds passing with nothing new is not an
+         *     error: it answers `304` with no body, because the controller already holds that snapshot
+         *     and re-sending a queue of several hundred tracks every 25 seconds would be the only thing
+         *     the wire carried. Omitting `since` answers the current snapshot straight away, which is how
+         *     a controller gets its first one.
+         *
+         *     The loop a controller runs is to read a snapshot, apply it, then ask again with the
+         *     `version` it applied. A `304` means ask again unchanged, and a `200` means replace the
+         *     mirror. Position is the one part that does not need a new snapshot, which is what
+         *     `positionAtMs` is for.
          */
         get: operations["getState"];
         put?: never;
@@ -306,6 +318,14 @@ export interface components {
          *     only job is to order changes. It does not count commands: one command can settle several
          *     fields, and some changes have no command behind them at all.
          *
+         *     Nothing persists it, so it starts again at 1 when the daemon restarts. Persisting would
+         *     mean a disk write on every bump, which is every command, to protect against something a
+         *     rule handles for nothing: a `since` at or above the current version cannot be waited for,
+         *     so it is answered immediately with the current snapshot rather than held for 25 seconds. A
+         *     controller that outlived a restart gets one snapshot it may already have held, adopts the
+         *     version in it, and carries on. Versions are ordered within a run of the daemon, and
+         *     comparing them across runs means nothing.
+         *
          *     The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
          *     exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
          *     number.
@@ -322,21 +342,20 @@ export interface components {
          */
         TrackIndex: number;
         /**
-         * @description Tracks as `atolla_core` defines them. The server hands this array across the bridge
-         *     without parsing it, so it enforces neither the member shape nor `maxItems`. The 1 MiB body
-         *     cap is what refuses an oversized queue, and it is reached first anyway. The member schema
-         *     arrives in this document with `StateSnapshot`, the first place the daemon answers with
-         *     tracks rather than passing them through.
+         * @description The queue a command carries. The server hands this array across the bridge without parsing
+         *     it, so it enforces neither the member shape nor `maxItems`: the 1 MiB body cap is what
+         *     refuses an oversized queue, and it is reached first anyway. What checks the shape is the
+         *     handler on the other side, which refuses the body as `malformed_body` if a member is not a
+         *     track.
          * @example [
          *       {
+         *         "duration": 293.4,
          *         "id": "1a2b3c4d5e6f7081",
          *         "name": "Xtal"
          *       }
          *     ]
          */
-        Tracks: {
-            [key: string]: unknown;
-        }[];
+        Tracks: components["schemas"]["Track"][];
         /** @description The commands that carry no members beyond their own name. */
         CommandBare: {
             /**
@@ -505,6 +524,179 @@ export interface components {
          */
         CommandAccepted: {
             version: components["schemas"]["StateVersion"];
+        };
+        /**
+         * @description A track, as much of one as a controller needs. `atolla_core/src/models/Track.ts` is the one
+         *     source of truth and holds a good deal more: release dates, sort names, genres, disc and
+         *     track numbers. The daemon relays all of it untouched, and this schema describes none of it,
+         *     because nothing reading a snapshot depends on it. Listing those members here would make a
+         *     second definition to keep in step with the first, and the spec is the copy that would be
+         *     wrong once they drifted.
+         *
+         *     What is described is the members the interface requires, plus the ones a controller renders
+         *     and navigates from. Anything else the media server supplied arrives alongside them.
+         */
+        Track: {
+            /**
+             * @description So a controller can offer to open the album this came from.
+             * @example 6f2b8c4d1e9a3705
+             */
+            albumId?: string;
+            /**
+             * Format: uri
+             * @description The artwork. A controller has no way to work this out, so it travels with the track.
+             * @example http://jellyfin.local:8096/Items/6f2b8c4d/Images/Primary
+             */
+            albumImageUrl?: string;
+            /** @example Selected Ambient Works */
+            albumName?: string;
+            /** @example 1c4e7a09 */
+            artistId?: string;
+            /** @example Aphex Twin */
+            artistName?: string;
+            /**
+             * Format: double
+             * @description Seconds, not milliseconds, because that is what the store and the audio engine work in.
+             *     The playback position beside it is milliseconds: a position needs finer resolution than
+             *     a length, and the asymmetry is deliberate.
+             * @example 293.4
+             */
+            duration: number;
+            /**
+             * @description The media server's identifier. A command naming a queue position may carry it as a
+             *     guard, and the native player matches the track it is playing by it.
+             * @example 1a2b3c4d5e6f7081
+             */
+            id: string;
+            /** @example Xtal */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description The album a queue came from, so a controller can say what is playing without looking it up.
+         *     As with `Track`, this is what a controller depends on rather than everything
+         *     `atolla_core/src/models/Album.ts` holds.
+         */
+        Album: {
+            /** @example 1c4e7a09 */
+            artistId: string;
+            /** @example Aphex Twin */
+            artistName: string;
+            /** @example 6f2b8c4d1e9a3705 */
+            id: string;
+            /**
+             * Format: uri
+             * @example http://jellyfin.local:8096/Items/6f2b8c4d/Images/Primary
+             */
+            imageUrl?: string;
+            /** @example Selected Ambient Works */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description What a player is doing. `idle` is a player with nothing queued, which is not the same as one
+         *     holding a queue it has paused.
+         * @example playing
+         * @enum {string}
+         */
+        PlayerState: "idle" | "paused" | "playing";
+        /**
+         * @description A player in the group. Today a daemon is a group of one and reports only itself, so this
+         *     array has a single entry; discovery fills it out at the step that builds the beacon.
+         */
+        Member: {
+            /**
+             * @description Whether this member plays. The enabled set is what defines the group, so a player that
+             *     is present but not enabled is one the user switched off rather than one that failed.
+             * @example true
+             */
+            enabled: boolean;
+            /**
+             * @description The stable player id, the same one `GET /hello` reports.
+             * @example 4f3c9a1de8b27065
+             */
+            id: string;
+            /**
+             * @description Why this member is not playing when it should be, absent when nothing is wrong. A
+             *     member that misses a track keeps its place in the group and rejoins at the next one, so
+             *     this is what a controller shows instead of removing it from the list.
+             * @example could not reach the media server
+             */
+            lastError?: string;
+            /** @example Kitchen */
+            name: string;
+            state: components["schemas"]["PlayerState"];
+            /**
+             * @description How tightly this member can synchronise, as `GET /hello` reports it.
+             * @example tight
+             * @enum {string}
+             */
+            tier: "loose" | "tight";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description Everything a controller mirrors, replaced whole on each read. A controller applies it and
+         *     then asks again with the `version` it applied.
+         */
+        StateSnapshot: {
+            /**
+             * @description Which group this snapshot describes. There is one, called `default`, and it is on the
+             *     wire from the start so that zones are an addition later rather than a redesign.
+             * @example default
+             */
+            group: string;
+            /**
+             * @description The player that owns the queue and schedules playback. A daemon on its own leads,
+             *     so this is its own id until a group has more than one member in it.
+             * @example 4f3c9a1de8b27065
+             */
+            leader: string;
+            members: components["schemas"]["Member"][];
+            playback: {
+                /** @example true */
+                isPlaying: boolean;
+                /**
+                 * @example none
+                 * @enum {string}
+                 */
+                loopMode: "none" | "queue" | "track";
+                /**
+                 * Format: int64
+                 * @description The leader's wall clock when it read `positionMs`, in epoch milliseconds. The two
+                 *     clocks are not synchronised, so what this is good for is elapsed time rather than
+                 *     the absolute value: a controller takes the difference against its own clock as the
+                 *     snapshot arrives, keeps it, and extrapolates from there. Reading it as a time its
+                 *     own clock agrees with puts the progress bar out by however far the two have
+                 *     drifted.
+                 * @example 1758000000000
+                 */
+                positionAtMs: number;
+                /**
+                 * Format: int64
+                 * @description How far into the current track the leader was at `positionAtMs`. The pair lets a
+                 *     controller run a smooth progress bar between snapshots instead of asking for the
+                 *     position over and over. Position is the only part of the state that changes
+                 *     continuously, so without the pair the long poll would have nothing useful to say
+                 *     about it.
+                 * @example 91234
+                 */
+                positionMs: number;
+            } & {
+                [key: string]: unknown;
+            };
+            queue: {
+                album?: components["schemas"]["Album"];
+                trackIndex: components["schemas"]["TrackIndex"];
+                tracks: components["schemas"]["Track"][];
+            } & {
+                [key: string]: unknown;
+            };
+            version: components["schemas"]["StateVersion"];
+        } & {
+            [key: string]: unknown;
         };
     };
     responses: {
@@ -746,6 +938,11 @@ export type CommandSetLoopMode = components['schemas']['CommandSetLoopMode'];
 export type CommandTrackId = components['schemas']['CommandTrackId'];
 export type Command = components['schemas']['Command'];
 export type CommandAccepted = components['schemas']['CommandAccepted'];
+export type Track = components['schemas']['Track'];
+export type Album = components['schemas']['Album'];
+export type PlayerState = components['schemas']['PlayerState'];
+export type Member = components['schemas']['Member'];
+export type StateSnapshot = components['schemas']['StateSnapshot'];
 export type ResponseBadRequest = components['responses']['BadRequest'];
 export type ResponsePairBadRequest = components['responses']['PairBadRequest'];
 export type ResponseCommandBadRequest = components['responses']['CommandBadRequest'];
@@ -902,7 +1099,16 @@ export interface operations {
     };
     getState: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description The version the controller already holds. The daemon answers when it has something
+                 *     newer, or `304` when 25 seconds pass without that happening. A version at or above the
+                 *     current one is answered immediately rather than waited for, which is what stops a
+                 *     controller that outlived a restart from blocking forever against a counter that began
+                 *     again; see `StateVersion`.
+                 */
+                since?: components["schemas"]["StateVersion"];
+            };
             header?: {
                 /**
                  * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
@@ -918,11 +1124,31 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description A snapshot newer than `since`, or the current one when `since` was omitted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StateSnapshot"];
+                };
+            };
+            /**
+             * @description Twenty-five seconds passed with nothing newer than `since`. No body: the snapshot the
+             *     controller holds is still the current one.
+             */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["InvalidToken"];
             411: components["responses"]["LengthRequired"];
             413: components["responses"]["BodyTooLarge"];
             417: components["responses"]["ExpectationFailed"];
-            501: components["responses"]["NotImplemented"];
+            500: components["responses"]["HandlerFailed"];
             503: components["responses"]["Unavailable"];
             504: components["responses"]["HandlerTimeout"];
         };

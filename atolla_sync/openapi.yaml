@@ -1,6 +1,8 @@
 openapi: 3.1.0
 x-lint-ignore:
   - owasp-rate-limit
+  - owasp-no-additionalProperties
+  - owasp-constrained-additionalProperties
 
 info:
   title: atolla control API
@@ -225,16 +227,21 @@ paths:
                 summary: Replace the queue with an album and start at its third track.
                 value:
                   album:
+                    artistId: 1c4e7a09
+                    artistName: Aphex Twin
                     id: 6f2b8c4d1e9a3705
                     name: Selected Ambient Works
                   command: setQueue
                   trackIndex: 2
                   tracks:
-                    - id: 1a2b3c4d5e6f7081
+                    - duration: 293.4
+                      id: 1a2b3c4d5e6f7081
                       name: Xtal
-                    - id: 2b3c4d5e6f708192
+                    - duration: 568.1
+                      id: 2b3c4d5e6f708192
                       name: Tha
-                    - id: 3c4d5e6f708192a3
+                    - duration: 231.7
+                      id: 3c4d5e6f708192a3
                       name: Pulsewidth
               removeAt:
                 summary: Drop the fourth track, but only if it is still the one seen.
@@ -273,26 +280,89 @@ paths:
     get:
       operationId: getState
       tags: [control]
-      security: []
       summary: The player's queue, playback and group state.
       description: |
-        Not implemented: the request crosses the bridge and is answered `501`. A query string is
-        accepted and passed through, but nothing reads it, so the `?since=` long poll and the
-        snapshot schema belong to the state slice. Until then this route is reachable by anything
-        on the LAN.
+        Everything a controller mirrors, in one snapshot. A controller holds the last one it was
+        given and replaces it wholesale; there are no partial updates, because a snapshot small
+        enough to send whole is simpler than a diff both ends have to agree on.
+
+        The route is a long poll. Passing `since` asks for the first snapshot newer than that
+        version, and the daemon holds the request open for up to 25 seconds waiting for one, though
+        a change wakes it immediately. Twenty-five seconds passing with nothing new is not an
+        error: it answers `304` with no body, because the controller already holds that snapshot
+        and re-sending a queue of several hundred tracks every 25 seconds would be the only thing
+        the wire carried. Omitting `since` answers the current snapshot straight away, which is how
+        a controller gets its first one.
+
+        The loop a controller runs is to read a snapshot, apply it, then ask again with the
+        `version` it applied. A `304` means ask again unchanged, and a `200` means replace the
+        mirror. Position is the one part that does not need a new snapshot, which is what
+        `positionAtMs` is for.
       parameters:
         - $ref: '#/components/parameters/ApiVersion'
+        - name: since
+          in: query
+          required: false
+          description: |
+            The version the controller already holds. The daemon answers when it has something
+            newer, or `304` when 25 seconds pass without that happening. A version at or above the
+            current one is answered immediately rather than waited for, which is what stops a
+            controller that outlived a restart from blocking forever against a counter that began
+            again; see `StateVersion`.
+          schema:
+            $ref: '#/components/schemas/StateVersion'
       responses:
+        '200':
+          description: A snapshot newer than `since`, or the current one when `since` was omitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateSnapshot'
+              example:
+                group: default
+                leader: 4f3c9a1de8b27065
+                members:
+                  - enabled: true
+                    id: 4f3c9a1de8b27065
+                    name: Kitchen
+                    state: playing
+                    tier: tight
+                playback:
+                  isPlaying: true
+                  loopMode: none
+                  positionAtMs: 1758000000000
+                  positionMs: 91234
+                queue:
+                  album:
+                    artistId: 1c4e7a09
+                    artistName: Aphex Twin
+                    id: 6f2b8c4d1e9a3705
+                    name: Selected Ambient Works
+                  trackIndex: 1
+                  tracks:
+                    - duration: 293.4
+                      id: 1a2b3c4d5e6f7081
+                      name: Xtal
+                    - duration: 568.1
+                      id: 2b3c4d5e6f708192
+                      name: Tha
+                version: 412
+        '304':
+          description: |
+            Twenty-five seconds passed with nothing newer than `since`. No body: the snapshot the
+            controller holds is still the current one.
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
         '411':
           $ref: '#/components/responses/LengthRequired'
         '413':
           $ref: '#/components/responses/BodyTooLarge'
         '417':
           $ref: '#/components/responses/ExpectationFailed'
-        '501':
-          $ref: '#/components/responses/NotImplemented'
+        '500':
+          $ref: '#/components/responses/HandlerFailed'
         '503':
           $ref: '#/components/responses/Unavailable'
         '504':
@@ -579,6 +649,14 @@ components:
         only job is to order changes. It does not count commands: one command can settle several
         fields, and some changes have no command behind them at all.
 
+        Nothing persists it, so it starts again at 1 when the daemon restarts. Persisting would
+        mean a disk write on every bump, which is every command, to protect against something a
+        rule handles for nothing: a `since` at or above the current version cannot be waited for,
+        so it is answered immediately with the current snapshot rather than held for 25 seconds. A
+        controller that outlived a restart gets one snapshot it may already have held, adopts the
+        version in it, and carries on. Versions are ordered within a run of the daemon, and
+        comparing them across runs means nothing.
+
         The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
         exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
         number.
@@ -600,16 +678,16 @@ components:
       type: array
       maxItems: 10000
       description: |
-        Tracks as `atolla_core` defines them. The server hands this array across the bridge
-        without parsing it, so it enforces neither the member shape nor `maxItems`. The 1 MiB body
-        cap is what refuses an oversized queue, and it is reached first anyway. The member schema
-        arrives in this document with `StateSnapshot`, the first place the daemon answers with
-        tracks rather than passing them through.
+        The queue a command carries. The server hands this array across the bridge without parsing
+        it, so it enforces neither the member shape nor `maxItems`: the 1 MiB body cap is what
+        refuses an oversized queue, and it is reached first anyway. What checks the shape is the
+        handler on the other side, which refuses the body as `malformed_body` if a member is not a
+        track.
       items:
-        type: object
-        additionalProperties: true
+        $ref: '#/components/schemas/Track'
       examples:
-        - - id: 1a2b3c4d5e6f7081
+        - - duration: 293.4
+            id: 1a2b3c4d5e6f7081
             name: Xtal
 
     CommandBare:
@@ -674,15 +752,15 @@ components:
       additionalProperties: true
       properties:
         album:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/Album'
           description: |
             The album the queue came from, when it came from one. A queue with no album behind it,
             such as a shuffle across an artist, omits it. The server passes it through unparsed, as
             it does `tracks`.
-          examples:
-            - id: 6f2b8c4d1e9a3705
-              name: Selected Ambient Works
+
+            An album that arrives malformed is dropped rather than refusing the command, which is
+            the one place this route is lenient: the tracks are what the user asked to hear, and
+            the album is the context they are shown in. A malformed `tracks` refuses.
         command:
           type: string
           const: setQueue
@@ -823,6 +901,248 @@ components:
       required: [version]
       additionalProperties: false
       properties:
+        version:
+          $ref: '#/components/schemas/StateVersion'
+
+    Track:
+      type: object
+      description: |
+        A track, as much of one as a controller needs. `atolla_core/src/models/Track.ts` is the one
+        source of truth and holds a good deal more: release dates, sort names, genres, disc and
+        track numbers. The daemon relays all of it untouched, and this schema describes none of it,
+        because nothing reading a snapshot depends on it. Listing those members here would make a
+        second definition to keep in step with the first, and the spec is the copy that would be
+        wrong once they drifted.
+
+        What is described is the members the interface requires, plus the ones a controller renders
+        and navigates from. Anything else the media server supplied arrives alongside them.
+      required: [duration, id, name]
+      additionalProperties: true
+      properties:
+        albumId:
+          type: string
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          description: So a controller can offer to open the album this came from.
+          examples: [6f2b8c4d1e9a3705]
+        albumImageUrl:
+          type: string
+          maxLength: 2048
+          format: uri
+          description: |
+            The artwork. A controller has no way to work this out, so it travels with the track.
+          examples: ['http://jellyfin.local:8096/Items/6f2b8c4d/Images/Primary']
+        albumName:
+          type: string
+          maxLength: 512
+          pattern: '^[^\r\n]*$'
+          examples: [Selected Ambient Works]
+        artistId:
+          type: string
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          examples: [1c4e7a09]
+        artistName:
+          type: string
+          maxLength: 512
+          pattern: '^[^\r\n]*$'
+          examples: [Aphex Twin]
+        duration:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 86400
+          description: |
+            Seconds, not milliseconds, because that is what the store and the audio engine work in.
+            The playback position beside it is milliseconds: a position needs finer resolution than
+            a length, and the asymmetry is deliberate.
+          examples: [293.4]
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          description: |
+            The media server's identifier. A command naming a queue position may carry it as a
+            guard, and the native player matches the track it is playing by it.
+          examples: [1a2b3c4d5e6f7081]
+        name:
+          type: string
+          maxLength: 512
+          pattern: '^[^\r\n]*$'
+          examples: [Xtal]
+
+    Album:
+      type: object
+      description: |
+        The album a queue came from, so a controller can say what is playing without looking it up.
+        As with `Track`, this is what a controller depends on rather than everything
+        `atolla_core/src/models/Album.ts` holds.
+      required: [artistId, artistName, id, name]
+      additionalProperties: true
+      properties:
+        artistId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          examples: [1c4e7a09]
+        artistName:
+          type: string
+          maxLength: 512
+          pattern: '^[^\r\n]*$'
+          examples: [Aphex Twin]
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[ -~]+$'
+          examples: [6f2b8c4d1e9a3705]
+        imageUrl:
+          type: string
+          maxLength: 2048
+          format: uri
+          examples: ['http://jellyfin.local:8096/Items/6f2b8c4d/Images/Primary']
+        name:
+          type: string
+          maxLength: 512
+          pattern: '^[^\r\n]*$'
+          examples: [Selected Ambient Works]
+
+    PlayerState:
+      type: string
+      enum: [idle, paused, playing]
+      description: |
+        What a player is doing. `idle` is a player with nothing queued, which is not the same as one
+        holding a queue it has paused.
+      examples: [playing]
+
+    Member:
+      type: object
+      description: |
+        A player in the group. Today a daemon is a group of one and reports only itself, so this
+        array has a single entry; discovery fills it out at the step that builds the beacon.
+      required: [enabled, id, name, state, tier]
+      additionalProperties: true
+      properties:
+        enabled:
+          type: boolean
+          description: |
+            Whether this member plays. The enabled set is what defines the group, so a player that
+            is present but not enabled is one the user switched off rather than one that failed.
+          examples: [true]
+        id:
+          type: string
+          pattern: '^[0-9a-f]{16}$'
+          description: The stable player id, the same one `GET /hello` reports.
+          examples: [4f3c9a1de8b27065]
+        lastError:
+          type: string
+          maxLength: 256
+          pattern: '^[^\r\n]*$'
+          description: |
+            Why this member is not playing when it should be, absent when nothing is wrong. A
+            member that misses a track keeps its place in the group and rejoins at the next one, so
+            this is what a controller shows instead of removing it from the list.
+          examples: ['could not reach the media server']
+        name:
+          type: string
+          maxLength: 256
+          pattern: '^[^\r\n]*$'
+          examples: [Kitchen]
+        state:
+          $ref: '#/components/schemas/PlayerState'
+        tier:
+          type: string
+          enum: [loose, tight]
+          description: How tightly this member can synchronise, as `GET /hello` reports it.
+          examples: [tight]
+
+    StateSnapshot:
+      type: object
+      description: |
+        Everything a controller mirrors, replaced whole on each read. A controller applies it and
+        then asks again with the `version` it applied.
+      required: [group, leader, members, playback, queue, version]
+      additionalProperties: true
+      properties:
+        group:
+          type: string
+          maxLength: 64
+          pattern: '^[^\r\n]*$'
+          description: |
+            Which group this snapshot describes. There is one, called `default`, and it is on the
+            wire from the start so that zones are an addition later rather than a redesign.
+          examples: [default]
+        leader:
+          type: string
+          pattern: '^[0-9a-f]{16}$'
+          description: |
+            The player that owns the queue and schedules playback. A daemon on its own leads,
+            so this is its own id until a group has more than one member in it.
+          examples: [4f3c9a1de8b27065]
+        members:
+          type: array
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/Member'
+          examples:
+            - - enabled: true
+                id: 4f3c9a1de8b27065
+                name: Kitchen
+                state: playing
+                tier: tight
+        playback:
+          type: object
+          required: [isPlaying, loopMode, positionAtMs, positionMs]
+          additionalProperties: true
+          properties:
+            isPlaying:
+              type: boolean
+              examples: [true]
+            loopMode:
+              type: string
+              enum: [none, queue, track]
+              examples: [none]
+            positionAtMs:
+              type: integer
+              format: int64
+              minimum: 0
+              maximum: 99999999999999
+              description: |
+                The leader's wall clock when it read `positionMs`, in epoch milliseconds. The two
+                clocks are not synchronised, so what this is good for is elapsed time rather than
+                the absolute value: a controller takes the difference against its own clock as the
+                snapshot arrives, keeps it, and extrapolates from there. Reading it as a time its
+                own clock agrees with puts the progress bar out by however far the two have
+                drifted.
+              examples: [1758000000000]
+            positionMs:
+              type: integer
+              format: int64
+              minimum: 0
+              maximum: 86400000
+              description: |
+                How far into the current track the leader was at `positionAtMs`. The pair lets a
+                controller run a smooth progress bar between snapshots instead of asking for the
+                position over and over. Position is the only part of the state that changes
+                continuously, so without the pair the long poll would have nothing useful to say
+                about it.
+              examples: [91234]
+        queue:
+          type: object
+          required: [trackIndex, tracks]
+          additionalProperties: true
+          properties:
+            album:
+              $ref: '#/components/schemas/Album'
+            trackIndex:
+              $ref: '#/components/schemas/TrackIndex'
+            tracks:
+              type: array
+              maxItems: 10000
+              items:
+                $ref: '#/components/schemas/Track'
         version:
           $ref: '#/components/schemas/StateVersion'
 
