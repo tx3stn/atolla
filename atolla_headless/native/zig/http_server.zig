@@ -11,6 +11,7 @@ const problem = @import("problem.zig");
 const rate_limit = @import("rate_limit.zig");
 const router = @import("router.zig");
 const socket_reader = @import("socket_reader.zig");
+const state = @import("state.zig");
 
 /// `std.http.Server` caps the head at the reader buffer's size, so this is the header limit and
 /// not just an allocation.
@@ -240,6 +241,12 @@ pub const Server = struct {
 
                     if (route == .pair) return self.servePair(request, key, target, body);
                     if (route == .command) return self.serveCommand(request, target, body);
+
+                    if (route == .state) {
+                        _ = state.since(target) catch {
+                            return problem.response(request, problem.malformed_body, .{});
+                        };
+                    }
 
                     return self.crossBridge(request, route, target, body);
                 },
@@ -1199,6 +1206,44 @@ test "http_server: refuses a command whose shape is not one it serves" {
         "content-length: 28\r\n\r\n{\"command\":\"selfDestruct\"}\r\n");
 
     try testing.expect(try connection.contains("\"code\":\"malformed_body\""));
+    try testing.expectEqual(never_dispatched, stub.seen_len);
+}
+
+test "http_server: refuses a state request whose since is not a version" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("GET /state?since=soon HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "\r\n");
+
+    try testing.expect(try connection.contains("\"code\":\"malformed_body\""));
+    try testing.expectEqual(never_dispatched, stub.seen_len);
+}
+
+test "http_server: refuses a state request carrying no credential" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("GET /state HTTP/1.1\r\nHost: t\r\n\r\n");
+
+    try testing.expectEqual(401, try connection.status());
     try testing.expectEqual(never_dispatched, stub.seen_len);
 }
 

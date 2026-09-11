@@ -15,4 +15,5 @@ comptime {
     _ = @import("rate_limit.zig");
     _ = @import("router.zig");
     _ = @import("socket_reader.zig");
+    _ = @import("state.zig");
 }

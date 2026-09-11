@@ -22,6 +22,7 @@ zig_binary(
         "rate_limit.zig",
         "router.zig",
         "socket_reader.zig",
+        "state.zig",
     ],
     main = "dev_serve.zig",
     zigopts = ["-lc"],
@@ -46,6 +47,7 @@ zig_static_library(
         "rate_limit.zig",
         "router.zig",
         "socket_reader.zig",
+        "state.zig",
     ],
     main = "atolla_headless.zig",
     zigopts = [

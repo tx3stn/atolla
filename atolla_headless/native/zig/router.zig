@@ -28,7 +28,7 @@ const table = [_]Entry{
     .{ .method = .GET, .path = "/hello", .route = .hello, .token = false },
     .{ .method = .POST, .path = "/pair", .route = .pair, .token = false },
     .{ .method = .POST, .path = "/command", .route = .command },
-    .{ .method = .GET, .path = "/state", .route = .state, .token = false },
+    .{ .method = .GET, .path = "/state", .route = .state },
 };
 
 pub fn requiresToken(route: Route) bool {
@@ -94,13 +94,14 @@ test "router: only the discovery and pairing routes are reachable without a toke
     try testing.expect(!requiresToken(.hello));
     try testing.expect(!requiresToken(.pair));
     try testing.expect(requiresToken(.command));
+    try testing.expect(requiresToken(.state));
 }
 
 test "router: a route defaults to needing a token" {
     for (table) |entry| {
         if (entry.token) continue;
 
-        try testing.expect(entry.route == .hello or entry.route == .pair or entry.route == .state);
+        try testing.expect(entry.route == .hello or entry.route == .pair);
     }
 }
 
