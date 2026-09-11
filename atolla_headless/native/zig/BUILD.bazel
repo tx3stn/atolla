@@ -12,6 +12,7 @@ zig_binary(
     srcs = [
         "api_version.zig",
         "bridge.zig",
+        "command.zig",
         "credentials.zig",
         "hello.zig",
         "http_server.zig",
@@ -34,6 +35,7 @@ zig_static_library(
     srcs = [
         "api_version.zig",
         "bridge.zig",
+        "command.zig",
         "credentials.zig",
         "hello.zig",
         "http_server.zig",

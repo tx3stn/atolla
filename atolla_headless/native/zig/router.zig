@@ -19,14 +19,25 @@ const Entry = struct {
     method: std.http.Method,
     path: []const u8,
     route: Route,
+    /// Whether a controller token admits the request. The table is where a route is declared, so
+    /// it is also where the answer lives, mirroring the spec's default security and its overrides.
+    token: bool = true,
 };
 
 const table = [_]Entry{
-    .{ .method = .GET, .path = "/hello", .route = .hello },
-    .{ .method = .POST, .path = "/pair", .route = .pair },
+    .{ .method = .GET, .path = "/hello", .route = .hello, .token = false },
+    .{ .method = .POST, .path = "/pair", .route = .pair, .token = false },
     .{ .method = .POST, .path = "/command", .route = .command },
-    .{ .method = .GET, .path = "/state", .route = .state },
+    .{ .method = .GET, .path = "/state", .route = .state, .token = false },
 };
+
+pub fn requiresToken(route: Route) bool {
+    for (table) |entry| {
+        if (entry.route == route) return entry.token;
+    }
+
+    return true;
+}
 
 pub fn resolve(method: std.http.Method, target: []const u8) Outcome {
     const path = target[0 .. std.mem.indexOfScalar(u8, target, '?') orelse target.len];
@@ -77,6 +88,20 @@ test "router: resolves every route in the table" {
 test "router: a route is reachable only by its own method" {
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.GET, "/pair"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/state"));
+}
+
+test "router: only the discovery and pairing routes are reachable without a token" {
+    try testing.expect(!requiresToken(.hello));
+    try testing.expect(!requiresToken(.pair));
+    try testing.expect(requiresToken(.command));
+}
+
+test "router: a route defaults to needing a token" {
+    for (table) |entry| {
+        if (entry.token) continue;
+
+        try testing.expect(entry.route == .hello or entry.route == .pair or entry.route == .state);
+    }
 }
 
 test "router: route ids are stable" {

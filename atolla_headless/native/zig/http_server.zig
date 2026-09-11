@@ -2,6 +2,8 @@ const std = @import("std");
 const net = std.Io.net;
 const api_version = @import("api_version.zig");
 const bridge = @import("bridge.zig");
+const command = @import("command.zig");
+const credentials = @import("credentials.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
 const pair = @import("pair.zig");
@@ -206,10 +208,14 @@ pub const Server = struct {
                     return 200;
                 },
                 else => {
-                    // Both checks run before the body is read, so a rejection goes out ahead of
-                    // the `100 Continue` that would invite the upload it is meant to prevent.
+                    // Every check here runs before the body is read, so a rejection goes out ahead
+                    // of the `100 Continue` that would invite the upload it is meant to prevent.
                     if (!api_version.accepted(request)) {
                         return problem.response(request, api_version.unsupported, .{});
+                    }
+
+                    if (router.requiresToken(route) and !credentials.authorized(self.io, request)) {
+                        return problem.response(request, problem.invalid_token, .{ .keep_alive = false });
                     }
 
                     const limit = bodyLimit(route);
@@ -227,6 +233,7 @@ pub const Server = struct {
                     };
 
                     if (route == .pair) return self.servePair(request, key, target, body);
+                    if (route == .command) return self.serveCommand(request, target, body);
 
                     return self.crossBridge(request, route, target, body);
                 },
@@ -298,6 +305,23 @@ pub const Server = struct {
         }
     }
 
+    /// The parsed shape is not carried across the bridge: TypeScript needs the object anyway, and
+    /// the body it already receives is the one source. This is the gate, not the decoder.
+    fn serveCommand(
+        self: *Server,
+        request: *std.http.Server.Request,
+        target: []const u8,
+        body: []const u8,
+    ) !u16 {
+        var scratch: [command.parse_bytes]u8 = undefined;
+
+        _ = command.parse(&scratch, body) catch {
+            return problem.response(request, problem.malformed_body, .{});
+        };
+
+        return self.crossBridge(request, .command, target, body);
+    }
+
     fn servePair(
         self: *Server,
         request: *std.http.Server.Request,
@@ -334,7 +358,8 @@ fn bodyLimit(route: router.Route) usize {
     return switch (route) {
         .hello => 0,
         .pair => pair.max_body_bytes,
-        .command, .state => unrouted_body_bytes,
+        .command => command.max_body_bytes,
+        .state => unrouted_body_bytes,
     };
 }
 
@@ -503,16 +528,38 @@ const test_options: Options = .{
 };
 
 const Harness = struct {
+    controllers: testing.TmpDir,
     server: *Server,
     thread: std.Thread,
 
+    /// The daemon under test has one controller paired, so a route behind the token gate can be
+    /// reached by sending `authorized` and refused by leaving it out.
     fn start(server: *Server) !Harness {
-        return .{ .server = server, .thread = try std.Thread.spawn(.{}, Server.run, .{server}) };
+        var controllers = testing.tmpDir(.{});
+
+        try controllers.dir.writeFile(testing.io, .{
+            .sub_path = "controllers",
+            .data = paired_controller,
+        });
+
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+        try credentials.setControllersPath(try std.fmt.bufPrint(
+            &buffer,
+            ".zig-cache/tmp/{s}/controllers",
+            .{controllers.sub_path},
+        ));
+
+        return .{
+            .controllers = controllers,
+            .server = server,
+            .thread = try std.Thread.spawn(.{}, Server.run, .{server}),
+        };
     }
 
     fn stop(self: *Harness) void {
         self.server.stop();
         self.thread.join();
+        self.controllers.cleanup();
     }
 };
 
@@ -586,6 +633,18 @@ const Connection = struct {
 
 const valid_pair_body =
     \\{"code":"19524002","controllerId":"p","controllerName":"Phone"}
+;
+
+const test_token = "7c1e5a9b3d8f204617ca0be9352d8f7461a0c3d95e28b7f4016cad3928bf5e7d";
+
+const paired_controller =
+    \\[{"controllerId":"p","controllerName":"Phone","pairedAt":1758000000000,"token":
+++ "\"" ++ test_token ++ "\"}]";
+
+const authorized = "authorization: Bearer " ++ test_token ++ "\r\n";
+
+const valid_command_body =
+    \\{"command":"pause"}
 ;
 
 /// No route will ever match this, so these tests keep asserting 404 as routes are added.
@@ -879,7 +938,7 @@ test "http_server: renders a problem when a handler answers 501" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
 
     try testing.expect(try connection.contains("501 Not Implemented"));
     try testing.expect(try connection.contains("content-type: application/problem+json"));
@@ -900,7 +959,7 @@ test "http_server: renders an internal problem when a handler answers another er
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
 
     try testing.expect(try connection.contains("\"code\":\"internal\""));
     try testing.expect(!(try connection.contains("internalError")));
@@ -919,12 +978,14 @@ test "http_server: hands the handler the body it was sent" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 13\r\n\r\n{\"code\":\"12\"}");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
 
     try testing.expectEqual(200, try connection.status());
-    try testing.expectEqualStrings("{\"code\":\"12\"}", stub.seen[0..stub.seen_len]);
+    try testing.expectEqualStrings(valid_command_body, stub.seen[0..stub.seen_len]);
 }
 
+// Over `/state`, since a `/command` body has a shape and an absent one is refused before the
+// bridge is reached.
 test "http_server: hands the handler an empty body when the request carries none" {
     var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = 99 };
 
@@ -938,7 +999,7 @@ test "http_server: hands the handler an empty body when the request carries none
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("GET /state HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 0\r\n\r\n");
 
     try testing.expectEqual(200, try connection.status());
     try testing.expectEqual(0, stub.seen_len);
@@ -959,12 +1020,12 @@ test "http_server: hands the handler a body that was announced with an expectati
     defer connection.close();
 
     try connection.send(
-        "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 4\r\nExpect: 100-continue\r\n\r\nabcd",
+        "POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\nExpect: 100-continue\r\n\r\n" ++ valid_command_body,
     );
 
     try testing.expectEqual(100, try connection.status());
     try testing.expectEqual(200, try connection.status());
-    try testing.expectEqualStrings("abcd", stub.seen[0..stub.seen_len]);
+    try testing.expectEqualStrings(valid_command_body, stub.seen[0..stub.seen_len]);
 }
 
 test "http_server: refuses a bridged body larger than it can hold" {
@@ -981,8 +1042,8 @@ test "http_server: refuses a bridged body larger than it can hold" {
     defer connection.close();
 
     try connection.send(std.fmt.comptimePrint(
-        "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n",
-        .{unrouted_body_bytes + 1},
+        "POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: {d}\r\n\r\n",
+        .{command.max_body_bytes + 1},
     ));
 
     try testing.expectEqual(413, try connection.status());
@@ -1001,9 +1062,134 @@ test "http_server: answers 400 for a body that stops short of its length" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 20\r\n\r\nshort");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 20\r\n\r\nshort");
 
     try testing.expectEqual(400, try connection.status());
+}
+
+/// 99 is a sentinel no body reaches, so a handler still holding it was never dispatched.
+const never_dispatched = 99;
+
+test "http_server: refuses a command carrying no credential" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(
+        "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 19\r\n\r\n" ++ valid_command_body,
+    );
+
+    try testing.expect(try connection.contains("401 Unauthorized"));
+    try testing.expect(try connection.contains("\"code\":\"invalid_token\""));
+}
+
+test "http_server: refuses a command presenting a token it never minted" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\nauthorization: Bearer " ++
+        ("0" ** credentials.token_digits) ++ "\r\ncontent-length: 19\r\n\r\n" ++ valid_command_body);
+
+    try testing.expectEqual(401, try connection.status());
+}
+
+test "http_server: refuses a command whose credential is not a bearer token" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\nauthorization: Basic " ++
+        test_token ++ "\r\ncontent-length: 19\r\n\r\n" ++ valid_command_body);
+
+    try testing.expectEqual(401, try connection.status());
+}
+
+// The refusal exists to keep hostile traffic off the JS thread, so what it must not do is reach it.
+test "http_server: never dispatches a command it refused the credential of" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(
+        "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 19\r\n\r\n" ++ valid_command_body,
+    );
+
+    try testing.expectEqual(401, try connection.status());
+    try testing.expectEqual(never_dispatched, stub.seen_len);
+}
+
+test "http_server: refuses a command whose shape is not one it serves" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++
+        "content-length: 28\r\n\r\n{\"command\":\"selfDestruct\"}\r\n");
+
+    try testing.expect(try connection.contains("\"code\":\"malformed_body\""));
+    try testing.expectEqual(never_dispatched, stub.seen_len);
+}
+
+test "http_server: still answers discovery and pairing without a credential" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const hello_request = try Connection.open(server.port());
+    defer hello_request.close();
+
+    try hello_request.send("GET /hello HTTP/1.1\r\nHost: t\r\n\r\n");
+    try testing.expectEqual(200, try hello_request.status());
+
+    const pair_request = try Connection.open(server.port());
+    defer pair_request.close();
+
+    try pair_request.send("POST /pair HTTP/1.1\r\nHost: t\r\ncontent-length: 63\r\n\r\n" ++ valid_pair_body);
+    try testing.expectEqual(401, try pair_request.status());
 }
 
 test "http_server: refuses a version it does not speak, before reading the body" {
@@ -1020,7 +1206,7 @@ test "http_server: refuses a version it does not speak, before reading the body"
     defer connection.close();
 
     try connection.send(
-        "POST /pair HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: 9\r\ncontent-length: 2\r\n\r\n{}",
+        "POST /pair HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: 9\r\ncontent-length: 19\r\n\r\n" ++ valid_command_body,
     );
 
     try testing.expectEqual(400, try connection.status());
@@ -1040,7 +1226,7 @@ test "http_server: takes a request that names no version as the current one" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 2\r\n\r\n{}");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
 
     try testing.expectEqual(200, try connection.status());
 }
@@ -1181,7 +1367,7 @@ test "http_server: answers every refusal with a problem, whatever refused it" {
             .code = "length_required",
         },
         .{
-            .request = "POST /pair HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: 9\r\ncontent-length: 2\r\n\r\n{}",
+            .request = "POST /pair HTTP/1.1\r\nHost: t\r\nAtolla-API-Version: 9\r\ncontent-length: 19\r\n\r\n" ++ valid_command_body,
             .code = "unsupported_api_version",
         },
         .{
@@ -1190,7 +1376,7 @@ test "http_server: answers every refusal with a problem, whatever refused it" {
         },
         // Nothing is attached to answer a routed request in this server.
         .{
-            .request = "POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n",
+            .request = "POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body,
             .code = "unavailable",
         },
         .{ .request = "GET /hello HTTP/1.1\r\nHost: t\r\nExpect: nonsense\r\n\r\n", .code = "expectation_failed" },
@@ -1226,7 +1412,7 @@ test "http_server: answers 504 when the handler never does" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
 
     try testing.expectEqual(504, try connection.status());
 }
@@ -1242,7 +1428,7 @@ test "http_server: answers 503 when nothing is attached to answer" {
     const connection = try Connection.open(server.port());
     defer connection.close();
 
-    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\ncontent-length: 0\r\n\r\n");
+    try connection.send("POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 19\r\n\r\n" ++ valid_command_body);
 
     try testing.expectEqual(503, try connection.status());
 }

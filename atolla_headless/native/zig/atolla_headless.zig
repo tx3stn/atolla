@@ -4,6 +4,7 @@ const std = @import("std");
 comptime {
     _ = @import("api_version.zig");
     _ = @import("bridge.zig");
+    _ = @import("command.zig");
     _ = @import("credentials.zig");
     _ = @import("hello.zig");
     _ = @import("http_server.zig");

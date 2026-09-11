@@ -1,5 +1,6 @@
 const std = @import("std");
 const bridge = @import("bridge.zig");
+const credentials = @import("credentials.zig");
 const hello = @import("hello.zig");
 const http_server = @import("http_server.zig");
 const log = @import("log.zig");
@@ -40,6 +41,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
     if (args.next()) |path| {
         try pair.setCodePath(path);
         log.info("dev_serve", "pairing against the code in {s}", .{path});
+    }
+
+    if (args.next()) |path| {
+        try credentials.setControllersPath(path);
+        log.info("dev_serve", "admitting the tokens in {s}", .{path});
     }
 
     const io = std.Io.Threaded.global_single_threaded.io();

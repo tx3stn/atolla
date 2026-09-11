@@ -104,6 +104,14 @@ pub const invalid_pairing_code: Problem = .{
     .title = "invalid pairing code",
 };
 
+/// A missing header, a malformed one and an unknown token are one answer, so a caller learns
+/// nothing about which tokens exist.
+pub const invalid_token: Problem = .{
+    .code = "invalid_token",
+    .status = 401,
+    .title = "invalid token",
+};
+
 pub const not_found: Problem = .{
     .code = "not_found",
     .status = 404,
