@@ -5,6 +5,7 @@ import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import {
 	atollaHttpRespond,
+	atollaHttpSetControllersPath,
 	atollaHttpSetHandler,
 	atollaHttpSetHelloBody,
 	atollaHttpSetLogLevel,
@@ -46,6 +47,7 @@ declare const valdiStandalone: { arguments: Array<string>; exit(code: number): v
 
 const httpServer: HttpServer = {
 	respond: atollaHttpRespond,
+	setControllersPath: atollaHttpSetControllersPath,
 	setHandler: atollaHttpSetHandler,
 	setHelloBody: atollaHttpSetHelloBody,
 	setLogLevel: (level) => atollaHttpSetLogLevel(LOG_LEVELS.indexOf(level)),

@@ -9,7 +9,7 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
-import { PAIRING_KEY } from './Pairing';
+import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 import type { RandomBytes } from './Random';
@@ -47,6 +47,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	// queue is still being read.
 	deps.httpServer.setLogLevel(deps.logLevel);
 	deps.httpServer.setHelloBody(helloBody(deps.identity));
+	deps.httpServer.setControllersPath(secrets.pathFor(CONTROLLERS_KEY));
 	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
 	attachServer(deps.httpServer, {
 		pair: {

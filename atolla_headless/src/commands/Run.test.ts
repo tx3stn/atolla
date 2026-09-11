@@ -46,6 +46,7 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 		},
 		httpServer: {
 			respond: () => true,
+			setControllersPath: () => {},
 			setHandler: () => {},
 			setHelloBody: () => {},
 			setLogLevel: () => {},

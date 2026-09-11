@@ -23,6 +23,7 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 			answers.push({ body, requestId, status });
 			return true;
 		},
+		setControllersPath: () => {},
 		setHandler: (given) => {
 			handler = given;
 		},

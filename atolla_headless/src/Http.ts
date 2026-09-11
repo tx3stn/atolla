@@ -15,6 +15,7 @@ export type RequestHandler = (
 
 export interface HttpServer {
 	respond: (requestId: number, status: number, body: string) => boolean;
+	setControllersPath: (path: string) => void;
 	setHandler: (handler: RequestHandler) => void;
 	setHelloBody: (body: string) => void;
 	setLogLevel: (level: LogLevel) => void;

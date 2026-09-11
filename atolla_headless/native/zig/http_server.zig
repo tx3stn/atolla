@@ -440,6 +440,12 @@ export fn atolla_http_set_pairing_code_path(bytes: [*]const u8, len: usize) bool
     return true;
 }
 
+export fn atolla_http_set_controllers_path(bytes: [*]const u8, len: usize) bool {
+    credentials.setControllersPath(bytes[0..len]) catch return false;
+
+    return true;
+}
+
 export fn atolla_http_port(hosted: *Hosted) u16 {
     return hosted.server.port();
 }

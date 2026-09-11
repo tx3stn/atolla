@@ -8,7 +8,7 @@ import {
 import { filterLogWriter, startDaemon } from './Daemon';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import type { HttpServer } from './Http';
-import { PAIRING_KEY } from './Pairing';
+import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { secretsDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 
@@ -53,6 +53,7 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 function fakeHttpServer(started: Array<string> = []): HttpServer {
 	return {
 		respond: () => true,
+		setControllersPath: () => {},
 		setHandler: () => {},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
@@ -178,6 +179,33 @@ describe('startDaemon', () => {
 		expect(contents.get(codePath)).toBe('19524002');
 	});
 
+	it('points the native side at the file the secrets store keeps the tokens in', async () => {
+		const { log } = capture();
+		const contents = new Map<string, string>();
+		let controllersPath = '';
+
+		void startDaemon({
+			config: { ...CONFIG },
+			files: fakeFiles(contents),
+			httpServer: {
+				...fakeHttpServer(),
+				setControllersPath: (path) => {
+					controllersPath = path;
+				},
+			},
+			identity: IDENTITY,
+			log,
+			logLevel: 'info',
+			randomBytes: () => new Uint8Array(0),
+		});
+		await makeFileKeyValueStore(fakeFiles(contents), secretsDir(CONFIG)).storeString(
+			CONTROLLERS_KEY,
+			'[]',
+		);
+
+		expect(contents.get(controllersPath)).toBe('[]');
+	});
+
 	it('starts the control server before reading the queue, so a slow restore cannot delay it', async () => {
 		const { log } = capture();
 		const order: Array<string> = [];
@@ -194,6 +222,7 @@ describe('startDaemon', () => {
 			},
 			httpServer: {
 				respond: () => true,
+				setControllersPath: () => {},
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},

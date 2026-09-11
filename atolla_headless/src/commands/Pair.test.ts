@@ -48,6 +48,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 				},
 				httpServer: {
 					respond: () => true,
+					setControllersPath: () => {},
 					setHandler: () => {},
 					setHelloBody: () => {},
 					setLogLevel: () => {},
