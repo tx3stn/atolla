@@ -172,6 +172,37 @@ function withTodayDate(album: JellyfinAlbumItem, mmdd: string): JellyfinAlbumIte
 	return { ...album, PremiereDate: `${year}-${mmdd}` };
 }
 
+// the sweep matches a whole lookahead window, not just today, so an album whose real
+// anniversary lands inside the window joins the hydration id list and changes the `ids`
+// value wiretap matches on. mirror Preferences.ON_THIS_DAY_LOOKAHEAD_OPTIONS.
+const ON_THIS_DAY_LOOKAHEAD_OPTIONS = [1, 3, 5, 7, 10, 14];
+
+function lookaheadWindowMMDD(lookaheadDays: number): Set<string> {
+	const now = new Date();
+	const days = new Set<string>();
+	for (let offset = 0; offset <= lookaheadDays; offset += 1) {
+		const day = new Date(now);
+		day.setDate(day.getDate() + offset);
+		days.add(
+			`${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`,
+		);
+	}
+	return days;
+}
+
+// matchOnThisDay reads the month/day in UTC and requires an earlier year
+function matchesWindow(album: JellyfinAlbumItem, window: Set<string>): boolean {
+	const premiere = album.PremiereDate;
+	if (!premiere) return false;
+	const date = new Date(premiere);
+	if (Number.isNaN(date.getTime())) return false;
+	if (date.getUTCFullYear() >= new Date().getFullYear()) return false;
+	const mmdd = `${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
+		date.getUTCDate(),
+	).padStart(2, '0')}`;
+	return window.has(mmdd);
+}
+
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
 
 function generate(): void {
@@ -236,20 +267,22 @@ function generate(): void {
 	);
 
 	// ---- getAlbumsByIds: on-this-day hydration (the only known caller) ----
-	// IDs must appear in the order the discovery sweep collects them (PremiereDate desc).
-	const onThisDayIdOrder = albumsWithTodayDate
-		.filter((a) => ON_THIS_DAY_IDS.has(a.Id))
-		.map((a) => a.Id);
-	fixture(
-		'albums-by-ids-on-this-day',
-		get('/Items', { ids: onThisDayIdOrder.join(','), includeItemTypes: 'MusicAlbum' }),
-		envelope(
-			onThisDayIdOrder.flatMap((id) => {
-				const album = albumsWithTodayDate.find((a) => a.Id === id);
-				return album ? [album] : [];
-			}),
-		),
-	);
+	// IDs must appear in the order the discovery sweep collects them, which is the order of
+	// the albums-releasedates body (PremiereDate desc). one fixture per selectable lookahead,
+	// since a wider window can pull in more albums and change the `ids` value.
+	const emittedIdLists = new Set<string>();
+	for (const lookaheadDays of ON_THIS_DAY_LOOKAHEAD_OPTIONS) {
+		const window = lookaheadWindowMMDD(lookaheadDays);
+		const matched = albumsWithTodayDate.filter((a) => matchesWindow(a, window));
+		const ids = matched.map((a) => a.Id).join(',');
+		if (ids.length === 0 || emittedIdLists.has(ids)) continue;
+		emittedIdLists.add(ids);
+		fixture(
+			`albums-by-ids-on-this-day-${lookaheadDays}`,
+			get('/Items', { ids, includeItemTypes: 'MusicAlbum' }),
+			envelope(matched),
+		);
+	}
 
 	// ---- per-album item fetch (AlbumView calls getAlbumsByIds([id]) when genres are missing) ----
 	for (const album of mockJellyfinAlbums) {
