@@ -103,6 +103,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 		getLogger('PlaybackStore').warn('queue restore failed');
@@ -128,6 +129,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 		await Promise.resolve();
@@ -146,6 +148,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 
@@ -169,6 +172,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 		await makeFileKeyValueStore(fakeFiles(contents), secretsDir(CONFIG)).storeString(
@@ -196,6 +200,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 		await makeFileKeyValueStore(fakeFiles(contents), secretsDir(CONFIG)).storeString(
@@ -236,6 +241,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 		await Promise.resolve();
@@ -253,6 +259,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
 		const settled = await Promise.race([daemon, Promise.resolve('pending')]);

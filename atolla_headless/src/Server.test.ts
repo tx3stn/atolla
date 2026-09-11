@@ -21,6 +21,13 @@ function deps(): ServerDeps {
 			version: makeStateVersion(),
 		},
 		pair: { randomBytes: counting(), secrets: new InMemoryKeyValueStore() },
+		state: {
+			identity: { id: 'c2be50c9b97e1c53', name: 'Kitchen', tier: 'tight', version: '0.0.0' },
+			now: () => 1758000000000,
+			playback: new PlaybackStore(),
+			restored: Promise.resolve(),
+			version: makeStateVersion(),
+		},
 	};
 }
 
@@ -53,9 +60,10 @@ describe('attachServer', () => {
 
 		attachServer(httpServer, deps());
 		dispatch(4242, ROUTE.state, '/state', '');
-		await Promise.resolve();
+		await settled();
 
-		expect(answers).toEqual([{ body: '', requestId: 4242, status: 501 }]);
+		expect(answers[0]?.requestId).toBe(4242);
+		expect(answers[0]?.status).toBe(200);
 	});
 
 	it('answers a request whose handler works asynchronously', async () => {

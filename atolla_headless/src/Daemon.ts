@@ -23,6 +23,7 @@ export interface DaemonDeps {
 	identity: PlayerIdentity;
 	log: LogWriter;
 	logLevel: LogLevel;
+	now: () => number;
 	randomBytes: RandomBytes;
 }
 
@@ -79,6 +80,13 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 		pair: {
 			randomBytes: deps.randomBytes,
 			secrets,
+		},
+		state: {
+			identity: deps.identity,
+			now: deps.now,
+			playback,
+			restored,
+			version,
 		},
 	});
 	log.info('listening', {

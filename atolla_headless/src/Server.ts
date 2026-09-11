@@ -2,6 +2,7 @@ import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Answer, HttpServer } from './Http';
 import { type CommandDeps, handleCommand } from './routes/Command';
 import { handlePair, type PairDeps } from './routes/Pair';
+import { handleState, type StateDeps } from './routes/State';
 
 export const ROUTE = {
 	command: 2,
@@ -13,6 +14,7 @@ export const ROUTE = {
 export interface ServerDeps {
 	command: CommandDeps;
 	pair: PairDeps;
+	state: StateDeps;
 }
 
 const log = getLogger('server-js');
@@ -28,6 +30,10 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 
 			case ROUTE.pair:
 				answer = handlePair(deps.pair, body);
+				break;
+
+			case ROUTE.state:
+				answer = handleState(deps.state, target);
 				break;
 
 			default:

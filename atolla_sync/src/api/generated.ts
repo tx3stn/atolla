@@ -320,11 +320,12 @@ export interface components {
          *
          *     Nothing persists it, so it starts again at 1 when the daemon restarts. Persisting would
          *     mean a disk write on every bump, which is every command, to protect against something a
-         *     rule handles for nothing: a `since` at or above the current version cannot be waited for,
-         *     so it is answered immediately with the current snapshot rather than held for 25 seconds. A
-         *     controller that outlived a restart gets one snapshot it may already have held, adopts the
-         *     version in it, and carries on. Versions are ordered within a run of the daemon, and
-         *     comparing them across runs means nothing.
+         *     rule handles for nothing: a `since` higher than the current version names something the
+         *     daemon will never reach, so it is answered immediately with the current snapshot rather
+         *     than held for 25 seconds. A controller that outlived a restart gets one snapshot it may
+         *     already have held, adopts the version in it, and carries on. A `since` equal to the current
+         *     version is the ordinary case and does block, which is what a poll is for. Versions are
+         *     ordered within a run of the daemon, and comparing them across runs means nothing.
          *
          *     The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
          *     exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
@@ -412,14 +413,12 @@ export interface components {
              * @description The album the queue came from, when it came from one. A queue with no album behind it,
              *     such as a shuffle across an artist, omits it. The server passes it through unparsed, as
              *     it does `tracks`.
-             * @example {
-             *       "id": "6f2b8c4d1e9a3705",
-             *       "name": "Selected Ambient Works"
-             *     }
+             *
+             *     An album that arrives malformed is dropped rather than refusing the command, which is
+             *     the one place this route is lenient: the tracks are what the user asked to hear, and
+             *     the album is the context they are shown in. A malformed `tracks` refuses.
              */
-            album?: {
-                [key: string]: unknown;
-            };
+            album?: components["schemas"]["Album"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -654,6 +653,17 @@ export interface components {
              * @example 4f3c9a1de8b27065
              */
             leader: string;
+            /**
+             * @example [
+             *       {
+             *         "enabled": true,
+             *         "id": "4f3c9a1de8b27065",
+             *         "name": "Kitchen",
+             *         "state": "playing",
+             *         "tier": "tight"
+             *       }
+             *     ]
+             */
             members: components["schemas"]["Member"][];
             playback: {
                 /** @example true */
@@ -1101,11 +1111,11 @@ export interface operations {
         parameters: {
             query?: {
                 /**
-                 * @description The version the controller already holds. The daemon answers when it has something
-                 *     newer, or `304` when 25 seconds pass without that happening. A version at or above the
-                 *     current one is answered immediately rather than waited for, which is what stops a
-                 *     controller that outlived a restart from blocking forever against a counter that began
-                 *     again; see `StateVersion`.
+                 * @description The version the controller already holds, which is normally the one it last
+                 *     applied. The daemon answers when it has something newer, or `304` when 25 seconds pass
+                 *     without that happening. A version higher than the current one is answered immediately
+                 *     instead, which is what stops a controller that outlived a restart from blocking forever
+                 *     against a counter that began again; see `StateVersion`.
                  */
                 since?: components["schemas"]["StateVersion"];
             };
@@ -1130,6 +1140,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    /**
+                     * @example {
+                     *       "group": "default",
+                     *       "leader": "4f3c9a1de8b27065",
+                     *       "members": [
+                     *         {
+                     *           "enabled": true,
+                     *           "id": "4f3c9a1de8b27065",
+                     *           "name": "Kitchen",
+                     *           "state": "playing",
+                     *           "tier": "tight"
+                     *         }
+                     *       ],
+                     *       "playback": {
+                     *         "isPlaying": true,
+                     *         "loopMode": "none",
+                     *         "positionAtMs": 1758000000000,
+                     *         "positionMs": 91234
+                     *       },
+                     *       "queue": {
+                     *         "album": {
+                     *           "artistId": "1c4e7a09",
+                     *           "artistName": "Aphex Twin",
+                     *           "id": "6f2b8c4d1e9a3705",
+                     *           "name": "Selected Ambient Works"
+                     *         },
+                     *         "trackIndex": 1,
+                     *         "tracks": [
+                     *           {
+                     *             "duration": 293.4,
+                     *             "id": "1a2b3c4d5e6f7081",
+                     *             "name": "Xtal"
+                     *           },
+                     *           {
+                     *             "duration": 568.1,
+                     *             "id": "2b3c4d5e6f708192",
+                     *             "name": "Tha"
+                     *           }
+                     *         ]
+                     *       },
+                     *       "version": 412
+                     *     }
+                     */
                     "application/json": components["schemas"]["StateSnapshot"];
                 };
             };

@@ -304,11 +304,11 @@ paths:
           in: query
           required: false
           description: |
-            The version the controller already holds. The daemon answers when it has something
-            newer, or `304` when 25 seconds pass without that happening. A version at or above the
-            current one is answered immediately rather than waited for, which is what stops a
-            controller that outlived a restart from blocking forever against a counter that began
-            again; see `StateVersion`.
+            The version the controller already holds, which is normally the one it last
+            applied. The daemon answers when it has something newer, or `304` when 25 seconds pass
+            without that happening. A version higher than the current one is answered immediately
+            instead, which is what stops a controller that outlived a restart from blocking forever
+            against a counter that began again; see `StateVersion`.
           schema:
             $ref: '#/components/schemas/StateVersion'
       responses:
@@ -651,11 +651,12 @@ components:
 
         Nothing persists it, so it starts again at 1 when the daemon restarts. Persisting would
         mean a disk write on every bump, which is every command, to protect against something a
-        rule handles for nothing: a `since` at or above the current version cannot be waited for,
-        so it is answered immediately with the current snapshot rather than held for 25 seconds. A
-        controller that outlived a restart gets one snapshot it may already have held, adopts the
-        version in it, and carries on. Versions are ordered within a run of the daemon, and
-        comparing them across runs means nothing.
+        rule handles for nothing: a `since` higher than the current version names something the
+        daemon will never reach, so it is answered immediately with the current snapshot rather
+        than held for 25 seconds. A controller that outlived a restart gets one snapshot it may
+        already have held, adopts the version in it, and carries on. A `since` equal to the current
+        version is the ordinary case and does block, which is what a poll is for. Versions are
+        ordered within a run of the daemon, and comparing them across runs means nothing.
 
         The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
         exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
