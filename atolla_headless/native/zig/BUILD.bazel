@@ -38,6 +38,7 @@ zig_static_library(
         "bridge.zig",
         "command.zig",
         "credentials.zig",
+        "gst.zig",
         "hello.zig",
         "http_server.zig",
         "log.zig",

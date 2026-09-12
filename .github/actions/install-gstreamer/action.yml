@@ -1,0 +1,11 @@
+name: Install GStreamer
+description: >-
+  The daemon resolves GStreamer with dlopen at startup, so nothing links against
+  it and no build job needs it installed. Only jobs that run audio tests do. The
+  version is pinned in .scripts/install-gstreamer.sh, so a runner and a laptop
+  get the same one.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: ./.scripts/install-gstreamer.sh

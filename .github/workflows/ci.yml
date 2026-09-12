@@ -196,7 +196,12 @@ jobs:
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: 0.16.0
-      - run: bun run test:zig
+      # Launched here and joined below so apt runs during the cache-restore steps. The detached
+      # deletes above make the same trade.
+      - name: install gstreamer
+        id: gstreamer
+        uses: ./.github/actions/install-gstreamer
+        background: true
       - name: configure bazel caching
         uses: ./.github/actions/configure-bazel-caching
         with:
@@ -213,6 +218,9 @@ jobs:
             bazel-repo-${{ runner.os }}-
       - name: wait for disk cleanup
         uses: ./.github/actions/wait-for-disk-cleanup
+      - name: wait for gstreamer
+        wait: gstreamer
+      - run: bun run test:zig
       - run: bun run check:zig
 
   component-tests:
