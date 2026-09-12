@@ -3,6 +3,7 @@ import type { Track } from 'atolla_core/src/models/Track';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
 import { DeferredPlaybackDownloadCoordinator } from 'atolla_player/src/services/DeferredPlaybackDownloadCoordinator';
+import type { NativeAudioPlaybackError } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
 import type { ScrobbleService } from 'atolla_player/src/services/ScrobbleService';
 import {
 	buildPlaybackQueueWindow,
@@ -15,7 +16,6 @@ import {
 	RECENTLY_PLAYED_LIMIT,
 	type RecentlyPlayedStore,
 } from 'atolla_player/src/stores/RecentlyPlayed';
-import type { NativeAudioPlaybackError } from './NativeAudioPlaybackEventSync';
 import { type ToastModel, ToastTypes } from './ToastService';
 import { TrackPlaybackNativePrefetchQueue } from './TrackPlaybackNativePrefetchQueue';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';

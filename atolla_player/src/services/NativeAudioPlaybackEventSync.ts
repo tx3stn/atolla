@@ -1,5 +1,5 @@
-import type { PendingScrobble } from 'atolla_player/src/services/ScrobbleService';
-import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import type { PlaybackStore } from '../stores/Playback';
+import type { PendingScrobble } from './ScrobbleService';
 
 export type NativeAudioPlaybackEventAction = 'pause' | 'play' | '';
 

@@ -2,6 +2,7 @@ import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import { parseNativePendingScrobbles } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
 import type { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
 import { ScrobbleService } from 'atolla_player/src/services/ScrobbleService';
@@ -24,7 +25,6 @@ import {
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
 import { LyricsService } from './LyricsService';
-import { parseNativePendingScrobbles } from './NativeAudioPlaybackEventSync';
 import { OnThisDayService } from './OnThisDayService';
 import { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import { PersistentWaveformStore } from './PersistentWaveformStore';

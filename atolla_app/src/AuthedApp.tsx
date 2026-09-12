@@ -1,5 +1,6 @@
 import Strings from 'atolla_app/src/Strings';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import type { NativeAudioPlaybackError } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
@@ -12,7 +13,6 @@ import { type ConnectionMode, type FooterTab, FooterTabs } from './models/App';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
 import type { LyricsService } from './services/LyricsService';
-import type { NativeAudioPlaybackError } from './services/NativeAudioPlaybackEventSync';
 import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
