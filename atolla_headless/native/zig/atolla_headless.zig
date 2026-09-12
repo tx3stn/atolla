@@ -3,6 +3,7 @@ const std = @import("std");
 
 comptime {
     _ = @import("api_version.zig");
+    _ = @import("audio_player.zig");
     _ = @import("bridge.zig");
     _ = @import("command.zig");
     _ = @import("credentials.zig");
@@ -17,4 +18,5 @@ comptime {
     _ = @import("router.zig");
     _ = @import("socket_reader.zig");
     _ = @import("state.zig");
+    _ = @import("wav.zig");
 }

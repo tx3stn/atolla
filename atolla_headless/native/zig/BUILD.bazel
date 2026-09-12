@@ -35,6 +35,7 @@ zig_static_library(
     name = "atolla_headless_zig",
     srcs = [
         "api_version.zig",
+        "audio_player.zig",
         "bridge.zig",
         "command.zig",
         "credentials.zig",
@@ -49,6 +50,7 @@ zig_static_library(
         "router.zig",
         "socket_reader.zig",
         "state.zig",
+        "wav.zig",
     ],
     main = "atolla_headless.zig",
     zigopts = [
