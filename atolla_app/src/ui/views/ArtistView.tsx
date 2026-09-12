@@ -28,7 +28,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
-import type { PinnedItemsStore } from '../../stores/PinnedItems';
+import { type PinnedItemsStore, pinnedItemId } from '../../stores/PinnedItems';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { CancelableController } from '../../utils/CancelableController';
@@ -142,19 +142,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { modalSlot } = this.viewModel;
-		// merge the self-healed artist over the caller-supplied partial, but never let a fetched
-		// `undefined` clobber an imageUrl/logoUrl the caller did supply (the mapper always emits
-		// a logoUrl key)
-		const partialArtist = this.viewModel.artist;
-		const hydrated = this.state.hydratedArtist;
-		const artist = hydrated
-			? {
-					...partialArtist,
-					...hydrated,
-					imageUrl: hydrated.imageUrl ?? partialArtist.imageUrl,
-					logoUrl: hydrated.logoUrl ?? partialArtist.logoUrl,
-				}
-			: partialArtist;
+		const artist = this.resolvedArtist();
 		const { animationsEnabled, downloadOnWifiOnly } = this.viewModel.preferences;
 		const downloadEnabled = !(
 			downloadOnWifiOnly && this.viewModel.networkStatus.getTransport() === 'cellular'
@@ -197,6 +185,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 							logoSource={artist.logoUrl || null}
 							modalSlot={modalSlot}
 							onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onArtworkLongPress={this.handleArtworkLongPress}
 							onDownload={this.handleDownloadTap}
 							onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 							onRemoveDownload={this.handleRemoveDownloadTap}
@@ -378,6 +367,35 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			},
 			onUnpin: () => {
 				void pinnedItemsStore?.unpin('album', album.id);
+			},
+			playbackStore,
+			playlistFlow: this.playlistFlow,
+			toastService,
+			transport: this.activeTransport,
+		});
+	};
+
+	// the header opens the artist's own menu. it writes none of the album grid's bookkeeping and
+	// omits onEntityTap, so a stale contextMenuAlbumCard can never be actioned from here
+	private handleArtworkLongPress = (): void => {
+		const { modalSlot, pinnedItemsStore, playbackStore, toastService } = this.viewModel;
+		const card: CardContextMenuCard = { artist: this.resolvedArtist(), kind: 'artist' };
+		const id = pinnedItemId(card);
+
+		openCardContextMenu(modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			card,
+			gridColumns: this.viewModel.preferences.gridColumns,
+			isPinned: pinnedItemsStore?.isPinned(card.kind, id) ?? false,
+			onDismiss: () => {},
+			onPin: () => {
+				void pinnedItemsStore?.pin(card);
+			},
+			onPlaylistCreated: (playlist) => {
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
+			},
+			onUnpin: () => {
+				void pinnedItemsStore?.unpin(card.kind, id);
 			},
 			playbackStore,
 			playlistFlow: this.playlistFlow,
@@ -621,6 +639,24 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.activeTransport = transport;
 		this.loadArtistData();
 	};
+
+	// merge the self-healed artist over the caller-supplied partial, but never let a fetched
+	// `undefined` clobber an imageUrl/logoUrl the caller did supply (the mapper always emits
+	// a logoUrl key)
+	private resolvedArtist(): Artist {
+		const partialArtist = this.viewModel.artist;
+		const hydrated = this.state.hydratedArtist;
+		if (!hydrated) {
+			return partialArtist;
+		}
+
+		return {
+			...partialArtist,
+			...hydrated,
+			imageUrl: hydrated.imageUrl ?? partialArtist.imageUrl,
+			logoUrl: hydrated.logoUrl ?? partialArtist.logoUrl,
+		};
+	}
 
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<ArtistCachePayload>(this.cacheKey());

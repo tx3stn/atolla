@@ -28,9 +28,10 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
-import type { PinnedItemsStore } from '../../stores/PinnedItems';
+import { type PinnedItemsStore, pinnedItemId } from '../../stores/PinnedItems';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { CancelableController } from '../../utils/CancelableController';
 import { formatReleaseDate } from '../../utils/Date';
 import { formatDuration } from '../../utils/Time';
 import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
@@ -41,8 +42,10 @@ import { GenrePills } from '../components/GenrePills';
 import { LoadingView } from '../components/LoadingView';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { openCardContextMenu } from '../flows/CardContextMenu';
 import { type DetailPushDeps, pushArtist, pushGenre, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
+import type { CardContextMenuCard } from '../modals/CardContextMenu';
 
 export interface AlbumViewModel {
 	album: Album;
@@ -109,6 +112,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private cachedDerivedTracksSource: Array<Track> | null = null;
 	private loadGeneration = 0;
 	private inFlightReads: Array<{ cancel?(): void }> = [];
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
 	state: AlbumState = {
 		artist: null,
@@ -142,6 +146,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
+		this.registerDisposable(this.playlistFlow.cancel);
 		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
@@ -150,13 +155,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, downloadState, fullAlbum, isLoading, tracks } = this.state;
-		const { album: partialAlbum, modalSlot } = this.viewModel;
+		const { artistLogoUrl, downloadState, isLoading, tracks } = this.state;
+		const { modalSlot } = this.viewModel;
 		const { animationsEnabled, downloadOnWifiOnly, language } = this.viewModel.preferences;
 		const downloadEnabled = !(
 			downloadOnWifiOnly && this.viewModel.networkStatus.getTransport() === 'cellular'
 		);
-		const album = fullAlbum ?? partialAlbum;
+		const album = this.resolvedAlbum();
 		const albumGenres = this.getAlbumGenres(album.genres);
 		const { discSections, durationText, entries, formatText, multiDisc } = this.getDerivedTracks(
 			tracks,
@@ -187,6 +192,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							modalSlot={modalSlot}
 							onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 							onArtistTap={this.handleArtistLogoTap}
+							onArtworkLongPress={this.handleArtworkLongPress}
 							onDownload={this.handleDownloadTap}
 							onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 							onRemoveDownload={this.handleRemoveDownloadTap}
@@ -290,6 +296,34 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			read.cancel?.();
 		}
 	}
+
+	private handleArtworkLongPress = (): void => {
+		const { modalSlot, pinnedItemsStore, playbackStore, toastService } = this.viewModel;
+		const card: CardContextMenuCard = { album: this.resolvedAlbum(), kind: 'album' };
+		const id = pinnedItemId(card);
+
+		openCardContextMenu(modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			card,
+			gridColumns: this.viewModel.preferences.gridColumns,
+			isPinned: pinnedItemsStore?.isPinned(card.kind, id) ?? false,
+			onArtistTap: this.handleArtistLogoTap,
+			onDismiss: () => {},
+			onPin: () => {
+				void pinnedItemsStore?.pin(card);
+			},
+			onPlaylistCreated: (playlist) => {
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
+			},
+			onUnpin: () => {
+				void pinnedItemsStore?.unpin(card.kind, id);
+			},
+			playbackStore,
+			playlistFlow: this.playlistFlow,
+			toastService,
+			transport: this.activeTransport,
+		});
+	};
 
 	private handleDownloadTap = (): void => {
 		const { album, downloadService } = this.viewModel;
@@ -548,6 +582,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.activeTransport = transport;
 		this.loadAlbumData();
 	};
+
+	private resolvedAlbum(): Album {
+		return this.state.fullAlbum ?? this.viewModel.album;
+	}
 
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<AlbumCachePayload>(this.cacheKey());

@@ -1,10 +1,53 @@
 import 'jasmine/src/jasmine';
 import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
-import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
+import { ArtistView, type ArtistViewModel } from 'atolla_app/src/ui/views/ArtistView';
 import { setTestAppServices } from 'atolla_app/test/util/appServices';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import { componentGetElements } from 'foundation/test/util/componentGetElements';
+import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
+import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent, touchEventWith } from '../util/testEvents';
+
+class ArtistViewWithSlot extends Component<ArtistViewModel> {
+	private slot = new DetachedSlot();
+
+	onRender() {
+		<view>
+			<ArtistView {...this.viewModel} modalSlot={this.slot} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
+
+function findByLabel(component: unknown, label: string) {
+	return elementTypeFind(
+		componentGetElements(component as never),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityLabel') === label);
+}
+
+// renders resume awaiting test bodies mid-render, so a fixed flush count can observe a
+// half-built tree; poll for the element instead
+async function waitForLabel(component: unknown, label: string): Promise<void> {
+	for (let i = 0; i < 50 && !findByLabel(component, label); i += 1) {
+		await Promise.resolve();
+	}
+}
+
+function longPress(component: unknown, label: string): void {
+	jasmine.clock().install();
+	try {
+		findByLabel(component, label)?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+		jasmine.clock().tick(500);
+	} finally {
+		jasmine.clock().uninstall();
+	}
+}
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -195,6 +238,105 @@ describe('ArtistView', () => {
 			await flushAsyncWork();
 
 			expect(getArtistTopTracksCalls).toBe(1);
+		});
+	});
+
+	describe('header artwork context menu', () => {
+		const artist = { id: 'artist-1', name: 'Artist One' };
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+
+		async function renderWithSlot(overrides: Record<string, unknown>, driver: unknown) {
+			const menuPreferences = new Preferences({
+				fetchString: async () => '',
+				storeString: async () => {},
+			});
+			await menuPreferences.setAnimationsEnabled(false);
+			return (
+				driver as { renderComponent: (c: unknown, vm: unknown, ctx: unknown) => unknown }
+			).renderComponent(
+				ArtistViewWithSlot,
+				{
+					artist,
+					downloadService,
+					networkStatus,
+					playbackStore,
+					preferences: menuPreferences,
+					toastService: { show: () => {} },
+					transport: {
+						...baseTransport(),
+						getAlbumsByArtist: async () => [album],
+						getArtist: async () => null,
+						getArtistLogoUrl: async () => null,
+						getPlaylists: async () => ({ hasMore: false, items: [] }),
+						getTracksByAlbum: async () => [],
+						peekArtistLogoUrl: () => undefined,
+					},
+					viewCache: makeTestViewCache(),
+					...overrides,
+				},
+				{ navigator: mockNavigator },
+			);
+		}
+
+		valdiIt('opens an artist context menu, not an album one', async (driver) => {
+			const component = await renderWithSlot({}, driver);
+			await waitForLabel(component, 'detail-header-artwork');
+			expect(findByLabel(component, 'detail-header-artwork')).not.toBeUndefined();
+
+			longPress(component, 'detail-header-artwork');
+			await waitForLabel(component, 'card-context-menu');
+
+			expect(findByLabel(component, 'card-context-menu')).not.toBeUndefined();
+			// the album entity row only renders for an album card, so its absence proves the
+			// header opened the artist's own menu rather than the album grid's
+			expect(findByLabel(component, 'card-context-menu-album')).toBeUndefined();
+		});
+
+		valdiIt('pins the artist from the header menu', async (driver) => {
+			const pinned: Array<unknown> = [];
+			const pinnedItemsStore = {
+				isPinned: () => false,
+				pin: (item: unknown) => {
+					pinned.push(item);
+					return Promise.resolve();
+				},
+				subscribe: () => () => {},
+				unpin: () => Promise.resolve(),
+			};
+			const component = await renderWithSlot({ pinnedItemsStore }, driver);
+			await waitForLabel(component, 'detail-header-artwork');
+
+			longPress(component, 'detail-header-artwork');
+			await waitForLabel(component, 'card-context-pin');
+			findByLabel(component, 'card-context-pin')?.getAttribute('onTap')?.(touchEvent);
+
+			expect(pinned).toEqual([{ artist, kind: 'artist' }]);
+		});
+
+		// the album grid's menu keeps its own bookkeeping; the header path must not touch it
+		valdiIt('leaves the album grid menu state untouched', async (driver) => {
+			const component = await renderWithSlot({}, driver);
+			await waitForLabel(component, 'card-album-1');
+			expect(findByLabel(component, 'card-album-1')).not.toBeUndefined();
+
+			longPress(component, 'card-album-1');
+			await waitForLabel(component, 'card-context-menu');
+			// the album grid's menu really opened, so its bookkeeping is populated
+			expect(findByLabel(component, 'card-context-menu-album')).not.toBeUndefined();
+			findByLabel(component, 'card-context-backdrop')?.getAttribute('onTap')?.(touchEvent);
+			await waitForLabel(component, 'nothing-matches-this');
+
+			longPress(component, 'detail-header-artwork');
+			await waitForLabel(component, 'card-context-menu');
+
+			// a stale album card would resurface the album entity row here
+			expect(findByLabel(component, 'card-context-menu')).not.toBeUndefined();
+			expect(findByLabel(component, 'card-context-menu-album')).toBeUndefined();
 		});
 	});
 });

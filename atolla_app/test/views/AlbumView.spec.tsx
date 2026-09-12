@@ -1,15 +1,56 @@
 import 'jasmine/src/jasmine';
 import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
-import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
+import { AlbumView, type AlbumViewModel } from 'atolla_app/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
 import { setTestAppServices } from 'atolla_app/test/util/appServices';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { touchEvent } from '../util/testEvents';
+import { touchEvent, touchEventWith } from '../util/testEvents';
+
+class AlbumViewWithSlot extends Component<AlbumViewModel> {
+	private slot = new DetachedSlot();
+
+	onRender() {
+		<view>
+			<AlbumView {...this.viewModel} modalSlot={this.slot} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
+
+function findByLabel(component: unknown, label: string) {
+	return elementTypeFind(
+		componentGetElements(component as never),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityLabel') === label);
+}
+
+// renders resume awaiting test bodies mid-render, so a fixed flush count can observe a
+// half-built tree; poll for the element instead
+async function waitForLabel(component: unknown, label: string): Promise<void> {
+	for (let i = 0; i < 50 && !findByLabel(component, label); i += 1) {
+		await Promise.resolve();
+	}
+}
+
+function longPressArtwork(component: unknown): void {
+	jasmine.clock().install();
+	try {
+		findByLabel(component, 'detail-header-artwork')?.getAttribute('onTouch')?.(
+			touchEventWith({ state: 0 }),
+		);
+		jasmine.clock().tick(500);
+	} finally {
+		jasmine.clock().uninstall();
+	}
+}
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -623,6 +664,117 @@ describe('AlbumView', () => {
 			await flushAsyncWork();
 
 			expect(getTracksByAlbumCalls).toBe(1);
+		});
+	});
+
+	describe('header artwork context menu', () => {
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+
+		function makeTransport() {
+			return {
+				getAlbumsByIds: async () => [],
+				getArtist: async () => null,
+				getArtistLogoUrl: async () => null,
+				getPlaylists: async () => ({ hasMore: false, items: [] }),
+				getTracksByAlbum: async () => [],
+				peekArtistLogoUrl: () => undefined,
+			};
+		}
+
+		function makePlaybackStore() {
+			return { play: () => {}, setArtistLogoUrl: () => {}, subscribe: () => () => {}, track: null };
+		}
+
+		async function renderWithSlot(
+			driver: Parameters<Parameters<typeof valdiIt>[1]>[0],
+			overrides: Record<string, unknown> = {},
+		) {
+			const menuPreferences = new Preferences({
+				fetchString: async () => '',
+				storeString: async () => {},
+			});
+			await menuPreferences.setAnimationsEnabled(false);
+			return driver.renderComponent(
+				AlbumViewWithSlot,
+				{
+					album,
+					downloadService,
+					networkStatus,
+					playbackStore: makePlaybackStore(),
+					preferences: menuPreferences,
+					toastService: { show: () => {} },
+					transport: makeTransport(),
+					viewCache: makeTestViewCache(),
+					...overrides,
+				} as unknown as AlbumViewModel,
+				{ navigator: mockNavigator },
+			);
+		}
+
+		valdiIt('opens the card context menu on artwork long press', async (driver) => {
+			const component = await renderWithSlot(driver);
+			await waitForLabel(component, 'detail-header-artwork');
+			// the view is a NavigationPage nested inside the wrapper; prove it mounted before
+			// reading anything into the absence of the menu
+			expect(findByLabel(component, 'detail-header-artwork')).not.toBeUndefined();
+
+			longPressArtwork(component);
+			await waitForLabel(component, 'card-context-menu');
+
+			expect(findByLabel(component, 'card-context-menu')).not.toBeUndefined();
+			expect(findByLabel(component, 'card-context-menu-album')).not.toBeUndefined();
+		});
+
+		valdiIt('offers the actions the header buttons do not', async (driver) => {
+			const component = await renderWithSlot(driver);
+			await waitForLabel(component, 'detail-header-artwork');
+
+			longPressArtwork(component);
+			await waitForLabel(component, 'card-context-menu');
+
+			for (const action of [
+				'card-context-play-next',
+				'card-context-instant-mix',
+				'card-context-add-to-playlist',
+				'card-context-create-playlist',
+				'card-context-pin',
+			]) {
+				expect(findByLabel(component, action)).not.toBeUndefined();
+			}
+		});
+
+		// the view self-heals a missing imageUrl into state.fullAlbum; the menu must pin that,
+		// not the partial album the caller pushed with
+		valdiIt('pins the hydrated album, not the partial one', async (driver) => {
+			const partialAlbum = { ...album, genres: [] };
+			const hydratedAlbum = { ...partialAlbum, imageUrl: 'https://art.png' };
+			const pinned: Array<unknown> = [];
+			const pinnedItemsStore = {
+				isPinned: () => false,
+				pin: (item: unknown) => {
+					pinned.push(item);
+					return Promise.resolve();
+				},
+				subscribe: () => () => {},
+				unpin: () => Promise.resolve(),
+			};
+			const component = await renderWithSlot(driver, {
+				album: partialAlbum,
+				pinnedItemsStore,
+				transport: { ...makeTransport(), getAlbumsByIds: async () => [hydratedAlbum] },
+			});
+			await waitForLabel(component, 'detail-header-artwork');
+
+			longPressArtwork(component);
+			await waitForLabel(component, 'card-context-pin');
+			findByLabel(component, 'card-context-pin')?.getAttribute('onTap')?.(touchEvent);
+
+			expect(pinned).toEqual([{ album: hydratedAlbum, kind: 'album' }]);
 		});
 	});
 });

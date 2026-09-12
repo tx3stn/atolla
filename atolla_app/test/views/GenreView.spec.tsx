@@ -1,15 +1,56 @@
 import 'jasmine/src/jasmine';
 import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
-import { GenreView } from 'atolla_app/src/ui/views/GenreView';
+import { GenreView, type GenreViewModel } from 'atolla_app/src/ui/views/GenreView';
 import { setTestAppServices } from 'atolla_app/test/util/appServices';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { touchEvent } from '../util/testEvents';
+import { touchEvent, touchEventWith } from '../util/testEvents';
+
+class GenreViewWithSlot extends Component<GenreViewModel> {
+	private slot = new DetachedSlot();
+
+	onRender() {
+		<view>
+			<GenreView {...this.viewModel} modalSlot={this.slot} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
+
+function findByLabel(component: unknown, label: string) {
+	return elementTypeFind(
+		componentGetElements(component as never),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityLabel') === label);
+}
+
+// renders resume awaiting test bodies mid-render, so a fixed flush count can observe a
+// half-built tree; poll for the element instead
+async function waitForLabel(component: unknown, label: string): Promise<void> {
+	for (let i = 0; i < 50 && !findByLabel(component, label); i += 1) {
+		await Promise.resolve();
+	}
+}
+
+function longPressArtwork(component: unknown): void {
+	jasmine.clock().install();
+	try {
+		findByLabel(component, 'detail-header-artwork')?.getAttribute('onTouch')?.(
+			touchEventWith({ state: 0 }),
+		);
+		jasmine.clock().tick(500);
+	} finally {
+		jasmine.clock().uninstall();
+	}
+}
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -359,6 +400,73 @@ describe('GenreView', () => {
 			await flushAsyncWork();
 
 			expect(getTracksByGenreCalls).toBe(1);
+		});
+	});
+	describe('header artwork context menu', () => {
+		const hydrated = { id: 'genre-1', imageUrl: 'https://g.png', name: 'Rock' };
+
+		async function renderWithSlot(overrides: Record<string, unknown>, driver: unknown) {
+			const menuPreferences = new Preferences({
+				fetchString: async () => '',
+				storeString: async () => {},
+			});
+			await menuPreferences.setAnimationsEnabled(false);
+			return (
+				driver as { renderComponent: (c: unknown, vm: unknown, ctx: unknown) => unknown }
+			).renderComponent(
+				GenreViewWithSlot,
+				{
+					downloadService,
+					genre: { id: 'genre-1', name: 'Rock' },
+					networkStatus,
+					playbackStore,
+					preferences: menuPreferences,
+					toastService: { show: () => {} },
+					transport: {
+						getGenre: async () => hydrated,
+						getPlaylists: async () => ({ hasMore: false, items: [] }),
+						getTracksByGenre: emptyTracksPage,
+					},
+					viewCache: makeTestViewCache(),
+					...overrides,
+				},
+				{ navigator: mockNavigator },
+			);
+		}
+
+		valdiIt('opens the card context menu on artwork long press', async (driver) => {
+			const component = await renderWithSlot({}, driver);
+			await waitForLabel(component, 'detail-header-artwork');
+			expect(findByLabel(component, 'detail-header-artwork')).not.toBeUndefined();
+
+			longPressArtwork(component);
+			await waitForLabel(component, 'card-context-menu');
+
+			expect(findByLabel(component, 'card-context-menu')).not.toBeUndefined();
+			expect(findByLabel(component, 'card-context-pin')).not.toBeUndefined();
+			expect(findByLabel(component, 'card-context-instant-mix')).not.toBeUndefined();
+		});
+
+		// the view hydrates the entity it was pushed with; the menu must pin that, not the partial
+		valdiIt('pins the hydrated entity', async (driver) => {
+			const pinned: Array<unknown> = [];
+			const pinnedItemsStore = {
+				isPinned: () => false,
+				pin: (item: unknown) => {
+					pinned.push(item);
+					return Promise.resolve();
+				},
+				subscribe: () => () => {},
+				unpin: () => Promise.resolve(),
+			};
+			const component = await renderWithSlot({ pinnedItemsStore }, driver);
+			await waitForLabel(component, 'detail-header-artwork');
+
+			longPressArtwork(component);
+			await waitForLabel(component, 'card-context-pin');
+			findByLabel(component, 'card-context-pin')?.getAttribute('onTap')?.(touchEvent);
+
+			expect(pinned).toEqual([{ genre: hydrated, kind: 'genre' }]);
 		});
 	});
 });

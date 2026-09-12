@@ -27,9 +27,10 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
-import type { PinnedItemsStore } from '../../stores/PinnedItems';
+import { type PinnedItemsStore, pinnedItemId } from '../../stores/PinnedItems';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { CancelableController } from '../../utils/CancelableController';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -37,8 +38,10 @@ import { LoadingView } from '../components/LoadingView';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList } from '../components/TrackList';
 import { type DerivedTracks, deriveTracks } from '../components/TrackListEntries';
+import { openCardContextMenu } from '../flows/CardContextMenu';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
+import type { CardContextMenuCard } from '../modals/CardContextMenu';
 
 export interface GenreViewModel {
 	downloadService: DownloadService;
@@ -94,6 +97,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	private activeTransport!: Transport;
 	private headerCollapse = new HeaderCollapse(headerStore);
 	private hydrateGeneration = 0;
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
 	onCreate(): void {
 		this.activeTransport = this.viewModel.transport;
@@ -113,6 +117,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(this.playlistFlow.cancel);
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
 		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
@@ -130,8 +135,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			this.viewModel.preferences.downloadOnWifiOnly &&
 			this.viewModel.networkStatus.getTransport() === 'cellular'
 		);
-		// self-heal: a genre pushed from an album/track chip may lack imageUrl; merge the fetched one
-		const genre = { ...this.viewModel.genre, ...(this.state.hydratedGenre ?? {}) };
+		const genre = this.resolvedGenre();
 
 		const { entries, totalDuration } = this.getDerivedTracks(tracks);
 
@@ -155,6 +159,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							fallbackText={genre.name}
 							modalSlot={modalSlot}
 							onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onArtworkLongPress={this.handleArtworkLongPress}
 							onDownload={this.handleDownloadTap}
 							onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 							onRemoveDownload={this.handleRemoveDownloadTap}
@@ -248,6 +253,33 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const transport = this.activeTransport;
 		return (page, pageSize) => transport.getTracksByGenre(genre.id, page, pageSize, options);
 	}
+
+	private handleArtworkLongPress = (): void => {
+		const { modalSlot, pinnedItemsStore, playbackStore, toastService } = this.viewModel;
+		const card: CardContextMenuCard = { genre: this.resolvedGenre(), kind: 'genre' };
+		const id = pinnedItemId(card);
+
+		openCardContextMenu(modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			card,
+			gridColumns: this.viewModel.preferences.gridColumns,
+			isPinned: pinnedItemsStore?.isPinned(card.kind, id) ?? false,
+			onDismiss: () => {},
+			onPin: () => {
+				void pinnedItemsStore?.pin(card);
+			},
+			onPlaylistCreated: (playlist) => {
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
+			},
+			onUnpin: () => {
+				void pinnedItemsStore?.unpin(card.kind, id);
+			},
+			playbackStore,
+			playlistFlow: this.playlistFlow,
+			toastService,
+			transport: this.activeTransport,
+		});
+	};
 
 	private handleDownloadTap = (): void => {
 		const { downloadService, genre } = this.viewModel;
@@ -500,6 +532,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.hasMoreTracks = true;
 		this.isLoadingPage = false;
 		this.triggeredAutoLoadForTrackCount = null;
+	}
+
+	// self-heal: a genre pushed from an album/track chip may lack imageUrl; merge the fetched one
+	private resolvedGenre(): Genre {
+		return { ...this.viewModel.genre, ...(this.state.hydratedGenre ?? {}) };
 	}
 
 	private seedFromCache(): void {

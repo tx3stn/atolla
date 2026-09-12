@@ -30,9 +30,10 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
-import type { PinnedItemsStore } from '../../stores/PinnedItems';
+import { type PinnedItemsStore, pinnedItemId } from '../../stores/PinnedItems';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { CancelableController } from '../../utils/CancelableController';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -41,9 +42,11 @@ import { RefreshableScroll } from '../components/RefreshableScroll';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import { TrackList } from '../components/TrackList';
 import { type DerivedTracks, deriveTracks } from '../components/TrackListEntries';
+import { openCardContextMenu } from '../flows/CardContextMenu';
 import { closeSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
+import type { CardContextMenuCard } from '../modals/CardContextMenu';
 import { Modal } from '../modals/Modal';
 
 export interface PlaylistViewModel {
@@ -123,6 +126,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(this.playlistFlow.cancel);
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
 		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
@@ -139,7 +143,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			this.viewModel.networkStatus.getTransport() === 'cellular'
 		);
 		// self-heal: a playlist pushed without imageUrl gets the fetched one merged in for the header
-		const playlist = { ...this.viewModel.playlist, ...(this.state.hydratedPlaylist ?? {}) };
+		const playlist = this.resolvedPlaylist();
 
 		const { entries, totalDuration } = this.getDerivedTracks(tracks);
 
@@ -165,6 +169,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							fallbackText={playlist.name}
 							modalSlot={this.viewModel.modalSlot}
 							onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onArtworkLongPress={this.handleArtworkLongPress}
 							onDownload={this.handleDownloadTap}
 							onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 							onRemoveDownload={this.handleRemoveDownloadTap}
@@ -239,6 +244,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private currentPage = 0;
 	private hasMoreTracks = true;
 	private loadGeneration = 0;
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private isLoadingPage = false;
 	private inFlightPageRead?: CancelablePromise<PlaylistTracksPage>;
 	private inFlightHydrateRead?: CancelablePromise<Playlist | null>;
@@ -441,6 +447,33 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.setState({ removedTrackPending: null, tracks });
 	};
 
+	private handleArtworkLongPress = (): void => {
+		const { modalSlot, pinnedItemsStore, playbackStore, toastService } = this.viewModel;
+		const card: CardContextMenuCard = { kind: 'playlist', playlist: this.resolvedPlaylist() };
+		const id = pinnedItemId(card);
+
+		openCardContextMenu(modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			card,
+			gridColumns: this.viewModel.preferences.gridColumns,
+			isPinned: pinnedItemsStore?.isPinned(card.kind, id) ?? false,
+			onDismiss: () => {},
+			onPin: () => {
+				void pinnedItemsStore?.pin(card);
+			},
+			onPlaylistCreated: (playlist) => {
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
+			},
+			onUnpin: () => {
+				void pinnedItemsStore?.unpin(card.kind, id);
+			},
+			playbackStore,
+			playlistFlow: this.playlistFlow,
+			toastService,
+			transport: this.activeTransport,
+		});
+	};
+
 	private handleDownloadTap = (): void => {
 		const { downloadService, playlist } = this.viewModel;
 		const transport = this.activeTransport;
@@ -578,6 +611,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.activeTransport = transport;
 		this.resetAndLoadPlaylistData();
 	};
+
+	private resolvedPlaylist(): Playlist {
+		return { ...this.viewModel.playlist, ...(this.state.hydratedPlaylist ?? {}) };
+	}
 
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<PlaylistCachePayload>(this.cacheKey());

@@ -14,7 +14,8 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import type { Asset } from 'valdi_tsx/src/Asset';
-import { touchEvent } from '../util/testEvents';
+import type { TouchEvent } from 'valdi_tsx/src/GestureEvents';
+import { dragEvent, touchEvent, touchEventWith } from '../util/testEvents';
 
 describe('DetailHeader', () => {
 	valdiIt('shows a toast when add to queue fails', async (driver) => {
@@ -252,6 +253,167 @@ describe('DetailHeader', () => {
 
 		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeUndefined();
 		expect(rendersIcon(component, res.download)).toBe(true);
+	});
+
+	describe('artwork long press', () => {
+		function touchArtwork(
+			component: Parameters<typeof componentGetElements>[0],
+			event: TouchEvent,
+		): void {
+			findByLabel(component, 'detail-header-artwork')?.getAttribute('onTouch')?.(event);
+		}
+
+		function withClock(run: () => void): void {
+			jasmine.clock().install();
+			try {
+				run();
+			} finally {
+				jasmine.clock().uninstall();
+			}
+		}
+
+		valdiIt('fires after holding for the long press delay', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				jasmine.clock().tick(500);
+			});
+
+			expect(onArtworkLongPress).toHaveBeenCalled();
+		});
+
+		valdiIt('does not fire before the delay elapses', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				jasmine.clock().tick(499);
+			});
+
+			expect(onArtworkLongPress).not.toHaveBeenCalled();
+		});
+
+		valdiIt('cancels when the finger moves vertically past the threshold', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				touchArtwork(component, dragEvent({ deltaX: 0, deltaY: 6, state: 1 }) as TouchEvent);
+				jasmine.clock().tick(500);
+			});
+
+			expect(onArtworkLongPress).not.toHaveBeenCalled();
+		});
+
+		valdiIt('cancels when the finger moves horizontally past the threshold', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				touchArtwork(component, dragEvent({ deltaX: 6, deltaY: 0, state: 1 }) as TouchEvent);
+				jasmine.clock().tick(500);
+			});
+
+			expect(onArtworkLongPress).not.toHaveBeenCalled();
+		});
+
+		valdiIt('stays armed through jitter inside the threshold', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				touchArtwork(component, dragEvent({ deltaX: 3, deltaY: 4, state: 1 }) as TouchEvent);
+				jasmine.clock().tick(500);
+			});
+
+			expect(onArtworkLongPress).toHaveBeenCalled();
+		});
+
+		valdiIt('cancels when the touch ends before the delay', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				touchArtwork(component, touchEventWith({ state: 2 }));
+				jasmine.clock().tick(500);
+			});
+
+			expect(onArtworkLongPress).not.toHaveBeenCalled();
+		});
+
+		valdiIt('leaves the artwork inert when no handler is supplied', async (driver) => {
+			const component = driver.renderComponent(DetailHeader, freshViewModel(), undefined);
+
+			const artwork = findByLabel(component, 'detail-header-artwork');
+			expect(artwork).not.toBeUndefined();
+			expect(artwork?.getAttribute('onTouch')).toBeUndefined();
+			expect(artwork?.getAttribute('onTap')).toBeUndefined();
+		});
+
+		valdiIt('drops a pending long press when the header is destroyed', async (driver) => {
+			const onArtworkLongPress = jasmine.createSpy('onArtworkLongPress');
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress }),
+				undefined,
+			);
+
+			withClock(() => {
+				touchArtwork(component, touchEventWith({ state: 0 }));
+				(component as unknown as { onDestroy(): void }).onDestroy();
+				jasmine.clock().tick(500);
+			});
+
+			expect(onArtworkLongPress).not.toHaveBeenCalled();
+		});
+
+		valdiIt('leaves the header reveal drag intact', async (driver) => {
+			const component = driver.renderComponent(
+				DetailHeader,
+				freshViewModel({ onArtworkLongPress: () => {} }),
+				undefined,
+			);
+
+			const root = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			)[0];
+			expect(root?.getAttribute('onDrag')).not.toBeUndefined();
+			expect(root?.getAttribute('onDragPredicate')?.(dragEvent({ deltaX: 0, deltaY: 20 }))).toBe(
+				true,
+			);
+		});
 	});
 });
 

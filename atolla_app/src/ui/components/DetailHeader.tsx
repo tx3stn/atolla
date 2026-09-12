@@ -7,7 +7,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
@@ -35,6 +35,7 @@ export interface DetailHeaderViewModel {
 	modalSlot?: DetachedSlot;
 	onAddToQueue?: () => Promise<void>;
 	onArtistTap?: () => void;
+	onArtworkLongPress?: () => void;
 	onDownload?: () => void;
 	onHideHeaderGesture?: () => void;
 	onPlay?: () => void;
@@ -56,6 +57,9 @@ interface DetailHeaderState {
 	tickPhase: 'idle' | 'drawing';
 }
 
+const ARTWORK_LONG_PRESS_DELAY_MS = 500;
+const ARTWORK_LONG_PRESS_CANCEL_DISTANCE = 5;
+
 export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, DetailHeaderState> {
 	private checkmarkRef = new ElementRef();
 	private rippleRef = new ElementRef();
@@ -66,6 +70,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	private confirmationTimer?: ReturnType<typeof setTimeout>;
 	private checkmarkAnimTimer?: ReturnType<typeof setTimeout>;
 	private removeDownloadTimer?: ReturnType<typeof setTimeout>;
+	private artworkLongPressTimer: ReturnType<typeof setTimeout> | null = null;
 
 	state: DetailHeaderState = {
 		addToQueuePhase: 'idle',
@@ -75,10 +80,20 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	};
 
 	onDestroy(): void {
+		this.cancelArtworkLongPress();
 		clearTimeout(this.confirmationTimer);
 		clearTimeout(this.checkmarkAnimTimer);
 		clearTimeout(this.removeDownloadTimer);
 		this.viewModel.modalSlot?.slotted(this.emptySlot);
+	}
+
+	private cancelArtworkLongPress(): void {
+		if (!this.artworkLongPressTimer) {
+			return;
+		}
+
+		clearTimeout(this.artworkLongPressTimer);
+		this.artworkLongPressTimer = null;
 	}
 
 	private handleRemoveDownloadTap = (): void => {
@@ -216,6 +231,26 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		}, 2000);
 	};
 
+	private handleArtworkTouch = (event: TouchEvent): void => {
+		if (event.state === TouchEventState.Started) {
+			this.scheduleArtworkLongPress();
+			return;
+		}
+
+		if (event.state === TouchEventState.Changed) {
+			const drag = event as DragEvent;
+			if (
+				Math.abs(drag.deltaX) > ARTWORK_LONG_PRESS_CANCEL_DISTANCE ||
+				Math.abs(drag.deltaY) > ARTWORK_LONG_PRESS_CANCEL_DISTANCE
+			) {
+				this.cancelArtworkLongPress();
+			}
+			return;
+		}
+
+		this.cancelArtworkLongPress();
+	};
+
 	private handleHeaderDrag = (event: DragEvent): void => {
 		if (event.state !== TouchEventState.Changed && event.state !== TouchEventState.Ended) {
 			return;
@@ -243,6 +278,21 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		return Math.abs(event.deltaY) > Math.abs(event.deltaX);
 	};
 
+	// the ancestor scroll's pan force-cancels descendant gesture recognisers on iOS, so the hold
+	// is timed off the raw touch stream rather than a native long-press recogniser
+	private scheduleArtworkLongPress(): void {
+		if (!this.viewModel.onArtworkLongPress) {
+			return;
+		}
+
+		this.cancelArtworkLongPress();
+		this.artworkLongPressTimer = setTimeout(() => {
+			this.artworkLongPressTimer = null;
+			hapticFeedback();
+			this.viewModel.onArtworkLongPress?.();
+		}, ARTWORK_LONG_PRESS_DELAY_MS);
+	}
+
 	onRender() {
 		const {
 			artworkSource,
@@ -251,6 +301,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			fallbackText,
 			logoSource,
 			onArtistTap,
+			onArtworkLongPress,
 			onDownload,
 			onPlay,
 			onShuffle,
@@ -291,6 +342,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				<view
 					accessibilityId='detail-header-artwork'
 					accessibilityLabel='detail-header-artwork'
+					onTouch={onArtworkLongPress ? this.handleArtworkTouch : undefined}
 					style={styles.artworkTile}
 				>
 					{artworkSource && (
