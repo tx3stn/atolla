@@ -1,5 +1,6 @@
 import type { LanguageCode } from 'atolla_core/src/Language';
 import type { LogLevel } from 'atolla_core/src/services/Logger';
+import type { AudioEngine } from '../Audio';
 import type { StoreFiles } from '../FileKeyValueStore';
 import type { HttpServer } from '../Http';
 import type { ConfigStore } from '../PlayerConfig';
@@ -12,10 +13,10 @@ import type { Flags } from './Flags';
 // libraries it should be made available via the CommandContext.
 export interface CommandContext {
 	args: ParsedArguments;
+	audio: AudioEngine;
 	config: ConfigStore;
 	files: StoreFiles;
 	httpServer: HttpServer;
-	// the level this invocation prints at: the global --log-level, or the configured level
 	logLevel: LogLevel;
 	randomBytes: RandomBytes;
 	setLanguage: (language: LanguageCode) => void;

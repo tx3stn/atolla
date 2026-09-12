@@ -4,6 +4,16 @@ import { LOG_LEVELS, type LogLevel } from 'atolla_core/src/services/Logger';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import {
+	atollaAudioClear,
+	atollaAudioConfigure,
+	atollaAudioConsumeEvent,
+	atollaAudioCurrentTrackId,
+	atollaAudioPositionMs,
+	atollaAudioSeekToMs,
+	atollaAudioSetPlaying,
+	atollaAudioStart,
+} from 'atolla_headless/src/AudioNative';
+import {
 	atollaHttpRespond,
 	atollaHttpSetControllersPath,
 	atollaHttpSetHandler,
@@ -17,6 +27,7 @@ import { atollaRandomBytes } from 'atolla_headless/src/RandomNative';
 import Strings from 'atolla_headless/src/Strings';
 import { fs } from 'file_system/src/FileSystem';
 import { beginKeepAlive, endKeepAlive } from 'valdi_core/src/utils/KeepAliveCallback';
+import type { AudioEngine } from './Audio';
 import { AllCmds } from './commands/All';
 import { parseArguments } from './commands/Arguments';
 import type { Cmd, Runnable } from './commands/Command';
@@ -44,6 +55,17 @@ import { makeTerminal, stdout, type Terminal } from './terminal/Terminal';
 // valdi_core/src/utils/Buffer.ts does not typecheck under TypeScript 7, so declare the two members
 // of the global this CLI actually uses.
 declare const valdiStandalone: { arguments: Array<string>; exit(code: number): void };
+
+const audio: AudioEngine = {
+	clear: atollaAudioClear,
+	configure: atollaAudioConfigure,
+	consumeEvent: atollaAudioConsumeEvent,
+	currentTrackId: atollaAudioCurrentTrackId,
+	positionMs: atollaAudioPositionMs,
+	seekToMs: atollaAudioSeekToMs,
+	setPlaying: atollaAudioSetPlaying,
+	start: atollaAudioStart,
+};
 
 const httpServer: HttpServer = {
 	respond: atollaHttpRespond,
@@ -143,6 +165,7 @@ async function runCommand(
 
 	return cmd.run({
 		args: parseArguments(commandArgs, cmd.flags),
+		audio,
 		config,
 		files: fs,
 		httpServer,
@@ -226,6 +249,7 @@ function main(): void {
 		return command === undefined
 			? CmdRoot.run({
 					args: parseArguments(invocation.commandArgs, CmdRoot.flags),
+					audio,
 					config,
 					files: fs,
 					httpServer,

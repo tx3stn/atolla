@@ -157,15 +157,6 @@ pub const Player = struct {
         return buffer[0..length];
     }
 
-    pub fn isActive(self: *Player) bool {
-        const io = io_context();
-
-        self.mutex.lockUncancelable(io);
-        defer self.mutex.unlock(io);
-
-        return self.track_id_len != 0;
-    }
-
     pub fn positionMs(self: *const Player) i64 {
         const nanoseconds = self.pipeline.position() orelse return 0;
 
@@ -176,8 +167,8 @@ pub const Player = struct {
         return self.pipeline.seek(position_ms * std.time.ns_per_ms);
     }
 
-    pub fn setRate(self: *const Player, rate: f64) void {
-        _ = self.pipeline.setState(if (rate > 0) .playing else .paused);
+    pub fn setPlaying(self: *const Player, playing: bool) void {
+        _ = self.pipeline.setState(if (playing) .playing else .paused);
     }
 
     fn drain(self: *Player) void {
@@ -199,6 +190,69 @@ pub const Player = struct {
 
 fn io_context() std.Io {
     return std.Io.Threaded.global_single_threaded.io();
+}
+
+/// A singleton rather than the handle `http_server.zig` hands back, because the daemon has one
+/// output and never stops the engine: there is nothing for a second instance to be.
+const Hosted = struct {
+    runtime: gst.Gst,
+    player: Player,
+    started: bool,
+};
+
+var hosted: Hosted = .{ .runtime = undefined, .player = undefined, .started = false };
+
+export fn atolla_audio_start(device: [*:0]const u8) bool {
+    if (hosted.started) return true;
+
+    hosted.runtime = gst.load() catch return false;
+    hosted.runtime.initialise();
+
+    hosted.player.init(&hosted.runtime, std.mem.span(device)) catch {
+        hosted.runtime.close();
+
+        return false;
+    };
+
+    hosted.started = true;
+
+    return true;
+}
+
+export fn atolla_audio_configure(source: [*:0]const u8, track_id: [*:0]const u8) bool {
+    if (!hosted.started) return false;
+
+    hosted.player.configure(std.mem.span(source), std.mem.span(track_id)) catch return false;
+
+    return true;
+}
+
+export fn atolla_audio_set_playing(playing: bool) void {
+    if (hosted.started) hosted.player.setPlaying(playing);
+}
+
+export fn atolla_audio_seek_to_ms(position_ms: i64) bool {
+    return hosted.started and hosted.player.seekToMs(position_ms);
+}
+
+export fn atolla_audio_position_ms() i64 {
+    return if (hosted.started) hosted.player.positionMs() else 0;
+}
+
+export fn atolla_audio_clear() void {
+    if (hosted.started) hosted.player.clear();
+}
+
+export fn atolla_audio_current_track_id(out: [*]u8, len: usize) usize {
+    if (!hosted.started) return 0;
+
+    return hosted.player.currentTrackId(out[0..len]).len;
+}
+
+export fn atolla_audio_consume_event(out: [*]u8, len: usize) usize {
+    if (!hosted.started) return 0;
+
+    return hosted.player.consumeEvent(out[0..len]).len;
 }
 
 const testing = std.testing;
@@ -296,17 +350,15 @@ test "audio_player: reports the track it was given" {
 
     var buffer: [max_track_id_bytes]u8 = undefined;
 
-    try testing.expect(!player.isActive());
     try testing.expectEqualStrings("", player.currentTrackId(&buffer));
 
     try player.configure("file:///atolla/nothing.wav", "track-1");
 
-    try testing.expect(player.isActive());
     try testing.expectEqualStrings("track-1", player.currentTrackId(&buffer));
 
     player.clear();
 
-    try testing.expect(!player.isActive());
+    try testing.expectEqualStrings("", player.currentTrackId(&buffer));
 }
 
 test "audio_player: announces the track it finished" {
@@ -330,7 +382,7 @@ test "audio_player: announces the track it finished" {
     defer player.deinit();
 
     try player.configure(uri, "track-finished");
-    player.setRate(1);
+    player.setPlaying(true);
 
     var buffer: [max_event_bytes]u8 = undefined;
 
@@ -347,7 +399,7 @@ test "audio_player: announces a track it cannot play, naming it" {
     defer player.deinit();
 
     try player.configure("file:///atolla/not/a/real/file.wav", "track-missing");
-    player.setRate(1);
+    player.setPlaying(true);
 
     var buffer: [max_event_bytes]u8 = undefined;
     const event = try nextEvent(&player, &buffer);
@@ -377,7 +429,7 @@ test "audio_player: seeking moves the position it reports" {
     defer player.deinit();
 
     try player.configure(uri, "track-seek");
-    player.setRate(1);
+    player.setPlaying(true);
 
     try until(&player, struct {
         fn started(current: *Player) bool {

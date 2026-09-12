@@ -30,6 +30,16 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 
 	return {
 		args: parseArguments([], CmdRun.flags),
+		audio: {
+			clear: () => {},
+			configure: () => true,
+			consumeEvent: () => '',
+			currentTrackId: () => '',
+			positionMs: () => 0,
+			seekToMs: () => true,
+			setPlaying: () => {},
+			start: () => true,
+		},
 		config: { path: PATH, read, write: () => {} },
 		files: {
 			createDirectorySync: () => true,

@@ -26,6 +26,16 @@ function context(argv: Array<string>) {
 	return {
 		context: {
 			args: parseArguments(argv, CmdConfig.flags),
+			audio: {
+				clear: () => {},
+				configure: () => true,
+				consumeEvent: () => '',
+				currentTrackId: () => '',
+				positionMs: () => 0,
+				seekToMs: () => true,
+				setPlaying: () => {},
+				start: () => true,
+			},
 			config: {
 				path: PATH,
 				read: () => stored,

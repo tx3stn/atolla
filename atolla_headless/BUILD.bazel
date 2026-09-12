@@ -15,6 +15,7 @@ valdi_module(
     ),
     exclude_patterns = [".*\\.test\\.ts$"],
     native_deps = [
+        "//atolla_headless/native/zig:audio_module",
         "//atolla_headless/native/zig:http_module",
         "//atolla_headless/native/zig:random_module",
     ],

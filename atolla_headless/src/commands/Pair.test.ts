@@ -32,6 +32,16 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 			const lines: Array<string> = [];
 			const exitCode = await CmdPair.run({
 				args: parseArguments(argv, CmdPair.flags),
+				audio: {
+					clear: () => {},
+					configure: () => true,
+					consumeEvent: () => '',
+					currentTrackId: () => '',
+					positionMs: () => 0,
+					seekToMs: () => true,
+					setPlaying: () => {},
+					start: () => true,
+				},
 				config: { path: PATH, read, write: () => {} },
 				files: {
 					createDirectorySync: () => true,

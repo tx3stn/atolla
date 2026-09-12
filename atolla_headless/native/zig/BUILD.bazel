@@ -92,6 +92,32 @@ cc_library(
 )
 
 cc_library(
+    name = "audio_player",
+    hdrs = ["audio_player.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:macos": [":atolla_headless_zig_apple"],
+        "//conditions:default": [":atolla_headless_zig"],
+    }),
+)
+
+# alwayslink: the module registers itself through a static initialiser, which the linker would
+# otherwise drop because nothing references it.
+cc_library(
+    name = "audio_module",
+    srcs = select({
+        "@valdi//bzl/conditions:linux": ["AtollaAudioModuleFactory.cpp"],
+        "@valdi//bzl/conditions:macos": ["AtollaAudioModuleFactory.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":audio_player",
+        "@valdi//valdi_core",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "random_bytes",
     hdrs = ["random_bytes.h"],
     includes = ["."],
