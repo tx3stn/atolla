@@ -77,6 +77,7 @@ pub const second: u64 = 1_000_000_000;
 
 const Gstreamer = struct {
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
+    gst_device_create_element: *const fn (*Object, ?[*:0]const u8) callconv(.c) ?*Object,
     gst_device_get_display_name: *const fn (*Object) callconv(.c) ?[*:0]u8,
     gst_device_monitor_add_filter: *const fn (*Object, [*:0]const u8, ?*Object) callconv(.c) c_uint,
     gst_device_monitor_get_devices: *const fn (*Object) callconv(.c) ?*List,
@@ -84,6 +85,7 @@ const Gstreamer = struct {
     gst_device_monitor_start: *const fn (*Object) callconv(.c) c_int,
     gst_device_monitor_stop: *const fn (*Object) callconv(.c) void,
     gst_element_factory_find: *const fn ([*:0]const u8) callconv(.c) ?*Object,
+    gst_element_get_type: *const fn () callconv(.c) usize,
     gst_element_get_bus: *const fn (*Object) callconv(.c) ?*Object,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
     gst_element_seek_simple: *const fn (*Object, Format, c_uint, i64) callconv(.c) c_int,
@@ -103,6 +105,13 @@ const Glib = struct {
     g_list_free: *const fn (?*List) callconv(.c) void,
 };
 
+const GObject = struct {
+    g_object_set_property: *const fn (*Object, [*:0]const u8, *const Value) callconv(.c) void,
+    g_value_init: *const fn (*Value, usize) callconv(.c) *Value,
+    g_value_set_object: *const fn (*Value, ?*Object) callconv(.c) void,
+    g_value_unset: *const fn (*Value) callconv(.c) void,
+};
+
 const gstreamer_candidates = switch (builtin.os.tag) {
     .macos => &[_][]const u8{
         "/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/libgstreamer-1.0.0.dylib",
@@ -111,6 +120,17 @@ const gstreamer_candidates = switch (builtin.os.tag) {
     else => &[_][]const u8{
         "libgstreamer-1.0.so.0",
         "libgstreamer-1.0.so",
+    },
+};
+
+const gobject_candidates = switch (builtin.os.tag) {
+    .macos => &[_][]const u8{
+        "/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/libgobject-2.0.0.dylib",
+        "libgobject-2.0.0.dylib",
+    },
+    else => &[_][]const u8{
+        "libgobject-2.0.so.0",
+        "libgobject-2.0.so",
     },
 };
 
@@ -138,13 +158,16 @@ fn names(comptime paths: []const []const u8) []const u8 {
 pub const Gst = struct {
     gstreamer_library: std.DynLib,
     glib_library: std.DynLib,
+    gobject_library: std.DynLib,
 
     gstreamer: Gstreamer,
     glib: Glib,
+    gobject: GObject,
 
     pub fn close(self: *Gst) void {
         self.gstreamer_library.close();
         self.glib_library.close();
+        self.gobject_library.close();
     }
 
     pub fn initialise(self: *const Gst) void {
@@ -156,6 +179,36 @@ pub const Gst = struct {
         self.gstreamer.gst_object_unref(factory);
 
         return true;
+    }
+
+    pub fn sinkNamed(self: *const Gst, wanted: []const u8) ?*Object {
+        const monitor = self.gstreamer.gst_device_monitor_new() orelse return null;
+        defer self.gstreamer.gst_object_unref(monitor);
+
+        _ = self.gstreamer.gst_device_monitor_add_filter(monitor, "Audio/Sink", null);
+
+        if (self.gstreamer.gst_device_monitor_start(monitor) == 0) return null;
+        defer self.gstreamer.gst_device_monitor_stop(monitor);
+
+        const devices = self.gstreamer.gst_device_monitor_get_devices(monitor);
+        defer self.glib.g_list_free(devices);
+
+        var found: ?*Object = null;
+        var node = devices;
+
+        while (node) |current| : (node = current.next) {
+            const device = current.data orelse continue;
+            defer self.gstreamer.gst_object_unref(device);
+
+            const name = self.gstreamer.gst_device_get_display_name(device) orelse continue;
+            defer self.glib.g_free(name);
+
+            if (found == null and std.mem.eql(u8, std.mem.span(name), wanted)) {
+                found = self.gstreamer.gst_device_create_element(device, null);
+            }
+        }
+
+        return found;
     }
 
     /// Every audio output this machine offers, one name per line, truncated to what fits.
@@ -269,6 +322,16 @@ pub const Pipeline = struct {
         self.gst.gstreamer.gst_util_set_object_arg(self.element, name.ptr, value.ptr);
     }
 
+    pub fn setElement(self: *const Pipeline, name: [:0]const u8, element: *Object) void {
+        var value: Value = .{};
+
+        _ = self.gst.gobject.g_value_init(&value, self.gst.gstreamer.gst_element_get_type());
+        defer self.gst.gobject.g_value_unset(&value);
+
+        self.gst.gobject.g_value_set_object(&value, element);
+        self.gst.gobject.g_object_set_property(self.element, name.ptr, &value);
+    }
+
     pub fn setState(self: *const Pipeline, state: State) StateChange {
         return self.gst.gstreamer.gst_element_set_state(self.element, state);
     }
@@ -317,9 +380,18 @@ pub fn load() Error!Gst {
     };
     errdefer glib_library.close();
 
+    var gobject_library = open(gobject_candidates) catch |failure| {
+        log.err("audio", "gobject is not installed: tried {s}", .{names(gobject_candidates)});
+
+        return failure;
+    };
+    errdefer gobject_library.close();
+
     return .{
         .gstreamer_library = gstreamer_library,
         .glib_library = glib_library,
+        .gobject_library = gobject_library,
+        .gobject = try resolve(GObject, &gobject_library),
         .gstreamer = try resolve(Gstreamer, &gstreamer_library),
         .glib = try resolve(Glib, &glib_library),
     };

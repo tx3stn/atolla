@@ -7,16 +7,18 @@ pub const max_track_id_bytes = 128;
 pub const max_event_bytes = 512;
 pub const max_events = 32;
 
+const default_device = "default";
 const silent_device = "none";
 const poll_interval_ns = gst.second / 10;
 
-pub const Error = gst.PipelineError || std.Thread.SpawnError || error{TrackIdTooLong};
+pub const Error =
+    gst.PipelineError || std.Thread.SpawnError || error{ OutputNotFound, TrackIdTooLong };
 
-/// `none` is the device a machine with no audio output is given.
-pub fn sinkFor(device: []const u8) [:0]const u8 {
+pub fn sinkFor(device: []const u8) ?[:0]const u8 {
     if (std.mem.eql(u8, device, silent_device)) return "fakesink sync=true";
+    if (std.mem.eql(u8, device, default_device)) return "autoaudiosink";
 
-    return "autoaudiosink";
+    return null;
 }
 
 const Event = struct {
@@ -89,12 +91,27 @@ pub const Player = struct {
 
     pub fn init(self: *Player, runtime: *const gst.Gst, device: []const u8) Error!void {
         var description: [128]u8 = undefined;
-        const sink = sinkFor(device);
-        const text = std.fmt.bufPrintZ(&description, "playbin audio-sink=\"{s}\"", .{sink}) catch {
-            return error.LaunchFailed;
-        };
+        const text = if (sinkFor(device)) |sink|
+            std.fmt.bufPrintZ(&description, "playbin audio-sink=\"{s}\"", .{sink}) catch {
+                return error.LaunchFailed;
+            }
+        else
+            "playbin";
 
         self.* = .{ .gst = runtime, .pipeline = try gst.Pipeline.launch(runtime, text) };
+
+        if (sinkFor(device) == null) {
+            const sink = runtime.sinkNamed(device) orelse {
+                log.err("audio", "no output named {s}", .{device});
+                self.pipeline.deinit();
+
+                return error.OutputNotFound;
+            };
+
+            // The element arrives floating and the property sinks it, so it is not ours to unref.
+            self.pipeline.setElement("audio-sink", sink);
+        }
+
         self.pump = std.Thread.spawn(.{}, drain, .{self}) catch |failure| {
             self.pipeline.deinit();
 
@@ -315,8 +332,38 @@ fn nextEvent(player: *Player, buffer: []u8) ![]const u8 {
 }
 
 test "audio_player: a machine with no output gets a sink that keeps time" {
-    try testing.expectEqualStrings("fakesink sync=true", sinkFor("none"));
-    try testing.expectEqualStrings("autoaudiosink", sinkFor("default"));
+    try testing.expectEqualStrings("fakesink sync=true", sinkFor("none").?);
+    try testing.expectEqualStrings("autoaudiosink", sinkFor("default").?);
+    try testing.expectEqual(null, sinkFor("MacBook Pro Speakers"));
+}
+
+test "audio_player: refuses to start on an output this machine does not have" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var player: Player = undefined;
+
+    try testing.expectError(error.OutputNotFound, player.init(&runtime, "atolla not an output"));
+}
+
+test "audio_player: starts on an output the machine does list" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var listing: [4096]u8 = undefined;
+    const sinks = runtime.audioSinks(&listing);
+
+    // A runner or a container has no outputs at all, and nothing here can be asserted without one.
+    if (sinks.len == 0) return error.SkipZigTest;
+
+    const first = sinks[0..std.mem.indexOfScalar(u8, sinks, '\n').?];
+
+    var player: Player = undefined;
+    try player.init(&runtime, first);
+    defer player.deinit();
+
+    var buffer: [max_track_id_bytes]u8 = undefined;
+    try testing.expectEqualStrings("", player.currentTrackId(&buffer));
 }
 
 test "audio_player: events come back in the order they happened" {
