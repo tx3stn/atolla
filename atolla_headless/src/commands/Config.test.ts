@@ -36,6 +36,7 @@ function context(argv: Array<string>) {
 				setPlaying: () => {},
 				start: () => true,
 			},
+			audioDevices: () => [],
 			config: {
 				path: PATH,
 				read: () => stored,

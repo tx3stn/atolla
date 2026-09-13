@@ -106,6 +106,11 @@ public:
                              [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {
                                  return readInto(atolla_audio_current_track_id);
                              })))
+            .setMapValue("atollaAudioDevices",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {
+                                 return readInto(atolla_audio_devices);
+                             })))
             .setMapValue("atollaAudioConsumeEvent",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {

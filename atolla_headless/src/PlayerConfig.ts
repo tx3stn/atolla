@@ -5,6 +5,9 @@ import { CLI_ERROR } from './commands/Errors';
 import { ensureDirectory } from './EnsureDirectory';
 
 export const DEFAULT_AUDIO_DEVICE = 'default';
+
+// Decodes and keeps time without an output device, for hardware that has none.
+export const SILENT_AUDIO_DEVICE = 'none';
 export const DEFAULT_BIND_ADDRESS = '0.0.0.0';
 export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
 export const DEFAULT_DATA_DIR = '/var/lib/atolla';

@@ -1,6 +1,6 @@
 import type { LanguageCode } from 'atolla_core/src/Language';
 import type { LogLevel } from 'atolla_core/src/services/Logger';
-import type { AudioEngine } from '../Audio';
+import type { AudioDevices, AudioEngine } from '../Audio';
 import type { StoreFiles } from '../FileKeyValueStore';
 import type { HttpServer } from '../Http';
 import type { ConfigStore } from '../PlayerConfig';
@@ -14,6 +14,7 @@ import type { Flags } from './Flags';
 export interface CommandContext {
 	args: ParsedArguments;
 	audio: AudioEngine;
+	audioDevices: AudioDevices;
 	config: ConfigStore;
 	files: StoreFiles;
 	httpServer: HttpServer;

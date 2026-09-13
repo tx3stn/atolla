@@ -226,6 +226,17 @@ export fn atolla_audio_start(device: [*:0]const u8) bool {
     return true;
 }
 
+/// Loads its own runtime rather than the hosted one: listing is a one-shot command in a process
+/// that is not the daemon, and dlopen refcounts so a running engine is unaffected.
+export fn atolla_audio_devices(out: [*]u8, len: usize) usize {
+    var runtime = gst.load() catch return 0;
+    defer runtime.close();
+
+    runtime.initialise();
+
+    return runtime.audioSinks(out[0..len]).len;
+}
+
 export fn atolla_audio_configure(source: [*:0]const u8, track_id: [*:0]const u8) bool {
     if (!hosted.started) return false;
 

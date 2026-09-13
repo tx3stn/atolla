@@ -40,6 +40,7 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 			setPlaying: () => {},
 			start: () => true,
 		},
+		audioDevices: () => [],
 		config: { path: PATH, read, write: () => {} },
 		files: {
 			createDirectorySync: () => true,

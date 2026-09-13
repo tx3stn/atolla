@@ -116,6 +116,12 @@
 	"init_help_short": {
 		"defaultMessage": "create the player configuration"
 	},
+	"outputs_help_long": {
+		"defaultMessage": "list the audio outputs available\n\ndefault follows the system output\nnone will keep the player in sync without playing"
+	},
+	"outputs_help_short": {
+		"defaultMessage": "list the audio outputs available"
+	},
 	"pair_help_long": {
 		"defaultMessage": "pair this player with your device\n\nthe pair command returns the pairing code for you to enter inside the atolla app"
 	},

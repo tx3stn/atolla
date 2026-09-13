@@ -41,6 +41,18 @@ pub const GError = extern struct {
     message: ?[*:0]u8,
 };
 
+pub const List = extern struct {
+    data: ?*Object,
+    next: ?*List,
+    prev: ?*List,
+};
+
+/// `GType` plus two 8-byte union slots, which is what every `GValue` is on a 64-bit target.
+pub const Value = extern struct {
+    g_type: usize = 0,
+    data: [2]u64 = .{ 0, 0 },
+};
+
 pub const MiniObject = extern struct {
     type: usize,
     refcount: c_int,
@@ -65,6 +77,12 @@ pub const second: u64 = 1_000_000_000;
 
 const Gstreamer = struct {
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
+    gst_device_get_display_name: *const fn (*Object) callconv(.c) ?[*:0]u8,
+    gst_device_monitor_add_filter: *const fn (*Object, [*:0]const u8, ?*Object) callconv(.c) c_uint,
+    gst_device_monitor_get_devices: *const fn (*Object) callconv(.c) ?*List,
+    gst_device_monitor_new: *const fn () callconv(.c) ?*Object,
+    gst_device_monitor_start: *const fn (*Object) callconv(.c) c_int,
+    gst_device_monitor_stop: *const fn (*Object) callconv(.c) void,
     gst_element_factory_find: *const fn ([*:0]const u8) callconv(.c) ?*Object,
     gst_element_get_bus: *const fn (*Object) callconv(.c) ?*Object,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
@@ -82,6 +100,7 @@ const Gstreamer = struct {
 const Glib = struct {
     g_error_free: *const fn (*GError) callconv(.c) void,
     g_free: *const fn (?*anyopaque) callconv(.c) void,
+    g_list_free: *const fn (?*List) callconv(.c) void,
 };
 
 const gstreamer_candidates = switch (builtin.os.tag) {
@@ -137,6 +156,39 @@ pub const Gst = struct {
         self.gstreamer.gst_object_unref(factory);
 
         return true;
+    }
+
+    /// Every audio output this machine offers, one name per line, truncated to what fits.
+    pub fn audioSinks(self: *const Gst, buffer: []u8) []const u8 {
+        const monitor = self.gstreamer.gst_device_monitor_new() orelse return "";
+        defer self.gstreamer.gst_object_unref(monitor);
+
+        _ = self.gstreamer.gst_device_monitor_add_filter(monitor, "Audio/Sink", null);
+
+        if (self.gstreamer.gst_device_monitor_start(monitor) == 0) return "";
+        defer self.gstreamer.gst_device_monitor_stop(monitor);
+
+        const devices = self.gstreamer.gst_device_monitor_get_devices(monitor);
+        defer self.glib.g_list_free(devices);
+
+        var writer = std.Io.Writer.fixed(buffer);
+        var node = devices;
+
+        while (node) |current| : (node = current.next) {
+            const device = current.data orelse continue;
+            defer self.gstreamer.gst_object_unref(device);
+
+            const name = self.gstreamer.gst_device_get_display_name(device) orelse continue;
+            defer self.glib.g_free(name);
+
+            writer.print("{s}\n", .{std.mem.span(name)}) catch break;
+        }
+
+        // A print that ran out of room may have written part of a name, so keep whole lines only.
+        const written = writer.buffered();
+        const last = std.mem.lastIndexOfScalar(u8, written, '\n') orelse return "";
+
+        return written[0 .. last + 1];
     }
 
     /// The caller owns the returned slice, which is written into `buffer`.
@@ -399,6 +451,22 @@ test "gst: reports a source it cannot read rather than hanging" {
 
     try testing.expect(outcome == .failed);
     try testing.expect(outcome.failed.len > 0);
+}
+
+test "gst: lists the audio outputs the machine offers" {
+    var gst = try loaded();
+    defer gst.close();
+
+    gst.initialise();
+
+    var buffer: [4096]u8 = undefined;
+    const sinks = gst.audioSinks(&buffer);
+
+    // A runner or a container has none, so the list may be empty; what it may never be is garbage.
+    if (sinks.len != 0) {
+        try testing.expectEqual('\n', sinks[sinks.len - 1]);
+        try testing.expect(std.mem.indexOfScalar(u8, sinks, 0) == null);
+    }
 }
 
 test "gst: turns a path into a uri it can play" {

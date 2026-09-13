@@ -116,6 +116,12 @@
 	"init_help_short": {
 		"defaultMessage": "créer la configuration du lecteur"
 	},
+	"outputs_help_long": {
+		"defaultMessage": "lister les sorties audio disponibles\n\ndefault suit la sortie du système\nnone garde le lecteur synchronisé sans rien jouer"
+	},
+	"outputs_help_short": {
+		"defaultMessage": "lister les sorties audio disponibles"
+	},
 	"pair_help_long": {
 		"defaultMessage": "TODO"
 	},

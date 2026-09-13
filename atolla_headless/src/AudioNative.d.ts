@@ -1,5 +1,7 @@
 export function atollaAudioStart(device: string): boolean;
 
+export function atollaAudioDevices(): string;
+
 export function atollaAudioConfigure(source: string, trackId: string): boolean;
 
 export function atollaAudioSetPlaying(playing: boolean): void;

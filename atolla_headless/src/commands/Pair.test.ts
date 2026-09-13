@@ -42,6 +42,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 					setPlaying: () => {},
 					start: () => true,
 				},
+				audioDevices: () => [],
 				config: { path: PATH, read, write: () => {} },
 				files: {
 					createDirectorySync: () => true,
