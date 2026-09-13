@@ -1,0 +1,90 @@
+@host = http://127.0.0.1:45889
+@code = 00000000
+@track = demo
+
+### identity, and the one route that needs no token
+GET {{host}}/hello
+
+### trade the code for a token; every request below reuses it
+# @name pair
+POST {{host}}/pair
+content-type: application/json
+
+{
+  "code": "{{code}}",
+  "controllerId": "http-file",
+  "controllerName": "http file"
+}
+
+> {%
+  const body = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+  client.global.set("token", body.token);
+%}
+
+### the snapshot a controller mirrors
+GET {{host}}/state
+authorization: Bearer {{token}}
+
+### block until something changes, or 304 after 25 seconds
+GET {{host}}/state?since=1
+authorization: Bearer {{token}}
+
+### load the queue
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{
+  "command": "setQueue",
+  "trackIndex": 0,
+  "tracks": [{ "id": "{{track}}", "name": "demo", "duration": 156 }]
+}
+
+### play
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "play" }
+
+### pause
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "pause" }
+
+### next
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "next" }
+
+### previous
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "previous" }
+
+### seek a minute in
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "seek", "positionMs": 60000 }
+
+### loop the queue: none, queue or track
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "setLoopMode", "loopMode": "queue" }
+
+### shuffle
+POST {{host}}/command
+authorization: Bearer {{token}}
+content-type: application/json
+
+{ "command": "shuffle" }

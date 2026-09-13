@@ -61,8 +61,5 @@ neotest*-xml.txt
 atolla_*/tsconfig.json
 tools/palette-preview/tsconfig.json
 
-# scratch requests from `bun run openapi:http`, regenerated on demand
-atolla_sync/*.http
-
 # `tsc -b` writes one per referenced project, even under --noEmit
 *.tsbuildinfo
