@@ -48,6 +48,8 @@ jobs:
       # this has to run before bazel reads res/.
       - run: bun run icons:generate --android
       - uses: ./.github/actions/install-libtinfo5
+      - name: install zlib headers
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zlib1g-dev
       - name: Make room for the bazel build
         run: |
           # The full APK build (Skia/ICU/harfbuzz/abseil/Valdi + host tools) overflows the
@@ -126,6 +128,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: ./.github/actions/free-disk-space
       - uses: ./.github/actions/install-libtinfo5
+      - name: install zlib headers
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zlib1g-dev
       - name: configure bazel caching
         uses: ./.github/actions/configure-bazel-caching
         with:
@@ -153,6 +157,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: ./.github/actions/free-disk-space
       - uses: ./.github/actions/install-libtinfo5
+      - name: install zlib headers
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zlib1g-dev
       # Pinned to jammy packages, so the binary's glibc and libc++ floor does not move with
       # whatever suite the runner happens to be. See the script.
       - name: build arm64 sysroot

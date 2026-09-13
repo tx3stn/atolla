@@ -32,6 +32,7 @@ valdi_module(
 
 valdi_cli_application(
     name = "atolla_headless_cli",
+    enable_http = True,
     script_path = "atolla_headless/src/main",
     deps = [":atolla_headless"],
 )

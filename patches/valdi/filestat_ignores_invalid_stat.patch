@@ -1,0 +1,11 @@
+--- valdi_core/src/valdi_core/cpp/Utils/DiskUtils.hpp
++++ valdi_core/src/valdi_core/cpp/Utils/DiskUtils.hpp
+@@ -20,7 +20,7 @@
+ class FileStat {
+ public:
+     FileStat(bool exists, bool isDir, bool isFile, size_t size)
+-        : _exists(exists), _isDir(isDir), _isFile(isFile), _size(size) {}
++        : _exists(exists), _isDir(exists && isDir), _isFile(exists && isFile), _size(exists ? size : 0) {}
+ 
+     constexpr bool exists() const {
+         return _exists;

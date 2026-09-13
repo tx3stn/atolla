@@ -1213,7 +1213,7 @@
           "@@valdi~~_repo_rules~resvg//Cargo.lock": "22116883b7ad6692de7febea4181d78faee4f6b5df267edb05f3e518ee63cfe1",
           "@@rules_rust~~rust_host_tools~rust_host_tools_nightly//rust_host_tools_nightly": "ENOENT",
           "@@valdi~//third-party/resvg/cargo-bazel-lock.json": "954b60ffc5158ff5451bdcbad7a7970525c94c8fe8a1cb8b48b942a4a90f229a",
-          "@@//MODULE.bazel": "d22344611f195e1b563614a152f7c4e30b3f7e8dc9fa91ef513139168ea57a1d",
+          "@@//MODULE.bazel": "d53426bfbe87b9ced9d828c685c25365a5d73613ca36cabfcaa8f927e06acd16",
           "@@rules_rust~~rust_host_tools~rust_host_tools//rust_host_tools": "ENOENT"
         },
         "recordedDirentsInputs": {},

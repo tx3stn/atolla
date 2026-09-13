@@ -5,8 +5,8 @@ module(
 
 # -- Valdi framework (https://github.com/Snapchat/Valdi) ---------------------
 # Pinned to the branch of https://github.com/Snapchat/Valdi/pull/179, which adds the HTTP request
-# manager a valdi_cli_application needs — the headless player cannot reach Jellyfin without it. The
-# branch is rebased onto upstream main, so this tree is upstream plus those commits. When the PR
+# manager a valdi_cli_application needs (the headless player cannot reach Jellyfin without it).
+# The branch is rebased onto upstream main, so this tree is upstream plus those commits. When the PR
 # merges this goes back to Snapchat/Valdi at the merge SHA, here and in .bazelrc's registry URL.
 VALDI_REV = "56cd737a08664a72e3bd9bcf8054ead80a10c282"
 
@@ -22,12 +22,15 @@ bazel_dep(name = "valdi", version = "0.1")
 archive_override(
     module_name = "valdi",
     integrity = VALDI_INTEGRITY,
-    # Buffer.inner() returns DataView.buffer, typed ArrayBufferLike, as ArrayBuffer. Valdi
-    # typechecks itself at TypeScript 5.3.3, before 5.7 split SharedArrayBuffer out of
-    # ArrayBuffer, so this only fails for a consumer on a newer TypeScript — atolla is on 7.
-    # Sound: the class allocates its own ArrayBuffer in both the constructor and
-    # ensureCapacity. Drop this once the fix is upstream.
-    patches = ["//patches/valdi:buffer_arraybuffer.patch"],
+    # Both are the upstream fix verbatim, so each goes when its PR lands.
+    patches = [
+        # Snapchat/Valdi#186: DataView.buffer widened to ArrayBufferLike in TypeScript 5.7, and
+        # Valdi typechecks itself at 5.3.3, so only a consumer on a newer TypeScript sees it.
+        "//patches/valdi:buffer_arraybuffer.patch",
+        # Snapchat/Valdi#187: createDirectorySync reports success without creating the directory
+        # wherever a failed stat() leaves st_mode dirty, as docker's amd64 emulation does.
+        "//patches/valdi:filestat_ignores_invalid_stat.patch",
+    ],
     strip_prefix = VALDI_PREFIX,
     urls = [VALDI_URL],
 )
@@ -101,7 +104,7 @@ register_toolchains("@llvm_toolchain//:all")
 
 # Cross toolchain for the headless player. Valdi's prebuilt valdi_compiler
 # selects on darwin / linux_x86_64 with no arm64 build, so a native arm64 build cannot finish
-# analysis. Cross building keeps those tools in the exec configuration, where the selects resolve.
+# analysis. Cross building keeps that tool in the exec configuration, where the select resolves.
 # Deliberately NOT register_toolchains'd: that would make toolchain resolution fetch this on every
 # host, including ones with no arm64 sysroot (the same trap hermetic_ndk falls into).
 # `--config=linux-arm64` in .bazelrc pulls it in with --extra_toolchains instead, so it stays
@@ -167,15 +170,14 @@ single_version_override(
 # at what the graph actually resolves to (transitive deps pull these forward).
 bazel_dep(name = "rules_cc", version = "0.2.20")
 
-# The zig toolchain definitions in //BUILD.bazel constrain on @platforms//os and //cpu. Bazel 8 stops
-# making it visible to the root module implicitly, so it has to be declared. Matches Valdi's pin.
+# //BUILD.bazel's zig toolchains constrain on @platforms//os and //cpu. Bazel 7 makes it visible to
+# the root module without this; Bazel 8 does not, so declare what we use. Matches Valdi's pin.
 bazel_dep(name = "platforms", version = "1.1.0")
 
-# At 2.3.10 kt_android_library is a rule built from rules_android's android_library attrs rather than
-# a macro wrapping it, so custom_package and assets are native — which is what the three patches
-# atolla vendored existed to provide. Deleted rather than ported.
+# At 2.3.10 kt_android_library is a real rule, built from rules_android's android_library attrs
+# rather than a macro wrapping it, so custom_package and assets are native attributes. Nothing here
+# needs patching to get them.
 bazel_dep(name = "rules_kotlin", version = "2.3.10")
-
 bazel_dep(name = "rules_swift", version = "3.1.2", repo_name = "build_bazel_rules_swift")
 bazel_dep(name = "rules_apple", version = "4.1.0", repo_name = "build_bazel_rules_apple")
 
@@ -246,10 +248,11 @@ maven.install(
     use_starlark_android_rules = True,
     version_conflict_policy = "pinned",
 )
+
 # android_mvn and test_mvn are declared by Valdi (androidx/material, junit/espresso);
 # valdi_application's generated android aar_import + valdi_module_android_common reference the
 # former, so the consumer must import it. The maven extension is shared, so use_repo pulls in
-# Valdi's installs rather than us re-declaring its ~40 androidx artifacts — and re-declaring
+# Valdi's installs rather than us re-declaring its ~40 androidx artifacts. Declaring our own
 # test_mvn here would collide with Valdi's install of the same name.
 use_repo(maven, "android_mvn", "media3_mvn", "test_mvn")
 

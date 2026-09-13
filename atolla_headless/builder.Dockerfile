@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	unzip \
 	xz-utils \
 	zip \
+	zlib1g-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 # bazelisk rather than a pinned bazel so the container tracks .bazelversion like every other host
