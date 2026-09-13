@@ -11,6 +11,9 @@ FROM ubuntu:22.04@sha256:2edbbc5dc405e9612ba3584ce95480277e3eb374407b5505fe26f17
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
+COPY .scripts/install-gstreamer.sh /tmp/install-gstreamer.sh
+RUN /tmp/install-gstreamer.sh && rm /tmp/install-gstreamer.sh && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /workspace
 
 CMD ["bash"]
