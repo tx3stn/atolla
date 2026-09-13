@@ -283,7 +283,7 @@ fn loaded() !gst.Gst {
 }
 
 fn until(player: *Player, reached: *const fn (*Player) bool) !void {
-    for (0..100) |_| {
+    for (0..300) |_| {
         if (reached(player)) return;
 
         io_context().sleep(.fromMilliseconds(50), .awake) catch {};
@@ -293,7 +293,7 @@ fn until(player: *Player, reached: *const fn (*Player) bool) !void {
 }
 
 fn nextEvent(player: *Player, buffer: []u8) ![]const u8 {
-    for (0..100) |_| {
+    for (0..300) |_| {
         const event = player.consumeEvent(buffer);
         if (event.len != 0) return event;
 

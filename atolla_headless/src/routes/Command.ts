@@ -23,11 +23,22 @@ export async function handleCommand(deps: CommandDeps, body: string): Promise<An
 
 	await deps.restored;
 
-	if (!apply(deps.playback, command)) {
-		return { body: '', status: 400 };
+	const status = apply(deps.playback, command) ? 202 : 400;
+	const tracks =
+		'tracks' in command && Array.isArray(command.tracks) ? command.tracks.length : undefined;
+
+	log.debug(command.command, {
+		status,
+		trackId: deps.playback.track?.id,
+		trackIndex: deps.playback.trackIndex,
+		tracks,
+	});
+
+	if (status === 400) {
+		return { body: '', status };
 	}
 
-	return { body: JSON.stringify({ version: deps.version.current }), status: 202 };
+	return { body: JSON.stringify({ version: deps.version.current }), status };
 }
 
 // False for a payload the server could not check: the track array is handed across the bridge
