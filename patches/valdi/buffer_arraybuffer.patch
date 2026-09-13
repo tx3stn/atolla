@@ -1,0 +1,11 @@
+--- src/valdi_modules/src/valdi/valdi_core/src/utils/Buffer.ts
++++ src/valdi_modules/src/valdi/valdi_core/src/utils/Buffer.ts
+@@ -13,7 +13,7 @@
+   }
+
+   inner(): ArrayBuffer {
+-    return this.array.buffer;
++    return this.array.buffer as ArrayBuffer;
+   }
+
+   empty(): boolean {

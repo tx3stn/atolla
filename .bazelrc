@@ -1,4 +1,6 @@
-common --registry=https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.1/registry
+# Must track MODULE.bazel's VALDI_REV — a stale registry against a different tree gives confusing
+# module-resolution errors rather than an obvious mismatch.
+common --registry=https://raw.githubusercontent.com/tx3stn/Valdi/56cd737a08664a72e3bd9bcf8054ead80a10c282/registry
 common --registry=https://bcr.bazel.build
 
 common --enable_platform_specific_config
@@ -53,6 +55,10 @@ build:linux-arm64 --linkopt=-L/opt/sysroot-arm64/usr/lib/llvm-16/lib
 # -nostdinc++ leaves the toolchain's own -stdlib=libc++ with nothing to do, and the build treats
 # unused arguments as errors.
 build:linux-arm64 --copt=-Wno-unused-command-line-argument
+# Valdi builds resvg and pngquant from source through crate_universe, and cargo-bazel's lock digest
+# covers the binary itself, so a lockfile generated on one OS fails validation on another.
+build --repo_env=CARGO_BAZEL_REPIN=true
+
 # Pin the Zig image/palette/waveform kernels to ReleaseSafe so their bounds and overflow checks
 # stay on in every build (a bad width/height panics instead of corrupting memory), independent of
 # Bazel's -c mode — rules_zig otherwise maps `-c opt` to ReleaseFast, which drops those checks.

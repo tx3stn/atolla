@@ -51,7 +51,7 @@ jobs:
       # tsc only needs projectsync's OUTPUTS: the valdi sources/types, the
       # generated res.ts, and the linux-rewritten tsconfig. The heavy outputs
       # (generated_ts + valdi module sources) are built by the bazel Valdi
-      # toolchain pinned in MODULE.bazel (VALDI_TAG), NOT the npm @snap/valdi CLI
+      # toolchain pinned in MODULE.bazel (VALDI_REV), NOT the npm @snap/valdi CLI
       # — which only orchestrates bazel and rewrites atolla_app/tsconfig.json. So the
       # key covers the bazel dep-set (MODULE.bazel etc.) + BUILD.bazel + the res
       # file list + the strings, and stays hit across CLI-only bumps — on a hit

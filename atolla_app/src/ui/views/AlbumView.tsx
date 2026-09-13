@@ -310,7 +310,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			onArtistTap: this.handleArtistLogoTap,
 			onDismiss: () => {},
 			onPin: () => {
-				void pinnedItemsStore?.pin(card);
+				void pinnedItemsStore?.pin({ album: this.resolvedAlbum(), kind: 'album' });
 			},
 			onPlaylistCreated: (playlist) => {
 				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
