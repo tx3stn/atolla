@@ -121,11 +121,18 @@ pub const Player = struct {
         self.track_id_len = 0;
     }
 
+    /// A local path or a URI, the same either-or the app's `resolveTrackSource` hands its engine.
     pub fn configure(self: *Player, source: [:0]const u8, track_id: []const u8) Error!void {
         if (track_id.len > max_track_id_bytes) return error.TrackIdTooLong;
 
+        var uri_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+        const uri = if (std.mem.indexOf(u8, source, "://") != null)
+            source
+        else
+            try self.gst.fileUri(&uri_buffer, source);
+
         _ = self.pipeline.setState(.null);
-        self.pipeline.set("uri", source);
+        self.pipeline.set("uri", uri);
 
         const io = io_context();
 
@@ -374,14 +381,11 @@ test "audio_player: announces the track it finished" {
     var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const path = try std.fmt.bufPrintZ(&path_buffer, ".zig-cache/tmp/{s}/tone.wav", .{tmp.sub_path});
 
-    var uri_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const uri = try runtime.fileUri(&uri_buffer, path);
-
     var player: Player = undefined;
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
-    try player.configure(uri, "track-finished");
+    try player.configure(path, "track-finished");
     player.setPlaying(true);
 
     var buffer: [max_event_bytes]u8 = undefined;

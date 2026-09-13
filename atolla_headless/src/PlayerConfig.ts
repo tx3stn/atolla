@@ -86,6 +86,10 @@ export function readPort(value: string): number {
 	return port;
 }
 
+export function mediaDir(config: PlayerConfig): string {
+	return `${config.dataDir}/media`;
+}
+
 export function secretsDir(config: PlayerConfig): string {
 	return `${config.dataDir}/secrets`;
 }

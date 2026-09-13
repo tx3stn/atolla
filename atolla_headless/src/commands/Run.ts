@@ -16,6 +16,7 @@ export const CmdRun = {
 	helpTextLong: Strings.runHelpLong,
 	helpTextShort: Strings.runHelpShort,
 	run: async ({
+		audio,
 		config,
 		files,
 		httpServer,
@@ -41,6 +42,7 @@ export const CmdRun = {
 		banner(terminal, current, identity, pairing);
 
 		return startDaemon({
+			audio,
 			config: current,
 			files,
 			httpServer,

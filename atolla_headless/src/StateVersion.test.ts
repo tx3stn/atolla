@@ -1,8 +1,77 @@
 import { describe, expect, it } from 'bun:test';
-import { makeStateVersion } from './StateVersion';
+import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { makeStateVersion, playbackSignature } from './StateVersion';
 
 const NO_WAIT = 0;
 const A_WHILE = 10_000;
+
+const TRACKS = [
+	{ duration: 180, id: 't1', name: 'track t1' },
+	{ duration: 180, id: 't2', name: 'track t2' },
+];
+
+describe('playbackSignature', () => {
+	it('does not move as a track plays', () => {
+		const playback = new PlaybackStore();
+		playback.playTracks(TRACKS, 0);
+
+		const playing = playbackSignature(playback);
+
+		playback.updateProgress(30);
+		playback.updateProgress(60);
+
+		expect(playbackSignature(playback)).toBe(playing);
+	});
+
+	it('moves when the queue changes', () => {
+		const playback = new PlaybackStore();
+		const empty = playbackSignature(playback);
+
+		playback.playTracks(TRACKS, 0);
+
+		expect(playbackSignature(playback)).not.toBe(empty);
+	});
+
+	it('moves when the track changes', () => {
+		const playback = new PlaybackStore();
+		playback.playTracks(TRACKS, 0);
+
+		const first = playbackSignature(playback);
+		playback.next();
+
+		expect(playbackSignature(playback)).not.toBe(first);
+	});
+
+	it('moves when playback pauses', () => {
+		const playback = new PlaybackStore();
+		playback.playTracks(TRACKS, 0);
+
+		const playing = playbackSignature(playback);
+		playback.playPause();
+
+		expect(playbackSignature(playback)).not.toBe(playing);
+	});
+
+	it('moves when the loop mode changes', () => {
+		const playback = new PlaybackStore();
+		playback.playTracks(TRACKS, 0);
+
+		const none = playbackSignature(playback);
+		playback.setLoopMode(LoopModes.queue);
+
+		expect(playbackSignature(playback)).not.toBe(none);
+	});
+
+	it('moves when a seek jumps the position', () => {
+		const playback = new PlaybackStore();
+		playback.playTracks(TRACKS, 0);
+
+		const start = playbackSignature(playback);
+		playback.seekTo(90);
+
+		expect(playbackSignature(playback)).not.toBe(start);
+	});
+});
 
 describe('makeStateVersion', () => {
 	it('starts at the first version', () => {

@@ -5,6 +5,7 @@ import {
 	Logger,
 	type LogWriter,
 } from 'atolla_core/src/services/Logger';
+import type { AudioEngine } from './Audio';
 import { filterLogWriter, startDaemon } from './Daemon';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import type { HttpServer } from './Http';
@@ -47,6 +48,21 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 		writeFileSync: (path, data) => {
 			contents.set(path, data);
 		},
+	};
+}
+
+// start() fails, as it does on a machine with no GStreamer: the daemon then schedules no poll, so
+// a unit test leaves no interval running behind it. Playing for real is the e2e suite's job.
+function unavailableAudio(): AudioEngine {
+	return {
+		clear: () => {},
+		configure: () => false,
+		consumeEvent: () => '',
+		currentTrackId: () => '',
+		positionMs: () => 0,
+		seekToMs: () => false,
+		setPlaying: () => {},
+		start: () => false,
 	};
 }
 
@@ -97,6 +113,7 @@ describe('startDaemon', () => {
 		const { entries, log } = capture();
 
 		void startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(),
@@ -116,6 +133,7 @@ describe('startDaemon', () => {
 		const reads: Array<string> = [];
 
 		void startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG, dataDir: '/mnt/usb/atolla' },
 			files: {
 				createDirectorySync: () => true,
@@ -142,6 +160,7 @@ describe('startDaemon', () => {
 		const started: Array<string> = [];
 
 		void startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG, bindAddress: '127.0.0.1', port: 45890 },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(started),
@@ -161,6 +180,7 @@ describe('startDaemon', () => {
 		let codePath = '';
 
 		void startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG },
 			files: fakeFiles(contents),
 			httpServer: {
@@ -189,6 +209,7 @@ describe('startDaemon', () => {
 		let controllersPath = '';
 
 		void startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG },
 			files: fakeFiles(contents),
 			httpServer: {
@@ -216,6 +237,7 @@ describe('startDaemon', () => {
 		const order: Array<string> = [];
 
 		void startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG },
 			files: {
 				createDirectorySync: () => true,
@@ -253,6 +275,7 @@ describe('startDaemon', () => {
 		const { log } = capture();
 
 		const daemon = startDaemon({
+			audio: unavailableAudio(),
 			config: { ...CONFIG },
 			files: fakeFiles(),
 			httpServer: fakeHttpServer(),

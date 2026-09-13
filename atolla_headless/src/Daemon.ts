@@ -6,6 +6,8 @@ import {
 	type LogWriter,
 } from 'atolla_core/src/services/Logger';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import type { AudioEngine } from './Audio';
+import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
@@ -14,9 +16,11 @@ import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 import type { RandomBytes } from './Random';
 import { attachServer } from './Server';
-import { makeStateVersion } from './StateVersion';
+import { resolveLocalSource } from './SourceResolver';
+import { makeStateVersion, playbackSignature } from './StateVersion';
 
 export interface DaemonDeps {
+	audio: AudioEngine;
 	config: PlayerConfig;
 	files: StoreFiles;
 	httpServer: HttpServer;
@@ -48,7 +52,31 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const playback = new PlaybackStore();
 	const version = makeStateVersion();
 
-	playback.subscribe(() => version.bump());
+	const audioPlayer = makeAudioPlayer({
+		audio: deps.audio,
+		playback,
+		resolveSource: (track) => resolveLocalSource(deps.config, track.id),
+	});
+
+	if (deps.audio.start(deps.config.audioDevice)) {
+		audioPlayer.start();
+		setInterval(audioPlayer.tick, POLL_INTERVAL_MS);
+		log.info('audio ready', { device: deps.config.audioDevice });
+	} else {
+		log.warn('audio unavailable', { device: deps.config.audioDevice });
+	}
+
+	let mirrored = playbackSignature(playback);
+
+	playback.subscribe(() => {
+		const next = playbackSignature(playback);
+		if (next === mirrored) {
+			return;
+		}
+
+		mirrored = next;
+		version.bump();
+	});
 
 	// A command waits on the restore rather than the restore delaying the server. It is started on
 	// a later turn than this one because `setPersistence` reads synchronously before it yields, so

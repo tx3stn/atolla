@@ -1,7 +1,24 @@
-import type { ApiVersion, Hello, PairAccepted, PairRequest, Problem } from './generated';
+import type {
+	ApiVersion,
+	Command,
+	CommandAccepted,
+	Hello,
+	PairAccepted,
+	PairRequest,
+	Problem,
+	StateSnapshot,
+} from './generated';
 import type { HttpHeaders, HttpResponse, HttpTransport, PendingRequest } from './Transport';
 
 export const REQUEST_CANCELLED = 'request cancelled';
+
+function decode(body?: Uint8Array): unknown {
+	if (body === undefined || body.length === 0) {
+		return undefined;
+	}
+
+	return JSON.parse(new TextDecoder().decode(body));
+}
 
 export interface PlayerAnswer<T> {
 	headers: HttpHeaders;
@@ -18,19 +35,50 @@ export class PlayerClient {
 		this.baseUrl = baseUrl.replace(/\/+$/, '');
 	}
 
+	command(token: string, body: Command): PendingRequest<PlayerAnswer<CommandAccepted | Problem>> {
+		const headers = this.headers(token);
+		headers['Content-Type'] = 'application/json';
+
+		const bytes = new TextEncoder().encode(JSON.stringify(body));
+
+		return this.settled(this.transport.post(this.url('/command'), bytes, headers));
+	}
+
 	hello(): PendingRequest<PlayerAnswer<Hello | Problem>> {
 		return this.settled(this.transport.get(this.url('/hello')));
 	}
 
 	pair(body: PairRequest): PendingRequest<PlayerAnswer<PairAccepted | Problem>> {
-		const headers: HttpHeaders = { 'Content-Type': 'application/json' };
-		if (this.apiVersion !== undefined) {
-			headers['Atolla-API-Version'] = String(this.apiVersion);
-		}
+		const headers = this.headers();
+		headers['Content-Type'] = 'application/json';
 
 		const bytes = new TextEncoder().encode(JSON.stringify(body));
 
 		return this.settled(this.transport.post(this.url('/pair'), bytes, headers));
+	}
+
+	// A 304 carries no body, so the snapshot is absent when the long poll ran out.
+	state(
+		token: string,
+		since?: number,
+	): PendingRequest<PlayerAnswer<StateSnapshot | Problem | undefined>> {
+		const path = since === undefined ? '/state' : `/state?since=${since}`;
+
+		return this.settled(this.transport.get(this.url(path), this.headers(token)));
+	}
+
+	private headers(token?: string): HttpHeaders {
+		const headers: HttpHeaders = {};
+
+		if (this.apiVersion !== undefined) {
+			headers['Atolla-API-Version'] = String(this.apiVersion);
+		}
+
+		if (token !== undefined) {
+			headers.Authorization = `Bearer ${token}`;
+		}
+
+		return headers;
 	}
 
 	private settled<T>(request: PendingRequest<HttpResponse>): PendingRequest<PlayerAnswer<T>> {
@@ -45,7 +93,7 @@ export class PlayerClient {
 
 		const answered = Promise.resolve(request).then((response) => ({
 			headers: response.headers,
-			json: JSON.parse(new TextDecoder().decode(response.body)) as T,
+			json: decode(response.body) as T,
 			status: response.statusCode,
 		}));
 

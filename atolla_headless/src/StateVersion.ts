@@ -7,6 +7,27 @@ export interface StateVersion {
 	waitPast: (since: number, timeoutMs: number) => Promise<number>;
 }
 
+export interface MirroredPlayback {
+	isPlaying: boolean;
+	loopMode: string;
+	queueRevision: number;
+	seekTarget: number | null;
+	trackIndex: number;
+}
+
+// Position is deliberately absent: it advances continuously once an engine is attached, and a
+// controller extrapolates it from the positionAtMs/positionMs pair instead. Including it would
+// release every 25s long poll on every progress tick.
+export function playbackSignature(playback: MirroredPlayback): string {
+	return [
+		playback.queueRevision,
+		playback.trackIndex,
+		playback.isPlaying ? 'playing' : 'paused',
+		playback.loopMode,
+		playback.seekTarget ?? '',
+	].join('/');
+}
+
 type Waiter = {
 	resolve: (version: number) => void;
 	since: number;
