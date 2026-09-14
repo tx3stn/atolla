@@ -91,8 +91,10 @@ function neverSettles(onCancel?: () => void) {
 function createStore() {
 	return {
 		clearSession: () => Promise.resolve(),
+		expireSession: () => Promise.resolve(),
 		loadRememberedServerUrl: () => Promise.resolve(''),
 		loadSession: () => Promise.resolve(null),
+		loadSessionExpired: () => Promise.resolve(false),
 		rememberServerUrl: () => Promise.resolve(),
 		saveSession: () => Promise.resolve(),
 	};

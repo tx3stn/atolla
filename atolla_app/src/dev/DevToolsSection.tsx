@@ -4,6 +4,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { SessionController } from '../services/SessionController';
 import { theme } from '../theme';
 import { Button } from '../ui/components/Button';
 import { closeSlot, openSlot } from '../ui/flows/ModalSlotFlow';
@@ -14,6 +15,7 @@ export interface DevToolsSectionViewModel {
 	// language added so it re-renders on language change
 	language: LanguageCode;
 	modalSlot: DetachedSlot;
+	sessionController: SessionController;
 }
 
 export class DevToolsSection extends Component<DevToolsSectionViewModel> {
@@ -35,12 +37,21 @@ export class DevToolsSection extends Component<DevToolsSectionViewModel> {
 					label={Strings.devToolsGalleryButton()}
 					onTap={this.handleOpenToastGallery}
 				/>
+				<Button
+					accessibilityId='settings-dev-expire-session'
+					label={Strings.devToolsExpireSessionButton()}
+					onTap={this.handleExpireSession}
+				/>
 			</view>
 		</view>;
 	}
 
 	private handleClose = (): void => {
 		closeSlot(this.viewModel.modalSlot);
+	};
+
+	private handleExpireSession = (): void => {
+		this.viewModel.sessionController.expireSession();
 	};
 
 	private handleOpenAnimationGallery = (): void => {

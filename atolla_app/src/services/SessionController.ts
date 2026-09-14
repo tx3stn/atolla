@@ -4,6 +4,7 @@ export interface SessionHandle {
 	applyDeviceIdOverride(value: string): void;
 	connectionMode(): ConnectionMode;
 	defaultDeviceId(): string;
+	expireSession(): void;
 	logout(): void;
 	requestModeChange(mode: ConnectionMode): Promise<boolean>;
 	serverName(): string;
@@ -26,6 +27,10 @@ export class SessionController {
 
 	defaultDeviceId(): string {
 		return this.handle?.defaultDeviceId() ?? '';
+	}
+
+	expireSession(): void {
+		this.handle?.expireSession();
 	}
 
 	logout(): void {

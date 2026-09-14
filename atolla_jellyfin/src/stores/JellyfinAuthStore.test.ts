@@ -119,6 +119,49 @@ describe('JellyfinAuthStore', () => {
 			expect(backing.values.has('session')).toBe(false);
 			expect(await store.loadSession()).toBeNull();
 		});
+
+		it('leaves nothing expired behind, so a deliberate logout is not a rejected token', async () => {
+			const { store } = createStore();
+			await store.saveSession(validSession);
+			await store.expireSession();
+			await store.clearSession();
+			expect(await store.loadSessionExpired()).toBe(false);
+		});
+	});
+
+	// the mark is what tells a relaunch that a rejected token put the app offline, rather than this
+	// being a fresh install that has never signed in
+	describe('expireSession', () => {
+		it('drops the session and marks it expired', async () => {
+			const { store, backing } = createStore();
+			await store.saveSession(validSession);
+			await store.expireSession();
+
+			expect(backing.values.has('session')).toBe(false);
+			expect(await store.loadSession()).toBeNull();
+			expect(await store.loadSessionExpired()).toBe(true);
+		});
+
+		it('keeps the remembered server url, which the re-auth signs back in to', async () => {
+			const { store } = createStore();
+			await store.saveSession(validSession);
+			await store.expireSession();
+			expect(await store.loadRememberedServerUrl()).toBe('https://jellyfin.example.com');
+		});
+
+		it('reports not expired when nothing has ever been stored', async () => {
+			const { store } = createStore();
+			expect(await store.loadSessionExpired()).toBe(false);
+		});
+
+		// without this the mark is sticky forever and every launch after a successful sign in
+		// claims the session expired
+		it('is cleared by the next successful sign in', async () => {
+			const { store } = createStore();
+			await store.expireSession();
+			await store.saveSession(validSession);
+			expect(await store.loadSessionExpired()).toBe(false);
+		});
 	});
 
 	describe('remembered server url', () => {
@@ -173,5 +216,22 @@ describe('InMemoryAuthStore', () => {
 		await store.saveSession(validSession);
 		await store.clearSession();
 		expect(await store.loadSession()).toBeNull();
+	});
+
+	it('mirrors the persistent store on expiry', async () => {
+		const store = new InMemoryAuthStore();
+		await store.saveSession(validSession);
+		await store.expireSession();
+
+		expect(await store.loadSession()).toBeNull();
+		expect(await store.loadSessionExpired()).toBe(true);
+		expect(await store.loadRememberedServerUrl()).toBe(validSession.serverUrl);
+	});
+
+	it('clears the expiry on the next successful sign in', async () => {
+		const store = new InMemoryAuthStore();
+		await store.expireSession();
+		await store.saveSession(validSession);
+		expect(await store.loadSessionExpired()).toBe(false);
 	});
 });

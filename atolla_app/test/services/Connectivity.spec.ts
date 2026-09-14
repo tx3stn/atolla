@@ -21,17 +21,29 @@ function makeSession(): AuthSession {
 interface Calls {
 	applyState: Array<{ connectionMode?: ConnectionMode; isAuthRequired?: boolean }>;
 	onOnline: number;
+	onSessionExpired: number;
 	onUserChanged: Array<string>;
 	setNativeAuthToken: Array<string>;
 }
 
-function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession | null }): {
+// every request answers 401, which is how a revoked token behaves against a real server
+function unauthorizedClient(): IHTTPClient {
+	const reject = () => Promise.resolve({ body: undefined, headers: {}, statusCode: 401 });
+	return { delete: reject, get: reject, post: reject } as unknown as IHTTPClient;
+}
+
+function makeConnectivity(opts?: {
+	httpClient?: IHTTPClient;
+	mode?: ConnectionMode;
+	session?: AuthSession | null;
+}): {
 	calls: Calls;
 	connectivity: Connectivity;
 } {
 	const calls: Calls = {
 		applyState: [],
 		onOnline: 0,
+		onSessionExpired: 0,
 		onUserChanged: [],
 		setNativeAuthToken: [],
 	};
@@ -42,8 +54,13 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 			session = null;
 			return Promise.resolve();
 		},
+		expireSession: () => {
+			session = null;
+			connectivity.handleSessionChanged(null);
+			return Promise.resolve();
+		},
 		getEffectiveDeviceId: () => 'dev-1',
-		getHttpClient: () => ({}) as unknown as IHTTPClient,
+		getHttpClient: () => opts?.httpClient ?? ({} as unknown as IHTTPClient),
 		getSession: () => session,
 	} as unknown as SessionManager;
 
@@ -60,6 +77,9 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		onOnline: () => {
 			calls.onOnline += 1;
 		},
+		onSessionExpired: () => {
+			calls.onSessionExpired += 1;
+		},
 		onUserChanged: (userId) => calls.onUserChanged.push(userId),
 		playlistCreateService: {} as ConnectivityDeps['playlistCreateService'],
 		playlistEditService: {} as ConnectivityDeps['playlistEditService'],
@@ -69,7 +89,8 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		setNativeAuthToken: (token) => calls.setNativeAuthToken.push(token),
 	};
 
-	return { calls, connectivity: new Connectivity(deps) };
+	const connectivity = new Connectivity(deps);
+	return { calls, connectivity };
 }
 
 describe('Connectivity', () => {
@@ -123,6 +144,37 @@ describe('Connectivity', () => {
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(connectivity.getMode()).toBe(ConnectionModes.offline);
 		expect(calls.onOnline).toBe(0);
+	});
+
+	// the transport built here is the real one, so this is the only layer where the option
+	// Connectivity hands LiveTransport is observably wired to a 401 coming back off the wire
+	it('a 401 from the live transport drops the app to offline without requiring auth', async () => {
+		const session = makeSession();
+		const { calls, connectivity } = makeConnectivity({
+			httpClient: unauthorizedClient(),
+			mode: ConnectionModes.online,
+			session,
+		});
+		await connectivity.bootstrap(session);
+		calls.applyState.length = 0;
+
+		await new Promise<void>((resolve) =>
+			connectivity
+				.getTransport()
+				.getAlbums(1, 50)
+				.then(
+					() => resolve(),
+					() => resolve(),
+				),
+		);
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+		expect(calls.onSessionExpired).toBe(1);
+		expect(connectivity.getMode()).toBe(ConnectionModes.offline);
+		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
+		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(false);
+		// the dead token stops being handed to native the moment the session goes
+		expect(calls.setNativeAuthToken[calls.setNativeAuthToken.length - 1]).toBe('');
 	});
 
 	it('handleSessionChanged(null) while online marks auth-required and drops the transport', async () => {

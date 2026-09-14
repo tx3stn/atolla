@@ -73,6 +73,7 @@ import { EXPANDED_ARTWORK_SIZE } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
 import { Modal } from './ui/modals/Modal';
+import { SessionExpiredModal } from './ui/modals/SessionExpiredModal';
 import { ConnectionView } from './ui/views/ConnectionView';
 import { deriveAlbumArtMaxDimension } from './utils/ImageSizing';
 
@@ -90,6 +91,7 @@ interface AppState {
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
+	isSessionExpired: boolean;
 	offlineDataInvalidations: number;
 	quickConnectCode: string | null;
 	serverName: string;
@@ -115,6 +117,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
 	private modalSlot = new DetachedSlot();
+	private sessionModalSlot = new DetachedSlot();
 	private toastSlot = new DetachedSlot();
 	private readonly diagnosticsStore = new Lazy(
 		() => new PersistentStore('atolla/diagnostics', { deviceGlobal: true }),
@@ -208,6 +211,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		applyState: (partial) => this.applyConnectionState(partial),
 		downloadService: this.downloadService,
 		onOnline: () => this.startReconnectSync(),
+		onSessionExpired: () => this.handleSessionExpired(),
 		onUserChanged: (userId) => this.userScope.activate(userId),
 		playlistCreateService: this.playlistCreateService,
 		playlistEditService: this.playlistEditService,
@@ -244,6 +248,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
+		isSessionExpired: false,
 		offlineDataInvalidations: 0,
 		quickConnectCode: null,
 		serverName: '',
@@ -305,6 +310,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			applyDeviceIdOverride: (value) => this.connectivity.applyDeviceIdOverride(value),
 			connectionMode: () => this.state.connectionMode,
 			defaultDeviceId: () => this.preferences.jellyfinClientDeviceId,
+			expireSession: () => this.connectivity.expireSession(),
 			logout: () => this.connectivity.logout(),
 			requestModeChange: (mode) => this.connectivity.setMode(mode),
 			serverName: () => this.state.serverName,
@@ -395,6 +401,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			playbackOrchestrator: this.playbackOrchestrator,
 			playbackStore: this.playbackStore,
 			preferences: this.preferences,
+			sessionModalSlot: this.sessionModalSlot,
 			toastService: this.toastService,
 			toastSlot: this.toastSlot,
 			transport: this.connectivity.getTransport(),
@@ -425,6 +432,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 		this.setState(partial);
+		if (this.state.isSessionExpired) {
+			this.openSessionExpiredModal();
+		}
 	}
 
 	private applyLoadedSettingsEffects(): void {
@@ -560,6 +570,27 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.requestRerender();
 	};
 
+	private handleSessionExpired = (): void => {
+		this.setState({ isSessionExpired: true });
+		this.openSessionExpiredModal();
+	};
+
+	private handleSessionExpiredDismiss = (): void => {
+		this.setState({ isSessionExpired: false });
+		this.connectivity.cancelConnect();
+		closeSlot(this.sessionModalSlot);
+	};
+
+	private handleSessionExpiredSignIn = (): void => {
+		void this.connectivity.reauthenticate(this.state.serverUrlPrefill).then((connected) => {
+			if (!connected) {
+				return;
+			}
+			this.setState({ isSessionExpired: false });
+			closeSlot(this.sessionModalSlot);
+		});
+	};
+
 	private handleSyncBannerTap = (): void => {
 		this.toastService.dismissed();
 		const errors = this.lastSyncEditErrors;
@@ -646,6 +677,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				return this.diagnosticsStore.target.storeString('session_active', '1');
 			})
 			.catch(() => {});
+	}
+
+	private openSessionExpiredModal(): void {
+		this.sessionModalSlot.slotted(() => {
+			<SessionExpiredModal
+				animationsEnabled={this.preferences.animationsEnabled}
+				errorMessage={this.state.authErrorMessage}
+				isConnecting={this.state.isAuthenticating}
+				onSignIn={this.handleSessionExpiredSignIn}
+				onStayOffline={this.handleSessionExpiredDismiss}
+				quickConnectCode={this.state.quickConnectCode}
+				toastService={this.toastService}
+			/>;
+		});
 	}
 
 	private prefetchDownloadedTrackLyrics(trackId: string): void {

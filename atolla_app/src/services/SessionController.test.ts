@@ -7,6 +7,7 @@ function makeHandle(overrides: Partial<SessionHandle> = {}): SessionHandle {
 		applyDeviceIdOverride: () => {},
 		connectionMode: () => ConnectionModes.offline,
 		defaultDeviceId: () => '',
+		expireSession: () => {},
 		logout: () => {},
 		requestModeChange: () => Promise.resolve(true),
 		serverName: () => '',
@@ -30,6 +31,22 @@ describe('SessionController', () => {
 		controller.logout();
 
 		expect(loggedOut).toBe(true);
+	});
+
+	it('forwards expireSession to the registered handle', () => {
+		const controller = new SessionController();
+		let expired = false;
+		controller.register(
+			makeHandle({
+				expireSession: () => {
+					expired = true;
+				},
+			}),
+		);
+
+		controller.expireSession();
+
+		expect(expired).toBe(true);
 	});
 
 	it('forwards requestModeChange and returns the handle result', async () => {
@@ -87,6 +104,7 @@ describe('SessionController', () => {
 		const controller = new SessionController();
 
 		expect(() => controller.logout()).not.toThrow();
+		expect(() => controller.expireSession()).not.toThrow();
 		expect(() => controller.applyDeviceIdOverride('x')).not.toThrow();
 		expect(await controller.requestModeChange(ConnectionModes.offline)).toBe(false);
 		expect(controller.serverName()).toBe('');

@@ -52,6 +52,7 @@ export interface UserScopeDeps {
 // waveforms, scrobbles, recently-played, home caches, now-playing queue) plus the reconnect
 // coordinator. activate(userId) rebuilds them and wires them into the app-global playback services.
 export class UserScope {
+	private activeUserId: string | null = null;
 	private lyricsService!: LyricsService;
 	private onThisDayService?: OnThisDayService;
 	private paletteQueue!: PaletteGenerationQueue;
@@ -65,6 +66,11 @@ export class UserScope {
 	constructor(private readonly deps: UserScopeDeps) {}
 
 	activate(userId: string): void {
+		if (userId === this.activeUserId) {
+			return;
+		}
+		this.activeUserId = userId;
+
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);

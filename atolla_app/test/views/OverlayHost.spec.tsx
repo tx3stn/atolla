@@ -95,6 +95,7 @@ function setServices(store: PlaybackStore): { notifyPalette: PaletteListener } {
 			language: 'en',
 			subscribe: () => () => {},
 		} as unknown as AppServicesBag['preferences'],
+		sessionModalSlot: new DetachedSlot(),
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: new DetachedSlot(),
 		transport: stub as AppServicesBag['transport'],

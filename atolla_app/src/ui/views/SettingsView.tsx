@@ -320,6 +320,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 						devTools={this.viewModel.devTools}
 						language={selectedLanguage}
 						modalSlot={this.viewModel.modalSlot}
+						sessionController={this.viewModel.sessionController}
 					/>
 				</view>
 			</scroll>

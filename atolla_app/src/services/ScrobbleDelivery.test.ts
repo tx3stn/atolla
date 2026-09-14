@@ -65,6 +65,24 @@ describe('ScrobbleService with LiveTransport', () => {
 		expect(queue.entries).toHaveLength(0);
 	});
 
+	// ScrobbleService.deliverScrobble is a direct recipient of the SESSION_EXPIRED throw, and a
+	// scrobble that never delivered must stay queued for whenever the user signs back in
+	it('keeps the scrobble queued when the token has been revoked', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { calls, client } = createHTTPClient(401);
+			const queue = createQueue([{ playedAtMs: TEST_NOW - 1000, trackId: 'track-1' }]);
+			const service = serviceWith(client, queue);
+
+			await service.syncFromNative();
+
+			expect(calls).toHaveLength(1);
+			expect(queue.entries).toHaveLength(1);
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
 	it('keeps the scrobble queued and logs when the server returns 400', async () => {
 		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 		try {

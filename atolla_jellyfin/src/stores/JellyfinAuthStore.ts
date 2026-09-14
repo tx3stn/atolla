@@ -16,8 +16,10 @@ function normalizeServerUrl(url: string): string {
 
 export interface JellyfinAuthStoreLike {
 	clearSession(): Promise<void>;
+	expireSession(): Promise<void>;
 	loadRememberedServerUrl(): Promise<string>;
 	loadSession(): Promise<StoredAuthSession | null>;
+	loadSessionExpired(): Promise<boolean>;
 	rememberServerUrl(serverUrl: string): Promise<void>;
 	saveSession(session: StoredAuthSession): Promise<void>;
 }
@@ -64,10 +66,25 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 
 		await this.store.storeString('session', JSON.stringify(session));
 		await this.rememberServerUrl(session.serverUrl);
+		await this.store.remove('session_expired');
 	}
 
 	async clearSession(): Promise<void> {
 		await this.store.remove('session');
+		await this.store.remove('session_expired');
+	}
+
+	async expireSession(): Promise<void> {
+		await this.store.remove('session');
+		await this.store.storeString('session_expired', 'true');
+	}
+
+	async loadSessionExpired(): Promise<boolean> {
+		try {
+			return (await this.store.fetchString('session_expired')) === 'true';
+		} catch {
+			return false;
+		}
 	}
 
 	async rememberServerUrl(serverUrl: string): Promise<void> {
@@ -86,6 +103,7 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 export class InMemoryAuthStore implements JellyfinAuthStoreLike {
 	private session: StoredAuthSession | null = null;
 	private serverUrl = '';
+	private sessionExpired = false;
 
 	loadSession(): Promise<StoredAuthSession | null> {
 		return Promise.resolve(this.session);
@@ -100,12 +118,24 @@ export class InMemoryAuthStore implements JellyfinAuthStoreLike {
 			userId: session.userId,
 		};
 		this.serverUrl = session.serverUrl;
+		this.sessionExpired = false;
 		return Promise.resolve();
 	}
 
 	clearSession(): Promise<void> {
 		this.session = null;
+		this.sessionExpired = false;
 		return Promise.resolve();
+	}
+
+	expireSession(): Promise<void> {
+		this.session = null;
+		this.sessionExpired = true;
+		return Promise.resolve();
+	}
+
+	loadSessionExpired(): Promise<boolean> {
+		return Promise.resolve(this.sessionExpired);
 	}
 
 	rememberServerUrl(serverUrl: string): Promise<void> {

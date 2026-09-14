@@ -23,6 +23,7 @@ export function setTestAppServices(overrides: Partial<AppServicesBag> = {}): voi
 		playbackOrchestrator: stub as AppServicesBag['playbackOrchestrator'],
 		playbackStore: stub as AppServicesBag['playbackStore'],
 		preferences: stub as AppServicesBag['preferences'],
+		sessionModalSlot: new DetachedSlot(),
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: new DetachedSlot(),
 		transport: stub as AppServicesBag['transport'],

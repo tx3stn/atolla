@@ -29,6 +29,7 @@ export interface AppServicesBag {
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
+	sessionModalSlot: DetachedSlot;
 	toastService: ToastService;
 	toastSlot: DetachedSlot;
 	transport: Transport;

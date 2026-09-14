@@ -77,6 +77,16 @@ export class SessionManager {
 		this.deps.onSessionChanged(null);
 	}
 
+	async expireSession(): Promise<void> {
+		try {
+			await this.deps.authService.expireSession();
+		} catch {
+			// best effort, clear what we can
+		}
+		this.currentSession = null;
+		this.deps.onSessionChanged(null);
+	}
+
 	getAccessToken(): string {
 		return this.currentSession?.accessToken ?? '';
 	}

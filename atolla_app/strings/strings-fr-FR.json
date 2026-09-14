@@ -96,6 +96,9 @@
 	"dev_tools_animations_button": {
 		"defaultMessage": "galerie d'animations"
 	},
+	"dev_tools_expire_session_button": {
+		"defaultMessage": "expirer la session"
+	},
 	"dev_tools_gallery_button": {
 		"defaultMessage": "galerie de toasts"
 	},
@@ -321,6 +324,15 @@
 	},
 	"server_url_placeholder": {
 		"defaultMessage": "https://jellyfin.example.com"
+	},
+	"session_expired_modal_body": {
+		"defaultMessage": "reconnectez-vous pour accéder au serveur"
+	},
+	"session_expired_sign_in": {
+		"defaultMessage": "se connecter"
+	},
+	"session_expired_stay_offline": {
+		"defaultMessage": "rester hors ligne"
 	},
 	"settings_animations": {
 		"defaultMessage": "animations"

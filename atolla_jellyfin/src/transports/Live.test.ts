@@ -1178,6 +1178,49 @@ describe('LiveTransport core collections', () => {
 		});
 	});
 
+	// throwing is not enough on its own: nothing was listening, which is why a dead token used to
+	// leave the app looking signed in and quietly failing every json call
+	it('reports the expiry to its owner as well as throwing', async () => {
+		const expiries: Array<number> = [];
+		const { client } = createHTTPClient([jsonResponse(401, {})]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				onSessionExpired: () => expiries.push(1),
+			},
+		);
+
+		await expect(transport.getAlbums(1, 50)).rejects.toMatchObject({
+			err: 'auth_session_expired',
+		});
+		expect(expiries).toHaveLength(1);
+	});
+
+	it('stays quiet on a failure that is not an auth failure', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const expiries: Array<number> = [];
+			const { client } = createHTTPClient([jsonResponse(500, {})]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+				{ onSessionExpired: () => expiries.push(1) },
+			);
+
+			await expect(transport.getAlbums(1, 50)).rejects.toMatchObject({
+				err: 'transport_live_request_failed',
+			});
+			expect(expiries).toHaveLength(0);
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
 	it('resolves an item the server does not have to null', async () => {
 		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 		try {

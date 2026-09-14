@@ -165,6 +165,10 @@ export class JellyfinAuthService {
 		await this.store.clearSession();
 	}
 
+	async expireSession(): Promise<void> {
+		await this.store.expireSession();
+	}
+
 	async rememberServerUrl(serverUrl: string): Promise<void> {
 		await this.store.rememberServerUrl(serverUrl);
 	}

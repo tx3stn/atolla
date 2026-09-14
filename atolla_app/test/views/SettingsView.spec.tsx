@@ -40,6 +40,7 @@ function mockPreferences() {
 
 interface SessionCalls {
 	applyDeviceIdOverride: Array<string>;
+	expireSession: number;
 	logout: number;
 	requestModeChange: Array<ConnectionMode>;
 }
@@ -50,12 +51,20 @@ function makeSessionController(info?: {
 	serverName?: string;
 	serverUrl?: string;
 }): { calls: SessionCalls; controller: SessionController } {
-	const calls: SessionCalls = { applyDeviceIdOverride: [], logout: 0, requestModeChange: [] };
+	const calls: SessionCalls = {
+		applyDeviceIdOverride: [],
+		expireSession: 0,
+		logout: 0,
+		requestModeChange: [],
+	};
 	const controller = new SessionController();
 	controller.register({
 		applyDeviceIdOverride: (value) => calls.applyDeviceIdOverride.push(value),
 		connectionMode: () => info?.connectionMode ?? ConnectionModes.online,
 		defaultDeviceId: () => info?.defaultDeviceId ?? 'atolla-test',
+		expireSession: () => {
+			calls.expireSession += 1;
+		},
 		logout: () => {
 			calls.logout += 1;
 		},

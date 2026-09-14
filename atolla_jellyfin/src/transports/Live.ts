@@ -55,6 +55,7 @@ export {
 
 interface LiveTransportOptions {
 	clientDeviceId?: string;
+	onSessionExpired?: () => void;
 	resolveCachedImage?: ResolveCachedImage;
 }
 
@@ -86,6 +87,7 @@ export class LiveTransport implements Transport {
 		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(itemId, 'Primary', imageTag),
 	};
+	private readonly onSessionExpired: (() => void) | null;
 	private readonly resolveCachedImage: ResolveCachedImage | null;
 
 	constructor(
@@ -98,6 +100,7 @@ export class LiveTransport implements Transport {
 		this.baseUrl = this.normalizeBaseUrl(serverUrl);
 		this.client = client;
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
+		this.onSessionExpired = options.onSessionExpired ?? null;
 		this.resolveCachedImage = options.resolveCachedImage ?? null;
 	}
 
@@ -902,6 +905,7 @@ export class LiveTransport implements Transport {
 
 			if (response.statusCode === 401) {
 				log.warn('request rejected', { method, path: requestPath, status: 401 });
+				this.onSessionExpired?.();
 				throw AuthErrors.SESSION_EXPIRED;
 			}
 			if (response.statusCode === 404) {

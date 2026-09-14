@@ -173,6 +173,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 			onFooterTabTap={appShellStore.handleFooterTabTap}
 		/>;
 		<DetachedSlotRenderer detachedSlot={services.modalSlot} />;
+		<DetachedSlotRenderer detachedSlot={services.sessionModalSlot} />;
 		<DetachedSlotRenderer detachedSlot={services.toastSlot} />;
 	}
 }

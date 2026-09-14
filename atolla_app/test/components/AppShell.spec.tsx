@@ -37,6 +37,7 @@ function setServices(overrides: Partial<AppServicesBag> = {}): void {
 			track: null,
 		} as unknown as AppServicesBag['playbackStore'],
 		preferences: stub as AppServicesBag['preferences'],
+		sessionModalSlot: stub as AppServicesBag['sessionModalSlot'],
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: stub as AppServicesBag['toastSlot'],
 		transport: { getArtist: () => Promise.resolve(null) } as unknown as AppServicesBag['transport'],

@@ -18,6 +18,7 @@ function makeSession(): AuthSession {
 
 interface Calls {
 	applyState: Array<Partial<AuthRenderState>>;
+	expireSession: number;
 	onSessionChanged: Array<AuthSession | null>;
 	setClientDeviceId: Array<string>;
 	showToast: Array<string>;
@@ -30,6 +31,7 @@ function makeManager(over?: {
 }): { calls: Calls; manager: SessionManager } {
 	const calls: Calls = {
 		applyState: [],
+		expireSession: 0,
 		onSessionChanged: [],
 		setClientDeviceId: [],
 		showToast: [],
@@ -39,6 +41,10 @@ function makeManager(over?: {
 		authenticateWithQuickConnect: () => Promise.resolve(makeSession()),
 		clearSession: () => Promise.resolve(),
 		errorMessage: () => 'failed',
+		expireSession: () => {
+			calls.expireSession += 1;
+			return Promise.resolve();
+		},
 		loadRememberedServerUrl: () => Promise.resolve(''),
 		loadSession: () => Promise.resolve(null),
 		probeInitialAlbums: () => Promise.resolve(),
@@ -130,6 +136,36 @@ describe('SessionManager', () => {
 		await manager.loadSession();
 
 		await manager.clearSession();
+
+		expect(manager.getSession()).toBeNull();
+		expect(calls.onSessionChanged).toEqual([null]);
+	});
+
+	it('expireSession drops the session through the store that leaves the expiry mark', async () => {
+		const { calls, manager } = makeManager({
+			authService: { loadSession: () => Promise.resolve(makeSession()) },
+		});
+		await manager.loadSession();
+
+		await manager.expireSession();
+
+		expect(calls.expireSession).toBe(1);
+		expect(manager.getSession()).toBeNull();
+		expect(calls.onSessionChanged).toEqual([null]);
+	});
+
+	// the session has to go even when the mark cannot be written, or the app keeps presenting a
+	// token the server has already rejected
+	it('expireSession still drops the session when the store write fails', async () => {
+		const { calls, manager } = makeManager({
+			authService: {
+				expireSession: () => Promise.reject(new Error('disk full')),
+				loadSession: () => Promise.resolve(makeSession()),
+			},
+		});
+		await manager.loadSession();
+
+		await manager.expireSession();
 
 		expect(manager.getSession()).toBeNull();
 		expect(calls.onSessionChanged).toEqual([null]);

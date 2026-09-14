@@ -19,6 +19,7 @@ export interface ConnectivityDeps {
 	applyState(partial: Partial<ConnectivityRenderState>): void;
 	downloadService: DownloadService;
 	onOnline(): void;
+	onSessionExpired(): void;
 	onUserChanged(userId: string): void;
 	playlistCreateService: PlaylistCreateService;
 	playlistEditService: PlaylistEditService;
@@ -37,6 +38,7 @@ export class Connectivity {
 	private connectAttempt = 0;
 	private mode: ConnectionMode = ConnectionModes.offline;
 	private transport!: Transport;
+	private transportGeneration = 0;
 
 	constructor(private readonly deps: ConnectivityDeps) {}
 
@@ -97,6 +99,13 @@ export class Connectivity {
 		})();
 	}
 
+	expireSession(): void {
+		if (this.deps.sessionManager.getSession() == null) {
+			return;
+		}
+		this.expireCurrentSession();
+	}
+
 	getMode(): ConnectionMode {
 		return this.mode;
 	}
@@ -124,6 +133,21 @@ export class Connectivity {
 			// marks auth-required (online with no session)
 			await this.deps.sessionManager.clearSession();
 		})();
+	}
+
+	async reauthenticate(serverUrl: string): Promise<boolean> {
+		const attempt = ++this.connectAttempt;
+
+		try {
+			const session = await this.deps.sessionManager.login(serverUrl);
+			if (attempt !== this.connectAttempt) {
+				return false;
+			}
+			this.deps.onUserChanged(session.userId);
+			return await this.setMode(ConnectionModes.online);
+		} catch {
+			return false;
+		}
 	}
 
 	async setMode(mode: ConnectionMode): Promise<boolean> {
@@ -155,7 +179,30 @@ export class Connectivity {
 		return this.deps.downloadService.ensureLoaded();
 	}
 
+	private expireCurrentSession(): void {
+		void (async () => {
+			this.mode = ConnectionModes.offline;
+			try {
+				await this.deps.preferences.setMode(ConnectionModes.offline);
+				await this.ensureDownloadIndexLoaded(null);
+			} catch {
+				// this launch is offline either way; the session still has to be dropped
+			}
+			await this.deps.sessionManager.expireSession();
+			this.deps.onSessionExpired();
+		})();
+	}
+
+	private handleSessionExpired(generation: number): void {
+		if (generation !== this.transportGeneration) {
+			return;
+		}
+		this.transportGeneration += 1;
+		this.expireCurrentSession();
+	}
+
 	private rebuildTransport(session: AuthSession | null): void {
+		const generation = ++this.transportGeneration;
 		this.deps.setNativeAuthToken(
 			this.mode === ConnectionModes.online && session != null ? session.accessToken : '',
 		);
@@ -167,6 +214,7 @@ export class Connectivity {
 				this.deps.sessionManager.getHttpClient(),
 				{
 					clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId(),
+					onSessionExpired: () => this.handleSessionExpired(generation),
 					resolveCachedImage: this.deps.resolveCachedImage,
 				},
 			);

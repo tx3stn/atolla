@@ -19,6 +19,7 @@ function makeBag(overrides: Partial<AppServicesBag> = {}): AppServicesBag {
 		playbackOrchestrator: stub as AppServicesBag['playbackOrchestrator'],
 		playbackStore: stub as AppServicesBag['playbackStore'],
 		preferences: stub as AppServicesBag['preferences'],
+		sessionModalSlot: stub as AppServicesBag['sessionModalSlot'],
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: stub as AppServicesBag['toastSlot'],
 		transport: stub as AppServicesBag['transport'],
