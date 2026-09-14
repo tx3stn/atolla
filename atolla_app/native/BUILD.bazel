@@ -1,4 +1,5 @@
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
+load("@rules_android//rules:rules.bzl", "android_library")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
@@ -328,6 +329,18 @@ kt_android_library(
         "android/AtollaWaveformNativeModuleFactory.kt",
         "android/AtollaWaveformWorker.kt",
     ],
+    custom_package = "atolla.native.android",
+    deps = [
+        "//atolla_app:atolla_app_api_kt",
+        "@android_mvn//:androidx_core_core",
+        "@android_mvn//:com_squareup_okhttp3_okhttp",
+        "@media3_mvn//:androidx_media3_media3_exoplayer",
+        "@valdi//valdi:valdi_java",
+    ],
+)
+
+android_library(
+    name = "atolla_native_modules_android",
     assets = [
         "android/assets/valdi_native_modules/atolla.native.android.AtollaLoggerNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaHapticsBootstrapModuleFactory",
@@ -339,13 +352,6 @@ kt_android_library(
     ],
     assets_dir = "android/assets",
     custom_package = "atolla.native.android",
-    deps = [
-        "//atolla_app:atolla_app_api_kt",
-        "@android_mvn//:androidx_core_core",
-        "@android_mvn//:com_squareup_okhttp3_okhttp",
-        "@media3_mvn//:androidx_media3_media3_exoplayer",
-        "@valdi//valdi:valdi_java",
-    ],
 )
 
 kt_jvm_library(
