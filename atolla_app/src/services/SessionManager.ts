@@ -23,7 +23,6 @@ export interface SessionManagerDeps {
 	// builds the per-server HTTP client at the connect/bootstrap seam. injected so this service
 	// stays free of valdi value imports and remains unit-testable (valdi imports need bazel).
 	createHttpClient(baseUrl?: string): IHTTPClient;
-	defaultDeviceId: string;
 	// the current session changed (login / clear / device-id reload) — connectivity rebuilds transport
 	onSessionChanged(session: AuthSession | null): void;
 	preferences: Preferences;
@@ -83,7 +82,7 @@ export class SessionManager {
 	}
 
 	getEffectiveDeviceId(): string {
-		return this.deviceIdOverride || this.deps.defaultDeviceId;
+		return this.deviceIdOverride || this.deps.preferences.jellyfinClientDeviceId;
 	}
 
 	getHttpClient(): IHTTPClient {

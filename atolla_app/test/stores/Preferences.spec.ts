@@ -215,6 +215,47 @@ describe('Preferences', () => {
 		});
 	});
 
+	describe('jellyfinClientDeviceId', () => {
+		it('generates and persists an id on first load', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.load();
+
+			expect(preferences.jellyfinClientDeviceId).toMatch(/^atolla-[0-9a-f]{16}$/);
+			expect(await store.fetchString('jellyfin_client_device_id')).toBe(
+				preferences.jellyfinClientDeviceId,
+			);
+		});
+
+		it('keeps the same id across loads', async () => {
+			const store = new InMemoryKeyValueStore();
+			const first = new Preferences(store);
+			await first.load();
+			const second = new Preferences(store);
+
+			await second.load();
+
+			expect(second.jellyfinClientDeviceId).toBe(first.jellyfinClientDeviceId);
+		});
+
+		it('gives two installs different ids', async () => {
+			const one = new Preferences(new InMemoryKeyValueStore());
+			const two = new Preferences(new InMemoryKeyValueStore());
+
+			await one.load();
+			await two.load();
+
+			expect(one.jellyfinClientDeviceId).not.toBe(two.jellyfinClientDeviceId);
+		});
+
+		it('is empty before load rather than guessing one', () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			expect(preferences.jellyfinClientDeviceId).toBe('');
+		});
+	});
+
 	describe('getDownloadOnWifiOnly()', () => {
 		it('returns false when preference is missing', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());

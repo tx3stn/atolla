@@ -104,7 +104,6 @@ export interface AppViewModel {
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
-	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
 	private authService = this.createAuthService();
 	// the window width is fixed for the process lifetime (the app is portrait-only and opts out of
 	// iPad multitasking), so grid sizing reads it once here rather than re-measuring per render
@@ -201,7 +200,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		applyState: (partial) => this.applyConnectionState(partial),
 		authService: this.authService,
 		createHttpClient: (baseUrl) => new HTTPClient(baseUrl),
-		defaultDeviceId: this.defaultJellyfinClientDeviceId,
 		onSessionChanged: (session) => this.connectivity.handleSessionChanged(session),
 		preferences: this.preferences,
 		showToast: (message) => this.toastService.show({ message, variant: ToastTypes.error }),
@@ -306,7 +304,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.sessionController.register({
 			applyDeviceIdOverride: (value) => this.connectivity.applyDeviceIdOverride(value),
 			connectionMode: () => this.state.connectionMode,
-			defaultDeviceId: () => this.defaultJellyfinClientDeviceId,
+			defaultDeviceId: () => this.preferences.jellyfinClientDeviceId,
 			logout: () => this.connectivity.logout(),
 			requestModeChange: (mode) => this.connectivity.setMode(mode),
 			serverName: () => this.state.serverName,
@@ -528,10 +526,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private createAuthService(): JellyfinAuthService {
 		const authStoreNamespace = `atolla/device-user/${this.deviceUserScopeKey}/jellyfin_auth`;
-		const sharedOptions = {
-			client: new HTTPClient(),
-			clientDeviceId: this.defaultJellyfinClientDeviceId,
-		};
+		const sharedOptions = { client: new HTTPClient() };
 
 		try {
 			return new JellyfinAuthService({

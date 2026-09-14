@@ -25,6 +25,7 @@ interface Calls {
 
 function makeManager(over?: {
 	authService?: Partial<JellyfinAuthService>;
+	deviceId?: string;
 	deviceIdOverride?: string;
 }): { calls: Calls; manager: SessionManager } {
 	const calls: Calls = {
@@ -53,6 +54,7 @@ function makeManager(over?: {
 	} as unknown as JellyfinAuthService;
 
 	const preferences = {
+		jellyfinClientDeviceId: over?.deviceId ?? 'atolla-default',
 		jellyfinClientDeviceIdOverride: over?.deviceIdOverride ?? '',
 	} as unknown as Preferences;
 
@@ -60,7 +62,6 @@ function makeManager(over?: {
 		applyState: (partial) => calls.applyState.push(partial),
 		authService,
 		createHttpClient: () => ({}) as unknown as IHTTPClient,
-		defaultDeviceId: 'atolla-default',
 		onSessionChanged: (session) => calls.onSessionChanged.push(session),
 		preferences,
 		showToast: (message) => calls.showToast.push(message),

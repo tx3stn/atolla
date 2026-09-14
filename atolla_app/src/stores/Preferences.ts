@@ -20,6 +20,7 @@ const PreferenceKeys = {
 	downloadOnWifiOnly: 'download_on_wifi_only',
 	imageCacheMaxBytes: 'image_cache_max_bytes',
 	includeLyricsInDownloads: 'include_lyrics_in_downloads',
+	jellyfinClientDeviceId: 'jellyfin_client_device_id',
 	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
 	language: 'language',
 	mode: 'mode',
@@ -27,6 +28,20 @@ const PreferenceKeys = {
 	onThisDayLookaheadDays: 'on_this_day_lookahead_days',
 	trackCacheMaxTracks: 'track_cache_max_tracks',
 } as const;
+
+const DEVICE_ID_CHUNKS = 4;
+const DEVICE_ID_CHUNK_CEILING = 0x10000;
+const DEVICE_ID_CHUNK_DIGITS = 4;
+
+function generateClientDeviceId(): string {
+	let id = '';
+	for (let chunk = 0; chunk < DEVICE_ID_CHUNKS; chunk += 1) {
+		id += Math.floor(Math.random() * DEVICE_ID_CHUNK_CEILING)
+			.toString(16)
+			.padStart(DEVICE_ID_CHUNK_DIGITS, '0');
+	}
+	return `atolla-${id}`;
+}
 
 interface PreferencesStore {
 	// optional: not every backend can report key existence (some test fakes only fetch/store). When
@@ -51,6 +66,7 @@ export class Preferences {
 	private _hasStoredMode = false;
 	private _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
 	private _includeLyricsInDownloads = false;
+	private _jellyfinClientDeviceId = '';
 	private _jellyfinClientDeviceIdOverride = '';
 	private _language: LanguageCode = DEFAULT_LANGUAGE;
 	private _mode: ConnectionMode = ConnectionModes.offline;
@@ -105,6 +121,10 @@ export class Preferences {
 
 	get includeLyricsInDownloads(): boolean {
 		return this._includeLyricsInDownloads;
+	}
+
+	get jellyfinClientDeviceId(): string {
+		return this._jellyfinClientDeviceId;
 	}
 
 	get jellyfinClientDeviceIdOverride(): string {
@@ -183,6 +203,26 @@ export class Preferences {
 		}
 	}
 
+	async getJellyfinClientDeviceId(): Promise<string> {
+		try {
+			const stored = (await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceId)).trim();
+			if (stored.length > 0) {
+				return stored;
+			}
+		} catch {
+			// never stored, or unreadable: mint a fresh one below
+		}
+
+		const generated = generateClientDeviceId();
+		try {
+			await this.store.storeString(PreferenceKeys.jellyfinClientDeviceId, generated);
+		} catch {
+			// a device id that cannot be persisted still beats one shared with every other install,
+			// even though it will differ next launch
+		}
+		return generated;
+	}
+
 	async getJellyfinClientDeviceIdOverride(): Promise<string> {
 		try {
 			return (await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceIdOverride)).trim();
@@ -258,6 +298,7 @@ export class Preferences {
 			hasStoredMode,
 			imageCacheMaxBytes,
 			includeLyricsInDownloads,
+			jellyfinClientDeviceId,
 			jellyfinClientDeviceIdOverride,
 			language,
 			mode,
@@ -271,6 +312,7 @@ export class Preferences {
 			this.hasMode(),
 			this.getImageCacheMaxBytes(),
 			this.getIncludeLyricsInDownloads(),
+			this.getJellyfinClientDeviceId(),
 			this.getJellyfinClientDeviceIdOverride(),
 			this.getLanguage(),
 			this.getMode(),
@@ -284,6 +326,7 @@ export class Preferences {
 		this._hasStoredMode = hasStoredMode;
 		this._imageCacheMaxBytes = imageCacheMaxBytes;
 		this._includeLyricsInDownloads = includeLyricsInDownloads;
+		this._jellyfinClientDeviceId = jellyfinClientDeviceId;
 		this._jellyfinClientDeviceIdOverride = jellyfinClientDeviceIdOverride;
 		this._language = language;
 		this._mode = mode;
