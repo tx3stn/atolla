@@ -21,7 +21,6 @@ function labelValues(component: SessionExpiredModal): Array<unknown> {
 	);
 }
 
-// Button and LoadingSpinner set both attributes, a bare view only carries accessibilityId
 function viewWithId(component: SessionExpiredModal, accessibilityId: string) {
 	return elementTypeFind(elements(component), IRenderedElementViewClass.View).find(
 		(view) =>
@@ -55,8 +54,6 @@ describe('SessionExpiredModal', () => {
 		expect(values).toContain(Strings.sessionExpiredSignIn());
 	});
 
-	// the panel reserves space for a code and a spinner, which is dead weight in a modal that has
-	// not been asked to sign in yet
 	valdiIt('shows no quick connect panel until sign in is tapped', async (driver) => {
 		const component = driver.renderComponent(SessionExpiredModal, makeViewModel(), undefined);
 
@@ -108,7 +105,6 @@ describe('SessionExpiredModal', () => {
 		expect(signIns).toBe(1);
 	});
 
-	// tapping it twice would start a second quick connect and strand the code the user is looking at
 	valdiIt('stops accepting sign in taps while one is already running', async (driver) => {
 		let signIns = 0;
 		const component = driver.renderComponent(

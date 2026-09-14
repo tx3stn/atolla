@@ -26,7 +26,6 @@ interface Calls {
 	setNativeAuthToken: Array<string>;
 }
 
-// every request answers 401, which is how a revoked token behaves against a real server
 function unauthorizedClient(): IHTTPClient {
 	const reject = () => Promise.resolve({ body: undefined, headers: {}, statusCode: 401 });
 	return { delete: reject, get: reject, post: reject } as unknown as IHTTPClient;
@@ -146,8 +145,6 @@ describe('Connectivity', () => {
 		expect(calls.onOnline).toBe(0);
 	});
 
-	// the transport built here is the real one, so this is the only layer where the option
-	// Connectivity hands LiveTransport is observably wired to a 401 coming back off the wire
 	it('a 401 from the live transport drops the app to offline without requiring auth', async () => {
 		const session = makeSession();
 		const { calls, connectivity } = makeConnectivity({
@@ -173,7 +170,6 @@ describe('Connectivity', () => {
 		expect(connectivity.getMode()).toBe(ConnectionModes.offline);
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(false);
-		// the dead token stops being handed to native the moment the session goes
 		expect(calls.setNativeAuthToken[calls.setNativeAuthToken.length - 1]).toBe('');
 	});
 

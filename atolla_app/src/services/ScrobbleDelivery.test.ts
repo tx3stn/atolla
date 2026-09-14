@@ -65,8 +65,6 @@ describe('ScrobbleService with LiveTransport', () => {
 		expect(queue.entries).toHaveLength(0);
 	});
 
-	// ScrobbleService.deliverScrobble is a direct recipient of the SESSION_EXPIRED throw, and a
-	// scrobble that never delivered must stay queued for whenever the user signs back in
 	it('keeps the scrobble queued when the token has been revoked', async () => {
 		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 		try {

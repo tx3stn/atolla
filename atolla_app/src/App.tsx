@@ -91,7 +91,7 @@ interface AppState {
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
-	isSessionExpired: boolean;
+	isSessionExpiredOpen: boolean;
 	offlineDataInvalidations: number;
 	quickConnectCode: string | null;
 	serverName: string;
@@ -248,7 +248,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
-		isSessionExpired: false,
+		isSessionExpiredOpen: false,
 		offlineDataInvalidations: 0,
 		quickConnectCode: null,
 		serverName: '',
@@ -432,7 +432,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 		this.setState(partial);
-		if (this.state.isSessionExpired) {
+		if (this.state.isSessionExpiredOpen) {
 			this.openSessionExpiredModal();
 		}
 	}
@@ -571,12 +571,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	private handleSessionExpired = (): void => {
-		this.setState({ isSessionExpired: true });
+		this.setState({ isSessionExpiredOpen: true });
 		this.openSessionExpiredModal();
 	};
 
 	private handleSessionExpiredDismiss = (): void => {
-		this.setState({ isSessionExpired: false });
+		this.setState({ isSessionExpiredOpen: false });
 		this.connectivity.cancelConnect();
 		closeSlot(this.sessionModalSlot);
 	};
@@ -586,7 +586,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (!connected) {
 				return;
 			}
-			this.setState({ isSessionExpired: false });
+			this.setState({ isSessionExpiredOpen: false });
 			closeSlot(this.sessionModalSlot);
 		});
 	};

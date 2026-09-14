@@ -47,6 +47,7 @@ function makeManager(over?: {
 		},
 		loadRememberedServerUrl: () => Promise.resolve(''),
 		loadSession: () => Promise.resolve(null),
+		loadSessionExpired: () => Promise.resolve(false),
 		probeInitialAlbums: () => Promise.resolve(),
 		rememberServerUrl: () => Promise.resolve(),
 		saveSession: () => Promise.resolve(),
@@ -154,8 +155,6 @@ describe('SessionManager', () => {
 		expect(calls.onSessionChanged).toEqual([null]);
 	});
 
-	// the session has to go even when the mark cannot be written, or the app keeps presenting a
-	// token the server has already rejected
 	it('expireSession still drops the session when the store write fails', async () => {
 		const { calls, manager } = makeManager({
 			authService: {
@@ -169,6 +168,38 @@ describe('SessionManager', () => {
 
 		expect(manager.getSession()).toBeNull();
 		expect(calls.onSessionChanged).toEqual([null]);
+	});
+
+	it('remembers across a relaunch that the session expired rather than never existing', async () => {
+		const { manager } = makeManager({
+			authService: { loadSessionExpired: () => Promise.resolve(true) },
+		});
+
+		await manager.loadSession();
+
+		expect(manager.isSessionExpired()).toBe(true);
+	});
+
+	it('stops reporting an expiry once the user has signed back in', async () => {
+		const { manager } = makeManager({
+			authService: { loadSessionExpired: () => Promise.resolve(true) },
+		});
+		await manager.loadSession();
+
+		await manager.login('https://server');
+
+		expect(manager.isSessionExpired()).toBe(false);
+	});
+
+	it('stops reporting an expiry after a deliberate logout', async () => {
+		const { manager } = makeManager({
+			authService: { loadSessionExpired: () => Promise.resolve(true) },
+		});
+		await manager.loadSession();
+
+		await manager.clearSession();
+
+		expect(manager.isSessionExpired()).toBe(false);
 	});
 
 	it('applyDeviceIdOverride normalises, updates the auth client id, and reloads on an active session', async () => {

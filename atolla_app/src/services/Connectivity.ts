@@ -151,6 +151,15 @@ export class Connectivity {
 	}
 
 	async setMode(mode: ConnectionMode): Promise<boolean> {
+		if (
+			mode === ConnectionModes.online &&
+			this.deps.sessionManager.getSession() == null &&
+			this.deps.sessionManager.isSessionExpired()
+		) {
+			this.deps.onSessionExpired();
+			return false;
+		}
+
 		try {
 			await this.deps.preferences.setMode(mode);
 			this.mode = mode;

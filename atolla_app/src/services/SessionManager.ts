@@ -36,6 +36,7 @@ export class SessionManager {
 	private currentClient: IHTTPClient;
 	private currentSession: AuthSession | null = null;
 	private deviceIdOverride = '';
+	private sessionExpired = false;
 	// bumped by cancelLogin and by each new attempt, so a superseded or canceled login can neither
 	// write render state nor adopt a session it no longer owns
 	private loginGeneration = 0;
@@ -74,6 +75,7 @@ export class SessionManager {
 			// best effort, clear what we can
 		}
 		this.currentSession = null;
+		this.sessionExpired = false;
 		this.deps.onSessionChanged(null);
 	}
 
@@ -84,6 +86,7 @@ export class SessionManager {
 			// best effort, clear what we can
 		}
 		this.currentSession = null;
+		this.sessionExpired = true;
 		this.deps.onSessionChanged(null);
 	}
 
@@ -103,6 +106,10 @@ export class SessionManager {
 		return this.currentSession;
 	}
 
+	isSessionExpired(): boolean {
+		return this.sessionExpired;
+	}
+
 	// cold-start: apply the persisted device id, restore any saved session, prime the remembered
 	// server url. Returns the session (or null) for Connectivity to build the matching transport.
 	async loadSession(): Promise<AuthSession | null> {
@@ -110,11 +117,13 @@ export class SessionManager {
 			this.deps.preferences.jellyfinClientDeviceIdOverride,
 		);
 		this.deps.authService.setClientDeviceId(this.getEffectiveDeviceId());
-		const [session, rememberedServerUrl] = await Promise.all([
+		const [session, rememberedServerUrl, sessionExpired] = await Promise.all([
 			this.deps.authService.loadSession(),
 			this.deps.authService.loadRememberedServerUrl(),
+			this.deps.authService.loadSessionExpired(),
 		]);
 		this.currentSession = session;
+		this.sessionExpired = sessionExpired;
 		if (session != null) {
 			this.bindHttpClient(session.serverUrl);
 		}
@@ -171,6 +180,7 @@ export class SessionManager {
 			await this.deps.authService.saveSession(session);
 
 			this.currentSession = session;
+			this.sessionExpired = false;
 			this.deps.onSessionChanged(session);
 			applyIfCurrent({
 				authErrorMessage: null,

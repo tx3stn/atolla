@@ -31,7 +31,6 @@ function flush(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-// CancelablePromise is only PromiseLike, so a rejected transport call cannot be .catch()ed
 function settled(promise: PromiseLike<unknown>): Promise<void> {
 	return new Promise((resolve) =>
 		promise.then(
@@ -41,7 +40,6 @@ function settled(promise: PromiseLike<unknown>): Promise<void> {
 	);
 }
 
-// every request answers 401, which is how a revoked token behaves against a real server
 function unauthorizedClient(): IHTTPClient {
 	const reject = () => Promise.resolve({ body: undefined, headers: {}, statusCode: 401 });
 	return { delete: reject, get: reject, post: reject } as unknown as IHTTPClient;
@@ -54,6 +52,7 @@ function makeConnectivity(over?: {
 	login?: () => Promise<AuthSession>;
 	mode?: ConnectionMode;
 	session?: AuthSession | null;
+	sessionExpired?: boolean;
 	setMode?: () => Promise<void>;
 }): {
 	calls: Calls;
@@ -84,6 +83,7 @@ function makeConnectivity(over?: {
 			}),
 	} as unknown as Preferences;
 
+	let sessionExpired = over?.sessionExpired ?? false;
 	const sessionManager = {
 		cancelLogin: () => {
 			calls.cancelLogin += 1;
@@ -91,13 +91,14 @@ function makeConnectivity(over?: {
 		expireSession: () => {
 			calls.expireSession += 1;
 			session = null;
+			sessionExpired = true;
 			connectivity.handleSessionChanged(null);
 			return Promise.resolve();
 		},
 		getEffectiveDeviceId: () => 'atolla-default',
 		getHttpClient: () => over?.httpClient ?? ({} as unknown as IHTTPClient),
 		getSession: () => session,
-		// mirrors the real SessionManager: it adopts the session and emits before it resolves
+		isSessionExpired: () => sessionExpired,
 		login: (serverUrl: string) => {
 			calls.login.push(serverUrl);
 			return (over?.login?.() ?? Promise.resolve(makeSession())).then((loggedIn) => {
@@ -325,8 +326,6 @@ describe('Connectivity.cancelConnect', () => {
 	});
 });
 
-// a revoked token used to leave the app looking signed in and silently failing every json call.
-// it now drops to offline — downloads keep playing — and asks the app to prompt for re-auth
 describe('Connectivity session expiry', () => {
 	async function expireVia401(): Promise<ReturnType<typeof makeConnectivity>> {
 		const harness = makeConnectivity({
@@ -350,7 +349,6 @@ describe('Connectivity session expiry', () => {
 		expect(state[state.length - 1]?.connectionMode).toBe(ConnectionModes.offline);
 	});
 
-	// the whole point of going offline rather than clearing: isAuthRequired takes the app apart
 	it('does not mark auth-required, so the app is never torn down', async () => {
 		const { state } = await expireVia401();
 
@@ -363,7 +361,6 @@ describe('Connectivity session expiry', () => {
 		expect(calls.ensureLoaded).toBeGreaterThan(0);
 	});
 
-	// a dead token rejects every in-flight request at once; the user gets one prompt, not a dozen
 	it('expires once no matter how many requests the dead token rejects', async () => {
 		const harness = makeConnectivity({
 			httpClient: unauthorizedClient(),
@@ -384,6 +381,43 @@ describe('Connectivity session expiry', () => {
 	});
 });
 
+describe('Connectivity going online with an expired session', () => {
+	it('re-opens the prompt instead of going online', async () => {
+		const { calls, connectivity } = makeConnectivity({ sessionExpired: true });
+		await connectivity.bootstrap(null);
+
+		const ok = await connectivity.setMode(ConnectionModes.online);
+
+		expect(ok).toBe(false);
+		expect(calls.onSessionExpired).toBe(1);
+		expect(connectivity.getMode()).toBe(ConnectionModes.offline);
+		expect(calls.setMode).not.toContain(ConnectionModes.online);
+	});
+
+	it('still lets a fresh install reach the connect screen', async () => {
+		const { calls, connectivity, state } = makeConnectivity({ sessionExpired: false });
+		await connectivity.bootstrap(null);
+
+		const ok = await connectivity.setMode(ConnectionModes.online);
+
+		expect(ok).toBe(true);
+		expect(calls.onSessionExpired).toBe(0);
+		expect(state[state.length - 1]?.isAuthRequired).toBe(true);
+	});
+
+	it('goes online normally once a session is back', async () => {
+		const { calls, connectivity } = makeConnectivity({
+			session: makeSession(),
+			sessionExpired: true,
+		});
+
+		const ok = await connectivity.setMode(ConnectionModes.online);
+
+		expect(ok).toBe(true);
+		expect(calls.onSessionExpired).toBe(0);
+	});
+});
+
 describe('Connectivity.reauthenticate', () => {
 	it('goes back online and flushes queued work when the sign in succeeds', async () => {
 		const { calls, connectivity } = makeConnectivity();
@@ -397,8 +431,6 @@ describe('Connectivity.reauthenticate', () => {
 		expect(calls.onOnline).toBe(1);
 	});
 
-	// connect() ejects to the connect screen on failure. re-auth runs from inside the app, where
-	// that would throw the user out of their downloads over a typo or a canceled quick connect
 	it('leaves the app offline and in place when the sign in fails', async () => {
 		const { connectivity, state } = makeConnectivity({
 			login: () => Promise.reject(new Error('nope')),

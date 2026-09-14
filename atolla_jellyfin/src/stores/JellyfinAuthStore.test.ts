@@ -129,8 +129,6 @@ describe('JellyfinAuthStore', () => {
 		});
 	});
 
-	// the mark is what tells a relaunch that a rejected token put the app offline, rather than this
-	// being a fresh install that has never signed in
 	describe('expireSession', () => {
 		it('drops the session and marks it expired', async () => {
 			const { store, backing } = createStore();
@@ -154,8 +152,6 @@ describe('JellyfinAuthStore', () => {
 			expect(await store.loadSessionExpired()).toBe(false);
 		});
 
-		// without this the mark is sticky forever and every launch after a successful sign in
-		// claims the session expired
 		it('is cleared by the next successful sign in', async () => {
 			const { store } = createStore();
 			await store.expireSession();

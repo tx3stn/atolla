@@ -1178,8 +1178,6 @@ describe('LiveTransport core collections', () => {
 		});
 	});
 
-	// throwing is not enough on its own: nothing was listening, which is why a dead token used to
-	// leave the app looking signed in and quietly failing every json call
 	it('reports the expiry to its owner as well as throwing', async () => {
 		const expiries: Array<number> = [];
 		const { client } = createHTTPClient([jsonResponse(401, {})]);
