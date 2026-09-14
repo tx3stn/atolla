@@ -1,21 +1,17 @@
 import res from 'atolla_app/res';
 import Strings from 'atolla_app/src/Strings';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from 'atolla_core/src/Language';
-import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import type { InternalError } from 'atolla_core/src/utils/Errors';
-import { JellyfinAuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemFont } from 'valdi_core/src/SystemFont';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { type ToastService, ToastTypes } from '../../services/ToastService';
+import type { ToastService } from '../../services/ToastService';
 import { theme } from '../../theme';
-import { hapticFeedback } from '../../utils/Haptics';
-import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { Button, ButtonType } from '../components/Button';
+import { QuickConnectPanel } from '../components/QuickConnectPanel';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { HttpWarningModal } from '../modals/HttpWarningModal';
 import { LanguageSelectModal } from '../modals/LanguageSelectModal';
@@ -128,20 +124,6 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		}
 	}
 
-	private copyQuickConnectCode = (): void => {
-		const code = this.viewModel.quickConnectCode;
-		if (code == null) {
-			return;
-		}
-
-		hapticFeedback();
-		Device.copyToClipBoard(code);
-		this.viewModel.toastService.show({
-			message: Strings.copiedToClipboard(),
-			variant: ToastTypes.success,
-		});
-	};
-
 	private onConnectTap = (): void => {
 		const input = normalizeInputValue(this.state.serverUrlInput).trim();
 		if (!input || (this.viewModel.isConnecting && !this.viewModel.errorMessage)) {
@@ -194,28 +176,12 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				style={ButtonType.Confirm}
 			/>
 
-			<view style={styles.quickConnectContainer}>
-				{this.viewModel.quickConnectCode && (
-					<view
-						accessibilityId='connection-quick-connect-code'
-						onTap={this.copyQuickConnectCode}
-						style={styles.quickConnectCodeSlot}
-					>
-						<label
-							style={styles.quickConnectCode}
-							value={Strings.quickConnectCode(this.viewModel.quickConnectCode)}
-						/>
-					</view>
-				)}
-				<view style={styles.quickConnectSpinnerSlot}>
-					{this.viewModel.isConnecting && (
-						<LoadingSpinner accessibilityId='waiting for quick connect' size={45} />
-					)}
-				</view>
-			</view>
-			{this.viewModel.errorMessage && (
-				<label style={styles.errorMessage} value={errorText(this.viewModel.errorMessage)} />
-			)}
+			<QuickConnectPanel
+				errorMessage={this.viewModel.errorMessage}
+				isConnecting={this.viewModel.isConnecting}
+				quickConnectCode={this.viewModel.quickConnectCode}
+				toastService={this.viewModel.toastService}
+			/>
 
 			<view
 				accessibilityId='connection-language-button'
@@ -230,12 +196,6 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 }
 
 const styles = {
-	errorMessage: new Style<Label>({
-		...theme.text.sub,
-		color: theme.colors.destructive,
-		marginTop: theme.scale(10),
-		textAlign: 'center',
-	}),
 	input: new Style<TextField>({
 		...theme.text.main,
 		marginLeft: theme.scale(10),
@@ -275,26 +235,6 @@ const styles = {
 		height: theme.scale(96),
 		width: theme.scale(96),
 	}),
-	quickConnectCode: new Style<Label>({
-		...theme.text.mainBold,
-		color: theme.colors.active,
-		textAlign: 'center',
-	}),
-	quickConnectCodeSlot: new Style<View>({
-		alignItems: 'center' as const,
-		height: theme.scale(28),
-		justifyContent: 'center' as const,
-	}),
-	quickConnectContainer: new Style<View>({
-		alignItems: 'center' as const,
-		marginTop: theme.scale(10),
-	}),
-	quickConnectSpinnerSlot: new Style<View>({
-		alignItems: 'center' as const,
-		height: theme.scale(46),
-		justifyContent: 'center' as const,
-		marginTop: theme.scale(10),
-	}),
 	root: new Style<View>({
 		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
@@ -314,35 +254,6 @@ const styles = {
 		textAlign: 'center',
 	}),
 };
-
-function errorText(error: InternalError<string>): string {
-	const message = messageForErrorCode(error.err);
-
-	return error.detail === '' ? message : `${message}: ${error.detail}`;
-}
-
-function messageForErrorCode(code: string): string {
-	switch (code) {
-		case AuthErrors.CONNECTION_ERROR.err:
-			return Strings.errorsAuthConnection();
-		case AuthErrors.FAILED_TO_FETCH_DATA.err:
-			return Strings.errorsAuthFailedToFetch();
-		case AuthErrors.LOGIN_CANCELED.err:
-			return Strings.errorsAuthLoginCanceled();
-		case AuthErrors.SERVER_UNREACHABLE.err:
-			return Strings.errorsAuthServerUnreachable();
-		case AuthErrors.SESSION_EXPIRED.err:
-			return Strings.errorsAuthSessionExpired();
-		case JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER.err:
-			return Strings.errorsAuthNotJellyfin();
-		case JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE.err:
-			return Strings.errorsAuthQuickConnectNotAvailable();
-		case JellyfinAuthErrors.QUICK_CONNECT_TIMED_OUT.err:
-			return Strings.errorsAuthQuickConnectTimedOut();
-	}
-
-	return Strings.errorsAuthConnection();
-}
 
 function normalizeInputValue(value: unknown): string {
 	if (typeof value === 'string') {
