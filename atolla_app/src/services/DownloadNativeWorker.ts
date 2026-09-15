@@ -4,6 +4,7 @@ import {
 	cacheAtollaDownloadedTrackFromUrlAsync,
 	removeAtollaDownloadedTrack,
 } from '../TrackPlaybackNative';
+import { NATIVE_CACHE_UNAUTHORIZED } from './NativeCacheResult';
 
 export interface IDownloadNativeWorker {
 	cacheDownloadedTrack(trackId: string, url: string, authToken: string): Promise<void>;
@@ -23,6 +24,10 @@ class DownloadNativeWorkerImpl implements IDownloadNativeWorker {
 	cacheDownloadedTrack(trackId: string, url: string, authToken: string): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
 			cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, authToken, (source) => {
+				if (source === NATIVE_CACHE_UNAUTHORIZED) {
+					reject(new Error(NATIVE_CACHE_UNAUTHORIZED));
+					return;
+				}
 				if (source) {
 					resolve();
 					return;

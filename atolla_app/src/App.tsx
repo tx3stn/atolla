@@ -48,6 +48,7 @@ import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
+import { isUnauthorizedCacheError } from './services/NativeCacheResult';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { syncToastText } from './services/ReconnectSyncCoordinator';
@@ -132,11 +133,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private downloadService = new DownloadService({
 		cacheImage: (id, url, category) => this.assetCache.cacheImageAsset(id, url, category),
 		cacheTrack: (trackId, url) =>
-			this.downloadWorkerClient.target.api.cacheDownloadedTrack(
-				trackId,
-				url,
-				this.sessionManager.getAccessToken(),
-			),
+			this.downloadWorkerClient.target.api
+				.cacheDownloadedTrack(trackId, url, this.sessionManager.getAccessToken())
+				.catch((error: unknown) => {
+					if (isUnauthorizedCacheError(error)) {
+						this.connectivity.expireSession();
+					}
+					throw error;
+				}),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		isOnline: () => this.networkStatus.isReachable(),
@@ -171,7 +175,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		resolveArtistLogoUrl: (artistId) =>
 			Promise.resolve(this.connectivity.getTransport().getArtistLogoUrl(artistId)),
 		showToast: (model) => this.toastService.show(model),
-		trackSourceNative: new TrackSourceNativeAdapter(),
+		trackSourceNative: new TrackSourceNativeAdapter(() => this.connectivity.expireSession()),
 	});
 	private downloadWorkerClient = new Lazy<IWorkerServiceClient<IDownloadNativeWorker>>(() =>
 		startWorkerService(DownloadNativeWorkerEntryPoint, []),

@@ -1255,7 +1255,7 @@ object AtollaTrackPlaybackNativeCache {
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
-				return ""
+				return AtollaDownloadGuards.failureResultForStatus(status)
 			}
 
 			val mimeType = connection.contentType ?: "application/octet-stream"
@@ -1559,7 +1559,7 @@ object AtollaDownloadedTrackNativeCache {
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
-				return ""
+				return AtollaDownloadGuards.failureResultForStatus(status)
 			}
 
 			val mimeType = connection.contentType ?: "application/octet-stream"

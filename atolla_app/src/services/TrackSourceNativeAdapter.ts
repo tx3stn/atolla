@@ -4,6 +4,7 @@ import {
 	setAtollaAudioPlaybackUpcomingQueue,
 	setAtollaRetainedTrackIds,
 } from '../TrackPlaybackNative';
+import { NATIVE_CACHE_UNAUTHORIZED } from './NativeCacheResult';
 
 export interface TrackSourceNative {
 	cacheTrackFromUrl(
@@ -18,13 +19,22 @@ export interface TrackSourceNative {
 }
 
 export class TrackSourceNativeAdapter implements TrackSourceNative {
+	constructor(private readonly onUnauthorized: () => void) {}
+
 	cacheTrackFromUrl(
 		trackId: string,
 		url: string,
 		accessToken: string,
 		onComplete: (source: string | null) => void,
 	): void {
-		cacheAtollaTrackFromUrlAsync(trackId, url, accessToken, onComplete);
+		cacheAtollaTrackFromUrlAsync(trackId, url, accessToken, (source) => {
+			if (source === NATIVE_CACHE_UNAUTHORIZED) {
+				this.onUnauthorized();
+				onComplete(null);
+				return;
+			}
+			onComplete(source);
+		});
 	}
 
 	getCachedTrackFileUrl(trackId: string): string {

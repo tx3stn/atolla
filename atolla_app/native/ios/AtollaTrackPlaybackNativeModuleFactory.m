@@ -7,6 +7,7 @@
 #import "atolla_app/native/ios/AtollaPlaybackGuards.h"
 #import "atolla_app/native/ios/AtollaTrackCacheRetention.h"
 #import "atolla_app/native/ios/AtollaAuthRedirectGuard.h"
+#import "atolla_app/native/ios/AtollaDownloadGuards.h"
 #import "atolla_app/native/ios/AtollaImageCacheAccess.h"
 #import "scrobble_ios_bridge.h"
 
@@ -99,7 +100,8 @@ static NSSet<NSString *> *sRetainedKeys;
 // file URL and populates outMimeType on success, nil on failure. caller deletes the temp file
 + (nullable NSURL *)streamDownloadFromURL:(NSURL *)sourceURL
                                authToken:(NSString * _Nullable)authToken
-                                 mimeType:(NSString * _Nullable * _Nonnull)outMimeType {
+                                 mimeType:(NSString * _Nullable * _Nonnull)outMimeType
+                               statusCode:(NSInteger * _Nonnull)outStatusCode {
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
     config.timeoutIntervalForRequest = 30.0;
     config.timeoutIntervalForResource = 300.0;
@@ -120,10 +122,12 @@ static NSSet<NSString *> *sRetainedKeys;
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     __block NSURL *tmpResult = nil;
     __block NSString *mimeResult = nil;
+    __block NSInteger statusResult = 0;
 
     NSURLSessionDownloadTask *task = [session downloadTaskWithRequest:request
         completionHandler:^(NSURL *location, NSURLResponse *resp, NSError *error) {
             NSHTTPURLResponse *httpResp = (NSHTTPURLResponse *)resp;
+            statusResult = httpResp.statusCode;
             if (!error && location &&
                 httpResp.statusCode >= 200 && httpResp.statusCode < 300) {
                 mimeResult = [httpResp MIMEType] ?: @"application/octet-stream";
@@ -141,6 +145,7 @@ static NSSet<NSString *> *sRetainedKeys;
     [session finishTasksAndInvalidate];
 
     *outMimeType = mimeResult;
+    *outStatusCode = statusResult;
     return tmpResult;
 }
 
@@ -255,9 +260,13 @@ static NSSet<NSString *> *sRetainedKeys;
     }
 
     NSString *mimeType = nil;
-    NSURL *downloadedTmp = [self streamDownloadFromURL:sourceURL authToken:authToken mimeType:&mimeType];
+    NSInteger statusCode = 0;
+    NSURL *downloadedTmp = [self streamDownloadFromURL:sourceURL
+                                             authToken:authToken
+                                              mimeType:&mimeType
+                                            statusCode:&statusCode];
 
-    NSString *result = @"";
+    NSString *result = [AtollaDownloadGuards failureResultForStatus:statusCode];
     if (downloadedTmp && mimeType && [self isLikelyAudioMimeType:mimeType]) {
         NSString *ext = [self extensionFromMimeType:mimeType];
         // brief lock to finalize: delete stale files, rename temp, prune
@@ -450,9 +459,13 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     }
 
     NSString *mimeType = nil;
-    NSURL *downloadedTmp = [AtollaTrackCache streamDownloadFromURL:sourceURL authToken:authToken mimeType:&mimeType];
+    NSInteger statusCode = 0;
+    NSURL *downloadedTmp = [AtollaTrackCache streamDownloadFromURL:sourceURL
+                                                         authToken:authToken
+                                                          mimeType:&mimeType
+                                                        statusCode:&statusCode];
 
-    NSString *result = @"";
+    NSString *result = [AtollaDownloadGuards failureResultForStatus:statusCode];
     if (downloadedTmp && mimeType && [AtollaTrackCache isLikelyAudioMimeType:mimeType]) {
         NSString *ext = [AtollaTrackCache extensionFromMimeType:mimeType];
         // brief lock to finalize: delete stale files, move temp, touch

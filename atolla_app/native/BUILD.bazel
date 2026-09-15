@@ -206,6 +206,7 @@ objc_library(
     ],
     deps = [
         ":atolla_auth_redirect_guard_ios",
+        ":atolla_download_guards_ios",
         ":atolla_image_cache_access_ios",
         ":atolla_playback_guards_ios",
         ":atolla_track_cache_retention_ios",
@@ -299,6 +300,13 @@ objc_library(
 )
 
 objc_library(
+    name = "atolla_download_guards_ios",
+    srcs = ["ios/AtollaDownloadGuards.m"],
+    hdrs = ["ios/AtollaDownloadGuards.h"],
+    copts = ["-I."],
+)
+
+objc_library(
     name = "atolla_disk_cache_stats_ios",
     srcs = ["ios/AtollaDiskCacheStats.m"],
     hdrs = ["ios/AtollaDiskCacheStats.h"],
@@ -311,6 +319,7 @@ kt_android_library(
         "android/AtollaCacheImageLoader.kt",
         "android/AtollaLoggerNativeModuleFactory.kt",
         "android/AtollaDiskCacheStats.kt",
+        "android/AtollaDownloadGuards.kt",
         "android/AtollaHapticsBootstrap.kt",
         "android/AtollaHapticsBootstrapModuleFactory.kt",
         "android/AtollaImageFallback.kt",
@@ -372,6 +381,11 @@ kt_jvm_library(
 kt_jvm_library(
     name = "atolla_disk_cache_stats",
     srcs = ["android/AtollaDiskCacheStats.kt"],
+)
+
+kt_jvm_library(
+    name = "atolla_download_guards",
+    srcs = ["android/AtollaDownloadGuards.kt"],
 )
 
 kt_jvm_library(
