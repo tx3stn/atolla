@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { PairRequest } from './generated';
+import type { MediaServer, PairRequest } from './generated';
 import { PlayerClient, REQUEST_CANCELLED } from './PlayerClient';
 import type { HttpHeaders, HttpResponse, HttpTransport, PendingRequest } from './Transport';
 
@@ -11,10 +11,18 @@ const PAIR_REQUEST: PairRequest = {
 	controllerName: 'pixel 8',
 };
 
+const MEDIA_SERVER: MediaServer = {
+	accessToken: '3d9f0c1b7a5e4826',
+	baseUrl: 'http://jellyfin.local:8096',
+	deviceId: 'atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071',
+	serverId: '7e0a5b9c2d4f8613',
+	userId: '8b1f2c3d4e5f6071',
+};
+
 interface TransportCall {
 	body?: string;
 	headers?: HttpHeaders;
-	method: 'GET' | 'POST';
+	method: 'GET' | 'POST' | 'PUT';
 	url: string;
 }
 
@@ -50,6 +58,16 @@ function createTransport(responses: Array<HttpResponse>) {
 
 			return settle();
 		},
+		put: (url, body, headers) => {
+			calls.push({
+				body: body === undefined ? undefined : new TextDecoder().decode(body),
+				headers,
+				method: 'PUT',
+				url,
+			});
+
+			return settle();
+		},
 	};
 
 	return { calls, transport };
@@ -63,7 +81,11 @@ function createSilentTransport() {
 			cancels.push('cancelled');
 		},
 	});
-	const transport: HttpTransport = { get: () => request, post: () => request };
+	const transport: HttpTransport = {
+		get: () => request,
+		post: () => request,
+		put: () => request,
+	};
 
 	return { cancels, transport };
 }
@@ -88,6 +110,21 @@ describe('PlayerClient', () => {
 				headers: { 'Content-Type': 'application/json' },
 				method: 'POST',
 				url: `${BASE_URL}/pair`,
+			},
+		]);
+	});
+
+	it('puts the credential to /media-server as json bytes with the controller token', async () => {
+		const { calls, transport } = createTransport([answered(200, { version: 413 })]);
+
+		await new PlayerClient(BASE_URL, transport).mediaServer('tok', MEDIA_SERVER);
+
+		expect(calls).toEqual([
+			{
+				body: JSON.stringify(MEDIA_SERVER),
+				headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+				method: 'PUT',
+				url: `${BASE_URL}/media-server`,
 			},
 		]);
 	});

@@ -169,6 +169,8 @@ pub const Server = struct {
         if (answer.status >= 400) {
             const failure = switch (answer.status) {
                 400 => problem.malformed_body,
+                409 => problem.media_server_id_mismatch,
+                422 => problem.media_server_user_mismatch,
                 501 => problem.not_implemented,
                 else => problem.internal,
             };

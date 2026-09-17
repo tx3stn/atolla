@@ -3,6 +3,8 @@ import type {
 	Command,
 	CommandAccepted,
 	Hello,
+	MediaServer,
+	MediaServerAccepted,
 	PairAccepted,
 	PairRequest,
 	Problem,
@@ -46,6 +48,18 @@ export class PlayerClient {
 
 	hello(): PendingRequest<PlayerAnswer<Hello | Problem>> {
 		return this.settled(this.transport.get(this.url('/hello')));
+	}
+
+	mediaServer(
+		token: string,
+		body: MediaServer,
+	): PendingRequest<PlayerAnswer<MediaServerAccepted | Problem>> {
+		const headers = this.headers(token);
+		headers['Content-Type'] = 'application/json';
+
+		const bytes = new TextEncoder().encode(JSON.stringify(body));
+
+		return this.settled(this.transport.put(this.url('/media-server'), bytes, headers));
 	}
 
 	pair(body: PairRequest): PendingRequest<PlayerAnswer<PairAccepted | Problem>> {

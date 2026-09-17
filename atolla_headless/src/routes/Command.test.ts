@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { makeQueueOwner } from '../QueueOwner';
 import { makeStateVersion } from '../StateVersion';
 import { type CommandDeps, handleCommand } from './Command';
 
@@ -24,7 +26,12 @@ function fixture(): CommandDeps {
 
 	playback.subscribe(() => version.bump());
 
-	return { playback, restored: Promise.resolve(), version };
+	return {
+		playback,
+		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
+		restored: Promise.resolve(),
+		version,
+	};
 }
 
 async function send(deps: CommandDeps, command: Record<string, unknown>) {
@@ -200,7 +207,15 @@ describe('handleCommand', () => {
 
 		playback.subscribe(() => version.bump());
 
-		const answered = handleCommand({ playback, restored, version }, '{"command":"play"}');
+		const answered = handleCommand(
+			{
+				playback,
+				queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
+				restored,
+				version,
+			},
+			'{"command":"play"}',
+		);
 		await Promise.resolve();
 		expect(playback.isPlaying).toBe(false);
 
@@ -208,5 +223,87 @@ describe('handleCommand', () => {
 		await answered;
 
 		expect(playback.isPlaying).toBe(true);
+	});
+
+	describe('queue ownership', () => {
+		it('claims the queue for the account that replaced it', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u1' });
+
+			expect(deps.queueOwner.get()).toBe('u1');
+		});
+
+		it('leaves the queue unowned when a replacement names no account', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS });
+
+			expect(deps.queueOwner.get()).toBeNull();
+		});
+
+		// Replacing a queue takes it outright, so the previous owner does not keep it.
+		it('takes the queue over from whoever owned it before', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u1' });
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u2' });
+
+			expect(deps.queueOwner.get()).toBe('u2');
+		});
+
+		it('drops the owner when a replacement empties the queue', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u1' });
+			await send(deps, { command: 'setQueue', tracks: [], userId: 'u1' });
+
+			expect(deps.queueOwner.get()).toBeNull();
+		});
+
+		it('claims an unowned queue for the account that added to it', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS });
+			await send(deps, { command: 'addToQueue', tracks: [track('t4')], userId: 'u1' });
+
+			expect(deps.queueOwner.get()).toBe('u1');
+		});
+
+		// A guest queueing one track must not have the rest of the evening reported against them.
+		it('does not take somebody else’s queue over by adding to it', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u1' });
+			await send(deps, { command: 'addToQueue', tracks: [track('t4')], userId: 'u2' });
+
+			expect(deps.queueOwner.get()).toBe('u1');
+		});
+
+		it('claims an unowned queue for the account that played next on it', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS });
+			await send(deps, { command: 'playNext', tracks: [track('t4')], userId: 'u1' });
+
+			expect(deps.queueOwner.get()).toBe('u1');
+		});
+
+		it('does not take a queue over by playing next on it', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u1' });
+			await send(deps, { command: 'playNext', tracks: [track('t4')], userId: 'u2' });
+
+			expect(deps.queueOwner.get()).toBe('u1');
+		});
+
+		it('claims nothing when the tracks were refused', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: 'not tracks', userId: 'u1' });
+
+			expect(deps.queueOwner.get()).toBeNull();
+		});
 	});
 });

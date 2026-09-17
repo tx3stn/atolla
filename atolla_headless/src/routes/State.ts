@@ -1,13 +1,17 @@
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { PlayerState, StateSnapshot } from 'atolla_sync/src/api/generated';
 import type { Answer } from '../Http';
+import type { MediaServerCredentials } from '../MediaServerCredentials';
 import type { PlayerIdentity } from '../PlayerIdentity';
+import type { QueueOwner } from '../QueueOwner';
 import type { StateVersion } from '../StateVersion';
 
 export interface StateDeps {
+	credentials: MediaServerCredentials;
 	identity: PlayerIdentity;
 	now: () => number;
 	playback: PlaybackStore;
+	queueOwner: QueueOwner;
 	restored: Promise<void>;
 	version: StateVersion;
 }
@@ -66,6 +70,7 @@ function sinceOf(target: string): number | undefined {
 
 function snapshot(deps: StateDeps): StateSnapshot {
 	const { identity, playback } = deps;
+	const owner = deps.queueOwner.get();
 
 	return {
 		group: GROUP,
@@ -87,9 +92,11 @@ function snapshot(deps: StateDeps): StateSnapshot {
 		},
 		queue: {
 			...(playback.album === null ? {} : { album: asWire(playback.album) }),
+			...(owner === null ? {} : { owner }),
 			trackIndex: playback.trackIndex,
 			tracks: playback.tracks.map(asWire),
 		},
+		sourceHealth: { mediaServerUsers: deps.credentials.userIds() },
 		version: deps.version.current,
 	};
 }

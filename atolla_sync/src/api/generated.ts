@@ -85,12 +85,15 @@ export interface paths {
          *     The player holds one credential per account. Pushing again for the same `userId` replaces
          *     it, and pushing for a different one adds it alongside. No credential survives a restart.
          *
-         *     Two refusals answer `409`, and neither stores anything. A push naming a different `serverId`
-         *     than the player already holds would repoint the speaker at another server. A push whose
-         *     credential does not belong to the `userId` it names fails a check the player makes against
-         *     the media server, because the account is asserted by the controller and nothing on the wire
-         *     proves it. A differing `baseUrl` is not refused, because each credential keeps the address
-         *     the controller that pushed it uses.
+         *     Two pushes are refused rather than stored. A push naming a different `serverId` than the
+         *     player already holds would repoint the speaker at another server, and answers `409`. A push
+         *     whose credential does not belong to the `userId` it names fails a check the player makes
+         *     against the media server, because the account is asserted by the controller and nothing on
+         *     the wire proves it, and answers `422`. The two carry different statuses because a handler
+         *     names its failure with a status and nothing more.
+         *
+         *     A differing `baseUrl` is not refused, because each credential keeps the address the
+         *     controller that pushed it uses.
          *
          *     Bodies are capped at 4 KiB and must declare a `Content-Length`.
          */
@@ -922,17 +925,26 @@ export interface components {
             };
         };
         /**
-         * @description The push is well formed and authenticated, and disagrees with something the player will not
-         *     overwrite on a controller's say-so. `media_server_id_mismatch` means the player already
-         *     holds a credential for a different `serverId`, and a speaker serves one household and one
-         *     server. `media_server_user_mismatch` means the credential does not belong to the `userId` it
-         *     claims. The player checks that against the media server, because the account is asserted by
-         *     the controller and a wrong entry is otherwise silent.
-         *
-         *     Nothing is stored either way, and any credential already held for that account is left as
-         *     it was.
+         * @description The player already holds a credential for a different `serverId`, and a speaker serves one
+         *     household and one server. Nothing is stored, and any credential already held for that
+         *     account is left as it was.
          */
-        MediaServerConflict: {
+        MediaServerIdMismatch: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The credential does not belong to the `userId` it claims. The player checks that against
+         *     the media server, because the account is asserted by the controller and a wrong entry is
+         *     otherwise silent. The body was well formed, which is what separates this from a `400`.
+         *
+         *     Nothing is stored, and any credential already held for that account is left as it was.
+         */
+        MediaServerUserMismatch: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1109,7 +1121,8 @@ export type ResponseInvalidPairingCode = components['responses']['InvalidPairing
 export type ResponseInvalidToken = components['responses']['InvalidToken'];
 export type ResponseNotFound = components['responses']['NotFound'];
 export type ResponseMethodNotAllowed = components['responses']['MethodNotAllowed'];
-export type ResponseMediaServerConflict = components['responses']['MediaServerConflict'];
+export type ResponseMediaServerIdMismatch = components['responses']['MediaServerIdMismatch'];
+export type ResponseMediaServerUserMismatch = components['responses']['MediaServerUserMismatch'];
 export type ResponseLengthRequired = components['responses']['LengthRequired'];
 export type ResponseBodyTooLarge = components['responses']['BodyTooLarge'];
 export type ResponseExpectationFailed = components['responses']['ExpectationFailed'];
@@ -1261,10 +1274,11 @@ export interface operations {
             };
             400: components["responses"]["MediaServerBadRequest"];
             401: components["responses"]["InvalidToken"];
-            409: components["responses"]["MediaServerConflict"];
+            409: components["responses"]["MediaServerIdMismatch"];
             411: components["responses"]["LengthRequired"];
             413: components["responses"]["BodyTooLarge"];
             417: components["responses"]["ExpectationFailed"];
+            422: components["responses"]["MediaServerUserMismatch"];
             500: components["responses"]["HandlerFailed"];
             503: components["responses"]["Unavailable"];
             504: components["responses"]["HandlerTimeout"];

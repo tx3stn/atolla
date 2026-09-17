@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { HttpServer, RequestHandler } from './Http';
+import { makeMediaServerCredentials } from './MediaServerCredentials';
+import { makeQueueOwner } from './QueueOwner';
 import type { RandomBytes } from './Random';
 import { attachServer, ROUTE, type ServerDeps } from './Server';
 import { makeStateVersion } from './StateVersion';
@@ -14,17 +16,23 @@ function counting(): RandomBytes {
 }
 
 function deps(): ServerDeps {
+	const credentials = makeMediaServerCredentials(makeStateVersion());
+
 	return {
 		command: {
 			playback: new PlaybackStore(),
+			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 			restored: Promise.resolve(),
 			version: makeStateVersion(),
 		},
-		pair: { randomBytes: counting(), secrets: new InMemoryKeyValueStore() },
+		mediaServer: { credentials, version: makeStateVersion() },
+		pair: { credentials, randomBytes: counting(), secrets: new InMemoryKeyValueStore() },
 		state: {
+			credentials,
 			identity: { id: 'c2be50c9b97e1c53', name: 'Kitchen', tier: 'tight', version: '0.0.0' },
 			now: () => 1758000000000,
 			playback: new PlaybackStore(),
+			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 			restored: Promise.resolve(),
 			version: makeStateVersion(),
 		},

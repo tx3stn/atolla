@@ -124,6 +124,15 @@ pub const method_not_allowed: Problem = .{
     .title = "method not allowed",
 };
 
+/// A speaker serves one media server, so a push naming another is refused rather than repointing
+/// it. The two media server refusals carry different statuses because a handler names its failure
+/// with a status and nothing more, which is what `crossBridge` renders from.
+pub const media_server_id_mismatch: Problem = .{
+    .code = "media_server_id_mismatch",
+    .status = 409,
+    .title = "media server id mismatch",
+};
+
 pub const length_required: Problem = .{
     .code = "length_required",
     .status = 411,
@@ -140,6 +149,14 @@ pub const expectation_failed: Problem = .{
     .code = "expectation_failed",
     .status = 417,
     .title = "expectation failed",
+};
+
+/// The account a credential is pushed under is asserted by the controller, so the player asks the
+/// media server whose it is. The body was well formed, which is what separates this from a `400`.
+pub const media_server_user_mismatch: Problem = .{
+    .code = "media_server_user_mismatch",
+    .status = 422,
+    .title = "media server user mismatch",
 };
 
 pub fn tooManyAttempts(seconds: u32) Problem {

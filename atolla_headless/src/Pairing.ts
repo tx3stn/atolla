@@ -3,7 +3,6 @@ import { type RandomBytes, randomHex } from './Random';
 
 export const CONTROLLERS_KEY = 'controllers';
 export const MAX_CONTROLLERS = 32;
-export const MEDIA_SERVER_KEY = 'mediaServer';
 export const PAIRING_KEY = 'pairing';
 
 const CODE_DIGITS = 8;

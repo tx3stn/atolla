@@ -18,6 +18,14 @@ export class FetchTransport implements HttpTransport {
 		});
 	}
 
+	put(url: string, body?: Uint8Array, headers?: HttpHeaders): PendingRequest<HttpResponse> {
+		return this.send(url, {
+			body: body as BodyInit | undefined,
+			headers: fetchHeaders(headers),
+			method: 'PUT',
+		});
+	}
+
 	private send(url: string, init: RequestInit): PendingRequest<HttpResponse> {
 		const controller = new AbortController();
 

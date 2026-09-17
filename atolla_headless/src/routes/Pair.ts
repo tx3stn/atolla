@@ -2,10 +2,12 @@ import { getLogger } from 'atolla_core/src/services/Logger';
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { PairRequest } from 'atolla_sync/src/api/generated';
 import type { Answer } from '../Http';
-import { addController, MEDIA_SERVER_KEY } from '../Pairing';
+import type { MediaServerCredentials } from '../MediaServerCredentials';
+import { addController } from '../Pairing';
 import type { RandomBytes } from '../Random';
 
 export interface PairDeps {
+	credentials: MediaServerCredentials;
 	randomBytes: RandomBytes;
 	secrets: KeyValueStore;
 }
@@ -21,7 +23,7 @@ export async function handlePair(deps: PairDeps, body: string): Promise<Answer> 
 	});
 
 	if (request.mediaServer !== undefined) {
-		await deps.secrets.storeString(MEDIA_SERVER_KEY, JSON.stringify(request.mediaServer));
+		deps.credentials.push(request.mediaServer);
 	}
 
 	log.info('paired', {

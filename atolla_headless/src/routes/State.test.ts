@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { StateSnapshot } from 'atolla_sync/src/api/generated';
+import { makeMediaServerCredentials } from '../MediaServerCredentials';
 import type { PlayerIdentity } from '../PlayerIdentity';
+import { makeQueueOwner } from '../QueueOwner';
 import { makeStateVersion } from '../StateVersion';
 import { handleState, type StateDeps } from './State';
 
@@ -44,7 +47,15 @@ function fixture(): StateDeps {
 
 	playback.subscribe(() => version.bump());
 
-	return { identity: IDENTITY, now: () => NOW, playback, restored: Promise.resolve(), version };
+	return {
+		credentials: makeMediaServerCredentials(version),
+		identity: IDENTITY,
+		now: () => NOW,
+		playback,
+		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
+		restored: Promise.resolve(),
+		version,
+	};
 }
 
 async function read(deps: StateDeps, target = '/state') {
@@ -99,6 +110,31 @@ describe('handleState', () => {
 		deps.playback.playTracks(TRACKS, 0);
 
 		expect((await read(deps)).snapshot?.queue.album).toBeUndefined();
+	});
+
+	it('leaves the owner out when nothing has claimed the queue', async () => {
+		expect((await read(fixture())).snapshot?.queue.owner).toBeUndefined();
+	});
+
+	it('reports no provisioned accounts before a credential is pushed', async () => {
+		expect((await read(fixture())).snapshot?.sourceHealth?.mediaServerUsers).toEqual([]);
+	});
+
+	// The snapshot says who is provisioned, never what with.
+	it('reports no part of a credential it holds', async () => {
+		const deps = fixture();
+		deps.credentials.push({
+			accessToken: 'jf-token',
+			baseUrl: 'http://jellyfin.local:8096',
+			deviceId: 'atolla-c2be50c9b97e1c53-u1',
+			serverId: 's1',
+			userId: 'u1',
+		});
+
+		const answer = await handleState(deps, '/state');
+
+		expect(answer.body).not.toContain('jf-token');
+		expect(answer.body).not.toContain('jellyfin.local');
 	});
 
 	it('reports the position in milliseconds against the clock it read it at', async () => {

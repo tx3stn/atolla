@@ -11,9 +11,11 @@ import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
+import { makeMediaServerCredentials } from './MediaServerCredentials';
 import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
+import { makeQueueOwner } from './QueueOwner';
 import type { RandomBytes } from './Random';
 import { attachServer } from './Server';
 import { resolveLocalSource } from './SourceResolver';
@@ -51,6 +53,8 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const state = stateDir(deps.config);
 	const playback = new PlaybackStore();
 	const version = makeStateVersion();
+	const credentials = makeMediaServerCredentials(version);
+	const queueOwner = makeQueueOwner(makeFileKeyValueStore(deps.files, state));
 
 	const audioPlayer = makeAudioPlayer({
 		audio: deps.audio,
@@ -86,8 +90,10 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			progress: makeFileKeyValueStore(deps.files, state),
 			queue: makeFileKeyValueStore(deps.files, state),
 		});
+		await queueOwner.load();
 
 		log.info('queue restored', {
+			owner: queueOwner.get(),
 			trackIndex: playback.trackIndex,
 			tracks: playback.tracks.length,
 		});
@@ -102,17 +108,25 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	attachServer(deps.httpServer, {
 		command: {
 			playback,
+			queueOwner,
 			restored,
 			version,
 		},
+		mediaServer: {
+			credentials,
+			version,
+		},
 		pair: {
+			credentials,
 			randomBytes: deps.randomBytes,
 			secrets,
 		},
 		state: {
+			credentials,
 			identity: deps.identity,
 			now: deps.now,
 			playback,
+			queueOwner,
 			restored,
 			version,
 		},

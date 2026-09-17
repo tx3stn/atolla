@@ -1,18 +1,21 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Answer, HttpServer } from './Http';
 import { type CommandDeps, handleCommand } from './routes/Command';
+import { handleMediaServer, type MediaServerDeps } from './routes/MediaServer';
 import { handlePair, type PairDeps } from './routes/Pair';
 import { handleState, type StateDeps } from './routes/State';
 
 export const ROUTE = {
 	command: 2,
 	hello: 0,
+	mediaServer: 4,
 	pair: 1,
 	state: 3,
 } as const;
 
 export interface ServerDeps {
 	command: CommandDeps;
+	mediaServer: MediaServerDeps;
 	pair: PairDeps;
 	state: StateDeps;
 }
@@ -26,6 +29,10 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 		switch (route) {
 			case ROUTE.command:
 				answer = handleCommand(deps.command, body);
+				break;
+
+			case ROUTE.mediaServer:
+				answer = handleMediaServer(deps.mediaServer, body);
 				break;
 
 			case ROUTE.pair:

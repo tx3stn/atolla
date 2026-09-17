@@ -4,10 +4,12 @@ import { getLogger } from 'atolla_core/src/services/Logger';
 import { LoopModes, type PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { Command } from 'atolla_sync/src/api/generated';
 import type { Answer } from '../Http';
+import type { QueueOwner } from '../QueueOwner';
 import type { StateVersion } from '../StateVersion';
 
 export interface CommandDeps {
 	playback: PlaybackStore;
+	queueOwner: QueueOwner;
 	// The server answers before the queue is on disk, so a command arriving during the restore
 	// waits for it rather than acting on an empty queue the restore then overwrites.
 	restored: Promise<void>;
@@ -23,7 +25,7 @@ export async function handleCommand(deps: CommandDeps, body: string): Promise<An
 
 	await deps.restored;
 
-	const status = apply(deps.playback, command) ? 202 : 400;
+	const status = apply(deps, command) ? 202 : 400;
 	const tracks =
 		'tracks' in command && Array.isArray(command.tracks) ? command.tracks.length : undefined;
 
@@ -43,7 +45,9 @@ export async function handleCommand(deps: CommandDeps, body: string): Promise<An
 
 // False for a payload the server could not check: the track array is handed across the bridge
 // unparsed, so its shape is settled here.
-function apply(playback: PlaybackStore, command: Command): boolean {
+function apply(deps: CommandDeps, command: Command): boolean {
+	const { playback } = deps;
+
 	switch (command.command) {
 		case 'play':
 			playback.setPlaying(true);
@@ -82,11 +86,34 @@ function apply(playback: PlaybackStore, command: Command): boolean {
 			playback.setLoopMode(LoopModes[command.loopMode]);
 			return true;
 		case 'setQueue':
-			return applyQueue(playback, command.tracks, command.trackIndex ?? 0, command.album);
+			if (!applyQueue(playback, command.tracks, command.trackIndex ?? 0, command.album)) {
+				return false;
+			}
+			// Replacing a queue resets who owns it: the new owner is whoever is named, or nobody.
+			if (command.userId === undefined || playback.tracks.length === 0) {
+				deps.queueOwner.clear();
+			} else {
+				deps.queueOwner.claim(command.userId);
+			}
+			return true;
 		case 'addToQueue':
-			return withTracks(command.tracks, (tracks) => playback.addToQueue(tracks));
+			return withTracks(command.tracks, (tracks) => {
+				playback.addToQueue(tracks);
+				claimIfUnowned(deps, command.userId);
+			});
 		case 'playNext':
-			return withTracks(command.tracks, (tracks) => playback.playNext(tracks));
+			return withTracks(command.tracks, (tracks) => {
+				playback.playNext(tracks);
+				claimIfUnowned(deps, command.userId);
+			});
+	}
+}
+
+// Adding to somebody else's queue does not take it over, so a guest can queue a track without the
+// rest of the evening being reported against their account.
+function claimIfUnowned(deps: CommandDeps, userId: string | undefined): void {
+	if (userId !== undefined && deps.queueOwner.get() === null) {
+		deps.queueOwner.claim(userId);
 	}
 }
 

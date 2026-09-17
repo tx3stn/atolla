@@ -12,14 +12,6 @@ import { FetchTransport } from './transport';
 // machine nor a sibling suite can make these pass
 const PORT = 45992;
 
-const MEDIA_SERVER = {
-	accessToken: '3d9f0c1b7a5e4826',
-	baseUrl: 'http://jellyfin.local:8096',
-	deviceId: 'atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071',
-	serverId: '7e0a5b9c2d4f8613',
-	userId: '8b1f2c3d4e5f6071',
-};
-
 type Pairing = PendingRequest<PlayerAnswer<PairAccepted | Problem>>;
 
 interface PairedController {
@@ -110,18 +102,6 @@ describe('POST /pair', () => {
 				token,
 			},
 		]);
-	});
-
-	it('writes the media server credential when the body carries one', async () => {
-		await client.pair(request({ mediaServer: MEDIA_SERVER }));
-
-		expect(JSON.parse(secret('mediaServer'))).toEqual(MEDIA_SERVER);
-	});
-
-	it('writes no media server credential when the body carries none', async () => {
-		await client.pair(request());
-
-		expect(existsSync(join(dataDir, 'secrets', 'mediaServer'))).toBe(false);
 	});
 
 	it('replaces the record when the same controller pairs again', async () => {

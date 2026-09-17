@@ -15,4 +15,5 @@ export interface PendingRequest<T> extends PromiseLike<T> {
 export interface HttpTransport {
 	get(url: string, headers?: HttpHeaders): PendingRequest<HttpResponse>;
 	post(url: string, body?: Uint8Array, headers?: HttpHeaders): PendingRequest<HttpResponse>;
+	put(url: string, body?: Uint8Array, headers?: HttpHeaders): PendingRequest<HttpResponse>;
 }
