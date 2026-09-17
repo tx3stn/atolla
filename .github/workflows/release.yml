@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: tx3stn/vrsn@c1f3fe0778151d3c0de9cd991125ef6e8353a077 # 2.0.4
+      - uses: tx3stn/vrsn@38c3357b9c69ce76fafb50dcfba182d8ff1a1b08 # 2.0.5
         with:
           command: set
           args: ${{ github.ref_name }}
@@ -25,7 +25,7 @@ jobs:
             BUILD.bazel
             atolla_app/native/android/AndroidManifest.prod.xml
           if-no-files-found: error
-      - uses: tx3stn/vrsn@c1f3fe0778151d3c0de9cd991125ef6e8353a077 # 2.0.4
+      - uses: tx3stn/vrsn@38c3357b9c69ce76fafb50dcfba182d8ff1a1b08 # 2.0.5
         with:
           command: get
           args: --git-tag=false
