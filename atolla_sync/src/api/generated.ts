@@ -62,6 +62,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media-server": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Give the player a media server credential to use on its own behalf.
+         * @description The same credential `POST /pair` may carry, pushed by a controller that is already paired.
+         *     The player holds credentials in memory and never writes them to disk, so a restarted player
+         *     has none. Re-pairing would supply one, at the cost of making the user retype the pairing
+         *     code.
+         *
+         *     A controller learns it needs to push by reading `/state`. `sourceHealth.mediaServerUsers`
+         *     lists the accounts the player holds a credential for, and a controller that does not find
+         *     its own sends one. It is also how a second household member provisions a speaker somebody
+         *     else paired, without disturbing the first credential.
+         *
+         *     The player holds one credential per account. Pushing again for the same `userId` replaces
+         *     it, and pushing for a different one adds it alongside. No credential survives a restart.
+         *
+         *     Two refusals answer `409`, and neither stores anything. A push naming a different `serverId`
+         *     than the player already holds would repoint the speaker at another server. A push whose
+         *     credential does not belong to the `userId` it names fails a check the player makes against
+         *     the media server, because the account is asserted by the controller and nothing on the wire
+         *     proves it. A differing `baseUrl` is not refused, because each credential keeps the address
+         *     the controller that pushed it uses.
+         *
+         *     Bodies are capped at 4 KiB and must declare a `Content-Length`.
+         */
+        put: operations["pushMediaServer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/command": {
         parameters: {
             query?: never;
@@ -172,7 +212,7 @@ export interface components {
              * @example invalid_pairing_code
              * @enum {string}
              */
-            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
+            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "media_server_id_mismatch" | "media_server_user_mismatch" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
             /**
              * @description Rarely sent. Naming the field that failed tells an unauthenticated caller which field
              *     to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
@@ -247,7 +287,18 @@ export interface components {
              */
             version: string;
         };
-        /** @description A media server credential for the player to use on its own behalf. */
+        /**
+         * @description A media server account. The player keys credentials on this rather than on the controller,
+         *     so two of one person's phones replace each other instead of provisioning twice. It is also
+         *     what a play is reported against.
+         * @example 8b1f2c3d4e5f6071
+         */
+        UserId: string;
+        /**
+         * @description A media server credential for the player to use on its own behalf. The player holds one per
+         *     account and never writes any of them to disk, so `PUT /media-server` pushes it again after
+         *     a restart.
+         */
         MediaServer: {
             /**
              * @description A token minted for this player, revocable without touching the user's login.
@@ -256,20 +307,29 @@ export interface components {
             accessToken: string;
             /**
              * Format: uri
-             * @description Where the media server answers.
+             * @description Where the media server answers, as this controller reaches it. Two controllers may hold
+             *     different spellings of the same server, one resolved by mDNS and another typed as an
+             *     address. Each credential keeps its own, and the player uses the one belonging to whoever
+             *     owns the queue. `serverId` identifies the server.
              * @example http://jellyfin.local:8096
              */
             baseUrl: string;
             /**
-             * @description The device the token was minted against.
-             * @example atolla-kitchen
+             * @description The device identity the token was minted against, which carries the account as well as
+             *     the player: `atolla-<playerId>-<userId>`. The per-user form matters because a media
+             *     server that revokes by device ends every session sharing one. A shared id would have one
+             *     household member's re-provisioning sign the others out.
+             * @example atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071
              */
             deviceId: string;
             /**
-             * @description The media server account the token belongs to.
-             * @example 8b1f2c3d4e5f6071
+             * @description The media server's own identifier, which is what a push is compared against. A player
+             *     serves one server, and a push naming another is refused with
+             *     `media_server_id_mismatch`.
+             * @example 7e0a5b9c2d4f8613
              */
-            userId: string;
+            serverId: string;
+            userId: components["schemas"]["UserId"];
         } & {
             [key: string]: unknown;
         };
@@ -407,6 +467,12 @@ export interface components {
         /**
          * @description Replace the queue outright and start playing. This is the largest body the API takes, and
          *     the reason `/command`'s cap is 1 MiB rather than the 4 KiB the other routes get.
+         *
+         *     `userId` claims the queue for that account, and the player fetches and reports plays under
+         *     its credential until the queue is replaced or emptied. Replacing a queue takes ownership
+         *     outright, unlike `addToQueue` and `playNext`, because the user chose everything in it.
+         *     Omitting it leaves the queue unowned, which is what a controller that has provisioned
+         *     nothing sends. A `setQueue` with no tracks clears the owner along with the queue.
          */
         CommandSetQueue: {
             /**
@@ -426,10 +492,17 @@ export interface components {
             command: "setQueue";
             trackIndex?: components["schemas"]["TrackIndex"];
             tracks: components["schemas"]["Tracks"];
+            userId?: components["schemas"]["UserId"];
         } & {
             [key: string]: unknown;
         };
-        /** @description Append tracks to the end of the queue. */
+        /**
+         * @description Append tracks to the end of the queue.
+         *
+         *     `userId` claims the queue only when nothing owns it yet. Adding to somebody else's queue
+         *     does not take it over, so a guest can queue a track without the rest of the evening being
+         *     reported against their account.
+         */
         CommandAddToQueue: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -437,10 +510,15 @@ export interface components {
              */
             command: "addToQueue";
             tracks: components["schemas"]["Tracks"];
+            userId?: components["schemas"]["UserId"];
         } & {
             [key: string]: unknown;
         };
-        /** @description Insert tracks directly after the current one, ahead of the rest of the queue. */
+        /**
+         * @description Insert tracks directly after the current one, ahead of the rest of the queue.
+         *
+         *     `userId` claims the queue only when nothing owns it yet, as `addToQueue` does.
+         */
         CommandPlayNext: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -448,6 +526,7 @@ export interface components {
              */
             command: "playNext";
             tracks: components["schemas"]["Tracks"];
+            userId?: components["schemas"]["UserId"];
         } & {
             [key: string]: unknown;
         };
@@ -522,6 +601,14 @@ export interface components {
          *     waiting for the next change. It says nothing about what the speakers are doing.
          */
         CommandAccepted: {
+            version: components["schemas"]["StateVersion"];
+        };
+        /**
+         * @description The version the push produced. Bumping it is what tells a controller already long-polling
+         *     that the player is provisioned. Without that it would sit on `/state` until something else
+         *     changed.
+         */
+        MediaServerAccepted: {
             version: components["schemas"]["StateVersion"];
         };
         /**
@@ -697,10 +784,37 @@ export interface components {
             } & {
                 [key: string]: unknown;
             };
+            /**
+             * @description What the player is playing through. `owner` is the account the queue belongs to, absent
+             *     when nothing has claimed it. The leader fetches and reports plays under that account's
+             *     credential, which is why the owner survives a restart while the credential itself does
+             *     not.
+             */
             queue: {
                 album?: components["schemas"]["Album"];
+                owner?: components["schemas"]["UserId"];
                 trackIndex: components["schemas"]["TrackIndex"];
                 tracks: components["schemas"]["Track"][];
+            } & {
+                [key: string]: unknown;
+            };
+            /**
+             * @description How the player is placed to reach the media server. An absent member means the player
+             *     has nothing to say yet, and should not be read as a no.
+             */
+            sourceHealth?: {
+                /**
+                 * @description Which accounts the player currently holds a credential for, never the credentials
+                 *     themselves. There is no read path, only `PUT /media-server`. A controller looks for
+                 *     its own account and pushes when it is missing, which is how a player that lost its
+                 *     credentials to a restart gets them back without prompting anyone. Reporting the set
+                 *     rather than a bare boolean keeps one snapshot at one version instead of a body that
+                 *     varies by who asked.
+                 * @example [
+                 *       "8b1f2c3d4e5f6071"
+                 *     ]
+                 */
+                mediaServerUsers?: components["schemas"]["UserId"][];
             } & {
                 [key: string]: unknown;
             };
@@ -741,6 +855,19 @@ export interface components {
          *     command is ignored rather than refused.
          */
         CommandBadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description As `BadRequest`, plus `malformed_body` for a body that is not JSON, is missing a member, or
+         *     carries one past its cap. Nothing is stored, and the credential the player already holds for
+         *     this account is left as it was.
+         */
+        MediaServerBadRequest: {
             headers: {
                 [name: string]: unknown;
             };
@@ -795,6 +922,25 @@ export interface components {
             };
         };
         /**
+         * @description The push is well formed and authenticated, and disagrees with something the player will not
+         *     overwrite on a controller's say-so. `media_server_id_mismatch` means the player already
+         *     holds a credential for a different `serverId`, and a speaker serves one household and one
+         *     server. `media_server_user_mismatch` means the credential does not belong to the `userId` it
+         *     claims. The player checks that against the media server, because the account is asserted by
+         *     the controller and a wrong entry is otherwise silent.
+         *
+         *     Nothing is stored either way, and any credential already held for that account is left as
+         *     it was.
+         */
+        MediaServerConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description The request used chunked transfer encoding. The daemon refuses a body whose size it cannot
          *     know before reading it.
          */
@@ -808,8 +954,8 @@ export interface components {
         };
         /**
          * @description The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-         *     for any request and tighter per route: 4 KiB for `/pair` and `/state`. `/command` takes the
-         *     full 1 MiB, because a `setQueue` carries the whole queue.
+         *     for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`.
+         *     `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
          */
         BodyTooLarge: {
             headers: {
@@ -930,6 +1076,7 @@ export interface components {
 export type ApiVersion = components['schemas']['ApiVersion'];
 export type Problem = components['schemas']['Problem'];
 export type Hello = components['schemas']['Hello'];
+export type UserId = components['schemas']['UserId'];
 export type MediaServer = components['schemas']['MediaServer'];
 export type PairRequest = components['schemas']['PairRequest'];
 export type PairAccepted = components['schemas']['PairAccepted'];
@@ -948,6 +1095,7 @@ export type CommandSetLoopMode = components['schemas']['CommandSetLoopMode'];
 export type CommandTrackId = components['schemas']['CommandTrackId'];
 export type Command = components['schemas']['Command'];
 export type CommandAccepted = components['schemas']['CommandAccepted'];
+export type MediaServerAccepted = components['schemas']['MediaServerAccepted'];
 export type Track = components['schemas']['Track'];
 export type Album = components['schemas']['Album'];
 export type PlayerState = components['schemas']['PlayerState'];
@@ -956,10 +1104,12 @@ export type StateSnapshot = components['schemas']['StateSnapshot'];
 export type ResponseBadRequest = components['responses']['BadRequest'];
 export type ResponsePairBadRequest = components['responses']['PairBadRequest'];
 export type ResponseCommandBadRequest = components['responses']['CommandBadRequest'];
+export type ResponseMediaServerBadRequest = components['responses']['MediaServerBadRequest'];
 export type ResponseInvalidPairingCode = components['responses']['InvalidPairingCode'];
 export type ResponseInvalidToken = components['responses']['InvalidToken'];
 export type ResponseNotFound = components['responses']['NotFound'];
 export type ResponseMethodNotAllowed = components['responses']['MethodNotAllowed'];
+export type ResponseMediaServerConflict = components['responses']['MediaServerConflict'];
 export type ResponseLengthRequired = components['responses']['LengthRequired'];
 export type ResponseBodyTooLarge = components['responses']['BodyTooLarge'];
 export type ResponseExpectationFailed = components['responses']['ExpectationFailed'];
@@ -1055,6 +1205,66 @@ export interface operations {
             413: components["responses"]["BodyTooLarge"];
             417: components["responses"]["ExpectationFailed"];
             429: components["responses"]["TooManyAttempts"];
+            500: components["responses"]["HandlerFailed"];
+            503: components["responses"]["Unavailable"];
+            504: components["responses"]["HandlerTimeout"];
+        };
+    };
+    pushMediaServer: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
+                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
+                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
+                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
+                 *     answers any version.
+                 */
+                "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The credential the player should use for this account. */
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "accessToken": "3d9f0c1b7a5e4826",
+                 *       "baseUrl": "http://jellyfin.local:8096",
+                 *       "deviceId": "atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071",
+                 *       "serverId": "7e0a5b9c2d4f8613",
+                 *       "userId": "8b1f2c3d4e5f6071"
+                 *     }
+                 */
+                "application/json": components["schemas"]["MediaServer"];
+            };
+        };
+        responses: {
+            /**
+             * @description Held. The body names the state version that reports it, so a controller can confirm
+             *     with `GET /state?since=` without waiting for the next change.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "version": 413
+                     *     }
+                     */
+                    "application/json": components["schemas"]["MediaServerAccepted"];
+                };
+            };
+            400: components["responses"]["MediaServerBadRequest"];
+            401: components["responses"]["InvalidToken"];
+            409: components["responses"]["MediaServerConflict"];
+            411: components["responses"]["LengthRequired"];
+            413: components["responses"]["BodyTooLarge"];
+            417: components["responses"]["ExpectationFailed"];
             500: components["responses"]["HandlerFailed"];
             503: components["responses"]["Unavailable"];
             504: components["responses"]["HandlerTimeout"];
@@ -1166,6 +1376,7 @@ export interface operations {
                      *           "id": "6f2b8c4d1e9a3705",
                      *           "name": "Selected Ambient Works"
                      *         },
+                     *         "owner": "8b1f2c3d4e5f6071",
                      *         "trackIndex": 1,
                      *         "tracks": [
                      *           {
@@ -1178,6 +1389,11 @@ export interface operations {
                      *             "id": "2b3c4d5e6f708192",
                      *             "name": "Tha"
                      *           }
+                     *         ]
+                     *       },
+                     *       "sourceHealth": {
+                     *         "mediaServerUsers": [
+                     *           "8b1f2c3d4e5f6071"
                      *         ]
                      *       },
                      *       "version": 412

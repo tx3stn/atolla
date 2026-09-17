@@ -55,7 +55,9 @@ tags:
   - name: discovery
     description: Learning what a player is and what it speaks, before holding a credential.
   - name: pairing
-    description: Trading the player's pairing code for a controller token.
+    description: |
+      Trading the player's pairing code for a controller token, and giving the player the media
+      server credential it acts under.
   - name: control
     description: Driving playback and mirroring player state.
 
@@ -145,7 +147,8 @@ paths:
                   mediaServer:
                     accessToken: 3d9f0c1b7a5e4826
                     baseUrl: http://jellyfin.local:8096
-                    deviceId: atolla-kitchen
+                    deviceId: atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071
+                    serverId: 7e0a5b9c2d4f8613
                     userId: 8b1f2c3d4e5f6071
       responses:
         '200':
@@ -168,6 +171,81 @@ paths:
           $ref: '#/components/responses/ExpectationFailed'
         '429':
           $ref: '#/components/responses/TooManyAttempts'
+        '500':
+          $ref: '#/components/responses/HandlerFailed'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/HandlerTimeout'
+
+  /media-server:
+    put:
+      operationId: pushMediaServer
+      tags: [pairing]
+      x-lint-ignore:
+        - owasp-protection-global-unsafe-strict
+        - owasp-protection-global-unsafe
+      summary: Give the player a media server credential to use on its own behalf.
+      description: |
+        The same credential `POST /pair` may carry, pushed by a controller that is already paired.
+        The player holds credentials in memory and never writes them to disk, so a restarted player
+        has none. Re-pairing would supply one, at the cost of making the user retype the pairing
+        code.
+
+        A controller learns it needs to push by reading `/state`. `sourceHealth.mediaServerUsers`
+        lists the accounts the player holds a credential for, and a controller that does not find
+        its own sends one. It is also how a second household member provisions a speaker somebody
+        else paired, without disturbing the first credential.
+
+        The player holds one credential per account. Pushing again for the same `userId` replaces
+        it, and pushing for a different one adds it alongside. No credential survives a restart.
+
+        Two refusals answer `409`, and neither stores anything. A push naming a different `serverId`
+        than the player already holds would repoint the speaker at another server. A push whose
+        credential does not belong to the `userId` it names fails a check the player makes against
+        the media server, because the account is asserted by the controller and nothing on the wire
+        proves it. A differing `baseUrl` is not refused, because each credential keeps the address
+        the controller that pushed it uses.
+
+        Bodies are capped at 4 KiB and must declare a `Content-Length`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: true
+        description: The credential the player should use for this account.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaServer'
+            example:
+              accessToken: 3d9f0c1b7a5e4826
+              baseUrl: http://jellyfin.local:8096
+              deviceId: atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071
+              serverId: 7e0a5b9c2d4f8613
+              userId: 8b1f2c3d4e5f6071
+      responses:
+        '200':
+          description: |
+            Held. The body names the state version that reports it, so a controller can confirm
+            with `GET /state?since=` without waiting for the next change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaServerAccepted'
+              example:
+                version: 413
+        '400':
+          $ref: '#/components/responses/MediaServerBadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '409':
+          $ref: '#/components/responses/MediaServerConflict'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
         '500':
           $ref: '#/components/responses/HandlerFailed'
         '503':
@@ -338,6 +416,7 @@ paths:
                     artistName: Aphex Twin
                     id: 6f2b8c4d1e9a3705
                     name: Selected Ambient Works
+                  owner: 8b1f2c3d4e5f6071
                   trackIndex: 1
                   tracks:
                     - duration: 293.4
@@ -346,6 +425,8 @@ paths:
                     - duration: 568.1
                       id: 2b3c4d5e6f708192
                       name: Tha
+                sourceHealth:
+                  mediaServerUsers: [8b1f2c3d4e5f6071]
                 version: 412
         '304':
           description: |
@@ -454,6 +535,8 @@ components:
             - invalid_token
             - length_required
             - malformed_body
+            - media_server_id_mismatch
+            - media_server_user_mismatch
             - method_not_allowed
             - not_found
             - not_implemented
@@ -549,10 +632,24 @@ components:
           description: The atolla build the daemon is running.
           examples: ['0.0.0']
 
+    UserId:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: '^[ -~]+$'
+      description: |
+        A media server account. The player keys credentials on this rather than on the controller,
+        so two of one person's phones replace each other instead of provisioning twice. It is also
+        what a play is reported against.
+      examples: [8b1f2c3d4e5f6071]
+
     MediaServer:
       type: object
-      description: A media server credential for the player to use on its own behalf.
-      required: [accessToken, baseUrl, deviceId, userId]
+      description: |
+        A media server credential for the player to use on its own behalf. The player holds one per
+        account and never writes any of them to disk, so `PUT /media-server` pushes it again after
+        a restart.
+      required: [accessToken, baseUrl, deviceId, serverId, userId]
       additionalProperties: true
       properties:
         accessToken:
@@ -567,22 +664,35 @@ components:
           minLength: 1
           maxLength: 512
           format: uri
-          description: Where the media server answers.
+          description: |
+            Where the media server answers, as this controller reaches it. Two controllers may hold
+            different spellings of the same server, one resolved by mDNS and another typed as an
+            address. Each credential keeps its own, and the player uses the one belonging to whoever
+            owns the queue. `serverId` identifies the server.
           examples: ['http://jellyfin.local:8096']
         deviceId:
           type: string
           minLength: 1
           maxLength: 64
           pattern: '^[ -~]+$'
-          description: The device the token was minted against.
-          examples: [atolla-kitchen]
-        userId:
+          description: |
+            The device identity the token was minted against, which carries the account as well as
+            the player: `atolla-<playerId>-<userId>`. The per-user form matters because a media
+            server that revokes by device ends every session sharing one. A shared id would have one
+            household member's re-provisioning sign the others out.
+          examples: [atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071]
+        serverId:
           type: string
           minLength: 1
           maxLength: 64
           pattern: '^[ -~]+$'
-          description: The media server account the token belongs to.
-          examples: [8b1f2c3d4e5f6071]
+          description: |
+            The media server's own identifier, which is what a push is compared against. A player
+            serves one server, and a push naming another is refused with
+            `media_server_id_mismatch`.
+          examples: [7e0a5b9c2d4f8613]
+        userId:
+          $ref: '#/components/schemas/UserId'
 
     PairRequest:
       type: object
@@ -749,6 +859,12 @@ components:
       description: |
         Replace the queue outright and start playing. This is the largest body the API takes, and
         the reason `/command`'s cap is 1 MiB rather than the 4 KiB the other routes get.
+
+        `userId` claims the queue for that account, and the player fetches and reports plays under
+        its credential until the queue is replaced or emptied. Replacing a queue takes ownership
+        outright, unlike `addToQueue` and `playNext`, because the user chose everything in it.
+        Omitting it leaves the queue unowned, which is what a controller that has provisioned
+        nothing sends. A `setQueue` with no tracks clears the owner along with the queue.
       required: [command, tracks]
       additionalProperties: true
       properties:
@@ -769,10 +885,17 @@ components:
           $ref: '#/components/schemas/TrackIndex'
         tracks:
           $ref: '#/components/schemas/Tracks'
+        userId:
+          $ref: '#/components/schemas/UserId'
 
     CommandAddToQueue:
       type: object
-      description: Append tracks to the end of the queue.
+      description: |
+        Append tracks to the end of the queue.
+
+        `userId` claims the queue only when nothing owns it yet. Adding to somebody else's queue
+        does not take it over, so a guest can queue a track without the rest of the evening being
+        reported against their account.
       required: [command, tracks]
       additionalProperties: true
       properties:
@@ -781,10 +904,15 @@ components:
           const: addToQueue
         tracks:
           $ref: '#/components/schemas/Tracks'
+        userId:
+          $ref: '#/components/schemas/UserId'
 
     CommandPlayNext:
       type: object
-      description: Insert tracks directly after the current one, ahead of the rest of the queue.
+      description: |
+        Insert tracks directly after the current one, ahead of the rest of the queue.
+
+        `userId` claims the queue only when nothing owns it yet, as `addToQueue` does.
       required: [command, tracks]
       additionalProperties: true
       properties:
@@ -793,6 +921,8 @@ components:
           const: playNext
         tracks:
           $ref: '#/components/schemas/Tracks'
+        userId:
+          $ref: '#/components/schemas/UserId'
 
     CommandRemoveAt:
       type: object
@@ -899,6 +1029,18 @@ components:
         The version the command produced. `GET /state?since=` with anything lower returns that
         snapshot without blocking, so a controller can read the result of its own command without
         waiting for the next change. It says nothing about what the speakers are doing.
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          $ref: '#/components/schemas/StateVersion'
+
+    MediaServerAccepted:
+      type: object
+      description: |
+        The version the push produced. Bumping it is what tells a controller already long-polling
+        that the player is provisioned. Without that it would sit on `/state` until something else
+        changed.
       required: [version]
       additionalProperties: false
       properties:
@@ -1132,11 +1274,18 @@ components:
               examples: [91234]
         queue:
           type: object
+          description: |
+            What the player is playing through. `owner` is the account the queue belongs to, absent
+            when nothing has claimed it. The leader fetches and reports plays under that account's
+            credential, which is why the owner survives a restart while the credential itself does
+            not.
           required: [trackIndex, tracks]
           additionalProperties: true
           properties:
             album:
               $ref: '#/components/schemas/Album'
+            owner:
+              $ref: '#/components/schemas/UserId'
             trackIndex:
               $ref: '#/components/schemas/TrackIndex'
             tracks:
@@ -1144,6 +1293,27 @@ components:
               maxItems: 10000
               items:
                 $ref: '#/components/schemas/Track'
+        sourceHealth:
+          type: object
+          description: |
+            How the player is placed to reach the media server. An absent member means the player
+            has nothing to say yet, and should not be read as a no.
+          additionalProperties: true
+          properties:
+            mediaServerUsers:
+              type: array
+              maxItems: 64
+              description: |
+                Which accounts the player currently holds a credential for, never the credentials
+                themselves. There is no read path, only `PUT /media-server`. A controller looks for
+                its own account and pushes when it is missing, which is how a player that lost its
+                credentials to a restart gets them back without prompting anyone. Reporting the set
+                rather than a bare boolean keeps one snapshot at one version instead of a body that
+                varies by who asked.
+              items:
+                $ref: '#/components/schemas/UserId'
+              examples:
+                - [8b1f2c3d4e5f6071]
         version:
           $ref: '#/components/schemas/StateVersion'
 
@@ -1167,6 +1337,18 @@ components:
         status: 400
         supported: [1]
         title: unsupported api version
+    mediaServerIdMismatch:
+      description: The push named a different media server than the one the player already holds.
+      value:
+        code: media_server_id_mismatch
+        status: 409
+        title: media server id mismatch
+    mediaServerUserMismatch:
+      description: The pushed credential does not belong to the account it claims.
+      value:
+        code: media_server_user_mismatch
+        status: 409
+        title: media server user mismatch
     invalidPairingCode:
       description: The code did not match, or the daemon has none provisioned.
       value:
@@ -1303,6 +1485,23 @@ components:
             unsupportedApiVersion:
               $ref: '#/components/examples/unsupportedApiVersion'
 
+    MediaServerBadRequest:
+      description: |
+        As `BadRequest`, plus `malformed_body` for a body that is not JSON, is missing a member, or
+        carries one past its cap. Nothing is stored, and the credential the player already holds for
+        this account is left as it was.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            incompleteBody:
+              $ref: '#/components/examples/incompleteBody'
+            malformedBody:
+              $ref: '#/components/examples/malformedBody'
+            unsupportedApiVersion:
+              $ref: '#/components/examples/unsupportedApiVersion'
+
     InvalidPairingCode:
       description: |
         The submitted code is not the provisioned one, or nothing is provisioned. The two are
@@ -1350,6 +1549,27 @@ components:
             methodNotAllowed:
               $ref: '#/components/examples/methodNotAllowed'
 
+    MediaServerConflict:
+      description: |
+        The push is well formed and authenticated, and disagrees with something the player will not
+        overwrite on a controller's say-so. `media_server_id_mismatch` means the player already
+        holds a credential for a different `serverId`, and a speaker serves one household and one
+        server. `media_server_user_mismatch` means the credential does not belong to the `userId` it
+        claims. The player checks that against the media server, because the account is asserted by
+        the controller and a wrong entry is otherwise silent.
+
+        Nothing is stored either way, and any credential already held for that account is left as
+        it was.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            mediaServerIdMismatch:
+              $ref: '#/components/examples/mediaServerIdMismatch'
+            mediaServerUserMismatch:
+              $ref: '#/components/examples/mediaServerUserMismatch'
+
     LengthRequired:
       description: |
         The request used chunked transfer encoding. The daemon refuses a body whose size it cannot
@@ -1365,8 +1585,8 @@ components:
     BodyTooLarge:
       description: |
         The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-        for any request and tighter per route: 4 KiB for `/pair` and `/state`. `/command` takes the
-        full 1 MiB, because a `setQueue` carries the whole queue.
+        for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`.
+        `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
       content:
         application/problem+json:
           schema:
