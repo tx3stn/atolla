@@ -11,6 +11,7 @@ comptime {
     _ = @import("hello.zig");
     _ = @import("http_server.zig");
     _ = @import("log.zig");
+    _ = @import("media_server.zig");
     _ = @import("pair.zig");
     _ = @import("problem.zig");
     _ = @import("random_bytes.zig");

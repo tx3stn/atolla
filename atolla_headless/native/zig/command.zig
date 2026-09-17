@@ -51,6 +51,7 @@ pub const Body = struct {
     toIndex: ?u32 = null,
     trackId: ?[]const u8 = null,
     trackIndex: ?u32 = null,
+    userId: ?[]const u8 = null,
 };
 
 /// The names arrive as text, and `std.json` would otherwise also take a number and select an enum
@@ -64,6 +65,7 @@ const Wire = struct {
     toIndex: ?u32 = null,
     trackId: ?[]const u8 = null,
     trackIndex: ?u32 = null,
+    userId: ?[]const u8 = null,
 };
 
 pub const ParseError = error{Malformed};
@@ -91,10 +93,13 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         .toIndex = wire.toIndex,
         .trackId = wire.trackId,
         .trackIndex = wire.trackIndex,
+        .userId = wire.userId,
     };
 
-    if (parsed.trackId) |id| {
-        if (id.len == 0 or id.len > max_id_bytes) return error.Malformed;
+    for ([_]?[]const u8{ parsed.trackId, parsed.userId }) |value| {
+        if (value) |id| {
+            if (id.len == 0 or id.len > max_id_bytes) return error.Malformed;
+        }
     }
 
     if (parsed.positionMs) |position| {
@@ -295,6 +300,29 @@ test "command: refuses a guard that cannot be a track id" {
     ));
     try testing.expectError(error.Malformed, decoded(
         \\{"command":"removeAt","trackIndex":3,"trackId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    ));
+}
+
+test "command: reads the account claiming a queue" {
+    const body = try decoded(
+        \\{"command":"setQueue","userId":"8b1f2c3d4e5f6071"}
+    );
+
+    try testing.expectEqualStrings("8b1f2c3d4e5f6071", body.userId.?);
+}
+
+test "command: a queue command without an account is legal" {
+    try testing.expectEqual(null, (try decoded(
+        \\{"command":"setQueue"}
+    )).userId);
+}
+
+test "command: refuses an account that cannot be a user id" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"addToQueue","userId":""}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"playNext","userId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
     ));
 }
 

@@ -15,7 +15,8 @@ const PORT = 45992;
 const MEDIA_SERVER = {
 	accessToken: '3d9f0c1b7a5e4826',
 	baseUrl: 'http://jellyfin.local:8096',
-	deviceId: 'atolla-kitchen',
+	deviceId: 'atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071',
+	serverId: '7e0a5b9c2d4f8613',
 	userId: '8b1f2c3d4e5f6071',
 };
 

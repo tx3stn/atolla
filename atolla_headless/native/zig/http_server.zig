@@ -6,6 +6,7 @@ const command = @import("command.zig");
 const credentials = @import("credentials.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
+const media_server = @import("media_server.zig");
 const pair = @import("pair.zig");
 const problem = @import("problem.zig");
 const rate_limit = @import("rate_limit.zig");
@@ -241,6 +242,7 @@ pub const Server = struct {
 
                     if (route == .pair) return self.servePair(request, key, target, body);
                     if (route == .command) return self.serveCommand(request, target, body);
+                    if (route == .media_server) return self.serveMediaServer(request, target, body);
 
                     if (route == .state) {
                         _ = state.since(target) catch {
@@ -335,6 +337,23 @@ pub const Server = struct {
         return self.crossBridge(request, .command, target, body);
     }
 
+    /// As `serveCommand`, the parsed shape is not carried across the bridge: TypeScript needs the
+    /// object anyway, and the body it already receives is the one source.
+    fn serveMediaServer(
+        self: *Server,
+        request: *std.http.Server.Request,
+        target: []const u8,
+        body: []const u8,
+    ) !u16 {
+        var scratch: [media_server.max_body_bytes]u8 = undefined;
+
+        _ = media_server.parse(&scratch, body) catch {
+            return problem.response(request, problem.malformed_body, .{});
+        };
+
+        return self.crossBridge(request, .media_server, target, body);
+    }
+
     fn servePair(
         self: *Server,
         request: *std.http.Server.Request,
@@ -373,6 +392,7 @@ fn bodyLimit(route: router.Route) usize {
         .pair => pair.max_body_bytes,
         .command => command.max_body_bytes,
         .state => unrouted_body_bytes,
+        .media_server => media_server.max_body_bytes,
     };
 }
 
@@ -665,6 +685,18 @@ const authorized = "authorization: Bearer " ++ test_token ++ "\r\n";
 const valid_command_body =
     \\{"command":"pause"}
 ;
+
+const valid_media_server_body =
+    \\{"accessToken":"t","baseUrl":"http://x","deviceId":"d","serverId":"s","userId":"u"}
+;
+
+/// Built rather than written out so the declared length cannot drift from the body.
+fn mediaServerRequest(comptime body: []const u8) []const u8 {
+    return std.fmt.comptimePrint(
+        "PUT /media-server HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+}
 
 /// No route will ever match this, so these tests keep asserting 404 as routes are added.
 const unrouted = "/no-such-route";
@@ -1020,6 +1052,70 @@ test "http_server: hands the handler the body it was sent" {
 
     try testing.expectEqual(200, try connection.status());
     try testing.expectEqualStrings(valid_command_body, stub.seen[0..stub.seen_len]);
+}
+
+test "http_server: hands a media server push to the handler that stores it" {
+    var stub: StubHandler = .{ .status = 200, .body = "{\"version\":413}" };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(mediaServerRequest(valid_media_server_body));
+
+    try testing.expectEqual(200, try connection.status());
+    try testing.expectEqual(@min(valid_media_server_body.len, stub.seen.len), stub.seen_len);
+    try testing.expectEqualStrings(valid_media_server_body[0..stub.seen_len], stub.seen[0..stub.seen_len]);
+}
+
+test "http_server: never dispatches a media server push it cannot parse" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(mediaServerRequest(
+        \\{"baseUrl":"http://x","deviceId":"d","serverId":"s","userId":"u"}
+    ));
+
+    try testing.expect(try connection.contains("400 Bad Request"));
+    try testing.expect(try connection.contains("\"code\":\"malformed_body\""));
+    try testing.expectEqual(never_dispatched, stub.seen_len);
+}
+
+test "http_server: refuses a media server push carrying no token" {
+    var stub: StubHandler = .{ .status = 200, .body = "{}", .seen_len = never_dispatched };
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(std.fmt.comptimePrint(
+        "PUT /media-server HTTP/1.1\r\nHost: t\r\ncontent-length: {d}\r\n\r\n{s}",
+        .{ valid_media_server_body.len, valid_media_server_body },
+    ));
+
+    try testing.expectEqual(401, try connection.status());
+    try testing.expectEqual(never_dispatched, stub.seen_len);
 }
 
 // Over `/state`, since a `/command` body has a shape and an absent one is refused before the

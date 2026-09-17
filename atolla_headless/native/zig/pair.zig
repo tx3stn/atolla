@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const credentials = @import("credentials.zig");
+const media_server = @import("media_server.zig");
 const problem = @import("problem.zig");
 const rate_limit = @import("rate_limit.zig");
 
@@ -10,21 +11,12 @@ pub const max_body_bytes = 4 * 1024;
 const max_code_bytes = 32;
 const max_id_bytes = 64;
 const max_name_bytes = 128;
-const max_token_bytes = 512;
-const max_url_bytes = 512;
-
-pub const MediaServer = struct {
-    accessToken: []const u8,
-    baseUrl: []const u8,
-    deviceId: []const u8,
-    userId: []const u8,
-};
 
 pub const Body = struct {
     code: []const u8,
     controllerId: []const u8,
     controllerName: []const u8,
-    mediaServer: ?MediaServer = null,
+    mediaServer: ?media_server.MediaServer = null,
 };
 
 pub const Outcome = union(enum) {
@@ -114,11 +106,8 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
     if (parsed.controllerId.len == 0 or parsed.controllerId.len > max_id_bytes) return error.Malformed;
     if (parsed.controllerName.len > max_name_bytes) return error.Malformed;
 
-    if (parsed.mediaServer) |media_server| {
-        if (media_server.baseUrl.len == 0 or media_server.baseUrl.len > max_url_bytes) return error.Malformed;
-        if (media_server.userId.len == 0 or media_server.userId.len > max_id_bytes) return error.Malformed;
-        if (media_server.deviceId.len == 0 or media_server.deviceId.len > max_id_bytes) return error.Malformed;
-        if (media_server.accessToken.len == 0 or media_server.accessToken.len > max_token_bytes) return error.Malformed;
+    if (parsed.mediaServer) |provisioning| {
+        media_server.validate(provisioning) catch return error.Malformed;
     }
 
     return parsed;
@@ -145,7 +134,7 @@ const letters_code =
 const provisioned =
     \\{"code":"19524002","controllerId":"phone-1","controllerName":"Phone",
     \\ "mediaServer":{"baseUrl":"http://jellyfin.local:8096","userId":"u1",
-    \\ "accessToken":"tok","deviceId":"d1"}}
+    \\ "accessToken":"tok","deviceId":"d1","serverId":"s1"}}
 ;
 
 fn pointsInto(slice: []const u8, buffer: []const u8) bool {
@@ -176,12 +165,13 @@ test "pair: reads the fields a controller must send" {
 test "pair: reads the provisioning payload when one is sent" {
     var scratch: [max_body_bytes]u8 = undefined;
     const body = try parse(&scratch, provisioned);
-    const media_server = body.mediaServer.?;
+    const provisioning = body.mediaServer.?;
 
-    try testing.expectEqualStrings("http://jellyfin.local:8096", media_server.baseUrl);
-    try testing.expectEqualStrings("u1", media_server.userId);
-    try testing.expectEqualStrings("tok", media_server.accessToken);
-    try testing.expectEqualStrings("d1", media_server.deviceId);
+    try testing.expectEqualStrings("http://jellyfin.local:8096", provisioning.baseUrl);
+    try testing.expectEqualStrings("u1", provisioning.userId);
+    try testing.expectEqualStrings("tok", provisioning.accessToken);
+    try testing.expectEqualStrings("d1", provisioning.deviceId);
+    try testing.expectEqualStrings("s1", provisioning.serverId);
 }
 
 test "pair: a body without a media server is legal" {
@@ -271,7 +261,7 @@ test "pair: refuses a provisioning payload with an empty field" {
         error.Malformed,
         parse(&scratch,
             \\{"code":"1","controllerId":"p","controllerName":"P","mediaServer":{"baseUrl":"",
-            \\ "userId":"u","accessToken":"t","deviceId":"d"}}
+            \\ "userId":"u","accessToken":"t","deviceId":"d","serverId":"s"}}
         ),
     );
 }
