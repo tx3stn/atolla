@@ -21,19 +21,22 @@ interface Calls {
 	expireSession: number;
 	onSessionChanged: Array<AuthSession | null>;
 	setClientDeviceId: Array<string>;
+	setClientDeviceName: Array<string>;
 	showToast: Array<string>;
 }
 
 function makeManager(over?: {
 	authService?: Partial<JellyfinAuthService>;
+	defaultDeviceName?: string;
 	deviceId?: string;
-	deviceIdOverride?: string;
+	deviceName?: string;
 }): { calls: Calls; manager: SessionManager } {
 	const calls: Calls = {
 		applyState: [],
 		expireSession: 0,
 		onSessionChanged: [],
 		setClientDeviceId: [],
+		setClientDeviceName: [],
 		showToast: [],
 	};
 
@@ -53,6 +56,7 @@ function makeManager(over?: {
 		saveSession: () => Promise.resolve(),
 		setClient: () => {},
 		setClientDeviceId: (id: string) => calls.setClientDeviceId.push(id),
+		setClientDeviceName: (name: string) => calls.setClientDeviceName.push(name),
 		setMockMode: () => {},
 		startQuickConnect: () => Promise.resolve({ code: 'CODE', secret: 'SECRET' }),
 		validateSession: () => Promise.resolve(true),
@@ -62,13 +66,14 @@ function makeManager(over?: {
 
 	const preferences = {
 		jellyfinClientDeviceId: over?.deviceId ?? 'atolla-default',
-		jellyfinClientDeviceIdOverride: over?.deviceIdOverride ?? '',
+		jellyfinClientDeviceName: over?.deviceName ?? '',
 	} as unknown as Preferences;
 
 	const deps: SessionManagerDeps = {
 		applyState: (partial) => calls.applyState.push(partial),
 		authService,
 		createHttpClient: () => ({}) as unknown as IHTTPClient,
+		defaultDeviceName: over?.defaultDeviceName ?? 'Pixel 9 Pro',
 		onSessionChanged: (session) => calls.onSessionChanged.push(session),
 		preferences,
 		showToast: (message) => calls.showToast.push(message),
@@ -202,21 +207,31 @@ describe('SessionManager', () => {
 		expect(manager.isSessionExpired()).toBe(false);
 	});
 
-	it('applyDeviceIdOverride normalises, updates the auth client id, and reloads on an active session', async () => {
+	it('applyDeviceName updates the auth client name and reloads on an active session', async () => {
 		const { calls, manager } = makeManager({
 			authService: { loadSession: () => Promise.resolve(makeSession()) },
 		});
 		await manager.loadSession();
 		calls.onSessionChanged.length = 0;
 
-		manager.applyDeviceIdOverride('bad id!@#');
+		manager.applyDeviceName('iPad Pro');
 
-		expect(manager.getEffectiveDeviceId()).toBe('bad_id___');
-		expect(calls.setClientDeviceId).toContain('bad_id___');
+		expect(manager.getEffectiveDeviceName()).toBe('iPad Pro');
+		expect(calls.setClientDeviceName).toContain('iPad Pro');
 		expect(calls.onSessionChanged.length).toBe(1);
 	});
 
-	it('getEffectiveDeviceId falls back to the default with no override', () => {
+	it('getEffectiveDeviceName falls back to the platform model when the user has not named it', () => {
+		const { manager } = makeManager();
+		expect(manager.getEffectiveDeviceName()).toBe('Pixel 9 Pro');
+	});
+
+	it('getEffectiveDeviceName treats a whitespace-only name as unnamed', () => {
+		const { manager } = makeManager({ deviceName: '   ' });
+		expect(manager.getEffectiveDeviceName()).toBe('Pixel 9 Pro');
+	});
+
+	it('getEffectiveDeviceId is the minted id and no longer overridable', () => {
 		const { manager } = makeManager();
 		expect(manager.getEffectiveDeviceId()).toBe('atolla-default');
 	});

@@ -179,39 +179,39 @@ describe('Preferences', () => {
 		});
 	});
 
-	describe('getJellyfinClientDeviceIdOverride()', () => {
-		it('returns empty string when preference is missing', async () => {
+	describe('getJellyfinClientDeviceName()', () => {
+		it('returns empty string when nothing was ever stored', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
 
-			expect(await preferences.getJellyfinClientDeviceIdOverride()).toBe('');
+			expect(await preferences.getJellyfinClientDeviceName()).toBe('');
 		});
 
-		it('returns trimmed value when override exists', async () => {
+		it('returns the stored name', async () => {
 			const store = new InMemoryKeyValueStore();
-			await store.storeString('jellyfin_client_device_id_override', '  profile-a-device  ');
+			await store.storeString('jellyfin_client_device_name', 'iPad Pro');
 			const preferences = new Preferences(store);
 
-			expect(await preferences.getJellyfinClientDeviceIdOverride()).toBe('profile-a-device');
+			expect(await preferences.getJellyfinClientDeviceName()).toBe('iPad Pro');
 		});
 	});
 
-	describe('setJellyfinClientDeviceIdOverride()', () => {
-		it('stores trimmed override value', async () => {
+	describe('setJellyfinClientDeviceName()', () => {
+		it('stores the name as typed so a space between words survives', async () => {
 			const store = new InMemoryKeyValueStore();
 			const preferences = new Preferences(store);
 
-			await preferences.setJellyfinClientDeviceIdOverride('  custom-device  ');
+			await preferences.setJellyfinClientDeviceName('Pixel 9 ');
 
-			expect(await store.fetchString('jellyfin_client_device_id_override')).toBe('custom-device');
+			expect(await store.fetchString('jellyfin_client_device_name')).toBe('Pixel 9 ');
 		});
 
-		it('stores empty string when override is cleared', async () => {
+		it('stores empty string when the name is cleared', async () => {
 			const store = new InMemoryKeyValueStore();
 			const preferences = new Preferences(store);
 
-			await preferences.setJellyfinClientDeviceIdOverride('');
+			await preferences.setJellyfinClientDeviceName('');
 
-			expect(await store.fetchString('jellyfin_client_device_id_override')).toBe('');
+			expect(await store.fetchString('jellyfin_client_device_name')).toBe('');
 		});
 	});
 
@@ -434,12 +434,12 @@ describe('Preferences', () => {
 			expect(notifications).toBe(0);
 		});
 
-		it('normalises and exposes the device-id override synchronously', async () => {
+		it('exposes the device name synchronously', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
 
-			await preferences.setJellyfinClientDeviceIdOverride('  custom-device  ');
+			await preferences.setJellyfinClientDeviceName('iPad Pro');
 
-			expect(preferences.jellyfinClientDeviceIdOverride).toBe('custom-device');
+			expect(preferences.jellyfinClientDeviceName).toBe('iPad Pro');
 		});
 	});
 

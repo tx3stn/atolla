@@ -373,7 +373,10 @@
 	"settings_device_id": {
 		"defaultMessage": "identifiant de l'appareil"
 	},
-	"settings_device_id_placeholder": {
+	"settings_device_name": {
+		"defaultMessage": "nom de l'appareil"
+	},
+	"settings_device_name_placeholder": {
 		"defaultMessage": "atolla"
 	},
 	"settings_download_on_wifi": {

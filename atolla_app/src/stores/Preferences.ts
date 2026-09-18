@@ -22,6 +22,7 @@ const PreferenceKeys = {
 	includeLyricsInDownloads: 'include_lyrics_in_downloads',
 	jellyfinClientDeviceId: 'jellyfin_client_device_id',
 	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
+	jellyfinClientDeviceName: 'jellyfin_client_device_name',
 	language: 'language',
 	mode: 'mode',
 	navigationAnimationsEnabled: 'navigation_animations_enabled',
@@ -67,7 +68,7 @@ export class Preferences {
 	private _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
 	private _includeLyricsInDownloads = false;
 	private _jellyfinClientDeviceId = '';
-	private _jellyfinClientDeviceIdOverride = '';
+	private _jellyfinClientDeviceName = '';
 	private _language: LanguageCode = DEFAULT_LANGUAGE;
 	private _mode: ConnectionMode = ConnectionModes.offline;
 	private _onThisDayLookaheadDays = DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS;
@@ -127,8 +128,8 @@ export class Preferences {
 		return this._jellyfinClientDeviceId;
 	}
 
-	get jellyfinClientDeviceIdOverride(): string {
-		return this._jellyfinClientDeviceIdOverride;
+	get jellyfinClientDeviceName(): string {
+		return this._jellyfinClientDeviceName;
 	}
 
 	get language(): LanguageCode {
@@ -223,9 +224,20 @@ export class Preferences {
 		return generated;
 	}
 
-	async getJellyfinClientDeviceIdOverride(): Promise<string> {
+	async getJellyfinClientDeviceName(): Promise<string> {
 		try {
-			return (await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceIdOverride)).trim();
+			if ((await this.store.exists?.(PreferenceKeys.jellyfinClientDeviceName)) ?? false) {
+				return await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceName);
+			}
+
+			const carried = (
+				await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceIdOverride)
+			).trim();
+			if (carried.length > 0) {
+				await this.store.storeString(PreferenceKeys.jellyfinClientDeviceName, carried);
+			}
+
+			return carried;
 		} catch {
 			return '';
 		}
@@ -299,7 +311,7 @@ export class Preferences {
 			imageCacheMaxBytes,
 			includeLyricsInDownloads,
 			jellyfinClientDeviceId,
-			jellyfinClientDeviceIdOverride,
+			jellyfinClientDeviceName,
 			language,
 			mode,
 			onThisDayLookaheadDays,
@@ -313,7 +325,7 @@ export class Preferences {
 			this.getImageCacheMaxBytes(),
 			this.getIncludeLyricsInDownloads(),
 			this.getJellyfinClientDeviceId(),
-			this.getJellyfinClientDeviceIdOverride(),
+			this.getJellyfinClientDeviceName(),
 			this.getLanguage(),
 			this.getMode(),
 			this.getOnThisDayLookaheadDays(),
@@ -327,7 +339,7 @@ export class Preferences {
 		this._imageCacheMaxBytes = imageCacheMaxBytes;
 		this._includeLyricsInDownloads = includeLyricsInDownloads;
 		this._jellyfinClientDeviceId = jellyfinClientDeviceId;
-		this._jellyfinClientDeviceIdOverride = jellyfinClientDeviceIdOverride;
+		this._jellyfinClientDeviceName = jellyfinClientDeviceName;
 		this._language = language;
 		this._mode = mode;
 		this._onThisDayLookaheadDays = onThisDayLookaheadDays;
@@ -389,13 +401,12 @@ export class Preferences {
 		return this.store.storeString(PreferenceKeys.includeLyricsInDownloads, String(enabled));
 	}
 
-	setJellyfinClientDeviceIdOverride(value: string): Promise<void> {
-		const normalized = value.trim();
-		if (this._jellyfinClientDeviceIdOverride !== normalized) {
-			this._jellyfinClientDeviceIdOverride = normalized;
+	setJellyfinClientDeviceName(value: string): Promise<void> {
+		if (this._jellyfinClientDeviceName !== value) {
+			this._jellyfinClientDeviceName = value;
 			this.notify();
 		}
-		return this.store.storeString(PreferenceKeys.jellyfinClientDeviceIdOverride, normalized);
+		return this.store.storeString(PreferenceKeys.jellyfinClientDeviceName, value);
 	}
 
 	setLanguage(code: LanguageCode): Promise<void> {

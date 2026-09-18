@@ -96,6 +96,7 @@ function makeConnectivity(over?: {
 			return Promise.resolve();
 		},
 		getEffectiveDeviceId: () => 'atolla-default',
+		getEffectiveDeviceName: () => 'Pixel 9 Pro',
 		getHttpClient: () => over?.httpClient ?? ({} as unknown as IHTTPClient),
 		getSession: () => session,
 		isSessionExpired: () => sessionExpired,

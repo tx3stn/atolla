@@ -157,33 +157,45 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 							</view>
 						)}
 						<view style={styles.settingRow}>
-							<label style={styles.settingLabel} value={Strings.settingsServerName()} />
-							<view style={styles.authDeviceIdInlineInputContainer}>
+							<label style={styles.authFieldLabel} value={Strings.settingsServerName()} />
+							<view style={styles.authFieldInputContainer}>
 								<textfield
 									accessibilityId='settings-jellyfin-server-name-input'
 									accessibilityLabel='settings-jellyfin-server-name-input'
 									enabled={false}
 									font={theme.text.main.font}
-									style={styles.authDeviceIdInput}
+									style={styles.authFieldInputReadOnly}
 									value={serverName}
 								/>
 							</view>
 						</view>
 						<view style={styles.settingRow}>
-							<label style={styles.settingLabel} value={Strings.settingsDeviceId()} />
-							<view style={styles.authDeviceIdInlineInputContainer}>
+							<label style={styles.authFieldLabel} value={Strings.settingsDeviceId()} />
+							<view style={styles.authFieldInputContainer}>
 								<textfield
 									accessibilityId='settings-jellyfin-device-id-input'
 									accessibilityLabel='settings-jellyfin-device-id-input'
-									autocapitalization='none'
+									enabled={false}
 									font={theme.text.main.font}
-									onChange={this.handleDeviceIdInputChange}
+									style={styles.authFieldInputReadOnly}
+									value={this.viewModel.sessionController.defaultDeviceId()}
+								/>
+							</view>
+						</view>
+						<view style={styles.settingRow}>
+							<label style={styles.authFieldLabel} value={Strings.settingsDeviceName()} />
+							<view style={styles.authFieldInputContainer}>
+								<textfield
+									accessibilityId='settings-jellyfin-device-name-input'
+									accessibilityLabel='settings-jellyfin-device-name-input'
+									font={theme.text.main.font}
+									onChange={this.handleDeviceNameInputChange}
 									placeholder={
-										this.viewModel.sessionController.defaultDeviceId() ||
-										Strings.settingsDeviceIdPlaceholder()
+										this.viewModel.sessionController.defaultDeviceName() ||
+										Strings.settingsDeviceNamePlaceholder()
 									}
-									style={styles.authDeviceIdInput}
-									value={this.viewModel.preferences.jellyfinClientDeviceIdOverride ?? ''}
+									style={styles.authFieldInput}
+									value={this.viewModel.preferences.jellyfinClientDeviceName ?? ''}
 								/>
 							</view>
 						</view>
@@ -478,10 +490,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		Logger.setEnabled(enabled);
 	};
 
-	private handleDeviceIdInputChange = (value: unknown): void => {
-		const normalized = this.normalizeDeviceId(normalizeInputValue(value));
-		void this.viewModel.preferences.setJellyfinClientDeviceIdOverride(normalized);
-		this.viewModel.sessionController.applyDeviceIdOverride(normalized);
+	private handleDeviceNameInputChange = (value: unknown): void => {
+		const name = normalizeInputValue(value);
+		void this.viewModel.preferences.setJellyfinClientDeviceName(name);
+		this.viewModel.sessionController.applyDeviceName(name);
 	};
 
 	private handleDownloadOnWifiToggle = (enabled: boolean): void => {
@@ -559,14 +571,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		this.applyTrackCacheLimit(count);
 		this.refreshTrackCachedCount();
 	};
-
-	private normalizeDeviceId(value: string): string {
-		const trimmed = value.trim();
-		if (trimmed.length === 0) {
-			return '';
-		}
-		return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-	}
 
 	private refreshNativeCacheStats(): void {
 		try {
@@ -706,18 +710,30 @@ function normalizeInputValue(value: unknown): string {
 }
 
 const styles = {
-	authDeviceIdInlineInputContainer: new Style<View>({
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.radius.pill,
-		flexBasis: 0,
-		flexGrow: 1,
-		marginLeft: theme.scale(10),
-		padding: theme.padding.pill,
-	}),
-	authDeviceIdInput: new Style<TextField>({
+	authFieldInput: new Style<TextField>({
 		...theme.text.main,
 		marginLeft: theme.scale(10),
 		width: '100%',
+	}),
+	authFieldInputContainer: new Style<View>({
+		backgroundColor: theme.colors.bgAccent,
+		borderRadius: theme.radius.pill,
+		flexBasis: 0,
+		flexGrow: 65,
+		marginLeft: theme.scale(10),
+		padding: theme.padding.pill,
+	}),
+	authFieldInputReadOnly: new Style<TextField>({
+		...theme.text.main,
+		color: theme.colors.grey,
+		marginLeft: theme.scale(10),
+		width: '100%',
+	}),
+	authFieldLabel: new Style<Label>({
+		...theme.text.sub,
+		flexBasis: 0,
+		flexGrow: 35,
+		marginLeft: theme.scale(4),
 	}),
 	httpWarningCallout: new Style<View>({
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),

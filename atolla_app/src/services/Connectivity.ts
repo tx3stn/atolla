@@ -42,8 +42,8 @@ export class Connectivity {
 
 	constructor(private readonly deps: ConnectivityDeps) {}
 
-	applyDeviceIdOverride(value: string): void {
-		this.deps.sessionManager.applyDeviceIdOverride(value);
+	applyDeviceName(value: string): void {
+		this.deps.sessionManager.applyDeviceName(value);
 	}
 
 	// cold-start: adopt the persisted mode and stand up the transport for the restored session.
@@ -223,6 +223,7 @@ export class Connectivity {
 				this.deps.sessionManager.getHttpClient(),
 				{
 					clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId(),
+					clientDeviceName: this.deps.sessionManager.getEffectiveDeviceName(),
 					onSessionExpired: () => this.handleSessionExpired(generation),
 					resolveCachedImage: this.deps.resolveCachedImage,
 				},

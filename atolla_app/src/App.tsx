@@ -83,6 +83,14 @@ const MINIMUM_BOOT_SPLASH_MS = 100;
 
 const log = getLogger('app');
 
+function defaultDeviceName(): string {
+	try {
+		return Device.getModel().trim();
+	} catch {
+		return '';
+	}
+}
+
 interface AppState {
 	authErrorMessage: InternalError<string> | null;
 	connectionMode: ConnectionMode;
@@ -207,6 +215,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		applyState: (partial) => this.applyConnectionState(partial),
 		authService: this.authService,
 		createHttpClient: (baseUrl) => new HTTPClient(baseUrl),
+		defaultDeviceName: defaultDeviceName(),
 		onSessionChanged: (session) => this.connectivity.handleSessionChanged(session),
 		preferences: this.preferences,
 		showToast: (message) => this.toastService.show({ message, variant: ToastTypes.error }),
@@ -311,9 +320,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		this.playbackOrchestrator.start();
 		this.sessionController.register({
-			applyDeviceIdOverride: (value) => this.connectivity.applyDeviceIdOverride(value),
+			applyDeviceName: (value) => this.connectivity.applyDeviceName(value),
 			connectionMode: () => this.state.connectionMode,
 			defaultDeviceId: () => this.preferences.jellyfinClientDeviceId,
+			defaultDeviceName: () => defaultDeviceName(),
 			expireSession: () => this.connectivity.expireSession(),
 			logout: () => this.connectivity.logout(),
 			requestModeChange: (mode) => this.connectivity.setMode(mode),

@@ -1,9 +1,10 @@
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 
 export interface SessionHandle {
-	applyDeviceIdOverride(value: string): void;
+	applyDeviceName(value: string): void;
 	connectionMode(): ConnectionMode;
 	defaultDeviceId(): string;
+	defaultDeviceName(): string;
 	expireSession(): void;
 	logout(): void;
 	requestModeChange(mode: ConnectionMode): Promise<boolean>;
@@ -17,8 +18,8 @@ export interface SessionHandle {
 export class SessionController {
 	private handle?: SessionHandle;
 
-	applyDeviceIdOverride(value: string): void {
-		this.handle?.applyDeviceIdOverride(value);
+	applyDeviceName(value: string): void {
+		this.handle?.applyDeviceName(value);
 	}
 
 	connectionMode(): ConnectionMode {
@@ -27,6 +28,10 @@ export class SessionController {
 
 	defaultDeviceId(): string {
 		return this.handle?.defaultDeviceId() ?? '';
+	}
+
+	defaultDeviceName(): string {
+		return this.handle?.defaultDeviceName() ?? '';
 	}
 
 	expireSession(): void {

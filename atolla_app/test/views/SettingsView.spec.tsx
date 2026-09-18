@@ -39,7 +39,7 @@ function mockPreferences() {
 }
 
 interface SessionCalls {
-	applyDeviceIdOverride: Array<string>;
+	applyDeviceName: Array<string>;
 	expireSession: number;
 	logout: number;
 	requestModeChange: Array<ConnectionMode>;
@@ -48,20 +48,22 @@ interface SessionCalls {
 function makeSessionController(info?: {
 	connectionMode?: ConnectionMode;
 	defaultDeviceId?: string;
+	defaultDeviceName?: string;
 	serverName?: string;
 	serverUrl?: string;
 }): { calls: SessionCalls; controller: SessionController } {
 	const calls: SessionCalls = {
-		applyDeviceIdOverride: [],
+		applyDeviceName: [],
 		expireSession: 0,
 		logout: 0,
 		requestModeChange: [],
 	};
 	const controller = new SessionController();
 	controller.register({
-		applyDeviceIdOverride: (value) => calls.applyDeviceIdOverride.push(value),
+		applyDeviceName: (value) => calls.applyDeviceName.push(value),
 		connectionMode: () => info?.connectionMode ?? ConnectionModes.online,
 		defaultDeviceId: () => info?.defaultDeviceId ?? 'atolla-test',
+		defaultDeviceName: () => info?.defaultDeviceName ?? 'Pixel 9 Pro',
 		expireSession: () => {
 			calls.expireSession += 1;
 		},
@@ -155,7 +157,7 @@ describe('SettingsView', () => {
 	);
 
 	valdiIt(
-		'writes the device id to preferences and applies it via the session controller',
+		'writes the device name to preferences and applies it via the session controller',
 		async (driver) => {
 			const preferences = mockPreferences();
 			const { calls, controller } = makeSessionController();
@@ -165,27 +167,29 @@ describe('SettingsView', () => {
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.TextField)
 				.find(
 					(field) =>
-						field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
+						field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-name-input',
 				)
-				?.getAttribute('onChange')?.(editTextEvent('custom-profile-device'));
+				?.getAttribute('onChange')?.(editTextEvent('iPad Pro'));
 
-			expect(preferences.jellyfinClientDeviceIdOverride).toBe('custom-profile-device');
-			expect(calls.applyDeviceIdOverride).toEqual(['custom-profile-device']);
+			expect(preferences.jellyfinClientDeviceName).toBe('iPad Pro');
+			expect(calls.applyDeviceName).toEqual(['iPad Pro']);
 		},
 	);
 
-	valdiIt('normalises disallowed characters in the device id before storing', async (driver) => {
-		const preferences = mockPreferences();
-		const viewModel = makeViewModel({ preferences });
+	valdiIt('shows the minted device id as a read-only field', async (driver) => {
+		const { controller } = makeSessionController({ defaultDeviceId: 'atolla-9f3a1c' });
+		const viewModel = makeViewModel({ sessionController: controller });
 		const component = driver.renderComponent(SettingsView, viewModel, undefined);
 
-		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.TextField)
-			.find(
-				(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
-			)
-			?.getAttribute('onChange')?.(editTextEvent('bad id!@#'));
+		const deviceIdField = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		).find(
+			(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
+		);
 
-		expect(preferences.jellyfinClientDeviceIdOverride).toBe('bad_id___');
+		expect(deviceIdField?.getAttribute('value')).toBe('atolla-9f3a1c');
+		expect(deviceIdField?.getAttribute('enabled')).toBe(false);
 	});
 
 	valdiIt('writes the selected card size to preferences', async (driver) => {

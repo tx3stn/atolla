@@ -4,9 +4,10 @@ import { SessionController, type SessionHandle } from './SessionController';
 
 function makeHandle(overrides: Partial<SessionHandle> = {}): SessionHandle {
 	return {
-		applyDeviceIdOverride: () => {},
+		applyDeviceName: () => {},
 		connectionMode: () => ConnectionModes.offline,
 		defaultDeviceId: () => '',
+		defaultDeviceName: () => '',
 		expireSession: () => {},
 		logout: () => {},
 		requestModeChange: () => Promise.resolve(true),
@@ -67,20 +68,20 @@ describe('SessionController', () => {
 		expect(result).toBe(true);
 	});
 
-	it('forwards applyDeviceIdOverride to the handle', () => {
+	it('forwards applyDeviceName to the handle', () => {
 		const controller = new SessionController();
 		let applied = '';
 		controller.register(
 			makeHandle({
-				applyDeviceIdOverride: (value) => {
+				applyDeviceName: (value) => {
 					applied = value;
 				},
 			}),
 		);
 
-		controller.applyDeviceIdOverride('device-x');
+		controller.applyDeviceName('iPad Pro');
 
-		expect(applied).toBe('device-x');
+		expect(applied).toBe('iPad Pro');
 	});
 
 	it('exposes server and device info from the handle', () => {
@@ -89,6 +90,7 @@ describe('SessionController', () => {
 			makeHandle({
 				connectionMode: () => ConnectionModes.online,
 				defaultDeviceId: () => 'dev-1',
+				defaultDeviceName: () => 'Pixel 9 Pro',
 				serverName: () => 'Home',
 				serverUrl: () => 'https://server',
 			}),
@@ -97,6 +99,7 @@ describe('SessionController', () => {
 		expect(controller.serverName()).toBe('Home');
 		expect(controller.serverUrl()).toBe('https://server');
 		expect(controller.defaultDeviceId()).toBe('dev-1');
+		expect(controller.defaultDeviceName()).toBe('Pixel 9 Pro');
 		expect(controller.connectionMode()).toBe(ConnectionModes.online);
 	});
 
@@ -105,11 +108,12 @@ describe('SessionController', () => {
 
 		expect(() => controller.logout()).not.toThrow();
 		expect(() => controller.expireSession()).not.toThrow();
-		expect(() => controller.applyDeviceIdOverride('x')).not.toThrow();
+		expect(() => controller.applyDeviceName('x')).not.toThrow();
 		expect(await controller.requestModeChange(ConnectionModes.offline)).toBe(false);
 		expect(controller.serverName()).toBe('');
 		expect(controller.serverUrl()).toBe('');
 		expect(controller.defaultDeviceId()).toBe('');
+		expect(controller.defaultDeviceName()).toBe('');
 		expect(controller.connectionMode()).toBe(ConnectionModes.offline);
 	});
 

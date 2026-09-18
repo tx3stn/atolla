@@ -59,6 +59,7 @@ function makeConnectivity(opts?: {
 			return Promise.resolve();
 		},
 		getEffectiveDeviceId: () => 'dev-1',
+		getEffectiveDeviceName: () => 'Pixel 9 Pro',
 		getHttpClient: () => opts?.httpClient ?? ({} as unknown as IHTTPClient),
 		getSession: () => session,
 	} as unknown as SessionManager;

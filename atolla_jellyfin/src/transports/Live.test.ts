@@ -1280,11 +1280,11 @@ describe('LiveTransport auth headers', () => {
 	it('identifies the client with the name and id it was configured with', async () => {
 		const headers = await headersFromOneRequest({
 			clientDeviceId: 'atolla-9f3a1c',
-			clientDeviceName: "Kitchen's iPad",
+			clientDeviceName: 'Pixel 9 Pro',
 		});
 
 		expect(headers?.Authorization).toContain('Client="atolla"');
-		expect(headers?.Authorization).toContain('Device="Kitchen\'s iPad"');
+		expect(headers?.Authorization).toContain('Device="Pixel 9 Pro"');
 		expect(headers?.Authorization).toContain('DeviceId="atolla-9f3a1c"');
 		expect(headers?.Authorization).toContain('Version="');
 		expect(headers?.Authorization).toContain('Token="token-1"');

@@ -146,11 +146,11 @@ describe('client identity', () => {
 		await makeService({
 			client,
 			clientDeviceId: 'atolla-9f3a1c',
-			clientDeviceName: "Kitchen's iPad",
+			clientDeviceName: 'Pixel 9 Pro',
 		}).startQuickConnect();
 
 		expect(calls[0].headers?.Authorization).toContain('DeviceId="atolla-9f3a1c"');
-		expect(calls[0].headers?.Authorization).toContain('Device="Kitchen\'s iPad"');
+		expect(calls[0].headers?.Authorization).toContain('Device="Pixel 9 Pro"');
 	});
 
 	it('setClientDeviceId updates the id used in subsequent requests', async () => {
@@ -167,10 +167,10 @@ describe('client identity', () => {
 		const { calls, client } = quickConnectClient();
 		const service = makeService({ client });
 
-		service.setClientDeviceName('Front Room Speaker');
+		service.setClientDeviceName('iPad Pro');
 		await service.startQuickConnect();
 
-		expect(calls[0].headers?.Authorization).toContain('Device="Front Room Speaker"');
+		expect(calls[0].headers?.Authorization).toContain('Device="iPad Pro"');
 	});
 
 	it('carries the token in the authorization header on an authenticated call', async () => {

@@ -23,7 +23,10 @@ export interface SessionManagerDeps {
 	// builds the per-server HTTP client at the connect/bootstrap seam. injected so this service
 	// stays free of valdi value imports and remains unit-testable (valdi imports need bazel).
 	createHttpClient(baseUrl?: string): IHTTPClient;
-	// the current session changed (login / clear / device-id reload) — connectivity rebuilds transport
+	// what the device reports itself as when the user has not named it — the platform's model
+	// string, resolved at the composition root so this service stays free of valdi value imports
+	defaultDeviceName: string;
+	// the current session changed (login / clear / identity reload) — connectivity rebuilds transport
 	onSessionChanged(session: AuthSession | null): void;
 	preferences: Preferences;
 	showToast(message: string): void;
@@ -35,7 +38,7 @@ export interface SessionManagerDeps {
 export class SessionManager {
 	private currentClient: IHTTPClient;
 	private currentSession: AuthSession | null = null;
-	private deviceIdOverride = '';
+	private deviceName = '';
 	private sessionExpired = false;
 	// bumped by cancelLogin and by each new attempt, so a superseded or canceled login can neither
 	// write render state nor adopt a session it no longer owns
@@ -45,12 +48,13 @@ export class SessionManager {
 		this.currentClient = deps.createHttpClient();
 	}
 
-	// device-id is an auth credential: update it on the auth service, then signal so connectivity can
-	// reload the live transport with the new id (the settings view persists the value to Preferences)
-	applyDeviceIdOverride(value: string): void {
-		this.deviceIdOverride = this.normalizeDeviceId(value);
+	// the device name is part of the client identity every request reports: update it on the auth
+	// service, then signal so connectivity can reload the live transport with the new name (the
+	// settings view persists the value to Preferences)
+	applyDeviceName(value: string): void {
+		this.deviceName = value;
 
-		this.deps.authService.setClientDeviceId(this.getEffectiveDeviceId());
+		this.deps.authService.setClientDeviceName(this.getEffectiveDeviceName());
 		if (this.currentSession != null) {
 			this.deps.onSessionChanged(this.currentSession);
 		}
@@ -95,7 +99,11 @@ export class SessionManager {
 	}
 
 	getEffectiveDeviceId(): string {
-		return this.deviceIdOverride || this.deps.preferences.jellyfinClientDeviceId;
+		return this.deps.preferences.jellyfinClientDeviceId;
+	}
+
+	getEffectiveDeviceName(): string {
+		return this.deviceName.trim() || this.deps.defaultDeviceName;
 	}
 
 	getHttpClient(): IHTTPClient {
@@ -113,10 +121,9 @@ export class SessionManager {
 	// cold-start: apply the persisted device id, restore any saved session, prime the remembered
 	// server url. Returns the session (or null) for Connectivity to build the matching transport.
 	async loadSession(): Promise<AuthSession | null> {
-		this.deviceIdOverride = this.normalizeDeviceId(
-			this.deps.preferences.jellyfinClientDeviceIdOverride,
-		);
+		this.deviceName = this.deps.preferences.jellyfinClientDeviceName;
 		this.deps.authService.setClientDeviceId(this.getEffectiveDeviceId());
+		this.deps.authService.setClientDeviceName(this.getEffectiveDeviceName());
 		const [session, rememberedServerUrl, sessionExpired] = await Promise.all([
 			this.deps.authService.loadSession(),
 			this.deps.authService.loadRememberedServerUrl(),
@@ -212,13 +219,5 @@ export class SessionManager {
 	private bindHttpClient(serverUrl: string): void {
 		this.currentClient = this.deps.createHttpClient(normalizeServerUrl(serverUrl));
 		this.deps.authService.setClient(this.currentClient);
-	}
-
-	private normalizeDeviceId(value: string): string {
-		const trimmed = value.trim();
-		if (trimmed.length === 0) {
-			return '';
-		}
-		return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
 	}
 }
