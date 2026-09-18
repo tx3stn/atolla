@@ -66,16 +66,16 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 
 		await this.store.storeString('session', JSON.stringify(session));
 		await this.rememberServerUrl(session.serverUrl);
-		await this.store.remove('session_expired');
+		await this.removeIfPresent('session_expired');
 	}
 
 	async clearSession(): Promise<void> {
-		await this.store.remove('session');
-		await this.store.remove('session_expired');
+		await this.removeIfPresent('session');
+		await this.removeIfPresent('session_expired');
 	}
 
 	async expireSession(): Promise<void> {
-		await this.store.remove('session');
+		await this.removeIfPresent('session');
 		await this.store.storeString('session_expired', 'true');
 	}
 
@@ -96,6 +96,12 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 			return await this.store.fetchString('server_url');
 		} catch {
 			return '';
+		}
+	}
+
+	private async removeIfPresent(key: string): Promise<void> {
+		if (await this.store.exists(key)) {
+			await this.store.remove(key);
 		}
 	}
 }

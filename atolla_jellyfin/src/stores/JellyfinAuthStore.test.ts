@@ -5,6 +5,10 @@ import { InMemoryAuthStore, JellyfinAuthStore, type StoredAuthSession } from './
 class MockPersistentStore {
 	readonly values = new Map<string, string>();
 
+	exists(key: string): Promise<boolean> {
+		return Promise.resolve(this.values.has(key));
+	}
+
 	fetchString(key: string): Promise<string> {
 		const value = this.values.get(key);
 		if (value == null) {
@@ -13,13 +17,16 @@ class MockPersistentStore {
 		return Promise.resolve(value);
 	}
 
-	storeString(key: string, value: string): Promise<void> {
-		this.values.set(key, value);
+	remove(key: string): Promise<void> {
+		if (!this.values.has(key)) {
+			return Promise.reject(new Error(`did not find item '${key}'`));
+		}
+		this.values.delete(key);
 		return Promise.resolve();
 	}
 
-	remove(key: string): Promise<void> {
-		this.values.delete(key);
+	storeString(key: string, value: string): Promise<void> {
+		this.values.set(key, value);
 		return Promise.resolve();
 	}
 }
@@ -65,6 +72,14 @@ describe('JellyfinAuthStore', () => {
 	});
 
 	describe('saveSession', () => {
+		it('signs in on a fresh install, where no key has ever been written', async () => {
+			const { store, backing } = createStore();
+
+			await store.saveSession(validSession);
+
+			expect(backing.values.has('session')).toBe(true);
+		});
+
 		it('persists the session and the normalized server url', async () => {
 			const { store, backing } = createStore();
 			await store.saveSession(validSession);
