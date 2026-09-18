@@ -26,7 +26,7 @@ export interface ConnectivityDeps {
 	preferences: Preferences;
 	resolveCachedImage: ResolveCachedImage;
 	sessionManager: SessionManager;
-	setNativeAuthToken(token: string): void;
+	setNativeAuthHeader(header: string): void;
 }
 
 // connection state machine: owns the online/offline/mock mode and the active transport, which is
@@ -212,8 +212,10 @@ export class Connectivity {
 
 	private rebuildTransport(session: AuthSession | null): void {
 		const generation = ++this.transportGeneration;
-		this.deps.setNativeAuthToken(
-			this.mode === ConnectionModes.online && session != null ? session.accessToken : '',
+		this.deps.setNativeAuthHeader(
+			this.mode === ConnectionModes.online && session != null
+				? this.deps.sessionManager.getAuthHeader()
+				: '',
 		);
 		if (this.mode === ConnectionModes.online && session != null) {
 			this.transport = new LiveTransport(

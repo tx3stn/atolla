@@ -2,6 +2,7 @@ import Strings from 'atolla_app/src/Strings';
 import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { type InternalError, isErrorConst } from 'atolla_core/src/utils/Errors';
+import { createClientHeader } from 'atolla_jellyfin/src/ClientIdentity';
 import {
 	type JellyfinAuthService,
 	normalizeServerUrl,
@@ -23,8 +24,6 @@ export interface SessionManagerDeps {
 	// builds the per-server HTTP client at the connect/bootstrap seam. injected so this service
 	// stays free of valdi value imports and remains unit-testable (valdi imports need bazel).
 	createHttpClient(baseUrl?: string): IHTTPClient;
-	// what the device reports itself as when the user has not named it — the platform's model
-	// string, resolved at the composition root so this service stays free of valdi value imports
 	defaultDeviceName: string;
 	// the current session changed (login / clear / identity reload) — connectivity rebuilds transport
 	onSessionChanged(session: AuthSession | null): void;
@@ -48,9 +47,6 @@ export class SessionManager {
 		this.currentClient = deps.createHttpClient();
 	}
 
-	// the device name is part of the client identity every request reports: update it on the auth
-	// service, then signal so connectivity can reload the live transport with the new name (the
-	// settings view persists the value to Preferences)
 	applyDeviceName(value: string): void {
 		this.deviceName = value;
 
@@ -96,6 +92,13 @@ export class SessionManager {
 
 	getAccessToken(): string {
 		return this.currentSession?.accessToken ?? '';
+	}
+
+	getAuthHeader(): string {
+		return createClientHeader(
+			{ deviceId: this.getEffectiveDeviceId(), deviceName: this.getEffectiveDeviceName() },
+			this.getAccessToken(),
+		);
 	}
 
 	getEffectiveDeviceId(): string {

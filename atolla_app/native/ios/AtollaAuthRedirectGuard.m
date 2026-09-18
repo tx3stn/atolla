@@ -40,7 +40,6 @@ BOOL AtollaRedirectKeepsAuth(NSURL *_Nullable server, NSURL *_Nullable target) {
         return;
     }
     NSMutableURLRequest *sanitized = [request mutableCopy];
-    [sanitized setValue:nil forHTTPHeaderField:@"X-Emby-Token"];
     [sanitized setValue:nil forHTTPHeaderField:@"Authorization"];
     completionHandler(sanitized);
 }

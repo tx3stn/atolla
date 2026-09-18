@@ -7,7 +7,7 @@ import {
 import { NATIVE_CACHE_UNAUTHORIZED } from './NativeCacheResult';
 
 export interface IDownloadNativeWorker {
-	cacheDownloadedTrack(trackId: string, url: string, authToken: string): Promise<void>;
+	cacheDownloadedTrack(trackId: string, url: string, authHeader: string): Promise<void>;
 	removeDownloadedTrack(trackId: string): Promise<void>;
 	removeDownloadedTracks(trackIds: Array<string>): Promise<void>;
 }
@@ -21,9 +21,9 @@ function waitForNextTick(): Promise<void> {
 }
 
 class DownloadNativeWorkerImpl implements IDownloadNativeWorker {
-	cacheDownloadedTrack(trackId: string, url: string, authToken: string): Promise<void> {
+	cacheDownloadedTrack(trackId: string, url: string, authHeader: string): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, authToken, (source) => {
+			cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, authHeader, (source) => {
 				if (source === NATIVE_CACHE_UNAUTHORIZED) {
 					reject(new Error(NATIVE_CACHE_UNAUTHORIZED));
 					return;

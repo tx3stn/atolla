@@ -61,8 +61,8 @@ export interface NowPlayingPaletteQueue {
 export interface PlaybackOrchestratorDeps {
 	cacheAlbumArt: (id: string, imageUrl: string) => Promise<void>;
 	downloads: DownloadedTrackSource;
-	getAccessToken: () => string;
 	getAudioFileUrl: (trackId: string) => string | null;
+	getAuthHeader: () => string;
 	getTrackCacheMaxTracks: () => number;
 	getTrackCacheUrl: (trackId: string) => string | null;
 	getTransportToken: () => unknown;
@@ -99,7 +99,7 @@ export class PlaybackOrchestrator {
 	private readonly playbackStore: PlaybackStore;
 	private readonly notification: TrackPlaybackNotificationNative;
 	private readonly getAudioFileUrl: (trackId: string) => string | null;
-	private readonly getAccessToken: () => string;
+	private readonly getAuthHeader: () => string;
 	private readonly downloads: DownloadedTrackSource;
 	private readonly getTrackCacheMaxTracks: () => number;
 	private readonly getTrackCacheUrl: (trackId: string) => string | null;
@@ -164,7 +164,7 @@ export class PlaybackOrchestrator {
 		this.playbackStore = deps.playbackStore;
 		this.notification = deps.notification;
 		this.getAudioFileUrl = deps.getAudioFileUrl;
-		this.getAccessToken = deps.getAccessToken;
+		this.getAuthHeader = deps.getAuthHeader;
 		this.downloads = deps.downloads;
 		this.getTrackCacheMaxTracks = deps.getTrackCacheMaxTracks;
 		this.getTrackCacheUrl = deps.getTrackCacheUrl;
@@ -193,7 +193,7 @@ export class PlaybackOrchestrator {
 				this.trackSourceNative.cacheTrackFromUrl(
 					trackId,
 					url,
-					this.getAccessToken(),
+					this.getAuthHeader(),
 					(rawSource) => {
 						onComplete(rawSource ? this.normalizePlaybackFileSource(rawSource) : null);
 					},
@@ -884,7 +884,7 @@ export class PlaybackOrchestrator {
 		this.inFlightTrackDownloadIds.add(trackId);
 
 		try {
-			this.trackSourceNative.cacheTrackFromUrl(trackId, url, this.getAccessToken(), (rawSource) => {
+			this.trackSourceNative.cacheTrackFromUrl(trackId, url, this.getAuthHeader(), (rawSource) => {
 				this.inFlightTrackDownloadIds.delete(trackId);
 				const nativeSource = rawSource ? this.normalizePlaybackFileSource(rawSource) : null;
 				if (nativeSource) {

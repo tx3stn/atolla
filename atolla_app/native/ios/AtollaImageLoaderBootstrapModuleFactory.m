@@ -265,10 +265,8 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 // MARK: - Image Loader
 
 @interface AtollaIOSImageLoader : NSObject <SCValdiImageLoader>
-// current Jellyfin access token, pushed out-of-band on session change; applied as an auth
-// header on network fetches so the token never travels in an image URL. atomic for the
-// cross-thread set (session change) vs read (background fetch)
-@property (atomic, copy, nullable) NSString *authToken;
+// atomic for the cross-thread set (session change) vs read (background fetch)
+@property (atomic, copy, nullable) NSString *authHeader;
 + (instancetype)sharedInstance;
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category identity:(NSString *)identity;
 - (nullable NSString *)resolveCachedFileUrlForCategory:(NSString *)category identity:(NSString *)identity;
@@ -341,11 +339,9 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 
 - (NSMutableURLRequest *)imageRequestForURL:(NSURL *)url {
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    NSString *authToken = self.authToken;
-    if (authToken.length > 0) {
-        [request setValue:authToken forHTTPHeaderField:@"X-Emby-Token"];
-        [request setValue:[NSString stringWithFormat:@"MediaBrowser Token=\"%@\"", authToken]
-       forHTTPHeaderField:@"Authorization"];
+    NSString *authHeader = self.authHeader;
+    if (authHeader.length > 0) {
+        [request setValue:authHeader forHTTPHeaderField:@"Authorization"];
     }
     return request;
 }
@@ -634,8 +630,8 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     [AtollaIOSImageLoader.sharedInstance setImageCachedObserver:callback];
 }
 
-- (void)setAtollaImageLoaderAuthTokenWithToken:(NSString *)token {
-    AtollaIOSImageLoader.sharedInstance.authToken = token.length > 0 ? token : nil;
+- (void)setAtollaImageLoaderAuthHeaderWithHeader:(NSString *)header {
+    AtollaIOSImageLoader.sharedInstance.authHeader = header.length > 0 ? header : nil;
 }
 
 @end

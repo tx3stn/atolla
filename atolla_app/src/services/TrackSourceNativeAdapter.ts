@@ -10,7 +10,7 @@ export interface TrackSourceNative {
 	cacheTrackFromUrl(
 		trackId: string,
 		url: string,
-		accessToken: string,
+		authHeader: string,
 		onComplete: (source: string | null) => void,
 	): void;
 	getCachedTrackFileUrl(trackId: string): string;
@@ -24,10 +24,10 @@ export class TrackSourceNativeAdapter implements TrackSourceNative {
 	cacheTrackFromUrl(
 		trackId: string,
 		url: string,
-		accessToken: string,
+		authHeader: string,
 		onComplete: (source: string | null) => void,
 	): void {
-		cacheAtollaTrackFromUrlAsync(trackId, url, accessToken, (source) => {
+		cacheAtollaTrackFromUrlAsync(trackId, url, authHeader, (source) => {
 			if (source === NATIVE_CACHE_UNAUTHORIZED) {
 				this.onUnauthorized();
 				onComplete(null);

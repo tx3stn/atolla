@@ -9,7 +9,7 @@ export function cacheAtollaTrackFromUrl(trackId: string, url: string): string;
 export function cacheAtollaTrackFromUrlAsync(
 	trackId: string,
 	url: string,
-	authToken: string,
+	authHeader: string,
 	onComplete: (source: string) => void,
 ): void;
 
@@ -29,7 +29,7 @@ export function setAtollaTrackCacheMaxTracks(maxTracks: number): void;
 export function cacheAtollaDownloadedTrackFromUrlAsync(
 	trackId: string,
 	url: string,
-	authToken: string,
+	authHeader: string,
 	onComplete: (source: string) => void,
 ): void;
 
@@ -134,4 +134,4 @@ export function setAtollaAudioPlaybackUpcomingQueue(queueJson: string): void;
 export function setAtollaRetainedTrackIds(idsJson: string): void;
 
 // @ExportFunction
-export function setAtollaTrackPlaybackAuthToken(token: string): void;
+export function setAtollaTrackPlaybackAuthHeader(header: string): void;

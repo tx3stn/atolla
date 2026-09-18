@@ -23,7 +23,7 @@ interface Calls {
 	onOnline: number;
 	onSessionExpired: number;
 	onUserChanged: Array<string>;
-	setNativeAuthToken: Array<string>;
+	setNativeAuthHeader: Array<string>;
 }
 
 function unauthorizedClient(): IHTTPClient {
@@ -44,7 +44,7 @@ function makeConnectivity(opts?: {
 		onOnline: 0,
 		onSessionExpired: 0,
 		onUserChanged: [],
-		setNativeAuthToken: [],
+		setNativeAuthHeader: [],
 	};
 	let session = opts?.session ?? null;
 
@@ -58,6 +58,7 @@ function makeConnectivity(opts?: {
 			connectivity.handleSessionChanged(null);
 			return Promise.resolve();
 		},
+		getAuthHeader: () => 'MediaBrowser Token="tok"',
 		getEffectiveDeviceId: () => 'dev-1',
 		getEffectiveDeviceName: () => 'Pixel 9 Pro',
 		getHttpClient: () => opts?.httpClient ?? ({} as unknown as IHTTPClient),
@@ -86,7 +87,7 @@ function makeConnectivity(opts?: {
 		preferences,
 		resolveCachedImage: () => null,
 		sessionManager,
-		setNativeAuthToken: (token) => calls.setNativeAuthToken.push(token),
+		setNativeAuthHeader: (header) => calls.setNativeAuthHeader.push(header),
 	};
 
 	const connectivity = new Connectivity(deps);
@@ -103,7 +104,7 @@ describe('Connectivity', () => {
 		expect(connectivity.getTransport() instanceof LiveTransport).toBe(true);
 		expect(connectivity.getMode()).toBe(ConnectionModes.online);
 		expect(calls.onUserChanged).toEqual(['user-1']);
-		expect(calls.setNativeAuthToken).toEqual(['tok']);
+		expect(calls.setNativeAuthHeader).toEqual(['MediaBrowser Token="tok"']);
 		expect(
 			calls.applyState.some(
 				(s) => s.connectionMode === ConnectionModes.online && s.isAuthRequired === false,
@@ -121,7 +122,7 @@ describe('Connectivity', () => {
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.onUserChanged).toEqual(['shared']);
-		expect(calls.setNativeAuthToken).toEqual(['']);
+		expect(calls.setNativeAuthHeader).toEqual(['']);
 	});
 
 	it('setMode(online) with a session builds a live transport and triggers reconnect', async () => {
@@ -171,7 +172,7 @@ describe('Connectivity', () => {
 		expect(connectivity.getMode()).toBe(ConnectionModes.offline);
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(false);
-		expect(calls.setNativeAuthToken[calls.setNativeAuthToken.length - 1]).toBe('');
+		expect(calls.setNativeAuthHeader[calls.setNativeAuthHeader.length - 1]).toBe('');
 	});
 
 	it('handleSessionChanged(null) while online marks auth-required and drops the transport', async () => {
@@ -183,7 +184,6 @@ describe('Connectivity', () => {
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(true);
-		// online bootstrap pushed 'tok'; the session drop pushes '' so native stops using it
-		expect(calls.setNativeAuthToken).toEqual(['tok', '']);
+		expect(calls.setNativeAuthHeader).toEqual(['MediaBrowser Token="tok"', '']);
 	});
 });

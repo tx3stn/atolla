@@ -146,10 +146,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 		var sharedInstance: AtollaCacheImageLoader? = null
 		var imageCachedObserver: ((identity: String, category: String) -> Unit)? = null
-		// current Jellyfin access token, pushed out-of-band on session change; applied as an
-		// auth header on network fetches so the token never travels in an image URL
 		@Volatile
-		var authToken: String? = null
+		var authHeader: String? = null
 	}
 
 	private val tag = "AtollaCacheLoader"
@@ -767,7 +765,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	// defensive: the token is delivered out-of-band via authToken and applied as a header, never
+	// defensive: the token is delivered out-of-band via authHeader and applied as a header, never
 	// in the URL, but strip any stray api_key so a token can never reach a cache key or the disk
 	private fun stripApiKeyFromUrl(url: String): String {
 		return try {
@@ -802,11 +800,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		var current = serverOrigin
 		var redirectCount = 0
 		while (true) {
-			val token = AtollaCacheImageLoader.authToken
+			val authHeader = AtollaCacheImageLoader.authHeader
 			val builder = Request.Builder().url(current)
-			if (!token.isNullOrBlank() && redirectKeepsAuth(serverOrigin, current)) {
-				builder.addHeader("X-Emby-Token", token)
-				builder.addHeader("Authorization", "MediaBrowser Token=\"$token\"")
+			if (!authHeader.isNullOrBlank() && redirectKeepsAuth(serverOrigin, current)) {
+				builder.addHeader("Authorization", authHeader)
 			}
 			val response = redirectlessHttpClient.newCall(builder.build()).execute()
 			if (response.isRedirect && redirectCount < maxImageRedirects) {

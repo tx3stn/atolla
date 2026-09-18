@@ -1864,8 +1864,8 @@ function createOrchestrator(
 	opts: {
 		cacheAlbumArt?: (imageUrl: string) => Promise<void>;
 		downloads?: DownloadedTrackSource;
-		getAccessToken?: () => string;
 		getAudioFileUrl?: (trackId: string) => string | null;
+		getAuthHeader?: () => string;
 		getTrackCacheMaxTracks?: () => number;
 		getTrackCacheUrl?: (trackId: string) => string | null;
 		getTransportToken?: () => unknown;
@@ -1882,8 +1882,8 @@ function createOrchestrator(
 	return new PlaybackOrchestrator({
 		cacheAlbumArt: opts.cacheAlbumArt ?? (() => Promise.resolve()),
 		downloads: opts.downloads ?? fakeDownloads(),
-		getAccessToken: opts.getAccessToken ?? (() => ''),
 		getAudioFileUrl: opts.getAudioFileUrl ?? (() => null),
+		getAuthHeader: opts.getAuthHeader ?? (() => ''),
 		getTrackCacheMaxTracks: opts.getTrackCacheMaxTracks ?? (() => 20),
 		getTrackCacheUrl: opts.getTrackCacheUrl ?? (() => null),
 		getTransportToken: opts.getTransportToken ?? (() => null),

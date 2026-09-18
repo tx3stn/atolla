@@ -24,5 +24,8 @@ export function redactSensitiveUrlParams(text: string): string {
 		.replace(
 			/"([A-Za-z0-9_-]+)"(\s*:\s*)("(?:[^"\\]|\\.)*"|-?\d[\w.+-]*|true|false|null)/g,
 			(match, key, colon) => (isRedactableKey(key) ? `"${key}"${colon}"<redacted>"` : match),
+		)
+		.replace(/([A-Za-z0-9_-]+)="([^"]*)"/g, (match, key) =>
+			isRedactableKey(key) ? `${key}="<redacted>"` : match,
 		);
 }

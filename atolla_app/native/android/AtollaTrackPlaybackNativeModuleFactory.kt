@@ -51,10 +51,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				return AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url, "")
 			}
 
-			override fun cacheAtollaTrackFromUrlAsync(trackId: String, url: String, authToken: String, onComplete: (String) -> Unit) {
+			override fun cacheAtollaTrackFromUrlAsync(trackId: String, url: String, authHeader: String, onComplete: (String) -> Unit) {
 				Thread {
 					val result = try {
-						AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url, authToken)
+						AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url, authHeader)
 					} catch (error: Throwable) {
 						Log.e("AtollaTrackCache", "Async track cache failed trackId=$trackId", error)
 						""
@@ -83,10 +83,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaTrackPlaybackNativeCache.setRetainedTrackIds(idsJson)
 			}
 
-			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, authToken: String, onComplete: (String) -> Unit) {
+			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, authHeader: String, onComplete: (String) -> Unit) {
 				Thread {
 					val result = try {
-						AtollaDownloadedTrackNativeCache.cacheTrackFromUrl(trackId, url, authToken)
+						AtollaDownloadedTrackNativeCache.cacheTrackFromUrl(trackId, url, authHeader)
 					} catch (error: Throwable) {
 						Log.e("AtollaDownloadedTrackCache", "Async downloaded track cache failed trackId=$trackId", error)
 						""
@@ -244,8 +244,8 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaGaplessAudioEngine.setUpcomingQueue(queueJson)
 			}
 
-			override fun setAtollaTrackPlaybackAuthToken(token: String) {
-				AtollaTrackPlaybackMediaSession.authToken = token.ifBlank { null }
+			override fun setAtollaTrackPlaybackAuthHeader(header: String) {
+				AtollaTrackPlaybackMediaSession.authHeader = header.ifBlank { null }
 			}
 
 		}
@@ -1166,10 +1166,9 @@ private fun redirectKeepsAuth(server: URL, target: URL): Boolean {
 
 private fun openAuthedConnectionFollowingRedirects(
 	rawUrl: String,
-	authToken: String?,
+	authHeader: String?,
 	accept: String,
 ): HttpURLConnection {
-	val token = authToken
 	val serverOrigin = URL(rawUrl)
 	var current = serverOrigin
 	var redirectCount = 0
@@ -1180,9 +1179,8 @@ private fun openAuthedConnectionFollowingRedirects(
 			instanceFollowRedirects = false
 			requestMethod = "GET"
 			setRequestProperty("Accept", accept)
-			if (token != null && token.isNotBlank() && redirectKeepsAuth(serverOrigin, current)) {
-				setRequestProperty("X-Emby-Token", token)
-				setRequestProperty("Authorization", "MediaBrowser Token=\"$token\"")
+			if (!authHeader.isNullOrBlank() && redirectKeepsAuth(serverOrigin, current)) {
+				setRequestProperty("Authorization", authHeader)
 			}
 		}
 		val status = connection.responseCode
@@ -1217,7 +1215,7 @@ object AtollaTrackPlaybackNativeCache {
 	// downloads writing to the same temp file
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
-	fun cacheTrackFromUrl(trackId: String, url: String, authToken: String): String {
+	fun cacheTrackFromUrl(trackId: String, url: String, authHeader: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
 		}
@@ -1251,7 +1249,7 @@ object AtollaTrackPlaybackNativeCache {
 		// download without holding the object lock so getCachedTrackFileUrl and other reads
 		// aren't blocked during slow network I/O
 		return try {
-			val connection = openAuthedConnectionFollowingRedirects(url, authToken, "audio/*,*/*")
+			val connection = openAuthedConnectionFollowingRedirects(url, authHeader, "audio/*,*/*")
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
@@ -1527,7 +1525,7 @@ object AtollaDownloadedTrackNativeCache {
 
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
-	fun cacheTrackFromUrl(trackId: String, url: String, authToken: String): String {
+	fun cacheTrackFromUrl(trackId: String, url: String, authHeader: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
 		}
@@ -1555,7 +1553,7 @@ object AtollaDownloadedTrackNativeCache {
 		}
 
 		return try {
-			val connection = openAuthedConnectionFollowingRedirects(url, authToken, "audio/*,*/*")
+			val connection = openAuthedConnectionFollowingRedirects(url, authHeader, "audio/*,*/*")
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
@@ -1766,9 +1764,7 @@ object AtollaTrackPlaybackMediaSession {
 	@Volatile private var currentArtworkBitmap: Bitmap? = null
 	@Volatile private var isArtworkLoadInFlight: Boolean = false
 	@Volatile private var lastArtworkLoadAttemptMs: Long = 0L
-	// current Jellyfin access token, pushed out-of-band on session change; applied as an auth
-	// header when fetching remote artwork so the token never travels in the artwork URL
-	@Volatile var authToken: String? = null
+	@Volatile var authHeader: String? = null
 
 	private val artworkRequestCounter = AtomicLong(0)
 	private const val artworkRetryIntervalMs = 3_000L
@@ -2364,7 +2360,7 @@ object AtollaTrackPlaybackMediaSession {
 				return decodeBitmapBytesWithSampling(file.readBytes())
 			}
 
-			val connection = openAuthedConnectionFollowingRedirects(artworkUrl, authToken, "image/*,*/*")
+			val connection = openAuthedConnectionFollowingRedirects(artworkUrl, authHeader, "image/*,*/*")
 
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {

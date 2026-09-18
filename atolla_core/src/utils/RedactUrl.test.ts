@@ -61,6 +61,16 @@ describe('PII_PARAM', () => {
 });
 
 describe('redactSensitiveUrlParams', () => {
+	it('redacts the token out of a rendered authorization header, keeping the identity readable', () => {
+		expect(
+			redactSensitiveUrlParams(
+				'MediaBrowser Client="atolla", Device="Pixel 9 Pro", Version="0.0.0", Token="SECRET"',
+			),
+		).toBe(
+			'MediaBrowser Client="atolla", Device="Pixel 9 Pro", Version="0.0.0", Token="<redacted>"',
+		);
+	});
+
 	it('redacts api_key and the host while keeping other params', () => {
 		expect(
 			redactSensitiveUrlParams('https://host/Items/1/Images/Primary?api_key=SECRET&tag=abc'),

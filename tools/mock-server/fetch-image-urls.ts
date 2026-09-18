@@ -19,7 +19,7 @@ if (!BASE || !TOKEN) {
 }
 
 const IMAGES_DIR = join(import.meta.dir, 'media', 'images');
-const headers = { 'X-Emby-Token': TOKEN };
+const headers = { Authorization: `MediaBrowser Client="atolla", Token="${TOKEN}"` };
 
 type JellyfinItem = {
 	AlbumArtist?: string;

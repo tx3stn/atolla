@@ -48,4 +48,4 @@ export function setAtollaImageCachedObserver(
 ): void;
 
 // @ExportFunction
-export function setAtollaImageLoaderAuthToken(token: string): void;
+export function setAtollaImageLoaderAuthHeader(header: string): void;

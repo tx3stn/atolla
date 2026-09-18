@@ -95,6 +95,7 @@ function makeConnectivity(over?: {
 			connectivity.handleSessionChanged(null);
 			return Promise.resolve();
 		},
+		getAuthHeader: () => 'MediaBrowser Token="tok"',
 		getEffectiveDeviceId: () => 'atolla-default',
 		getEffectiveDeviceName: () => 'Pixel 9 Pro',
 		getHttpClient: () => over?.httpClient ?? ({} as unknown as IHTTPClient),
@@ -131,7 +132,7 @@ function makeConnectivity(over?: {
 		preferences,
 		resolveCachedImage: () => null,
 		sessionManager,
-		setNativeAuthToken: () => {},
+		setNativeAuthHeader: () => {},
 	};
 
 	const connectivity = new Connectivity(deps);

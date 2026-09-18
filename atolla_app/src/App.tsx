@@ -30,7 +30,7 @@ import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	ensureAtollaImageLoaderBootstrap,
 	resolveAtollaCachedImage,
-	setAtollaImageLoaderAuthToken,
+	setAtollaImageLoaderAuthHeader,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
 import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
@@ -66,7 +66,7 @@ import {
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
 	setAtollaTrackCacheMaxTracks,
-	setAtollaTrackPlaybackAuthToken,
+	setAtollaTrackPlaybackAuthHeader,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
 import { BootSplash } from './ui/components/BootSplash';
@@ -142,7 +142,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		cacheImage: (id, url, category) => this.assetCache.cacheImageAsset(id, url, category),
 		cacheTrack: (trackId, url) =>
 			this.downloadWorkerClient.target.api
-				.cacheDownloadedTrack(trackId, url, this.sessionManager.getAccessToken())
+				.cacheDownloadedTrack(trackId, url, this.sessionManager.getAuthHeader())
 				.catch((error: unknown) => {
 					if (isUnauthorizedCacheError(error)) {
 						this.connectivity.expireSession();
@@ -164,8 +164,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackOrchestrator: PlaybackOrchestrator = new PlaybackOrchestrator({
 		cacheAlbumArt: (id, imageUrl) => this.assetCache.cacheImageAsset(id, imageUrl, 'album_art'),
 		downloads: this.downloadService,
-		getAccessToken: () => this.sessionManager.getAccessToken(),
 		getAudioFileUrl: (trackId) => this.assetCache.getAudioPathForWaveform(trackId),
+		getAuthHeader: () => this.sessionManager.getAuthHeader(),
 		getTrackCacheMaxTracks: () => this.preferences.trackCacheMaxTracks,
 		getTrackCacheUrl: (trackId) => this.connectivity.getTransport().getTrackCacheUrl(trackId),
 		getTransportToken: () => this.connectivity.getTransport(),
@@ -231,7 +231,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		preferences: this.preferences,
 		resolveCachedImage: (category, identity) => this.resolveCachedImage(category, identity),
 		sessionManager: this.sessionManager,
-		setNativeAuthToken: (token) => this.pushNativeAuthToken(token),
+		setNativeAuthHeader: (header) => this.pushNativeAuthHeader(header),
 	});
 	private userScope: UserScope = new UserScope({
 		assetCache: this.assetCache,
@@ -718,14 +718,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	private pushNativeAuthToken(token: string): void {
+	private pushNativeAuthHeader(header: string): void {
 		try {
-			setAtollaImageLoaderAuthToken(token);
+			setAtollaImageLoaderAuthHeader(header);
 		} catch {
 			// native image loader bootstrap may be unavailable on non-Android/iOS targets
 		}
 		try {
-			setAtollaTrackPlaybackAuthToken(token);
+			setAtollaTrackPlaybackAuthHeader(header);
 		} catch {
 			// native playback module may be unavailable on non-Android/iOS targets
 		}
