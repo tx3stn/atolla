@@ -105,8 +105,8 @@ describe('JellyfinAuthService', () => {
 
 		await service.startQuickConnect();
 
-		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="profile-2-device"');
-		expect(calls[1].headers?.['X-Emby-Authorization']).toContain('DeviceId="profile-2-device"');
+		expect(calls[0].headers?.Authorization).toContain('DeviceId="profile-2-device"');
+		expect(calls[1].headers?.Authorization).toContain('DeviceId="profile-2-device"');
 	});
 
 	it('throws quick-connect unavailable when server reports disabled', async () => {

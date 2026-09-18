@@ -15,10 +15,10 @@ import type {
 	TrackPageSort,
 	Transport,
 } from 'atolla_core/src/transports/Transport';
-import { version } from 'atolla_core/src/version';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
+import { createClientHeader, normalizeDeviceId } from '../ClientIdentity';
 import type {
 	JellyfinAlbumItem,
 	JellyfinArtistItem,
@@ -55,6 +55,7 @@ export {
 
 interface LiveTransportOptions {
 	clientDeviceId?: string;
+	clientDeviceName?: string;
 	onSessionExpired?: () => void;
 	resolveCachedImage?: ResolveCachedImage;
 }
@@ -79,6 +80,7 @@ export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
 	private readonly client: IHTTPClient;
 	private readonly clientDeviceId: string;
+	private readonly clientDeviceName: string;
 	private readonly imageResolvers: JellyfinImageResolvers = {
 		albumPrimaryImageUrl: (albumId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(albumId, 'Primary', imageTag),
@@ -99,7 +101,8 @@ export class LiveTransport implements Transport {
 	) {
 		this.baseUrl = this.normalizeBaseUrl(serverUrl);
 		this.client = client;
-		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
+		this.clientDeviceId = normalizeDeviceId(options.clientDeviceId);
+		this.clientDeviceName = options.clientDeviceName ?? '';
 		this.onSessionExpired = options.onSessionExpired ?? null;
 		this.resolveCachedImage = options.resolveCachedImage ?? null;
 	}
@@ -824,18 +827,13 @@ export class LiveTransport implements Transport {
 	}
 
 	private createHeaders(): Record<string, string> {
-		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
-		const headers: Record<string, string> = {
+		return {
 			Accept: 'application/json',
-			Authorization: authHeader,
-			'X-Emby-Authorization': authHeader,
+			Authorization: createClientHeader(
+				{ deviceId: this.clientDeviceId, deviceName: this.clientDeviceName },
+				this.accessToken,
+			),
 		};
-		// only emit the token header when it's a non-empty string; a native header map
-		// must never receive an undefined/null value
-		if (this.accessToken) {
-			headers['X-Emby-Token'] = this.accessToken;
-		}
-		return headers;
 	}
 
 	private fetchItemsPage<TItem>(
@@ -946,14 +944,6 @@ export class LiveTransport implements Transport {
 	}
 }
 
-function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): string {
-	const base = `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
-	if (!accessToken) {
-		return base;
-	}
-	return `${base}, Token="${accessToken}"`;
-}
-
 // maps a library letter-filter token to Jellyfin `/Items` query params so prefix
 // filtering happens server-side. letters a-z become `nameStartsWith`; the '0' bucket
 // ("does not start with a letter") maps to `nameLessThan: 'A'`, returning everything
@@ -969,17 +959,4 @@ function nameFilterParams(
 		return { nameLessThan: 'A' };
 	}
 	return { nameStartsWith: token };
-}
-
-function normalizeClientDeviceId(value: string | null | undefined): string {
-	if (typeof value !== 'string') {
-		return 'atolla';
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length === 0) {
-		return 'atolla';
-	}
-
-	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
 }

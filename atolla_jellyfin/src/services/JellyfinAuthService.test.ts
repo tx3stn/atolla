@@ -132,43 +132,54 @@ describe('normalizeServerUrl', () => {
 	});
 });
 
-describe('client device ID', () => {
-	it('defaults to "atolla" when no clientDeviceId is provided', async () => {
-		const { calls, client } = createHTTPClient([
+describe('client identity', () => {
+	function quickConnectClient() {
+		return createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
 		]);
-		await makeService({ client }).startQuickConnect();
-		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="atolla"');
+	}
+
+	it('identifies itself with the configured device id and name', async () => {
+		const { calls, client } = quickConnectClient();
+
+		await makeService({
+			client,
+			clientDeviceId: 'atolla-9f3a1c',
+			clientDeviceName: "Kitchen's iPad",
+		}).startQuickConnect();
+
+		expect(calls[0].headers?.Authorization).toContain('DeviceId="atolla-9f3a1c"');
+		expect(calls[0].headers?.Authorization).toContain('Device="Kitchen\'s iPad"');
 	});
 
-	it('defaults to "atolla" for empty string', async () => {
-		const { calls, client } = createHTTPClient([
-			jsonResponse(200, true),
-			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
-		]);
-		await makeService({ client, clientDeviceId: '' }).startQuickConnect();
-		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="atolla"');
-	});
-
-	it('sanitizes special characters to underscores', async () => {
-		const { calls, client } = createHTTPClient([
-			jsonResponse(200, true),
-			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
-		]);
-		await makeService({ client, clientDeviceId: 'my device!' }).startQuickConnect();
-		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="my_device_"');
-	});
-
-	it('setClientDeviceId updates the ID used in subsequent requests', async () => {
-		const { calls, client } = createHTTPClient([
-			jsonResponse(200, true),
-			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
-		]);
+	it('setClientDeviceId updates the id used in subsequent requests', async () => {
+		const { calls, client } = quickConnectClient();
 		const service = makeService({ client });
+
 		service.setClientDeviceId('updated-device');
 		await service.startQuickConnect();
-		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="updated-device"');
+
+		expect(calls[0].headers?.Authorization).toContain('DeviceId="updated-device"');
+	});
+
+	it('setClientDeviceName updates the name used in subsequent requests', async () => {
+		const { calls, client } = quickConnectClient();
+		const service = makeService({ client });
+
+		service.setClientDeviceName('Front Room Speaker');
+		await service.startQuickConnect();
+
+		expect(calls[0].headers?.Authorization).toContain('Device="Front Room Speaker"');
+	});
+
+	it('carries the token in the authorization header on an authenticated call', async () => {
+		const { calls, client } = createHTTPClient([jsonResponse(200, { Id: 'user-1' })]);
+
+		await makeService({ client }).validateSession(validSession);
+
+		expect(calls[0].pathOrUrl).toContain('/Users/Me');
+		expect(calls[0].headers?.Authorization).toContain('Token="token-1"');
 	});
 });
 

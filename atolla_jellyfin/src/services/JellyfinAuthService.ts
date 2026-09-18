@@ -2,10 +2,10 @@ import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { tracked } from 'atolla_core/src/transports/Cancelable';
-import { version } from 'atolla_core/src/version';
 import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
+import { createClientHeader } from '../ClientIdentity';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 import { JellyfinAuthErrors } from './AuthErrors';
 
@@ -58,6 +58,7 @@ export interface QuickConnectStartResult {
 interface JellyfinAuthServiceOptions {
 	client: IHTTPClient;
 	clientDeviceId?: string;
+	clientDeviceName?: string;
 	isMockMode?: boolean;
 	mockApprovalDelayMs?: number;
 	now?: NowFn;
@@ -79,10 +80,6 @@ function defaultTimer(callback: () => void, ms: number): () => void {
 	return () => clearTimeout(id);
 }
 
-function createClientHeaderWithDeviceId(clientDeviceId: string): string {
-	return `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
-}
-
 function defaultSleep(ms: number): Promise<void> {
 	return new Promise((resolve) => {
 		setTimeout(resolve, ms);
@@ -95,19 +92,6 @@ export function normalizeServerUrl(url: string): string {
 	return withScheme.replace(/\/+$/, '');
 }
 
-function normalizeClientDeviceId(value: string | null | undefined): string {
-	if (typeof value !== 'string') {
-		return 'atolla';
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length === 0) {
-		return 'atolla';
-	}
-
-	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
-
 export class JellyfinAuthService {
 	private client: IHTTPClient;
 	private readonly store: JellyfinAuthStoreLike;
@@ -118,12 +102,14 @@ export class JellyfinAuthService {
 	private readonly timer: TimerFn;
 	private isMockMode: boolean;
 	private clientDeviceId: string;
+	private clientDeviceName: string;
 
 	constructor(options: JellyfinAuthServiceOptions) {
 		this.client = options.client;
 		this.store = options.store;
 		this.isMockMode = options.isMockMode ?? false;
-		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
+		this.clientDeviceId = options.clientDeviceId ?? '';
+		this.clientDeviceName = options.clientDeviceName ?? '';
 		this.mockApprovalDelayMs = options.mockApprovalDelayMs ?? 3_000;
 		this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 		this.sleep = options.sleep ?? defaultSleep;
@@ -140,7 +126,11 @@ export class JellyfinAuthService {
 	}
 
 	setClientDeviceId(value: string): void {
-		this.clientDeviceId = normalizeClientDeviceId(value);
+		this.clientDeviceId = value;
+	}
+
+	setClientDeviceName(value: string): void {
+		this.clientDeviceName = value;
 	}
 
 	loadSession(): Promise<AuthSession | null> {
@@ -506,13 +496,12 @@ export class JellyfinAuthService {
 	}
 
 	private createHeaders(accessToken?: string): Record<string, string> {
-		const headers: Record<string, string> = {
+		return {
+			Authorization: createClientHeader(
+				{ deviceId: this.clientDeviceId, deviceName: this.clientDeviceName },
+				accessToken,
+			),
 			'Content-Type': 'application/json',
-			'X-Emby-Authorization': createClientHeaderWithDeviceId(this.clientDeviceId),
 		};
-		if (accessToken) {
-			headers['X-Emby-Token'] = accessToken;
-		}
-		return headers;
 	}
 }

@@ -294,7 +294,7 @@ describe('LiveTransport core collections', () => {
 		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate,SortName');
 		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Descending,Ascending');
 		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
-		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');
+		expect(calls[0].headers?.Authorization).toContain('Token="token-1"');
 		expect(page.hasMore).toBe(true);
 		expect(page.items).toHaveLength(1);
 		expect(page.items[0]).toEqual(
@@ -1095,7 +1095,7 @@ describe('LiveTransport core collections', () => {
 		expect(calls[0].method).toBe('post');
 		expect(calls[0].pathOrUrl).toContain('/UserPlayedItems/track-1');
 		expect(calls[0].headers?.Authorization).toContain('MediaBrowser');
-		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');
+		expect(calls[0].headers?.Authorization).toContain('Token="token-1"');
 	});
 
 	it('sends a bodyless scrobble POST with no Content-Type', async () => {
@@ -1257,6 +1257,47 @@ describe('LiveTransport core collections', () => {
 	});
 });
 
+describe('LiveTransport auth headers', () => {
+	async function headersFromOneRequest(options?: {
+		accessToken?: string;
+		clientDeviceId?: string;
+		clientDeviceName?: string;
+	}): Promise<Record<string, string> | undefined> {
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([]))]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			options?.accessToken ?? 'token-1',
+			'user-1',
+			client,
+			{ clientDeviceId: options?.clientDeviceId, clientDeviceName: options?.clientDeviceName },
+		);
+
+		await transport.getAlbums(1, 1);
+
+		return calls[0].headers;
+	}
+
+	it('identifies the client with the name and id it was configured with', async () => {
+		const headers = await headersFromOneRequest({
+			clientDeviceId: 'atolla-9f3a1c',
+			clientDeviceName: "Kitchen's iPad",
+		});
+
+		expect(headers?.Authorization).toContain('Client="atolla"');
+		expect(headers?.Authorization).toContain('Device="Kitchen\'s iPad"');
+		expect(headers?.Authorization).toContain('DeviceId="atolla-9f3a1c"');
+		expect(headers?.Authorization).toContain('Version="');
+		expect(headers?.Authorization).toContain('Token="token-1"');
+	});
+
+	it('omits the token when there is no session', async () => {
+		const headers = await headersFromOneRequest({ accessToken: '' });
+
+		expect(headers?.Authorization).toContain('MediaBrowser');
+		expect(headers?.Authorization).not.toContain('Token=');
+	});
+});
+
 describe('LiveTransport instant mixes', () => {
 	function instantMixTrack(id: string, name: string): JellyfinTrackItem {
 		return {
@@ -1288,7 +1329,7 @@ describe('LiveTransport instant mixes', () => {
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('200');
 		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
 		expect(queryParam(calls[0].pathOrUrl, 'fields')).toContain('Genres');
-		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');
+		expect(calls[0].headers?.Authorization).toContain('Token="token-1"');
 	});
 
 	it('maps the envelope to tracks, carrying genres so a mix track can seed the next mix', async () => {
