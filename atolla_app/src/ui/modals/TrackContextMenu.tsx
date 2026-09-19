@@ -127,6 +127,15 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
+	handleAddToUpNext = (): void => {
+		this.viewModel.playbackStore.addToUpNext([this.viewModel.track]);
+		this.viewModel.toastService.show({
+			message: Strings.addedToUpNextToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
+	};
+
 	handleAddToPlaylist = (): void => {
 		this.viewModel.onAddToPlaylist?.();
 	};
@@ -198,6 +207,13 @@ export class TrackContextMenu extends StatefulComponent<
 				icon={res.playnext}
 				label={Strings.playNext()}
 				onPress={this.handlePlayNext}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='track-context-add-to-up-next'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoupnext}
+				label={Strings.addToUpNext()}
+				onPress={this.handleAddToUpNext}
 			/>
 			<ContextMenuActionRow
 				accessibilityId='track-context-add-to-queue'

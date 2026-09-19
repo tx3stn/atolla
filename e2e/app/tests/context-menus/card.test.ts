@@ -134,6 +134,15 @@ for (const testCase of scenarios) {
 			// FIXME: assert item is actually added to queue
 		});
 
+		it('dismisses after adding to up next', async () => {
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
+			await menu.waitForVisible();
+			await menu.tapAddToUpNext();
+			await menu.waitForHidden();
+			// FIXME: assert item is actually added to up next
+		});
+
 		it('dismisses after shuffle', async () => {
 			await testCase.act();
 			const menu = new CardContextMenu(browser);

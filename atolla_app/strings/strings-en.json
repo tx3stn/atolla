@@ -8,11 +8,17 @@
 	"add_to_queue_failed_toast": {
 		"defaultMessage": "add to queue failed"
 	},
+	"add_to_up_next": {
+		"defaultMessage": "add to up next"
+	},
 	"added_to_playlist": {
 		"defaultMessage": "added to playlist"
 	},
 	"added_to_queue_toast": {
 		"defaultMessage": "added to queue"
+	},
+	"added_to_up_next_toast": {
+		"defaultMessage": "added to up next"
 	},
 	"album_disc_header": {
 		"defaultMessage": "DISK {number%d}",

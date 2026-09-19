@@ -187,6 +187,17 @@ export class CardContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
+	handleAddToUpNext = (): void => {
+		this.withPagedPage(this.trackSource(), (tracks) =>
+			this.viewModel.playbackStore.addToUpNext(tracks),
+		);
+		this.viewModel.toastService.show({
+			message: Strings.addedToUpNextToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
+	};
+
 	handleShuffle = (): void => {
 		const { card, playbackStore } = this.viewModel;
 		if (card.kind === 'album' || card.kind === 'artist') {
@@ -334,6 +345,13 @@ export class CardContextMenu extends StatefulComponent<
 				icon={res.playnext}
 				label={Strings.playNext()}
 				onPress={this.handlePlayNext}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='card-context-add-to-up-next'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoupnext}
+				label={Strings.addToUpNext()}
+				onPress={this.handleAddToUpNext}
 			/>
 			<ContextMenuActionRow
 				accessibilityId='card-context-add-to-queue'

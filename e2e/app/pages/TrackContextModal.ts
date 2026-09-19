@@ -3,6 +3,7 @@ import { BasePage } from './Base';
 export class TrackContextMenu extends BasePage {
 	private readonly root = 'track-context-menu';
 	private readonly addToQueue = 'track-context-add-to-queue';
+	private readonly addToUpNext = 'track-context-add-to-up-next';
 	private readonly playNext = 'track-context-play-next';
 	private readonly lyrics = 'track-context-lyrics';
 	private readonly artistLogo = 'track-context-artist-logo';
@@ -37,6 +38,13 @@ export class TrackContextMenu extends BasePage {
 	async tapAddToQueue(): Promise<void> {
 		const button = this.elementByID(this.addToQueue);
 		await button.waitForDisplayed({ timeoutMsg: 'Add to queue button not visible' });
+		await button.click();
+		await this.dismissPermissionDialogIfPresent();
+	}
+
+	async tapAddToUpNext(): Promise<void> {
+		const button = this.elementByID(this.addToUpNext);
+		await button.waitForDisplayed({ timeoutMsg: 'Add to up next button not visible' });
 		await button.click();
 		await this.dismissPermissionDialogIfPresent();
 	}

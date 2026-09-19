@@ -48,6 +48,19 @@ export class HomeContextMenu extends Component<HomeContextMenuViewModel> {
 		this.viewModel.onDismiss();
 	};
 
+	handleAddToUpNext = (): void => {
+		this.collectFirstPages().then((tracks) => {
+			if (tracks.length > 0) {
+				this.viewModel.playbackStore.addToUpNext(tracks);
+			}
+		});
+		this.viewModel.toastService.show({
+			message: Strings.addedToUpNextToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
+	};
+
 	handleBackdropTap = (): void => {
 		this.viewModel.onDismiss();
 	};
@@ -108,6 +121,13 @@ export class HomeContextMenu extends Component<HomeContextMenuViewModel> {
 				icon={res.playnext}
 				label={Strings.playNext()}
 				onPress={this.handlePlayNext}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='home-context-add-to-up-next'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoupnext}
+				label={Strings.addToUpNext()}
+				onPress={this.handleAddToUpNext}
 			/>
 			<ContextMenuActionRow
 				accessibilityId='home-context-add-to-queue'

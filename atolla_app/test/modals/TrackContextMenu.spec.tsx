@@ -21,6 +21,9 @@ function createViewModel(overrides = {}) {
 		addToQueue: (tracks: Array<typeof track>) => {
 			callOrder.push(`addToQueue:${tracks[0]?.id ?? 'unknown'}`);
 		},
+		addToUpNext: (tracks: Array<typeof track>) => {
+			callOrder.push(`addToUpNext:${tracks[0]?.id ?? 'unknown'}`);
+		},
 		playNext: (tracks: Array<typeof track>) => {
 			callOrder.push(`playNext:${tracks[0]?.id ?? 'unknown'}`);
 		},
@@ -97,6 +100,24 @@ describe('TrackContextMenu', () => {
 
 		expect(callOrder).toEqual(['playNext:track-1', 'dismiss']);
 		expect(toasts).toEqual(['success:playing next']);
+	});
+
+	valdiIt('adds track to up next, toasts and dismisses', async (driver) => {
+		const { callOrder, toasts, viewModel } = createViewModel();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
+		const addToUpNextAction = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-up-next',
+		);
+
+		addToUpNextAction?.getAttribute('onTap')?.(touchEvent);
+
+		expect(callOrder).toEqual(['addToUpNext:track-1', 'dismiss']);
+		expect(toasts).toEqual(['success:added to up next']);
 	});
 
 	valdiIt('opens the artist and dismisses when the artist logo is tapped', async (driver) => {

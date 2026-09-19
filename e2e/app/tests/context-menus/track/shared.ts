@@ -71,6 +71,22 @@ export function defineTrackContextMenuSuite(scenario: Scenario): void {
 			await nowPlaying.collapseExpandedIfVisible();
 		});
 
+		it('dismisses after adding to up next', async () => {
+			await scenario.act();
+			const menu = new TrackContextMenu(browser);
+			await menu.waitForVisible();
+			const trackTitle = await menu.getTrackTitle();
+			await menu.tapAddToUpNext();
+			await menu.waitForHidden();
+			const nowPlaying = new NowPlayingBar(browser);
+			await nowPlaying.waitForVisible();
+			await nowPlaying.openExpandedSurface();
+			await nowPlaying.tapUpNextTab();
+			await nowPlaying.waitForQueueRowsVisible();
+			expect(await nowPlaying.upNextTrackNames()).toContain(trackTitle);
+			await nowPlaying.collapseExpandedIfVisible();
+		});
+
 		it('opens the artist when tapping on the artist header', async function () {
 			if (shouldSkip()) {
 				this.skip();

@@ -46,4 +46,16 @@ describe('add to queue', () => {
 		await menu.tapPlayNext();
 		await menu.waitForHidden();
 	});
+
+	it('dismisses track context menu when adding a track to up next', async () => {
+		const albumDetail = new AlbumDetailPage(browser);
+		await albumDetail.waitForLoad();
+		await albumDetail.waitForTrackRowsVisible();
+		await albumDetail.openTrackContextMenuOnFirstVisibleRow();
+
+		const menu = new TrackContextMenu(browser);
+		await menu.waitForVisible();
+		await menu.tapAddToUpNext();
+		await menu.waitForHidden();
+	});
 });

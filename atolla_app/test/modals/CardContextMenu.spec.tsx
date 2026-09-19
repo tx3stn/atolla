@@ -340,16 +340,44 @@ describe('CardContextMenu', () => {
 				variant: 'success',
 			});
 		});
+
+		valdiIt('toasts when the card is added to up next', async (driver) => {
+			const toastService = mockToastService();
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { album: mockAlbum(), kind: 'album' },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: {
+						addToUpNext: jasmine.createSpy('addToUpNext'),
+					} as unknown as PlaybackStore,
+					toastService,
+					transport: mockTransport(),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleAddToUpNext as () => void)();
+			await flush();
+
+			expect(toastService.show).toHaveBeenCalledWith({
+				message: 'added to up next',
+				variant: 'success',
+			});
+		});
 	});
 
 	describe('paged playback (genre and playlist)', () => {
 		function mockPagedStore() {
 			const addToQueue = jasmine.createSpy('addToQueue');
+			const addToUpNext = jasmine.createSpy('addToUpNext');
 			const playNext = jasmine.createSpy('playNext');
 			const playTracks = jasmine.createSpy('playTracks');
 			const setQueueFiller = jasmine.createSpy('setQueueFiller');
 			const store = {
 				addToQueue,
+				addToUpNext,
 				playNext,
 				playTracks,
 				setQueueFiller,
@@ -357,7 +385,7 @@ describe('CardContextMenu', () => {
 				trackIndex: 0,
 				tracks: [] as Array<Track>,
 			} as unknown as PlaybackStore;
-			return { addToQueue, playNext, playTracks, setQueueFiller, store };
+			return { addToQueue, addToUpNext, playNext, playTracks, setQueueFiller, store };
 		}
 
 		valdiIt(
@@ -589,6 +617,37 @@ describe('CardContextMenu', () => {
 				undefined,
 			);
 			expect(addToQueue).toHaveBeenCalledWith(page);
+		});
+
+		valdiIt('playlist Add to Up Next inserts a single bounded page', async (driver) => {
+			const { addToUpNext, store } = mockPagedStore();
+			const page = [mockTrack('p1')];
+			const getTracksByPlaylist = jasmine
+				.createSpy('getTracksByPlaylist')
+				.and.returnValue(Promise.resolve({ hasMore: true, items: page, totalCount: 600 }));
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { kind: 'playlist', playlist: mockPlaylist() },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: store,
+					toastService: mockToastService(),
+					transport: mockTransport({ getTracksByPlaylist }),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleAddToUpNext as () => void)();
+			await flush();
+
+			expect(getTracksByPlaylist).toHaveBeenCalledWith(
+				'playlist-1',
+				1,
+				jasmine.any(Number),
+				undefined,
+			);
+			expect(addToUpNext).toHaveBeenCalledWith(page);
 		});
 
 		valdiIt('genre Add to Playlist hands over a paged track source', async (driver) => {

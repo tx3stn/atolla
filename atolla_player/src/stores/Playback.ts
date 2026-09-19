@@ -17,6 +17,7 @@ interface PersistedPlaybackQueue {
 	epoch?: string;
 	trackIndex: number;
 	tracks: Array<Track>;
+	upNext?: Array<boolean>;
 }
 
 interface PersistedPlaybackProgress {
@@ -60,6 +61,7 @@ export function shuffleArray<T>(arr: Array<T>): Array<T> {
 export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
 	private _artistLogoUrls: Array<string | null> = [];
+	private _upNext: Array<boolean> = [];
 	private queueFiller: QueueFiller | null = null;
 	private queueStore: KeyValueStore | null = null;
 	private progressStore: KeyValueStore | null = null;
@@ -133,6 +135,7 @@ export class PlaybackStore {
 			this.album = parsed.album;
 			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
+			this._upNext = parsed.tracks.map((_, index) => parsed.upNext?.[index] === true);
 			this.persistEpoch = parsed.epoch ?? '';
 
 			this.isPlaying = isPlayingFn?.() === true;
@@ -236,6 +239,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this._artistLogoUrls = [];
+		this.clearUpNext();
 		// clear inactive marker so the next cold start can restore this queue
 		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
@@ -305,6 +309,7 @@ export class PlaybackStore {
 			if (this.loopMode === LoopModes.queue) {
 				this.trackIndex = 0;
 				this.progressSeconds = 0;
+				this.clearUpNext();
 			} else {
 				this.trackIndex = finishedIndex;
 				this.progressSeconds = this.tracks[finishedIndex]?.duration ?? 0;
@@ -470,6 +475,7 @@ export class PlaybackStore {
 					this.trackIndex = 0;
 					this.progressSeconds = 0;
 					this.seekTarget = 0;
+					this.clearUpNext();
 					queueStateChanged = true;
 				} else {
 					this.progressSeconds = activeTrack.duration;
@@ -536,6 +542,7 @@ export class PlaybackStore {
 		this.tracks = [];
 		this.album = null;
 		this._artistLogoUrls = [];
+		this._upNext = [];
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
@@ -559,6 +566,7 @@ export class PlaybackStore {
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = [];
+		this.clearUpNext();
 		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
 		this.notify();
@@ -567,8 +575,19 @@ export class PlaybackStore {
 	addToQueue(tracks: Array<Track>): void {
 		this.tracks = [...this.tracks, ...sanitizeTracks(tracks)];
 		this._artistLogoUrls = [...this._artistLogoUrls, ...tracks.map(() => null)];
+		this._upNext = [...this._upNext, ...tracks.map(() => false)];
 		this.persistQueue();
 		this.notify();
+	}
+
+	addToUpNext(tracks: Array<Track>): void {
+		if (this.tracks.length === 0) {
+			this.playTracks(tracks, 0);
+			return;
+		}
+
+		const blockEnd = this.upNextEndIndex();
+		this.insertUpNext(tracks, blockEnd === -1 ? this.trackIndex + 1 : blockEnd + 1);
 	}
 
 	playNext(tracks: Array<Track>): void {
@@ -577,16 +596,7 @@ export class PlaybackStore {
 			return;
 		}
 
-		const insertAt = this.trackIndex + 1;
-		const sanitized = sanitizeTracks(tracks);
-		this.tracks = [...this.tracks.slice(0, insertAt), ...sanitized, ...this.tracks.slice(insertAt)];
-		this._artistLogoUrls = [
-			...this._artistLogoUrls.slice(0, insertAt),
-			...tracks.map(() => null),
-			...this._artistLogoUrls.slice(insertAt),
-		];
-		this.persistQueue();
-		this.notify();
+		this.insertUpNext(tracks, this.trackIndex + 1);
 	}
 
 	removeFromQueueAt(index: number): void {
@@ -605,6 +615,7 @@ export class PlaybackStore {
 			...this._artistLogoUrls.slice(0, index),
 			...this._artistLogoUrls.slice(index + 1),
 		];
+		this._upNext = [...this._upNext.slice(0, index), ...this._upNext.slice(index + 1)];
 
 		const wasCurrentTrack = index === this.trackIndex;
 
@@ -649,6 +660,10 @@ export class PlaybackStore {
 		nextLogoUrls.splice(toIndex, 0, movedLogoUrl);
 		this._artistLogoUrls = nextLogoUrls;
 
+		const nextUpNext = [...this._upNext];
+		nextUpNext.splice(fromIndex, 1);
+		nextUpNext.splice(toIndex, 0, false);
+
 		if (this.trackIndex === fromIndex) {
 			this.trackIndex = toIndex;
 		} else if (fromIndex < this.trackIndex && toIndex >= this.trackIndex) {
@@ -656,6 +671,17 @@ export class PlaybackStore {
 		} else if (fromIndex > this.trackIndex && toIndex <= this.trackIndex) {
 			this.trackIndex += 1;
 		}
+
+		let deepestOther = -1;
+		for (let index = nextUpNext.length - 1; index > this.trackIndex; index--) {
+			if (index !== toIndex && nextUpNext[index]) {
+				deepestOther = index;
+				break;
+			}
+		}
+		nextUpNext[toIndex] =
+			toIndex > this.trackIndex && deepestOther !== -1 && toIndex <= deepestOther;
+		this._upNext = nextUpNext;
 
 		this.persistQueue();
 		this.notify();
@@ -672,8 +698,39 @@ export class PlaybackStore {
 		}
 		this.tracks = [...this.tracks.slice(0, start), ...tail];
 		this._artistLogoUrls = [...this._artistLogoUrls.slice(0, start), ...tailLogoUrls];
+		this.clearUpNext();
 		this.persistQueue();
 		this.notify();
+	}
+
+	private clearUpNext(): void {
+		this._upNext = this.tracks.map(() => false);
+	}
+
+	private insertUpNext(tracks: Array<Track>, insertAt: number): void {
+		const sanitized = sanitizeTracks(tracks);
+		this.tracks = [...this.tracks.slice(0, insertAt), ...sanitized, ...this.tracks.slice(insertAt)];
+		this._artistLogoUrls = [
+			...this._artistLogoUrls.slice(0, insertAt),
+			...sanitized.map(() => null),
+			...this._artistLogoUrls.slice(insertAt),
+		];
+		this._upNext = [
+			...this._upNext.slice(0, insertAt),
+			...sanitized.map(() => true),
+			...this._upNext.slice(insertAt),
+		];
+		this.persistQueue();
+		this.notify();
+	}
+
+	private upNextEndIndex(): number {
+		for (let index = this.tracks.length - 1; index > this.trackIndex; index--) {
+			if (this._upNext[index]) {
+				return index;
+			}
+		}
+		return -1;
 	}
 
 	private persistProgress(): void {
@@ -718,6 +775,7 @@ export class PlaybackStore {
 			epoch: this.persistEpoch,
 			trackIndex: this.trackIndex - start,
 			tracks: this.tracks.slice(start, end),
+			upNext: this._upNext.slice(start, end),
 		};
 
 		void this.queueStore.storeString(playbackQueueCacheKey, JSON.stringify(payload)).catch(() => {
@@ -801,6 +859,14 @@ function isPersistedPlaybackQueue(value: unknown): value is PersistedPlaybackQue
 	}
 
 	if (!candidate.artistLogoUrls.every((entry) => entry == null || typeof entry === 'string')) {
+		return false;
+	}
+
+	if (
+		candidate.upNext != null &&
+		(!Array.isArray(candidate.upNext) ||
+			!candidate.upNext.every((entry) => typeof entry === 'boolean'))
+	) {
 		return false;
 	}
 

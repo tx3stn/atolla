@@ -1530,6 +1530,192 @@ describe('PlaybackStore', () => {
 			store.playNext([track1]);
 			expect(store.isPlaying).toBe(false);
 		});
+
+		it('inserts ahead of tracks already queued up next', () => {
+			const store = new PlaybackStore();
+			const queued1: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			const queued2: Track = { duration: 130, id: 'track-5', name: 'Track Five' };
+			const jumper: Track = { duration: 140, id: 'track-6', name: 'Track Six' };
+			store.play(tracks, album, 0);
+			store.addToUpNext([queued1]);
+			store.addToUpNext([queued2]);
+			store.playNext([jumper]);
+			expect(store.tracks).toEqual([track1, jumper, queued1, queued2, track2, track3]);
+		});
+
+		it('joins the up next block so a later addition lands behind it', () => {
+			const store = new PlaybackStore();
+			const jumper: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			const queued: Track = { duration: 130, id: 'track-5', name: 'Track Five' };
+			store.play(tracks, album, 0);
+			store.playNext([jumper]);
+			store.addToUpNext([queued]);
+			expect(store.tracks).toEqual([track1, jumper, queued, track2, track3]);
+		});
+	});
+
+	describe('addToUpNext()', () => {
+		const extra1: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+		const extra2: Track = { duration: 130, id: 'track-5', name: 'Track Five' };
+		const extra3: Track = { duration: 140, id: 'track-6', name: 'Track Six' };
+
+		it('inserts immediately after the current track when nothing is queued up next', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			expect(store.tracks).toEqual([track1, extra1, track2, track3]);
+		});
+
+		it('appends behind tracks already queued up next', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			store.addToUpNext([extra2]);
+			expect(store.tracks).toEqual([track1, extra1, extra2, track2, track3]);
+		});
+
+		it('inserts multiple tracks in order', () => {
+			const store = new PlaybackStore();
+			store.play([track1, track3], album, 0);
+			store.addToUpNext([extra1, extra2]);
+			expect(store.tracks).toEqual([track1, extra1, extra2, track3]);
+		});
+
+		it('does not change the current track index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.addToUpNext([extra1]);
+			expect(store.trackIndex).toBe(1);
+			expect(store.track).toBe(track2);
+		});
+
+		it('starts playback when the queue is empty', () => {
+			const store = new PlaybackStore();
+			store.addToUpNext([extra1]);
+			expect(store.tracks).toEqual([extra1]);
+			expect(store.track).toBe(extra1);
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.addToUpNext([extra1]);
+			expect(calls).toBe(1);
+		});
+
+		it('starts a fresh block once the previous one has played out', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+
+			store.updateProgress(track1.duration);
+			store.updateProgress(extra1.duration);
+			expect(store.track).toBe(track2);
+
+			store.addToUpNext([extra2]);
+			expect(store.tracks).toEqual([track1, extra1, track2, extra2, track3]);
+		});
+
+		it('keeps the block when stepping back to an earlier track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.addToUpNext([extra1]);
+			expect(store.tracks).toEqual([track1, track2, extra1, track3]);
+
+			store.previous();
+			store.addToUpNext([extra2]);
+
+			expect(store.track).toBe(track1);
+			expect(store.tracks).toEqual([track1, track2, extra1, extra2, track3]);
+		});
+
+		it('clears the block when a queue loop wraps back to the start', () => {
+			const store = new PlaybackStore();
+			store.play([track1, track2], album, 0);
+			store.loopMode = 'queue';
+			store.addToUpNext([extra1]);
+			expect(store.tracks).toEqual([track1, extra1, track2]);
+
+			store.updateProgress(track1.duration);
+			store.updateProgress(extra1.duration);
+			store.updateProgress(track2.duration);
+			expect(store.trackIndex).toBe(0);
+
+			store.addToUpNext([extra2]);
+			expect(store.tracks).toEqual([track1, extra2, extra1, track2]);
+		});
+
+		it('clears the block when the queue tail is shuffled', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			store.shuffle();
+
+			store.addToUpNext([extra2]);
+
+			expect(store.tracks[store.trackIndex + 1]).toBe(extra2);
+		});
+
+		it('keeps the rest of the block after one of its tracks is removed', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			store.addToUpNext([extra2]);
+			store.removeFromQueueAt(1);
+			expect(store.tracks).toEqual([track1, extra2, track2, track3]);
+
+			store.addToUpNext([extra3]);
+			expect(store.tracks).toEqual([track1, extra2, extra3, track2, track3]);
+		});
+	});
+
+	describe('up next and queue reordering', () => {
+		const extra1: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+		const extra2: Track = { duration: 130, id: 'track-5', name: 'Track Five' };
+		const extra3: Track = { duration: 140, id: 'track-6', name: 'Track Six' };
+
+		it('adds a queue track dragged into the block to it', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			expect(store.tracks).toEqual([track1, extra1, track2, track3]);
+
+			store.moveQueueTrack(3, 1);
+			expect(store.tracks).toEqual([track1, track3, extra1, track2]);
+
+			store.addToUpNext([extra2]);
+			expect(store.tracks).toEqual([track1, track3, extra1, extra2, track2]);
+		});
+
+		it('drops a block track from it when dragged below the block', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			store.addToUpNext([extra2]);
+			expect(store.tracks).toEqual([track1, extra1, extra2, track2, track3]);
+
+			store.moveQueueTrack(2, 4);
+			expect(store.tracks).toEqual([track1, extra1, track2, track3, extra2]);
+
+			store.addToUpNext([extra3]);
+			expect(store.tracks).toEqual([track1, extra1, extra3, track2, track3, extra2]);
+		});
+
+		it('leaves a track dropped immediately below the block outside it', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+			expect(store.tracks).toEqual([track1, extra1, track2, track3]);
+
+			store.moveQueueTrack(3, 2);
+			expect(store.tracks).toEqual([track1, extra1, track3, track2]);
+
+			store.addToUpNext([extra2]);
+			expect(store.tracks).toEqual([track1, extra1, extra2, track3, track2]);
+		});
 	});
 
 	describe('shuffleArray()', () => {
@@ -1679,6 +1865,44 @@ describe('PlaybackStore', () => {
 
 			expect(store.track).toEqual(track2);
 			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('restores the up next block from cache', async () => {
+			const extra1: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			const extra2: Track = { duration: 130, id: 'track-5', name: 'Track Five' };
+			const queueStore = new InMemoryQueueStore();
+
+			const store = new PlaybackStore();
+			await attach(store, queueStore);
+			store.play(tracks, album, 0);
+			store.addToUpNext([extra1]);
+
+			const restored = new PlaybackStore();
+			await attach(restored, queueStore);
+			restored.addToUpNext([extra2]);
+
+			expect(restored.tracks).toEqual([track1, extra1, extra2, track2, track3]);
+		});
+
+		it('restores a legacy queue payload as having no up next block', async () => {
+			const extra: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null, null, null],
+					epoch: 'e1',
+					trackIndex: 0,
+					tracks,
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await attach(store, queueStore);
+			store.addToUpNext([extra]);
+
+			expect(store.tracks).toEqual([track1, extra, track2, track3]);
 		});
 
 		it('checkpoints progress every five seconds while playing', async () => {

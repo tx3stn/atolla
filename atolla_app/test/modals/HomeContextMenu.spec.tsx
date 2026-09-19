@@ -46,16 +46,19 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 
 function mockPagedStore() {
 	const addToQueue = jasmine.createSpy('addToQueue');
+	const addToUpNext = jasmine.createSpy('addToUpNext');
 	const playNext = jasmine.createSpy('playNext');
 	const playTracks = jasmine.createSpy('playTracks');
 	const setQueueFiller = jasmine.createSpy('setQueueFiller');
 	return {
 		addToQueue,
+		addToUpNext,
 		playNext,
 		playTracks,
 		setQueueFiller,
 		store: {
 			addToQueue,
+			addToUpNext,
 			playNext,
 			playTracks,
 			setQueueFiller,
@@ -144,6 +147,24 @@ describe('HomeContextMenu', () => {
 			expect(trackIds(playback.playNext)).toEqual(['album-1-track', 'album-2-track']);
 			expect(viewModel.toastService.show).toHaveBeenCalledWith({
 				message: 'playing next',
+				variant: 'success',
+			});
+			expect(viewModel.onDismiss).toHaveBeenCalled();
+		});
+	});
+
+	describe('handleAddToUpNext()', () => {
+		valdiIt('queues every item in the section and toasts', async (driver) => {
+			const playback = mockPagedStore();
+			const viewModel = buildViewModel({ playbackStore: playback.store });
+			const component = driver.renderComponent(HomeContextMenu, viewModel, undefined);
+
+			(getInternal(component).handleAddToUpNext as () => void)();
+			await flush();
+
+			expect(trackIds(playback.addToUpNext)).toEqual(['album-1-track', 'album-2-track']);
+			expect(viewModel.toastService.show).toHaveBeenCalledWith({
+				message: 'added to up next',
 				variant: 'success',
 			});
 			expect(viewModel.onDismiss).toHaveBeenCalled();
