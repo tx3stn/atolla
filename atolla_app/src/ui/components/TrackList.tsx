@@ -58,7 +58,7 @@ export interface TrackListViewModel {
 	onTrackLongPress?: (track: Track) => void;
 	onTrackReorder?: (fromEntryIndex: number, toEntryIndex: number) => void;
 	onTrackSwipeRemove?: (trackId: string, entryIndex: number) => void;
-	onTrackTap?: (trackId: string) => void;
+	onTrackTap?: (trackId: string, entryIndex: number) => void;
 	palette?: Palette;
 	rowIdentityPrefix?: string;
 	showDragHandles?: boolean;
@@ -151,7 +151,11 @@ export class TrackList extends Component<TrackListViewModel> {
 		return this.draggingRowIdentities.size === 0 && Math.abs(event.deltaX) > Math.abs(event.deltaY);
 	};
 
-	private getRowTapHandler = (rowIdentity: string, trackId: string): (() => void) => {
+	private getRowTapHandler = (
+		rowIdentity: string,
+		trackId: string,
+		entryIndex: number,
+	): (() => void) => {
 		const existing = this.rowTapHandlerByIdentity.get(rowIdentity);
 		if (existing) {
 			return existing;
@@ -164,7 +168,7 @@ export class TrackList extends Component<TrackListViewModel> {
 			}
 			this.performSelectionHaptic();
 			this.triggerTapPulse(rowIdentity);
-			this.viewModel.onTrackTap?.(trackId);
+			this.viewModel.onTrackTap?.(trackId, entryIndex);
 		};
 
 		this.rowTapHandlerByIdentity.set(rowIdentity, handler);
@@ -362,7 +366,7 @@ export class TrackList extends Component<TrackListViewModel> {
 									}
 									onDragDisabled={!canSwipe}
 									onDragPredicate={this.canStartHorizontalSwipe}
-									onTap={this.getRowTapHandler(rowIdentity, entry.id)}
+									onTap={this.getRowTapHandler(rowIdentity, entry.id, index)}
 									onTouch={
 										entry.track && this.viewModel.onTrackLongPress
 											? ((track) => (event) => {

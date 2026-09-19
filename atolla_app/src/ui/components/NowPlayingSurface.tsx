@@ -979,15 +979,16 @@ export class NowPlayingSurface extends StatefulComponent<
 		playbackStore.skipForward(10);
 	};
 
-	private handleTrackTap = (trackId: string): void => {
-		const playbackStore = this.viewModel.playbackStore;
+	private handleTrackTap = (_trackId: string, entryIndex: number): void => {
+		const { playbackStore, trackIndex } = this.viewModel;
 		if (!playbackStore) {
 			return;
 		}
-		const index = playbackStore.tracks.findIndex((t) => t.id === trackId);
-		if (index !== -1) {
-			playbackStore.jumpToIndex(index);
-		}
+		const index =
+			this.state.activeQueueTab === 'upNext'
+				? trackIndex + 1 + entryIndex
+				: trackIndex - 1 - entryIndex;
+		playbackStore.jumpToIndex(index);
 	};
 
 	onRender(): void {

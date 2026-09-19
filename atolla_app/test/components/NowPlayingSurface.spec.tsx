@@ -939,6 +939,102 @@ describe('NowPlayingSurface', () => {
 		}
 	});
 
+	valdiIt('jumps to the tapped copy of a track that appears twice in the queue', async () => {
+		const tracks = [
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-2', name: 'Track Two' },
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-3', name: 'Track Three' },
+		];
+		const playbackStore = mockPlaybackStore({
+			jumpToIndex: jasmine.createSpy('jumpToIndex'),
+			tracks,
+		});
+
+		const instrumented = mountNowPlaying({
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore,
+			track: tracks[0],
+			trackIndex: 0,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.(touchEvent);
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const duplicateRow = views.find(
+			(view) =>
+				view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-up-next-track-1-1',
+		);
+		duplicateRow?.getAttribute('onTap')?.(touchEvent);
+
+		expect(playbackStore.jumpToIndex).toHaveBeenCalledWith(2);
+	});
+
+	valdiIt('jumps to the tapped copy of a duplicated track in the back-to list', async () => {
+		const tracks = [
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-2', name: 'Track Two' },
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-4', name: 'Track Four' },
+		];
+		const playbackStore = mockPlaybackStore({
+			jumpToIndex: jasmine.createSpy('jumpToIndex'),
+			tracks,
+		});
+
+		const instrumented = mountNowPlaying({
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore,
+			track: tracks[3],
+			trackIndex: 3,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.(touchEvent);
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const backToTab = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
+		);
+		backToTab?.getAttribute('onTap')?.(touchEvent);
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const duplicateRow = views.find(
+			(view) =>
+				view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-back-to-track-1-0',
+		);
+		duplicateRow?.getAttribute('onTap')?.(touchEvent);
+
+		expect(playbackStore.jumpToIndex).toHaveBeenCalledWith(2);
+	});
+
 	valdiIt('reorders up-next tracks when a queue row is dragged vertically', async () => {
 		const playbackStore = mockPlaybackStore({
 			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
