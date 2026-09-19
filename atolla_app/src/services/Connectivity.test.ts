@@ -25,6 +25,7 @@ interface Calls {
 	onSessionExpired: number;
 	onUserChanged: Array<string>;
 	setMode: Array<ConnectionMode>;
+	showToast: Array<string>;
 }
 
 function flush(): Promise<void> {
@@ -69,6 +70,7 @@ function makeConnectivity(over?: {
 		onSessionExpired: 0,
 		onUserChanged: [],
 		setMode: [],
+		showToast: [],
 	};
 	let session = over?.session ?? null;
 
@@ -133,6 +135,7 @@ function makeConnectivity(over?: {
 		resolveCachedImage: () => null,
 		sessionManager,
 		setNativeAuthHeader: () => {},
+		showToast: (message) => calls.showToast.push(message),
 	};
 
 	const connectivity = new Connectivity(deps);

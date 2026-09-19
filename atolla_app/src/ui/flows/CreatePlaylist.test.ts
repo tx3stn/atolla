@@ -189,4 +189,23 @@ describe('createPlaylistAndAddTracks', () => {
 		expect(playlist.id).toBe('pl-1');
 		expect(added).toEqual(['a', 'b', 'c']);
 	});
+
+	it('resolves with the created playlist when cancelled, rather than rejecting', async () => {
+		const added: Array<string> = [];
+		const pending = createPlaylistAndAddTracks(
+			'My Playlist',
+			async (name) => ({ id: 'pl-1', name }),
+			(_playlistId, trackIds) => {
+				added.push(...trackIds);
+				return Promise.resolve();
+			},
+			pagedFromArray([{ id: 'a' }, { id: 'b' }] as Array<Track>),
+		);
+		pending.cancel?.();
+
+		const playlist = await pending;
+
+		expect(playlist.id).toBe('pl-1');
+		expect(added).toEqual([]);
+	});
 });

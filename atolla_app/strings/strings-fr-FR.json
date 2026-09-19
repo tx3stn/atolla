@@ -150,6 +150,9 @@
 	"errors_playback_unsupported_format": {
 		"defaultMessage": "type de fichier non pris en charge"
 	},
+	"errors_transport_timed_out": {
+		"defaultMessage": "le serveur a mis trop de temps à répondre"
+	},
 	"failed_to_load_more": {
 		"defaultMessage": "échec du chargement\nappuyez pour réessayer"
 	},

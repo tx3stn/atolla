@@ -24,6 +24,7 @@ interface Calls {
 	onSessionExpired: number;
 	onUserChanged: Array<string>;
 	setNativeAuthHeader: Array<string>;
+	showToast: Array<string>;
 }
 
 function unauthorizedClient(): IHTTPClient {
@@ -45,6 +46,7 @@ function makeConnectivity(opts?: {
 		onSessionExpired: 0,
 		onUserChanged: [],
 		setNativeAuthHeader: [],
+		showToast: [],
 	};
 	let session = opts?.session ?? null;
 
@@ -88,6 +90,7 @@ function makeConnectivity(opts?: {
 		resolveCachedImage: () => null,
 		sessionManager,
 		setNativeAuthHeader: (header) => calls.setNativeAuthHeader.push(header),
+		showToast: (message) => calls.showToast.push(message),
 	};
 
 	const connectivity = new Connectivity(deps);

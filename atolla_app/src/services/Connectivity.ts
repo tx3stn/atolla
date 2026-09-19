@@ -1,3 +1,4 @@
+import Strings from 'atolla_app/src/Strings';
 import type { AuthSession } from 'atolla_core/src/models/Auth';
 import type { ResolveCachedImage } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
@@ -27,6 +28,7 @@ export interface ConnectivityDeps {
 	resolveCachedImage: ResolveCachedImage;
 	sessionManager: SessionManager;
 	setNativeAuthHeader(header: string): void;
+	showToast(message: string): void;
 }
 
 // connection state machine: owns the online/offline/mock mode and the active transport, which is
@@ -202,6 +204,13 @@ export class Connectivity {
 		})();
 	}
 
+	private handleRequestTimedOut(generation: number): void {
+		if (generation !== this.transportGeneration) {
+			return;
+		}
+		this.deps.showToast(Strings.errorsTransportTimedOut());
+	}
+
 	private handleSessionExpired(generation: number): void {
 		if (generation !== this.transportGeneration) {
 			return;
@@ -226,6 +235,7 @@ export class Connectivity {
 				{
 					clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId(),
 					clientDeviceName: this.deps.sessionManager.getEffectiveDeviceName(),
+					onRequestTimedOut: () => this.handleRequestTimedOut(generation),
 					onSessionExpired: () => this.handleSessionExpired(generation),
 					resolveCachedImage: this.deps.resolveCachedImage,
 				},

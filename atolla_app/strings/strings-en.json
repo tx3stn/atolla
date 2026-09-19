@@ -150,6 +150,9 @@
 	"errors_playback_unsupported_format": {
 		"defaultMessage": "unsupported file type"
 	},
+	"errors_transport_timed_out": {
+		"defaultMessage": "server took too long to respond"
+	},
 	"failed_to_load_more": {
 		"defaultMessage": "failed to load more\npull to retry"
 	},

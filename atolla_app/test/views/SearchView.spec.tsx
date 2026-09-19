@@ -289,6 +289,37 @@ describe('SearchView', () => {
 		expect(canceledQueries).toEqual(['first']);
 	});
 
+	valdiIt('stays silent when a superseded search rejects on cancel', async () => {
+		const viewModel = {
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => {
+					let rejectRequest: (error: unknown) => void = () => {};
+					const pending = new Promise<SearchResults>((_resolve, reject) => {
+						rejectRequest = reject;
+					}) as CancelablePromise<SearchResults>;
+					pending.cancel = () => rejectRequest(new Error('Request was cancelled'));
+					return pending;
+				},
+			},
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
+
+		component.handleSubmitSearch('first');
+		component.handleSubmitSearch('second');
+		await flushAsyncWork();
+
+		expect(component.state.errorMessage).toBeNull();
+		expect(component.state.status).toBe('loading');
+	});
+
 	valdiIt('submits search from keyboard return', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {

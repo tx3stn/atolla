@@ -305,21 +305,20 @@ describe('request deadline', () => {
 		expect(canceled).toBe(1);
 	});
 
-	// valdi's native cancel currently throws; a deadline must still report cleanly through it
-	it('still rejects cleanly when the underlying cancel throws', async () => {
+	it('rejects with the timeout even when the teardown cancel throws', async () => {
 		const { state, timer } = manualTimer();
 		const service = makeService({
 			client: stubClient({
 				get: () =>
 					neverSettles(() => {
-						throw new TypeError('l is not a function (it is Object)');
+						throw new TypeError('cancel failed');
 					}),
 			}),
 			timer,
 		});
 
 		const pending = service.startQuickConnect();
-		state.fire();
+		expect(() => state.fire()).toThrow('cancel failed');
 
 		await expect(pending).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
 	});

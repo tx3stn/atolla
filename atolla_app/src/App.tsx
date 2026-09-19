@@ -232,6 +232,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		resolveCachedImage: (category, identity) => this.resolveCachedImage(category, identity),
 		sessionManager: this.sessionManager,
 		setNativeAuthHeader: (header) => this.pushNativeAuthHeader(header),
+		showToast: (message) => this.toastService.show({ message, variant: ToastTypes.error }),
 	});
 	private userScope: UserScope = new UserScope({
 		assetCache: this.assetCache,

@@ -99,9 +99,10 @@ export class PlayerClient {
 		let cancel = (): void => {};
 
 		const cancelled = new Promise<never>((_resolve, reject) => {
+			// cancel last so a throw from it cannot skip the reject
 			cancel = () => {
-				request.cancel?.();
 				reject(new Error(REQUEST_CANCELLED));
+				request.cancel?.();
 			};
 		});
 

@@ -15,6 +15,7 @@ import type {
 	TrackPageSort,
 	Transport,
 } from 'atolla_core/src/transports/Transport';
+import { defaultTimer, type TimerFn } from 'atolla_core/src/utils/Timer';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
@@ -56,8 +57,11 @@ export {
 interface LiveTransportOptions {
 	clientDeviceId?: string;
 	clientDeviceName?: string;
+	onRequestTimedOut?: () => void;
 	onSessionExpired?: () => void;
+	requestTimeoutMs?: number;
 	resolveCachedImage?: ResolveCachedImage;
+	timer?: TimerFn;
 }
 
 interface RequestOptions {
@@ -72,6 +76,9 @@ interface AlbumsPageResult {
 
 const itemIdBatchSize = 100;
 const defaultSearchLimit = 100;
+// short enough that a stalled read reports while the user is still watching the spinner. ios would
+// otherwise wait out NSURLSession's 60s and android has no timeout of its own at all.
+const defaultRequestTimeoutMs = 15_000;
 const log = getLogger('transport');
 const trackFields = 'Overview,Genres,MediaSources,SortName';
 
@@ -89,8 +96,11 @@ export class LiveTransport implements Transport {
 		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(itemId, 'Primary', imageTag),
 	};
+	private readonly onRequestTimedOut: (() => void) | null;
 	private readonly onSessionExpired: (() => void) | null;
+	private readonly requestTimeoutMs: number;
 	private readonly resolveCachedImage: ResolveCachedImage | null;
+	private readonly timer: TimerFn;
 
 	constructor(
 		readonly serverUrl: string,
@@ -103,8 +113,11 @@ export class LiveTransport implements Transport {
 		this.client = client;
 		this.clientDeviceId = normalizeDeviceId(options.clientDeviceId);
 		this.clientDeviceName = options.clientDeviceName ?? '';
+		this.onRequestTimedOut = options.onRequestTimedOut ?? null;
 		this.onSessionExpired = options.onSessionExpired ?? null;
+		this.requestTimeoutMs = options.requestTimeoutMs ?? defaultRequestTimeoutMs;
 		this.resolveCachedImage = options.resolveCachedImage ?? null;
+		this.timer = options.timer ?? defaultTimer;
 	}
 
 	async addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void> {
@@ -894,11 +907,23 @@ export class LiveTransport implements Transport {
 					headers['Content-Type'] = 'application/json';
 					body = new TextEncoder().encode(JSON.stringify(options.body));
 				}
-				response = await tracked(canceler, this.client.post(requestPath, body, headers));
+				response = await this.withDeadline(
+					tracked(canceler, this.client.post(requestPath, body, headers)),
+					method,
+					requestPath,
+				);
 			} else if (method === 'DELETE') {
-				response = await tracked(canceler, this.client.delete(requestPath, headers));
+				response = await this.withDeadline(
+					tracked(canceler, this.client.delete(requestPath, headers)),
+					method,
+					requestPath,
+				);
 			} else {
-				response = await tracked(canceler, this.client.get(requestPath, headers));
+				response = await this.withDeadline(
+					tracked(canceler, this.client.get(requestPath, headers)),
+					method,
+					requestPath,
+				);
 			}
 
 			if (response.statusCode === 401) {
@@ -940,6 +965,43 @@ export class LiveTransport implements Transport {
 			} catch {
 				throw TransportErrors.LIVE_INVALID_RESPONSE;
 			}
+		});
+	}
+
+	private withDeadline<T>(request: CancelablePromise<T>, method: string, path: string): Promise<T> {
+		return new Promise<T>((resolve, reject) => {
+			let settled = false;
+			const finish = (): boolean => {
+				if (settled) return false;
+				settled = true;
+
+				return true;
+			};
+
+			// cancel last so a throw from it cannot skip the reject
+			const clearDeadline = this.timer(() => {
+				if (!finish()) return;
+
+				log.warn('request timed out', { method, path, timeoutMs: this.requestTimeoutMs });
+				reject(TransportErrors.LIVE_TIMED_OUT);
+				this.onRequestTimedOut?.();
+				request.cancel?.();
+			}, this.requestTimeoutMs);
+
+			request.then(
+				(value) => {
+					if (!finish()) return;
+
+					clearDeadline();
+					resolve(value);
+				},
+				(error: unknown) => {
+					if (!finish()) return;
+
+					clearDeadline();
+					reject(error);
+				},
+			);
 		});
 	}
 }

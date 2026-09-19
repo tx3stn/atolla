@@ -7,15 +7,15 @@ function requestWithCancel(cancel: () => void): CancelablePromise<unknown> {
 }
 
 describe('tracked', () => {
-	it('does not throw when the tracked request cancel throws', () => {
+	it('lets a failing cancel surface instead of swallowing it', () => {
 		const canceler = new PromiseCanceler();
 		const request = requestWithCancel(() => {
-			throw new Error('l is not a function (it is Object)');
+			throw new Error('cancel failed');
 		});
 
 		tracked(canceler, request);
 
-		expect(() => canceler.cancel()).not.toThrow();
+		expect(() => canceler.cancel()).toThrow('cancel failed');
 	});
 
 	it('forwards cancel to the tracked request', () => {

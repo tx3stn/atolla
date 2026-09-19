@@ -80,6 +80,42 @@ function createHTTPClient(responses: Array<MockHTTPResponse>) {
 	return { calls, client: client as unknown as IHTTPClient };
 }
 
+function manualTimer() {
+	const state = { cleared: 0, fire: () => {}, scheduled: 0, scheduledMs: 0 };
+	const timer = (callback: () => void, ms: number) => {
+		state.scheduled += 1;
+		state.scheduledMs = ms;
+		state.fire = callback;
+
+		return () => {
+			state.cleared += 1;
+		};
+	};
+
+	return { state, timer };
+}
+
+// a client whose requests never answer, so only the deadline can settle them
+function createSilentHTTPClient() {
+	const cancels = { count: 0 };
+	let rejectRequest: (error: unknown) => void = () => {};
+	const request = new Promise<never>((_resolve, reject) => {
+		rejectRequest = reject;
+	}) as CancelablePromise<never>;
+	// valdi's HTTPClient rejects with this on cancel, so the double has to as well
+	request.cancel = () => {
+		cancels.count += 1;
+		rejectRequest(new Error('Request was cancelled'));
+	};
+	const client = {
+		delete: () => request,
+		get: () => request,
+		post: () => request,
+	};
+
+	return { cancels, client: client as unknown as IHTTPClient };
+}
+
 function queryParam(pathOrUrl: string, key: string): string | null {
 	const url = new URL(pathOrUrl, 'https://atolla.test');
 	return url.searchParams.get(key);
@@ -1468,6 +1504,136 @@ describe('lyrics', () => {
 			await expect(transport.getLyrics('track-1')).rejects.toMatchObject({
 				err: 'auth_session_expired',
 			});
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+});
+
+describe('request deadline', () => {
+	it('rejects with a timeout when the deadline fires', async () => {
+		const { client } = createSilentHTTPClient();
+		const { state, timer } = manualTimer();
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				timer,
+			},
+		);
+
+		const pending = transport.getAlbums(1, 50);
+		state.fire();
+
+		await expect(pending).rejects.toMatchObject({ err: 'transport_live_timed_out' });
+	});
+
+	it('reports the timeout so the app can surface it', async () => {
+		const { client } = createSilentHTTPClient();
+		const { state, timer } = manualTimer();
+		const timeouts: Array<string> = [];
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				onRequestTimedOut: () => timeouts.push('timed out'),
+				timer,
+			},
+		);
+
+		const pending = transport.getAlbums(1, 50);
+		state.fire();
+
+		await expect(pending).rejects.toMatchObject({ err: 'transport_live_timed_out' });
+		expect(timeouts).toEqual(['timed out']);
+	});
+
+	it('cancels the in-flight request when the deadline fires', async () => {
+		const { cancels, client } = createSilentHTTPClient();
+		const { state, timer } = manualTimer();
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				timer,
+			},
+		);
+
+		const pending = transport.getAlbums(1, 50);
+		state.fire();
+
+		await expect(pending).rejects.toMatchObject({ err: 'transport_live_timed_out' });
+		expect(cancels.count).toBe(1);
+	});
+
+	it('does not report a timeout once the request has been cancelled', async () => {
+		const { client } = createSilentHTTPClient();
+		const { state, timer } = manualTimer();
+		const timeouts: Array<string> = [];
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				onRequestTimedOut: () => timeouts.push('timed out'),
+				timer,
+			},
+		);
+
+		const pending = transport.getAlbums(1, 50);
+		pending.cancel?.();
+		await expect(pending).rejects.toThrow('Request was cancelled');
+		state.fire();
+
+		expect(timeouts).toEqual([]);
+		expect(state.cleared).toBe(1);
+	});
+
+	it('clears the deadline when the request answers', async () => {
+		const { client } = createHTTPClient([jsonResponse(200, listResponse([]))]);
+		const { state, timer } = manualTimer();
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				timer,
+			},
+		);
+
+		await transport.getAlbums(1, 50);
+
+		expect(state.scheduled).toBe(1);
+		expect(state.cleared).toBe(1);
+	});
+
+	it('does not report a timeout when the request fails for another reason', async () => {
+		const { client } = createHTTPClient([jsonResponse(500, {})]);
+		const { state, timer } = manualTimer();
+		const timeouts: Array<string> = [];
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+				{ onRequestTimedOut: () => timeouts.push('timed out'), timer },
+			);
+
+			await expect(transport.getAlbums(1, 50)).rejects.toMatchObject({
+				err: 'transport_live_request_failed',
+			});
+			expect(timeouts).toEqual([]);
+			expect(state.cleared).toBe(1);
 		} finally {
 			warnSpy.mockRestore();
 		}

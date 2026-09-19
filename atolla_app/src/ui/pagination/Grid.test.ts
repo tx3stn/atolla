@@ -223,4 +223,27 @@ describe('createPagedGridController', () => {
 
 		expect(patches.some((patch) => patch.items !== undefined)).toBe(false);
 	});
+
+	it('does not mark the page failed when a cancelled fetch rejects', async () => {
+		let rejectPage: (error: unknown) => void = () => {};
+		const deferred = new Promise<PagedResult<TestItem>>((_resolve, reject) => {
+			rejectPage = reject;
+		}) as CancelablePromise<PagedResult<TestItem>>;
+		deferred.cancel = () => rejectPage(new Error('Request was cancelled'));
+		const patches: Array<Partial<TestState>> = [];
+
+		const controller = createPagedGridController<TestItem>({
+			fetchPage: () => deferred,
+			isDestroyed: () => false,
+			setState: (patch) => {
+				patches.push(patch);
+			},
+		});
+
+		const load = controller.loadNextPage();
+		controller.reset();
+		await load;
+
+		expect(patches.some((patch) => patch.nextPageFailed === true)).toBe(false);
+	});
 });

@@ -2,6 +2,7 @@ import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { tracked } from 'atolla_core/src/transports/Cancelable';
+import { defaultTimer, type TimerFn } from 'atolla_core/src/utils/Timer';
 import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
@@ -70,15 +71,6 @@ interface JellyfinAuthServiceOptions {
 
 type SleepFn = (ms: number) => Promise<void>;
 type NowFn = () => number;
-// returns its own clear function. sleep can't serve here: a request deadline has to be cancelable
-// or a 60s approval wait would leave a live timer behind for every poll it outlived.
-type TimerFn = (callback: () => void, ms: number) => () => void;
-
-function defaultTimer(callback: () => void, ms: number): () => void {
-	const id = setTimeout(callback, ms);
-
-	return () => clearTimeout(id);
-}
 
 function defaultSleep(ms: number): Promise<void> {
 	return new Promise((resolve) => {
@@ -462,11 +454,12 @@ export class JellyfinAuthService {
 				return true;
 			};
 
+			// cancel last so a throw from it cannot skip the reject
 			const clearDeadline = this.timer(() => {
 				if (!finish()) return;
-				canceler.cancel();
 				log.error('request timed out', { context, timeoutMs });
 				reject(AuthErrors.SERVER_UNREACHABLE);
+				canceler.cancel();
 			}, timeoutMs);
 
 			request.then(

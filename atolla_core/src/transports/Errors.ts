@@ -4,6 +4,7 @@ export const TransportErrors = {
 	LIVE_INVALID_RESPONSE: new InternalError('transport_live_invalid_response'),
 	LIVE_NOT_FOUND: new InternalError('transport_live_not_found'),
 	LIVE_REQUEST_FAILED: new InternalError('transport_live_request_failed'),
+	LIVE_TIMED_OUT: new InternalError('transport_live_timed_out'),
 	OFFLINE_LYRICS: new InternalError('transport_offline_lyrics'),
 	OFFLINE_SCROBBLE: new InternalError('transport_offline_scrobble'),
 } as const;

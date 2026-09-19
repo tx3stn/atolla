@@ -74,11 +74,12 @@ function createTransport(responses: Array<HttpResponse>) {
 }
 
 // a request that never answers, so cancel is the only thing that can settle it
-function createSilentTransport() {
+function createSilentTransport(onCancel?: () => void) {
 	const cancels: Array<string> = [];
 	const request: PendingRequest<HttpResponse> = Object.assign(new Promise<HttpResponse>(() => {}), {
 		cancel: () => {
 			cancels.push('cancelled');
+			onCancel?.();
 		},
 	});
 	const transport: HttpTransport = {
@@ -192,6 +193,17 @@ describe('PlayerClient cancellation', () => {
 
 		const request = new PlayerClient(BASE_URL, transport).hello();
 		request.cancel?.();
+
+		await expect(request).rejects.toThrow(REQUEST_CANCELLED);
+	});
+
+	it('settles when cancelled even if the in-flight cancel throws', async () => {
+		const { transport } = createSilentTransport(() => {
+			throw new Error('cancel failed');
+		});
+
+		const request = new PlayerClient(BASE_URL, transport).hello();
+		expect(() => request.cancel?.()).toThrow('cancel failed');
 
 		await expect(request).rejects.toThrow(REQUEST_CANCELLED);
 	});
