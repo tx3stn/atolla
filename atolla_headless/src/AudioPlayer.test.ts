@@ -229,6 +229,103 @@ describe('makeAudioPlayer', () => {
 		expect(audio.seeks).toEqual([42_000, 42_000]);
 	});
 
+	it('seeks a track it binds while the store is already partway through', () => {
+		let resolved: ResolvedSource | null = null;
+		const { audio, player, playback } = fixture(() => resolved);
+
+		playback.playTracks(TRACKS, 0);
+		playback.updateProgress(30);
+
+		resolved = { authHeader: '', source: '/media/t1' };
+		player.refresh();
+
+		expect(audio.seeks).toEqual([30_000]);
+	});
+
+	it('keeps the position when a rebind changes the source under a paused track', () => {
+		let resolved: ResolvedSource = { authHeader: 'Token="old"', source: 'https://demo/t1' };
+		const { audio, playback } = fixture(() => resolved);
+
+		playback.playTracks(TRACKS, 0);
+		playback.playPause();
+		playback.updateProgress(30);
+
+		resolved = { authHeader: 'Token="new"', source: 'https://demo/t1' };
+		playback.playPause();
+
+		expect(audio.seeks).toEqual([30_000]);
+	});
+
+	it('seeks nowhere when the queue simply moves to the next track', () => {
+		const { audio, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		playback.next();
+
+		expect(audio.seeks).toEqual([]);
+	});
+
+	it('keeps offering the seek until the engine is ready to take it', () => {
+		let refusals = 2;
+		let resolved: ResolvedSource | null = null;
+		const { audio, player, playback } = fixture(() => resolved);
+		audio.seekToMs = (positionMs: number) => {
+			if (refusals > 0) {
+				refusals--;
+				return false;
+			}
+			audio.seeks.push(positionMs);
+			audio.position = positionMs;
+			return true;
+		};
+
+		playback.playTracks(TRACKS, 0);
+		playback.updateProgress(30);
+
+		resolved = { authHeader: '', source: '/media/t1' };
+		player.refresh();
+
+		expect(audio.seeks).toEqual([]);
+
+		player.tick();
+		player.tick();
+
+		expect(audio.seeks).toEqual([30_000]);
+	});
+
+	it('leaves the restored position alone while the seek is still pending', () => {
+		let resolved: ResolvedSource | null = null;
+		const { audio, player, playback } = fixture(() => resolved);
+		audio.seekToMs = () => false;
+
+		playback.playTracks(TRACKS, 0);
+		playback.updateProgress(30);
+
+		resolved = { authHeader: '', source: '/media/t1' };
+		player.refresh();
+		player.tick();
+
+		expect(playback.progressSeconds).toBe(30);
+	});
+
+	it('stops holding the position back once the engine has refused for long enough', () => {
+		let resolved: ResolvedSource | null = null;
+		const { audio, player, playback } = fixture(() => resolved);
+		audio.seekToMs = () => false;
+
+		playback.playTracks(TRACKS, 0);
+		playback.updateProgress(30);
+
+		resolved = { authHeader: '', source: '/media/t1' };
+		player.refresh();
+
+		for (let tick = 0; tick < 30; tick++) {
+			player.tick();
+		}
+
+		expect(playback.progressSeconds).toBe(0);
+	});
+
 	it('reads the engine position into the store', () => {
 		const { audio, player, playback } = fixture();
 

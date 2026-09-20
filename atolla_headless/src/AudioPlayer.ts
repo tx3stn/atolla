@@ -19,6 +19,9 @@ const MAX_EVENTS_PER_TICK = 32;
 // seconds. Stopping leaves it on the track that failed.
 const MAX_CONSECUTIVE_FAILURES = 3;
 
+// A source that never accepts a seek must not hold the reported position back for good.
+const MAX_SEEK_ATTEMPTS = 25;
+
 export interface AudioPlayerDeps {
 	audio: AudioEngine;
 	playback: PlaybackStore;
@@ -41,6 +44,13 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	let consecutiveFailures = 0;
 	let lastPlaying = false;
 	let lastSeekTarget: number | null = null;
+	let pendingSeekMs: number | null = null;
+	let pendingSeekAttempts = 0;
+
+	const offerSeek = (positionMs: number): void => {
+		pendingSeekAttempts = 0;
+		pendingSeekMs = audio.seekToMs(positionMs) ? null : positionMs;
+	};
 
 	const bindTrack = (): void => {
 		const track = playback.track;
@@ -50,6 +60,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 				audio.clear();
 			}
 			bound = null;
+			pendingSeekMs = null;
 			return;
 		}
 
@@ -84,6 +95,12 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		}
 
 		bound = { ...resolved, trackId: track.id };
+
+		pendingSeekMs = null;
+		if (playback.progressSeconds > 0) {
+			offerSeek(Math.floor(playback.progressSeconds * 1000));
+		}
+
 		lastPlaying = playback.isPlaying;
 		audio.setPlaying(playback.isPlaying);
 	};
@@ -110,7 +127,32 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		}
 
 		lastSeekTarget = target;
-		audio.seekToMs(Math.max(0, Math.floor(target * 1000)));
+		offerSeek(Math.max(0, Math.floor(target * 1000)));
+	};
+
+	// The engine answers 0 until the source has prerolled, so a read taken while a seek is pending
+	// would overwrite the position it is travelling to.
+	const seekPending = (): boolean => {
+		if (pendingSeekMs === null) {
+			return false;
+		}
+
+		if (audio.seekToMs(pendingSeekMs)) {
+			pendingSeekMs = null;
+			return false;
+		}
+
+		pendingSeekAttempts++;
+		if (pendingSeekAttempts < MAX_SEEK_ATTEMPTS) {
+			return true;
+		}
+
+		log.warn('gave up seeking to the position the queue came back with', {
+			positionMs: pendingSeekMs,
+		});
+		pendingSeekMs = null;
+
+		return false;
 	};
 
 	const apply = (): void => {
@@ -219,6 +261,11 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			// Batched so several buffered completions settle as one notification, rather than walking
 			// the engine through every intermediate track.
 			playback.runBatched(drain);
+
+			if (seekPending()) {
+				return;
+			}
+
 			readPosition();
 		},
 	};

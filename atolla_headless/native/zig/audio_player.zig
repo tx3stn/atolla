@@ -585,6 +585,39 @@ test "audio_player: seeking moves the position it reports" {
     }.sought);
 }
 
+// The daemon seeks a restored queue to the position it came back with, right after `configure`
+// asks for the source. This refusal is what it has to retry past.
+test "audio_player: refuses a seek until the source it was given is ready" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var audio: [wav.tone_bytes]u8 = undefined;
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "tone.wav", .data = wav.tone(&audio) });
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try std.fmt.bufPrintZ(&path_buffer, ".zig-cache/tmp/{s}/tone.wav", .{tmp.sub_path});
+
+    var uri_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const uri = try runtime.fileUri(&uri_buffer, path);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(uri, "track-seek", "");
+
+    try testing.expect(!player.seekToMs(1_200));
+
+    try until(&player, struct {
+        fn ready(current: *Player) bool {
+            return current.seekToMs(1_200);
+        }
+    }.ready);
+}
+
 test "audio_player: only an http source counts as remote" {
     try testing.expect(isRemote("http://jellyfin.local:8096/Audio/1/stream.mp3"));
     try testing.expect(isRemote("HTTPS://jellyfin.local/Audio/1/stream.mp3"));
