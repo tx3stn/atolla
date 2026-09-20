@@ -2,7 +2,7 @@ import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
-import { createClientHeader } from 'atolla_jellyfin/src/ClientIdentity';
+import { CLIENT_HEADLESS, createClientHeader } from 'atolla_jellyfin/src/ClientIdentity';
 import { LiveTransport } from 'atolla_jellyfin/src/transports/Live';
 import type { MediaServer } from 'atolla_sync/src/api/generated';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
@@ -50,7 +50,11 @@ export function makeMediaServerTransports(deps: MediaServerTransportsDeps): Medi
 
 	const build = (credential: MediaServer, options: BuildOptions): MediaServerAccess => ({
 		authHeader: createClientHeader(
-			{ deviceId: credential.deviceId, deviceName: deps.identity.name },
+			{
+				client: CLIENT_HEADLESS,
+				deviceId: credential.deviceId,
+				deviceName: deps.identity.name,
+			},
 			credential.accessToken,
 		),
 		transport: new LiveTransport(
@@ -61,6 +65,7 @@ export function makeMediaServerTransports(deps: MediaServerTransportsDeps): Medi
 			{
 				clientDeviceId: credential.deviceId,
 				clientDeviceName: deps.identity.name,
+				clientName: CLIENT_HEADLESS,
 				onSessionExpired: options.onSessionExpired,
 				requestTimeoutMs: options.requestTimeoutMs,
 			},

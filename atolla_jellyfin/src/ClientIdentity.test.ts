@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import { version } from 'atolla_core/src/version';
-import { createClientHeader, normalizeDeviceId, normalizeDeviceName } from './ClientIdentity';
+import {
+	CLIENT_APP,
+	CLIENT_HEADLESS,
+	createClientHeader,
+	normalizeDeviceId,
+	normalizeDeviceName,
+} from './ClientIdentity';
 
-const identity = { deviceId: 'atolla-9f3a1c', deviceName: 'Pixel 9 Pro' };
+const identity = { client: CLIENT_APP, deviceId: 'atolla-9f3a1c', deviceName: 'Pixel 9 Pro' };
 
 describe('createClientHeader', () => {
 	it('renders every field the server identifies a client by', () => {
@@ -21,19 +27,28 @@ describe('createClientHeader', () => {
 		expect(createClientHeader(identity, '')).not.toContain('Token=');
 	});
 
+	// The speaker and the phone are separate entries in the server's device list, so revoking one
+	// leaves the other playing.
+	it('names the client it was told to, so the daemon is not mistaken for the app', () => {
+		const header = createClientHeader({ ...identity, client: CLIENT_HEADLESS }, 'token-1');
+
+		expect(header).toContain('Client="atolla-headless"');
+		expect(createClientHeader(identity, 'token-1')).toContain('Client="atolla"');
+	});
+
 	it('normalises the id it is handed so a caller cannot emit a malformed one', () => {
-		const header = createClientHeader({ deviceId: 'bad id!', deviceName: 'Pixel 9 Pro' });
+		const header = createClientHeader({ ...identity, deviceId: 'bad id!' });
 		expect(header).toContain('DeviceId="bad_id_"');
 	});
 
 	it('normalises the name it is handed so a caller cannot break the quoting', () => {
-		const header = createClientHeader({ deviceId: 'atolla-9f3a1c', deviceName: 'a"b' });
+		const header = createClientHeader({ ...identity, deviceName: 'a"b' });
 		expect(header).toContain('Device="ab"');
 	});
 
 	it('cannot be made to inject a second header', () => {
 		const header = createClientHeader({
-			deviceId: 'atolla-9f3a1c',
+			...identity,
 			deviceName: 'Pixel 9\r\nX-Evil: 1',
 		});
 		expect(header).not.toContain('\r');

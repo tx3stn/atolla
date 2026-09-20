@@ -13,26 +13,14 @@ import { dirname, join } from 'node:path';
 import type { MediaServer, PairAccepted, StateSnapshot } from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Cli, type Daemon, pairingCode } from './cli';
+import { type FakeJellyfin, startJellyfin } from './jellyfin';
 import { FetchTransport } from './transport';
 
 // away from the 45889 default and from the sibling suites, so neither a daemon left running on
 // this machine nor another spec can make these pass
 const PORT = 45994;
 
-const ACCESS_TOKEN = '3d9f0c1b7a5e4826aa11bb22cc33dd44';
-
 const SERVER_ID = '7e0a5b9c2d4f8613';
-
-function credential(userId: string, overrides: Partial<MediaServer> = {}): MediaServer {
-	return {
-		accessToken: `${ACCESS_TOKEN}-${userId}`,
-		baseUrl: 'http://jellyfin.local:8096',
-		deviceId: `atolla-4f3c9a1de8b27065-${userId}`,
-		serverId: SERVER_ID,
-		userId,
-		...overrides,
-	};
-}
 
 function filesUnder(directory: string): Array<string> {
 	const found: Array<string> = [];
@@ -57,7 +45,19 @@ describe('PUT /media-server', () => {
 	let daemon: Daemon;
 	let dataDir: string;
 	let dir: string;
+	let jellyfin!: FakeJellyfin;
 	let token: string;
+
+	function credential(userId: string, overrides: Partial<MediaServer> = {}): MediaServer {
+		return {
+			accessToken: jellyfin.tokenFor(userId),
+			baseUrl: jellyfin.baseUrl,
+			deviceId: `atolla-4f3c9a1de8b27065-${userId}`,
+			serverId: SERVER_ID,
+			userId,
+			...overrides,
+		};
+	}
 
 	async function provisioned(): Promise<Array<string>> {
 		const answer = await client.state(token);
@@ -76,6 +76,7 @@ describe('PUT /media-server', () => {
 	}
 
 	beforeEach(async () => {
+		jellyfin = startJellyfin(['u1', 'u2']);
 		dir = mkdtempSync(join(tmpdir(), 'atolla-cli-'));
 		dataDir = join(dir, 'data');
 		const configPath = join(dir, 'etc', 'player.json');
@@ -98,6 +99,7 @@ describe('PUT /media-server', () => {
 
 	afterEach(async () => {
 		await daemon.stop();
+		await jellyfin.stop();
 		rmSync(dir, { force: true, recursive: true });
 	});
 
@@ -113,11 +115,36 @@ describe('PUT /media-server', () => {
 		expect(await provisioned()).toEqual(['u1']);
 	});
 
+	// Losing the pairing over a bad credential would leave the controller nothing to re-push with.
+	it('still pairs when the credential the pairing carried does not check out', async () => {
+		const paired = await client.pair({
+			code,
+			controllerId: 'phone-2',
+			controllerName: 'pixel 9',
+			mediaServer: { ...credential('u1'), accessToken: 'revoked-a-while-ago' },
+		});
+
+		expect(paired.status).toBe(200);
+		expect((paired.json as PairAccepted).token).toBeTruthy();
+		expect(await provisioned()).toEqual([]);
+	});
+
 	it('holds a pushed credential and says so in the snapshot', async () => {
 		const answer = await client.mediaServer(token, credential('u1'));
 
 		expect(answer.status).toBe(200);
 		expect(await provisioned()).toEqual(['u1']);
+	});
+
+	// Every field the server identifies a device by, so the speaker is its own entry in the device
+	// list and revoking it leaves the phone alone.
+	it('identifies itself in full when it checks a credential', async () => {
+		await client.mediaServer(token, credential('u1'));
+
+		expect(jellyfin.authorizations[0]).toContain('Client="atolla-headless"');
+		expect(jellyfin.authorizations[0]).toContain('Device="Kitchen"');
+		expect(jellyfin.authorizations[0]).toContain('DeviceId="atolla-4f3c9a1de8b27065-u1"');
+		expect(jellyfin.authorizations[0]).toContain('Version="');
 	});
 
 	it('answers a version the controller can long poll from', async () => {
@@ -153,11 +180,55 @@ describe('PUT /media-server', () => {
 
 		const answer = await client.mediaServer(token, {
 			...credential('u2'),
-			baseUrl: 'http://192.168.1.50:8096',
+			baseUrl: jellyfin.otherBaseUrl,
 		});
 
 		expect(answer.status).toBe(200);
 		expect(await provisioned()).toEqual(['u1', 'u2']);
+	});
+
+	it('refuses a credential whose token belongs to another account', async () => {
+		const answer = await client.mediaServer(token, {
+			...credential('u1'),
+			accessToken: jellyfin.tokenFor('u2'),
+		});
+
+		expect(answer.status).toBe(422);
+		expect(answer.json).toMatchObject({ code: 'media_server_user_mismatch' });
+		expect(await provisioned()).toEqual([]);
+	});
+
+	it('refuses a credential the server no longer honours', async () => {
+		const answer = await client.mediaServer(token, {
+			...credential('u1'),
+			accessToken: 'revoked-a-while-ago',
+		});
+
+		expect(answer.status).toBe(422);
+		expect(answer.json).toMatchObject({ code: 'media_server_user_mismatch' });
+		expect(await provisioned()).toEqual([]);
+	});
+
+	it('refuses a credential it cannot check, without saying the account is wrong', async () => {
+		await jellyfin.stop();
+
+		const answer = await client.mediaServer(token, credential('u1'));
+
+		expect(answer.status).toBe(503);
+		expect(answer.json).toMatchObject({ code: 'unavailable' });
+		expect(await provisioned()).toEqual([]);
+	});
+
+	it('keeps a working credential when a later push for that account fails to check', async () => {
+		await client.mediaServer(token, credential('u1'));
+
+		const answer = await client.mediaServer(token, {
+			...credential('u1'),
+			accessToken: 'revoked-a-while-ago',
+		});
+
+		expect(answer.status).toBe(422);
+		expect(await provisioned()).toEqual(['u1']);
 	});
 
 	it('refuses a push presenting no controller token', async () => {
@@ -198,10 +269,10 @@ describe('PUT /media-server', () => {
 		await client.state(token);
 
 		for (const path of filesUnder(dataDir)) {
-			expect(readFileSync(path, 'utf8')).not.toContain(ACCESS_TOKEN);
+			expect(readFileSync(path, 'utf8')).not.toContain(jellyfin.tokenFor('u1'));
 		}
 
-		expect(daemon.output()).not.toContain(ACCESS_TOKEN);
+		expect(daemon.output()).not.toContain(jellyfin.tokenFor('u1'));
 	});
 
 	it('keeps the queue owner across a restart', async () => {

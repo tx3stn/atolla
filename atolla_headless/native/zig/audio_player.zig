@@ -345,6 +345,12 @@ export fn atolla_audio_consume_event(out: [*]u8, len: usize) usize {
 
 const testing = std.testing;
 
+/// The shape `createClientHeader` renders for the daemon, so a fixture cannot pass on a header
+/// narrower than the one that is really sent.
+const test_auth_header =
+    \\MediaBrowser Client="atolla-headless", Device="Kitchen", DeviceId="atolla-1-2", Version="0.0.0", Token="abc"
+;
+
 fn silentPlayer(runtime: *const gst.Gst, player: *Player) !void {
     player.init(runtime, silent_device) catch |failure| switch (failure) {
         error.LaunchFailed => return error.SkipZigTest,
@@ -578,14 +584,14 @@ test "audio_player: a local track carries no credential, whatever it was handed"
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
-    try player.configure("file:///atolla/nothing.wav", "track-local", "MediaBrowser Token=\"x\"");
+    try player.configure("file:///atolla/nothing.wav", "track-local", test_auth_header);
 
     try testing.expectEqual(0, player.source_setup.header_len);
 
-    try player.configure("http://127.0.0.1:1/x.wav", "track-remote", "MediaBrowser Token=\"x\"");
+    try player.configure("http://127.0.0.1:1/x.wav", "track-remote", test_auth_header);
 
     try testing.expectEqualStrings(
-        "MediaBrowser Token=\"x\"",
+        test_auth_header,
         player.source_setup.header[0..player.source_setup.header_len],
     );
 }

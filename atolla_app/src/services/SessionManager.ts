@@ -2,7 +2,7 @@ import Strings from 'atolla_app/src/Strings';
 import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { type InternalError, isErrorConst } from 'atolla_core/src/utils/Errors';
-import { createClientHeader } from 'atolla_jellyfin/src/ClientIdentity';
+import { CLIENT_APP, createClientHeader } from 'atolla_jellyfin/src/ClientIdentity';
 import {
 	type JellyfinAuthService,
 	normalizeServerUrl,
@@ -96,7 +96,11 @@ export class SessionManager {
 
 	getAuthHeader(): string {
 		return createClientHeader(
-			{ deviceId: this.getEffectiveDeviceId(), deviceName: this.getEffectiveDeviceName() },
+			{
+				client: CLIENT_APP,
+				deviceId: this.getEffectiveDeviceId(),
+				deviceName: this.getEffectiveDeviceName(),
+			},
 			this.getAccessToken(),
 		);
 	}

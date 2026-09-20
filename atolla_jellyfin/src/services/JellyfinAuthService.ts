@@ -6,7 +6,7 @@ import { defaultTimer, type TimerFn } from 'atolla_core/src/utils/Timer';
 import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { createClientHeader } from '../ClientIdentity';
+import { CLIENT_APP, createClientHeader } from '../ClientIdentity';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 import { JellyfinAuthErrors } from './AuthErrors';
 
@@ -491,7 +491,11 @@ export class JellyfinAuthService {
 	private createHeaders(accessToken?: string): Record<string, string> {
 		return {
 			Authorization: createClientHeader(
-				{ deviceId: this.clientDeviceId, deviceName: this.clientDeviceName },
+				{
+					client: CLIENT_APP,
+					deviceId: this.clientDeviceId,
+					deviceName: this.clientDeviceName,
+				},
 				accessToken,
 			),
 			'Content-Type': 'application/json',

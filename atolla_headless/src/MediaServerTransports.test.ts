@@ -87,9 +87,25 @@ describe('forUser', () => {
 
 		const access = transports.forUser('u1');
 
+		expect(access?.authHeader).toContain('Client="atolla-headless"');
 		expect(access?.authHeader).toContain('Device="Kitchen"');
 		expect(access?.authHeader).toContain(`DeviceId="atolla-${IDENTITY.id}-u1"`);
 		expect(access?.authHeader).toContain('Token="token-u1"');
+	});
+
+	// The streaming header and the transport's own requests have to agree, or the server records the
+	// speaker as two devices and revoking one leaves the other working.
+	it('identifies as the same client on the requests it makes', async () => {
+		const { calls, credentials, transports } = fixture([
+			{ body: { Id: 'u1', Name: 'Listening Room' }, statusCode: 200 },
+		]);
+		credentials.push(credential('u1'));
+
+		await transports.forUser('u1')?.transport.getUser();
+
+		expect(calls[0].headers?.Authorization).toContain('Client="atolla-headless"');
+		expect(calls[0].headers?.Authorization).toContain('Device="Kitchen"');
+		expect(calls[0].headers?.Authorization).toContain(`DeviceId="atolla-${IDENTITY.id}-u1"`);
 	});
 
 	it('builds one transport per account and reuses it', () => {

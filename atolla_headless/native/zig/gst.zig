@@ -534,6 +534,12 @@ fn silentPipeline(gst: *const Gst, uri: [:0]const u8) !Pipeline {
     return pipeline;
 }
 
+/// The shape `createClientHeader` renders for the daemon. Every field is here so a fixture cannot
+/// pass on a header narrower than the one that is really sent.
+const test_auth_header =
+    \\MediaBrowser Client="atolla-headless", Device="Kitchen", DeviceId="atolla-1-2", Version="0.0.0", Token="abc"
+;
+
 test "gst: resolves every symbol it declares" {
     var gst = try loaded();
     defer gst.close();
@@ -640,14 +646,10 @@ test "gst: wraps an authorization header so the structure syntax cannot swallow 
     var buffer: [max_extra_headers_bytes]u8 = undefined;
 
     // Quotes around every parameter and commas between them, which is also GstStructure syntax.
-    const rendered =
-        \\MediaBrowser Client="atolla", Device="Kitchen", DeviceId="atolla-1-2", Token="abc"
-    ;
-
     try testing.expectEqualStrings(
-        \\headers, Authorization=(string)"MediaBrowser Client=\"atolla\", Device=\"Kitchen\", DeviceId=\"atolla-1-2\", Token=\"abc\""
+        \\headers, Authorization=(string)"MediaBrowser Client=\"atolla-headless\", Device=\"Kitchen\", DeviceId=\"atolla-1-2\", Version=\"0.0.0\", Token=\"abc\""
     ,
-        extraHeaders(&buffer, rendered).?,
+        extraHeaders(&buffer, test_auth_header).?,
     );
 
     try testing.expectEqualStrings(
@@ -657,7 +659,7 @@ test "gst: wraps an authorization header so the structure syntax cannot swallow 
     );
 
     try testing.expectEqual(null, extraHeaders(&buffer, "one\r\ntwo"));
-    try testing.expectEqual(null, extraHeaders(buffer[0..8], rendered));
+    try testing.expectEqual(null, extraHeaders(buffer[0..8], test_auth_header));
 }
 
 test "gst: the plugin registry has the http source a remote track needs" {
@@ -779,12 +781,8 @@ test "gst: sends the authorization header it was given to an http source" {
         .{upstream.port()},
     );
 
-    const rendered =
-        \\MediaBrowser Client="atolla", Device="Kitchen", Token="abc"
-    ;
-
     var setup: SourceSetup = .{ .gst = &gst };
-    setup.setHeader(rendered);
+    setup.setHeader(test_auth_header);
 
     var pipeline = try Pipeline.launch(&gst, "playbin audio-sink=\"fakesink sync=true\"");
     defer pipeline.deinit();
@@ -810,7 +808,7 @@ test "gst: sends the authorization header it was given to an http source" {
         .timeout => return error.TestUnexpectedResult,
     }
 
-    try testing.expectEqualStrings(rendered, upstream.authorization());
+    try testing.expectEqualStrings(test_auth_header, upstream.authorization());
 }
 
 test "gst: turns a path into a uri it can play" {

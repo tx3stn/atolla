@@ -5,13 +5,20 @@ const MAX_DEVICE_NAME_LENGTH = 64;
 const QUOTING_CHARACTERS = /["\\,]/g;
 const DEVICE_ID_CHARACTERS = /[^a-zA-Z0-9._-]/g;
 
+export const CLIENT_APP = CLIENT_NAME;
+
+// A speaker and a phone are separate entries in the media server's device list, and revoking one
+// should not touch the other.
+export const CLIENT_HEADLESS = 'atolla-headless';
+
 export interface ClientIdentity {
+	client: string;
 	deviceId: string;
 	deviceName: string;
 }
 
 export function createClientHeader(identity: ClientIdentity, accessToken?: string): string {
-	const base = `MediaBrowser Client="${CLIENT_NAME}", Device="${normalizeDeviceName(identity.deviceName)}", DeviceId="${normalizeDeviceId(identity.deviceId)}", Version="${version}"`;
+	const base = `MediaBrowser Client="${identity.client}", Device="${normalizeDeviceName(identity.deviceName)}", DeviceId="${normalizeDeviceId(identity.deviceId)}", Version="${version}"`;
 
 	if (!accessToken) {
 		return base;

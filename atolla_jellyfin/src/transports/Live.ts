@@ -20,7 +20,7 @@ import { defaultTimer, type TimerFn } from 'atolla_core/src/utils/Timer';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { createClientHeader, normalizeDeviceId } from '../ClientIdentity';
+import { CLIENT_APP, createClientHeader, normalizeDeviceId } from '../ClientIdentity';
 import type {
 	JellyfinAlbumItem,
 	JellyfinArtistItem,
@@ -59,6 +59,7 @@ export {
 interface LiveTransportOptions {
 	clientDeviceId?: string;
 	clientDeviceName?: string;
+	clientName?: string;
 	onRequestTimedOut?: () => void;
 	onSessionExpired?: () => void;
 	requestTimeoutMs?: number;
@@ -90,6 +91,7 @@ export class LiveTransport implements Transport {
 	private readonly client: IHTTPClient;
 	private readonly clientDeviceId: string;
 	private readonly clientDeviceName: string;
+	private readonly clientName: string;
 	private readonly imageResolvers: JellyfinImageResolvers = {
 		albumPrimaryImageUrl: (albumId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(albumId, 'Primary', imageTag),
@@ -115,6 +117,7 @@ export class LiveTransport implements Transport {
 		this.client = client;
 		this.clientDeviceId = normalizeDeviceId(options.clientDeviceId);
 		this.clientDeviceName = options.clientDeviceName ?? '';
+		this.clientName = options.clientName ?? CLIENT_APP;
 		this.onRequestTimedOut = options.onRequestTimedOut ?? null;
 		this.onSessionExpired = options.onSessionExpired ?? null;
 		this.requestTimeoutMs = options.requestTimeoutMs ?? defaultRequestTimeoutMs;
@@ -856,7 +859,11 @@ export class LiveTransport implements Transport {
 		return {
 			Accept: 'application/json',
 			Authorization: createClientHeader(
-				{ deviceId: this.clientDeviceId, deviceName: this.clientDeviceName },
+				{
+					client: this.clientName,
+					deviceId: this.clientDeviceId,
+					deviceName: this.clientDeviceName,
+				},
 				this.accessToken,
 			),
 		};

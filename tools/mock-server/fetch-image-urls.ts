@@ -19,7 +19,12 @@ if (!BASE || !TOKEN) {
 }
 
 const IMAGES_DIR = join(import.meta.dir, 'media', 'images');
-const headers = { Authorization: `MediaBrowser Client="atolla", Token="${TOKEN}"` };
+// Spelled out rather than built with createClientHeader, because tools/ is outside the module graph
+// and cannot import atolla_jellyfin. Identified so these fixture pulls are distinguishable from a
+// real client in the server's device list.
+const headers = {
+	Authorization: `MediaBrowser Client="atolla-fixtures", Device="mock fixtures", DeviceId="atolla-mock-fixtures", Version="0.0.0", Token="${TOKEN}"`,
+};
 
 type JellyfinItem = {
 	AlbumArtist?: string;
