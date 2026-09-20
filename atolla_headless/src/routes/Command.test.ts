@@ -234,6 +234,19 @@ describe('handleCommand', () => {
 			expect(deps.queueOwner.get()).toBe('u1');
 		});
 
+		// playTracks notifies synchronously, so an owner claimed after it is claimed too late: the
+		// first track of every queue resolves as though the player had no credential.
+		it('has claimed the queue before the store announces it', async () => {
+			const deps = fixture();
+			const ownerWhenAnnounced: Array<string | null> = [];
+
+			deps.playback.subscribe(() => ownerWhenAnnounced.push(deps.queueOwner.get()));
+
+			await send(deps, { command: 'setQueue', tracks: TRACKS, userId: 'u1' });
+
+			expect(ownerWhenAnnounced).not.toContain(null);
+		});
+
 		it('leaves the queue unowned when a replacement names no account', async () => {
 			const deps = fixture();
 

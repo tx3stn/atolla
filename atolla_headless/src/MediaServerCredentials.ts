@@ -9,6 +9,7 @@ export const PushOutcomes = {
 export type PushOutcome = (typeof PushOutcomes)[keyof typeof PushOutcomes];
 
 export interface MediaServerCredentials {
+	drop(userId: string): void;
 	get(userId: string): MediaServer | null;
 	push(credential: MediaServer): PushOutcome;
 	userIds(): Array<string>;
@@ -18,6 +19,11 @@ export function makeMediaServerCredentials(version: StateVersion): MediaServerCr
 	const held = new Map<string, MediaServer>();
 
 	return {
+		drop: (userId) => {
+			if (held.delete(userId)) {
+				version.bump();
+			}
+		},
 		get: (userId) => held.get(userId) ?? null,
 		push: (credential) => {
 			// Every credential names the same server, so the first one held answers for all of them.

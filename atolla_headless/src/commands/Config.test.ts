@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
+import type { MakeHttpClient } from '../MediaServerTransports';
 import { DEFAULT_BIND_ADDRESS, DEFAULT_DATA_DIR, type PlayerConfig } from '../PlayerConfig';
 import { makeTerminal } from '../terminal/Terminal';
 import { parseArguments } from './Arguments';
@@ -7,6 +8,10 @@ import { CmdConfig } from './Config';
 import { CLI_ERROR } from './Errors';
 
 const PATH = '/etc/atolla/player.json';
+
+const noHttpClient: MakeHttpClient = () => {
+	throw new Error('this command has no media server to reach');
+};
 
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
@@ -45,7 +50,12 @@ function context(argv: Array<string>) {
 					stored = config;
 				},
 			},
-			files: { createDirectorySync: () => true, readFileSync: () => '', writeFileSync: () => {} },
+			files: {
+				createDirectorySync: () => true,
+				existsSync: () => false,
+				readFileSync: () => '',
+				writeFileSync: () => {},
+			},
 			httpServer: {
 				respond: () => true,
 				setControllersPath: () => {},
@@ -57,6 +67,7 @@ function context(argv: Array<string>) {
 				stop: () => {},
 			},
 			logLevel: CONFIG.logLevel,
+			makeHttpClient: noHttpClient,
 			randomBytes: (count: number) => new Uint8Array(count),
 			setLanguage: () => {},
 			terminal: makeTerminal((text) => lines.push(text.replace(/\n$/, '')), false),

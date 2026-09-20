@@ -21,6 +21,7 @@ export const CmdRun = {
 		files,
 		httpServer,
 		logLevel,
+		makeHttpClient,
 		randomBytes,
 		terminal,
 	}: CommandContext): Promise<number> => {
@@ -49,6 +50,7 @@ export const CmdRun = {
 			identity,
 			log: filterLogWriter(logLevel, terminal.write),
 			logLevel,
+			makeHttpClient,
 			now: Date.now,
 			randomBytes,
 		});

@@ -7,6 +7,7 @@ import {
 } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
+import type { ResolvedSource } from './SourceResolver';
 
 export const POLL_INTERVAL_MS = 200;
 
@@ -14,10 +15,14 @@ export const POLL_INTERVAL_MS = 200;
 // busy speaker.
 const MAX_EVENTS_PER_TICK = 32;
 
+// A dead credential fails every track, so advancing past each one burns the whole queue in a few
+// seconds. Stopping leaves it on the track that failed.
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 export interface AudioPlayerDeps {
 	audio: AudioEngine;
 	playback: PlaybackStore;
-	resolveSource: (track: Track) => string | null;
+	resolveSource: (track: Track) => ResolvedSource | null;
 }
 
 export interface AudioPlayer {
@@ -31,6 +36,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	const log = getLogger('audio');
 
 	let unsubscribe: (() => void) | null = null;
+	let consecutiveFailures = 0;
 	let lastPlaying = false;
 	let lastSeekTarget: number | null = null;
 
@@ -49,13 +55,13 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			return;
 		}
 
-		const source = resolveSource(track);
-		if (source === null) {
+		const resolved = resolveSource(track);
+		if (resolved === null) {
 			log.warn('no source for track', { trackId: track.id });
 			return;
 		}
 
-		if (!audio.configure(source, track.id, '')) {
+		if (!audio.configure(resolved.source, track.id, resolved.authHeader)) {
 			log.warn('engine refused the track', { trackId: track.id });
 			return;
 		}
@@ -90,6 +96,12 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	};
 
 	const apply = (): void => {
+		// Before bindTrack, which assigns lastPlaying itself. Resuming clears the count, so a queue
+		// the guard stopped can be retried.
+		if (playback.isPlaying && !lastPlaying) {
+			consecutiveFailures = 0;
+		}
+
 		bindTrack();
 		applyPlaying();
 		applySeek();
@@ -114,7 +126,18 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 
 			const failure = parseNativeAudioErrorEvent(event);
 			if (failure !== null) {
-				log.warn('playback failed', { message: failure.message, trackId: failure.trackId });
+				consecutiveFailures++;
+				log.warn('playback failed', {
+					consecutiveFailures,
+					message: failure.message,
+					trackId: failure.trackId,
+				});
+
+				if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+					playback.setPlaying(false);
+					continue;
+				}
+
 				if (failure.trackId !== null) {
 					playback.advancePastTrackId(failure.trackId);
 				}
@@ -142,6 +165,10 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		const positionMs = audio.positionMs();
 		if (!Number.isFinite(positionMs) || positionMs < 0) {
 			return;
+		}
+
+		if (positionMs > 0) {
+			consecutiveFailures = 0;
 		}
 
 		playback.updateProgress(positionMs / 1000);

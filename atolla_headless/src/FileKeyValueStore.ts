@@ -3,6 +3,7 @@ import { ensureDirectory } from './EnsureDirectory';
 
 export interface StoreFiles {
 	createDirectorySync(path: string, createIntermediates: boolean): boolean;
+	existsSync(path: string): boolean;
 	readFileSync(path: string, options?: { encoding?: 'utf8' }): string | ArrayBuffer;
 	writeFileSync(path: string, data: string): void;
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it, spyOn } from 'bun:test';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import type { InstantMixSeed } from 'atolla_core/src/transports/Transport';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
@@ -1331,6 +1332,33 @@ describe('LiveTransport auth headers', () => {
 
 		expect(headers?.Authorization).toContain('MediaBrowser');
 		expect(headers?.Authorization).not.toContain('Token=');
+	});
+});
+
+describe('LiveTransport getUser', () => {
+	function transportWith(responses: Array<MockHTTPResponse>) {
+		const { calls, client } = createHTTPClient(responses);
+		return {
+			calls,
+			transport: new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client),
+		};
+	}
+
+	it('resolves the account the token authenticates as', async () => {
+		const { calls, transport } = transportWith([
+			jsonResponse(200, { Id: 'a1b2c3', Name: 'Listening Room' }),
+		]);
+
+		const user = await transport.getUser();
+
+		expect(calls[0].pathOrUrl).toBe('/Users/Me');
+		expect(user).toEqual({ id: 'a1b2c3', name: 'Listening Room' });
+	});
+
+	it('rejects when the response carries no id', async () => {
+		const { transport } = transportWith([jsonResponse(200, { Name: 'Listening Room' })]);
+
+		await expect(transport.getUser()).rejects.toBe(TransportErrors.LIVE_INVALID_RESPONSE);
 	});
 });
 

@@ -85,17 +85,28 @@ function apply(deps: CommandDeps, command: Command): boolean {
 		case 'setLoopMode':
 			playback.setLoopMode(LoopModes[command.loopMode]);
 			return true;
-		case 'setQueue':
-			if (!applyQueue(playback, command.tracks, command.trackIndex ?? 0, command.album)) {
-				return false;
-			}
-			// Replacing a queue resets who owns it: the new owner is whoever is named, or nobody.
-			if (command.userId === undefined || playback.tracks.length === 0) {
-				deps.queueOwner.clear();
-			} else {
-				deps.queueOwner.claim(command.userId);
-			}
-			return true;
+		case 'setQueue': {
+			// Batched so the queue and its owner are announced together. A subscriber resolves the
+			// first track's source the moment the queue notifies, and it picks the credential by
+			// owner, so an owner claimed after that notification is claimed too late.
+			let applied = false;
+
+			playback.runBatched(() => {
+				applied = applyQueue(playback, command.tracks, command.trackIndex ?? 0, command.album);
+				if (!applied) {
+					return;
+				}
+
+				// Replacing a queue resets who owns it: the new owner is whoever is named, or nobody.
+				if (command.userId === undefined || playback.tracks.length === 0) {
+					deps.queueOwner.clear();
+				} else {
+					deps.queueOwner.claim(command.userId);
+				}
+			});
+
+			return applied;
+		}
 		case 'addToQueue':
 			return withTracks(command.tracks, (tracks) => {
 				playback.addToQueue(tracks);

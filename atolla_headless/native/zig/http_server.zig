@@ -172,6 +172,7 @@ pub const Server = struct {
                 409 => problem.media_server_id_mismatch,
                 422 => problem.media_server_user_mismatch,
                 501 => problem.not_implemented,
+                503 => problem.unavailable,
                 else => problem.internal,
             };
 

@@ -3,6 +3,7 @@ import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { HttpServer, RequestHandler } from './Http';
 import { makeMediaServerCredentials } from './MediaServerCredentials';
+import { type MediaServerTransports, VerifyOutcomes } from './MediaServerTransports';
 import { makeQueueOwner } from './QueueOwner';
 import type { RandomBytes } from './Random';
 import { attachServer, ROUTE, type ServerDeps } from './Server';
@@ -15,6 +16,11 @@ function counting(): RandomBytes {
 	return (count) => Uint8Array.from({ length: count }, () => next++ & 0xff);
 }
 
+const verifyingTransports: MediaServerTransports = {
+	forUser: () => null,
+	verify: () => Promise.resolve(VerifyOutcomes.verified),
+};
+
 function deps(): ServerDeps {
 	const credentials = makeMediaServerCredentials(makeStateVersion());
 
@@ -25,8 +31,13 @@ function deps(): ServerDeps {
 			restored: Promise.resolve(),
 			version: makeStateVersion(),
 		},
-		mediaServer: { credentials, version: makeStateVersion() },
-		pair: { credentials, randomBytes: counting(), secrets: new InMemoryKeyValueStore() },
+		mediaServer: { credentials, transports: verifyingTransports, version: makeStateVersion() },
+		pair: {
+			credentials,
+			randomBytes: counting(),
+			secrets: new InMemoryKeyValueStore(),
+			transports: verifyingTransports,
+		},
 		state: {
 			credentials,
 			identity: { id: 'c2be50c9b97e1c53', name: 'Kitchen', tier: 'tight', version: '0.0.0' },

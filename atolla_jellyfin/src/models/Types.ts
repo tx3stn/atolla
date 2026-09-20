@@ -106,6 +106,11 @@ export interface JellyfinYearItem {
 	ProductionYear?: number;
 }
 
+export interface JellyfinUserDto {
+	Id: string;
+	Name: string;
+}
+
 export interface JellyfinListEnvelope<TItem> {
 	Items: Array<TItem>;
 	StartIndex: number;

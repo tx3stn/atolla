@@ -3,6 +3,7 @@ import type { LogLevel } from 'atolla_core/src/services/Logger';
 import type { AudioDevices, AudioEngine } from '../Audio';
 import type { StoreFiles } from '../FileKeyValueStore';
 import type { HttpServer } from '../Http';
+import type { MakeHttpClient } from '../MediaServerTransports';
 import type { ConfigStore } from '../PlayerConfig';
 import type { RandomBytes } from '../Random';
 import type { Terminal } from '../terminal/Terminal';
@@ -19,6 +20,7 @@ export interface CommandContext {
 	files: StoreFiles;
 	httpServer: HttpServer;
 	logLevel: LogLevel;
+	makeHttpClient: MakeHttpClient;
 	randomBytes: RandomBytes;
 	setLanguage: (language: LanguageCode) => void;
 	terminal: Terminal;

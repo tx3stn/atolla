@@ -7,4 +7,5 @@ export const TransportErrors = {
 	LIVE_TIMED_OUT: new InternalError('transport_live_timed_out'),
 	OFFLINE_LYRICS: new InternalError('transport_offline_lyrics'),
 	OFFLINE_SCROBBLE: new InternalError('transport_offline_scrobble'),
+	OFFLINE_USER: new InternalError('transport_offline_user'),
 } as const;

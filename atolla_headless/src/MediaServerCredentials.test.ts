@@ -88,6 +88,31 @@ describe('makeMediaServerCredentials', () => {
 		expect(version.current).toBeGreaterThan(before);
 	});
 
+	it('forgets a dropped account and moves the version with it', () => {
+		const { credentials, version } = fixture();
+
+		credentials.push(credential('u1'));
+		credentials.push(credential('u2'));
+		const before = version.current;
+
+		credentials.drop('u1');
+
+		expect(credentials.userIds()).toEqual(['u2']);
+		expect(credentials.get('u1')).toBeNull();
+		expect(version.current).toBeGreaterThan(before);
+	});
+
+	it('leaves the state version alone when it drops an account it never held', () => {
+		const { credentials, version } = fixture();
+
+		credentials.push(credential('u1'));
+		const before = version.current;
+
+		credentials.drop('u2');
+
+		expect(version.current).toBe(before);
+	});
+
 	it('leaves the state version alone when it refuses one', () => {
 		const { credentials, version } = fixture();
 

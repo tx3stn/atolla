@@ -23,10 +23,12 @@ valdi_module(
     visibility = ["//visibility:public"],
     deps = [
         "//atolla_core",
+        "//atolla_jellyfin",
         "//atolla_player",
         "//atolla_sync",
         "@valdi//src/valdi_modules/src/valdi/file_system",
         "@valdi//src/valdi_modules/src/valdi/valdi_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_http",
     ],
 )
 

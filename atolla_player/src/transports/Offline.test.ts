@@ -525,6 +525,12 @@ describe('OfflineTransport', () => {
 		await expect(transport.getLyrics('track-1')).rejects.toBe(TransportErrors.OFFLINE_LYRICS);
 	});
 
+	it('rejects a user read while offline rather than answering none', async () => {
+		const transport = new OfflineTransport(createDownloadsMock({}) as never, playlistCreateService);
+
+		await expect(transport.getUser()).rejects.toBe(TransportErrors.OFFLINE_USER);
+	});
+
 	it('derives artists and albums from playlist-only downloaded tracks', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

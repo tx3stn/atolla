@@ -9,6 +9,7 @@ import type { AudioEngine } from './Audio';
 import { filterLogWriter, startDaemon } from './Daemon';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import type { HttpServer } from './Http';
+import type { MakeHttpClient } from './MediaServerTransports';
 import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { secretsDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
@@ -38,6 +39,7 @@ function capture(): { entries: Array<string>; log: LogWriter } {
 function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 	return {
 		createDirectorySync: () => true,
+		existsSync: (path) => contents.has(path),
 		readFileSync: (path) => {
 			const value = contents.get(path);
 			if (value === undefined) {
@@ -50,6 +52,10 @@ function fakeFiles(contents: Map<string, string> = new Map()): StoreFiles {
 		},
 	};
 }
+
+const unusedHttpClient: MakeHttpClient = () => {
+	throw new Error('the daemon built an http client with no credential to use it');
+};
 
 // start() fails, as it does on a machine with no GStreamer: the daemon then schedules no poll, so
 // a unit test leaves no interval running behind it. Playing for real is the e2e suite's job.
@@ -120,6 +126,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
@@ -137,6 +144,7 @@ describe('startDaemon', () => {
 			config: { ...CONFIG, dataDir: '/mnt/usb/atolla' },
 			files: {
 				createDirectorySync: () => true,
+				existsSync: () => false,
 				readFileSync: (path) => {
 					reads.push(path);
 					throw new Error('no such file');
@@ -147,6 +155,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
@@ -167,6 +176,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
@@ -192,6 +202,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
@@ -221,6 +232,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
@@ -241,6 +253,7 @@ describe('startDaemon', () => {
 			config: { ...CONFIG },
 			files: {
 				createDirectorySync: () => true,
+				existsSync: () => false,
 				readFileSync: () => {
 					order.push('read');
 					throw new Error('no such file');
@@ -263,6 +276,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
@@ -282,6 +296,7 @@ describe('startDaemon', () => {
 			identity: IDENTITY,
 			log,
 			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});

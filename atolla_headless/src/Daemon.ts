@@ -12,13 +12,14 @@ import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
 import { makeMediaServerCredentials } from './MediaServerCredentials';
+import { type MakeHttpClient, makeMediaServerTransports } from './MediaServerTransports';
 import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 import { makeQueueOwner } from './QueueOwner';
 import type { RandomBytes } from './Random';
 import { attachServer } from './Server';
-import { resolveLocalSource } from './SourceResolver';
+import { makeSourceResolver } from './SourceResolver';
 import { makeStateVersion, playbackSignature } from './StateVersion';
 
 export interface DaemonDeps {
@@ -29,6 +30,7 @@ export interface DaemonDeps {
 	identity: PlayerIdentity;
 	log: LogWriter;
 	logLevel: LogLevel;
+	makeHttpClient: MakeHttpClient;
 	now: () => number;
 	randomBytes: RandomBytes;
 }
@@ -55,11 +57,21 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const version = makeStateVersion();
 	const credentials = makeMediaServerCredentials(version);
 	const queueOwner = makeQueueOwner(makeFileKeyValueStore(deps.files, state));
+	const transports = makeMediaServerTransports({
+		credentials,
+		identity: deps.identity,
+		makeHttpClient: deps.makeHttpClient,
+	});
 
 	const audioPlayer = makeAudioPlayer({
 		audio: deps.audio,
 		playback,
-		resolveSource: (track) => resolveLocalSource(deps.config, track.id),
+		resolveSource: makeSourceResolver({
+			config: deps.config,
+			files: deps.files,
+			queueOwner,
+			transports,
+		}),
 	});
 
 	if (deps.audio.start(deps.config.audioDevice)) {
@@ -114,12 +126,14 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 		},
 		mediaServer: {
 			credentials,
+			transports,
 			version,
 		},
 		pair: {
 			credentials,
 			randomBytes: deps.randomBytes,
 			secrets,
+			transports,
 		},
 		state: {
 			credentials,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
+import type { MakeHttpClient } from '../MediaServerTransports';
 import {
 	type ConfigStore,
 	DEFAULT_BIND_ADDRESS,
@@ -12,6 +13,10 @@ import { CLI_ERROR } from './Errors';
 import { CmdPair } from './Pair';
 
 const PATH = '/etc/atolla/player.json';
+
+const noHttpClient: MakeHttpClient = () => {
+	throw new Error('this command has no media server to reach');
+};
 
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
@@ -46,6 +51,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 				config: { path: PATH, read, write: () => {} },
 				files: {
 					createDirectorySync: () => true,
+					existsSync: (path: string) => stored.has(path),
 					readFileSync: (path: string) => {
 						const value = stored.get(path);
 						if (value === undefined) {
@@ -68,6 +74,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 					stop: () => {},
 				},
 				logLevel: CONFIG.logLevel,
+				makeHttpClient: noHttpClient,
 				randomBytes: (count: number) => Uint8Array.from({ length: count }, () => next++ & 0xff),
 				setLanguage: () => {},
 				terminal: makeTerminal((text) => lines.push(text.replace(/\n$/, '')), false),

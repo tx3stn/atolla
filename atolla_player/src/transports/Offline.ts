@@ -8,6 +8,7 @@ import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
 import { trackReleaseYear } from 'atolla_core/src/models/Track';
+import type { User } from 'atolla_core/src/models/User';
 import type { ResolveCachedImage } from 'atolla_core/src/services/ImageCache';
 import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import type {
@@ -331,6 +332,10 @@ export class OfflineTransport implements Transport {
 			hasMore: end < yearTracks.length,
 			items: yearTracks.slice(start, end),
 		};
+	}
+
+	async getUser(): Promise<User> {
+		return Promise.reject(TransportErrors.OFFLINE_USER);
 	}
 
 	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {

@@ -5,6 +5,7 @@ import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
+import type { User } from 'atolla_core/src/models/User';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import type { ResolveCachedImage } from 'atolla_core/src/services/ImageCache';
 import { getLogger } from 'atolla_core/src/services/Logger';
@@ -28,6 +29,7 @@ import type {
 	JellyfinLyricDto,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
+	JellyfinUserDto,
 	JellyfinYearItem,
 } from '../models/Types';
 import { JellyfinMusicItemTypes } from '../models/Types';
@@ -715,6 +717,17 @@ export class LiveTransport implements Transport {
 				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
 				items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
 			};
+		});
+	}
+
+	getUser(): CancelablePromise<User> {
+		return cancelable(async (canceler) => {
+			const user = await tracked(canceler, this.requestJson<JellyfinUserDto>('GET', '/Users/Me'));
+			if (!user.Id) {
+				throw TransportErrors.LIVE_INVALID_RESPONSE;
+			}
+
+			return { id: user.Id, name: user.Name ?? '' };
 		});
 	}
 

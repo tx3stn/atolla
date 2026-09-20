@@ -3,6 +3,7 @@ import type { Track } from 'atolla_core/src/models/Track';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import { type AudioPlayer, makeAudioPlayer } from './AudioPlayer';
+import type { ResolvedSource } from './SourceResolver';
 
 function track(id: string): Track {
 	return { duration: 180, id, name: `track ${id}` };
@@ -53,7 +54,12 @@ function fakeEngine(): FakeEngine {
 	return engine;
 }
 
-function fixture(resolve: (trackId: string) => string | null = (id) => `/media/${id}`): {
+function fixture(
+	resolve: (trackId: string) => ResolvedSource | null = (id) => ({
+		authHeader: '',
+		source: `/media/${id}`,
+	}),
+): {
 	audio: FakeEngine;
 	player: AudioPlayer;
 	playback: PlaybackStore;
@@ -189,6 +195,74 @@ describe('makeAudioPlayer', () => {
 		player.tick();
 
 		expect(playback.trackIndex).toBe(1);
+	});
+
+	it('stops rather than walking the queue when every track fails', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		audio.events.push(
+			'error:network:t1:Not authorized',
+			'error:network:t2:Not authorized',
+			'error:network:t3:Not authorized',
+		);
+		player.tick();
+
+		expect(playback.trackIndex).toBe(2);
+		expect(playback.isPlaying).toBe(false);
+	});
+
+	it('gives the queue a fresh run when the listener presses play again', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks([...TRACKS, track('t4')], 0);
+		audio.events.push(
+			'error:network:t1:Not authorized',
+			'error:network:t2:Not authorized',
+			'error:network:t3:Not authorized',
+		);
+		player.tick();
+		playback.playPause();
+
+		audio.events.push('error:network:t3:Not authorized');
+		player.tick();
+
+		expect(playback.trackIndex).toBe(3);
+		expect(playback.isPlaying).toBe(true);
+	});
+
+	it('counts only failures in a row, so an occasional bad track still advances', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		audio.events.push('error:network:t1:Not authorized');
+		player.tick();
+
+		audio.position = 4_000;
+		player.tick();
+
+		audio.events.push('error:network:t2:Not authorized');
+		player.tick();
+
+		expect(playback.trackIndex).toBe(2);
+		expect(playback.isPlaying).toBe(true);
+	});
+
+	it('hands the engine the credential the source was resolved with', () => {
+		const { audio, playback } = fixture((id) => ({
+			authHeader: 'MediaBrowser Token="abc"',
+			source: `https://demo.jellyfin.local/Audio/${id}/stream.mp3`,
+		}));
+
+		playback.playTracks(TRACKS, 0);
+
+		expect(audio.configured).toEqual([
+			{
+				authHeader: 'MediaBrowser Token="abc"',
+				source: 'https://demo.jellyfin.local/Audio/t1/stream.mp3',
+				trackId: 't1',
+			},
+		]);
 	});
 
 	it('follows the engine when it jumps somewhere of its own', () => {

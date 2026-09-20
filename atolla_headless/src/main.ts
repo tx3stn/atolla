@@ -28,6 +28,7 @@ import { atollaRandomBytes } from 'atolla_headless/src/RandomNative';
 import Strings from 'atolla_headless/src/Strings';
 import { fs } from 'file_system/src/FileSystem';
 import { beginKeepAlive, endKeepAlive } from 'valdi_core/src/utils/KeepAliveCallback';
+import { HTTPClient } from 'valdi_http/src/HTTPClient';
 import type { AudioDevices, AudioEngine } from './Audio';
 import { AllCmds } from './commands/All';
 import { parseArguments } from './commands/Arguments';
@@ -43,6 +44,7 @@ import {
 } from './commands/Flags';
 import { commandHelp, help } from './commands/Help';
 import type { HttpServer } from './Http';
+import type { MakeHttpClient } from './MediaServerTransports';
 import {
 	type ConfigStore,
 	DEFAULT_CONFIG_PATH,
@@ -72,6 +74,10 @@ const audio: AudioEngine = {
 	setPlaying: atollaAudioSetPlaying,
 	start: atollaAudioStart,
 };
+
+// The run command would be the obvious home, but valdi_http ships HTTPTypes and NativeHTTPClient as
+// declarations only, so a module that imports HTTPClient cannot be loaded by a bun test.
+const makeHttpClient: MakeHttpClient = (baseUrl) => new HTTPClient(baseUrl);
 
 const httpServer: HttpServer = {
 	respond: atollaHttpRespond,
@@ -177,6 +183,7 @@ async function runCommand(
 		files: fs,
 		httpServer,
 		logLevel,
+		makeHttpClient,
 		randomBytes: atollaRandomBytes,
 		setLanguage,
 		terminal,
@@ -262,6 +269,7 @@ function main(): void {
 					files: fs,
 					httpServer,
 					logLevel,
+					makeHttpClient,
 					randomBytes: atollaRandomBytes,
 					setLanguage,
 					terminal,

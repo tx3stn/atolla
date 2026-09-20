@@ -8,6 +8,7 @@ function fakeFiles(): StoreFiles {
 
 	return {
 		createDirectorySync: () => true,
+		existsSync: (path) => contents.has(path),
 		readFileSync: (path) => {
 			const value = contents.get(path);
 			if (value === undefined) {

@@ -6,6 +6,7 @@ import type { Lyrics } from '../models/Lyrics';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import type { User } from '../models/User';
 
 export const INSTANT_MIX_LIMIT = 200;
 
@@ -83,6 +84,7 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	): CancelablePromise<{ hasMore: boolean; items: Array<Track> }>;
+	getUser(): CancelablePromise<User>;
 	movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void>;
 	peekArtistLogoUrl(artistId: string): string | null | undefined;
 	removePlaylistTrack(playlistId: string, trackId: string): Promise<void>;
