@@ -11,6 +11,18 @@ const default_device = "default";
 const silent_device = "none";
 const poll_interval_ns = gst.second / 10;
 
+/// Part of the vocabulary `NativeAudioPlaybackEventSync.ts` parses. The fourth member,
+/// `unsupported`, stays with the mobile engines: nothing here can separate a bad container from
+/// any other decode failure.
+const Kind = enum { network, unknown };
+
+fn isRemote(source: []const u8) bool {
+    const scheme_end = std.mem.indexOf(u8, source, "://") orelse return false;
+    const scheme = source[0..scheme_end];
+
+    return std.ascii.eqlIgnoreCase(scheme, "http") or std.ascii.eqlIgnoreCase(scheme, "https");
+}
+
 pub const Error =
     gst.PipelineError || std.Thread.SpawnError || error{ OutputNotFound, TrackIdTooLong };
 
@@ -79,6 +91,10 @@ const Events = struct {
 pub const Player = struct {
     gst: *const gst.Gst,
     pipeline: gst.Pipeline,
+    source_setup: gst.SourceSetup,
+
+    /// Read by the bus thread to tell a network failure from a missing file.
+    remote: std.atomic.Value(bool) = .init(false),
 
     mutex: std.Io.Mutex = .init,
     events: Events = .{},
@@ -98,7 +114,14 @@ pub const Player = struct {
         else
             "playbin";
 
-        self.* = .{ .gst = runtime, .pipeline = try gst.Pipeline.launch(runtime, text) };
+        self.* = .{
+            .gst = runtime,
+            .pipeline = try gst.Pipeline.launch(runtime, text),
+            .source_setup = .{ .gst = runtime },
+        };
+
+        // After the assignment, because the handler is handed the field's final address.
+        self.pipeline.connectSourceSetup(&self.source_setup);
 
         if (sinkFor(device) == null) {
             const sink = runtime.sinkNamed(device) orelse {
@@ -139,8 +162,16 @@ pub const Player = struct {
     }
 
     /// A local path or a URI, the same either-or the app's `resolveTrackSource` hands its engine.
-    pub fn configure(self: *Player, source: [:0]const u8, track_id: []const u8) Error!void {
+    /// `auth_header` is ignored unless that URI is remote.
+    pub fn configure(
+        self: *Player,
+        source: [:0]const u8,
+        track_id: []const u8,
+        auth_header: []const u8,
+    ) Error!void {
         if (track_id.len > max_track_id_bytes) return error.TrackIdTooLong;
+
+        const remote = isRemote(source);
 
         var uri_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const uri = if (std.mem.indexOf(u8, source, "://") != null)
@@ -149,6 +180,11 @@ pub const Player = struct {
             try self.gst.fileUri(&uri_buffer, source);
 
         _ = self.pipeline.setState(.null);
+
+        // Both have to be set before the state change below, which is what builds the source.
+        self.source_setup.setHeader(if (remote) auth_header else "");
+        self.remote.store(remote, .release);
+
         self.pipeline.set("uri", uri);
 
         const io = io_context();
@@ -196,19 +232,28 @@ pub const Player = struct {
     }
 
     fn drain(self: *Player) void {
-        var failure: [max_event_bytes]u8 = undefined;
+        var message: [max_event_bytes]u8 = undefined;
         var id: [max_track_id_bytes]u8 = undefined;
 
         while (!self.stopping.load(.acquire)) {
-            switch (self.pipeline.wait(poll_interval_ns, &failure)) {
+            switch (self.pipeline.wait(poll_interval_ns, &message)) {
                 .timeout => continue,
                 .ended => self.events.push("completed:{s}", .{self.currentTrackId(&id)}),
-                .failed => |text| self.events.push(
-                    "error:unknown:{s}:{s}",
-                    .{ self.currentTrackId(&id), text },
-                ),
+                .failed => |text| self.events.push("error:{s}:{s}:{s}", .{
+                    @tagName(self.kind()),
+                    self.currentTrackId(&id),
+                    text,
+                }),
             }
         }
+    }
+
+    /// The `GError` domain looks like the signal to use here and is the wrong way round. Playbin
+    /// reports a refused connection as a stream error from typefind, swallowing the resource error
+    /// souphttpsrc raised, while a missing *local* file arrives as a resource error. A 401 is the
+    /// exception: that one keeps its domain and its code.
+    fn kind(self: *const Player) Kind {
+        return if (self.remote.load(.acquire)) .network else .unknown;
     }
 };
 
@@ -254,10 +299,18 @@ export fn atolla_audio_devices(out: [*]u8, len: usize) usize {
     return runtime.audioSinks(out[0..len]).len;
 }
 
-export fn atolla_audio_configure(source: [*:0]const u8, track_id: [*:0]const u8) bool {
+export fn atolla_audio_configure(
+    source: [*:0]const u8,
+    track_id: [*:0]const u8,
+    auth_header: [*:0]const u8,
+) bool {
     if (!hosted.started) return false;
 
-    hosted.player.configure(std.mem.span(source), std.mem.span(track_id)) catch return false;
+    hosted.player.configure(
+        std.mem.span(source),
+        std.mem.span(track_id),
+        std.mem.span(auth_header),
+    ) catch return false;
 
     return true;
 }
@@ -417,7 +470,7 @@ test "audio_player: reports the track it was given" {
 
     try testing.expectEqualStrings("", player.currentTrackId(&buffer));
 
-    try player.configure("file:///atolla/nothing.wav", "track-1");
+    try player.configure("file:///atolla/nothing.wav", "track-1", "");
 
     try testing.expectEqualStrings("track-1", player.currentTrackId(&buffer));
 
@@ -443,7 +496,7 @@ test "audio_player: announces the track it finished" {
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
-    try player.configure(path, "track-finished");
+    try player.configure(path, "track-finished", "");
     player.setPlaying(true);
 
     var buffer: [max_event_bytes]u8 = undefined;
@@ -460,7 +513,7 @@ test "audio_player: announces a track it cannot play, naming it" {
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
-    try player.configure("file:///atolla/not/a/real/file.wav", "track-missing");
+    try player.configure("file:///atolla/not/a/real/file.wav", "track-missing", "");
     player.setPlaying(true);
 
     var buffer: [max_event_bytes]u8 = undefined;
@@ -490,7 +543,7 @@ test "audio_player: seeking moves the position it reports" {
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
-    try player.configure(uri, "track-seek");
+    try player.configure(uri, "track-seek", "");
     player.setPlaying(true);
 
     try until(&player, struct {
@@ -508,6 +561,53 @@ test "audio_player: seeking moves the position it reports" {
     }.sought);
 }
 
+test "audio_player: only an http source counts as remote" {
+    try testing.expect(isRemote("http://jellyfin.local:8096/Audio/1/stream.mp3"));
+    try testing.expect(isRemote("HTTPS://jellyfin.local/Audio/1/stream.mp3"));
+
+    try testing.expect(!isRemote("file:///var/lib/atolla/media/track-1"));
+    try testing.expect(!isRemote("/var/lib/atolla/media/track-1"));
+    try testing.expect(!isRemote(""));
+}
+
+test "audio_player: a local track carries no credential, whatever it was handed" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure("file:///atolla/nothing.wav", "track-local", "MediaBrowser Token=\"x\"");
+
+    try testing.expectEqual(0, player.source_setup.header_len);
+
+    try player.configure("http://127.0.0.1:1/x.wav", "track-remote", "MediaBrowser Token=\"x\"");
+
+    try testing.expectEqualStrings(
+        "MediaBrowser Token=\"x\"",
+        player.source_setup.header[0..player.source_setup.header_len],
+    );
+}
+
+test "audio_player: blames the network for a remote track it could not reach" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    // Nothing listens on port 1, so the source never opens.
+    try player.configure("http://127.0.0.1:1/missing.wav", "track-unreachable", "");
+    player.setPlaying(true);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    const event = try nextEvent(&player, &buffer);
+
+    try testing.expect(std.mem.startsWith(u8, event, "error:network:track-unreachable:"));
+}
+
 test "audio_player: refuses a track id it cannot hold" {
     var runtime = try loaded();
     defer runtime.close();
@@ -518,5 +618,8 @@ test "audio_player: refuses a track id it cannot hold" {
 
     const oversized = "x" ** (max_track_id_bytes + 1);
 
-    try testing.expectError(error.TrackIdTooLong, player.configure("file:///a.wav", oversized));
+    try testing.expectError(
+        error.TrackIdTooLong,
+        player.configure("file:///a.wav", oversized, ""),
+    );
 }

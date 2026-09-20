@@ -12,7 +12,7 @@ const TRACKS = [track('t1'), track('t2'), track('t3')];
 
 interface FakeEngine extends AudioEngine {
 	cleared: number;
-	configured: Array<{ source: string; trackId: string }>;
+	configured: Array<{ authHeader: string; source: string; trackId: string }>;
 	events: Array<string>;
 	playing: boolean;
 	position: number;
@@ -26,8 +26,8 @@ function fakeEngine(): FakeEngine {
 			engine.configured.length = 0;
 		},
 		cleared: 0,
-		configure: (source: string, trackId: string) => {
-			engine.configured.push({ source, trackId });
+		configure: (source: string, trackId: string, authHeader: string) => {
+			engine.configured.push({ authHeader, source, trackId });
 			engine.position = 0;
 			return true;
 		},
@@ -77,7 +77,7 @@ describe('makeAudioPlayer', () => {
 
 		playback.playTracks(TRACKS, 0);
 
-		expect(audio.configured).toEqual([{ source: '/media/t1', trackId: 't1' }]);
+		expect(audio.configured).toEqual([{ authHeader: '', source: '/media/t1', trackId: 't1' }]);
 		expect(audio.playing).toBe(true);
 	});
 
@@ -98,6 +98,7 @@ describe('makeAudioPlayer', () => {
 		playback.next();
 
 		expect(audio.configured[audio.configured.length - 1]).toEqual({
+			authHeader: '',
 			source: '/media/t2',
 			trackId: 't2',
 		});
@@ -150,7 +151,7 @@ describe('makeAudioPlayer', () => {
 		const { audio, player, playback } = fixture();
 
 		playback.playTracks(TRACKS, 0);
-		audio.configured.push({ source: '/media/other', trackId: 'other' });
+		audio.configured.push({ authHeader: '', source: '/media/other', trackId: 'other' });
 		audio.position = 30_000;
 		player.tick();
 

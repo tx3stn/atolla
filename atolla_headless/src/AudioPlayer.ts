@@ -55,7 +55,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			return;
 		}
 
-		if (!audio.configure(source, track.id)) {
+		if (!audio.configure(source, track.id, '')) {
 			log.warn('engine refused the track', { trackId: track.id });
 			return;
 		}

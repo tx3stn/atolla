@@ -55,15 +55,20 @@ public:
                                  const Valdi::StringBox source = callContext.getParameterAsString(0);
                                  const Valdi::StringBox trackId =
                                      callContext.getParameterAsString(1);
+                                 const Valdi::StringBox authHeader =
+                                     callContext.getParameterAsString(2);
                                  if (!callContext.getExceptionTracker()) {
                                      return Valdi::Value::undefined();
                                  }
 
                                  const std::string copiedSource(source.toStringView());
                                  const std::string copiedTrackId(trackId.toStringView());
+                                 const std::string copiedAuthHeader(authHeader.toStringView());
 
-                                 return Valdi::Value(atolla_audio_configure(copiedSource.c_str(),
-                                                                           copiedTrackId.c_str()));
+                                 return Valdi::Value(
+                                     atolla_audio_configure(copiedSource.c_str(),
+                                                            copiedTrackId.c_str(),
+                                                            copiedAuthHeader.c_str()));
                              })))
             .setMapValue("atollaAudioSetPlaying",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(

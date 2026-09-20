@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const net = std.Io.net;
 const log = @import("log.zig");
+const socket_reader = @import("socket_reader.zig");
 const wav = @import("wav.zig");
 
 pub const Error = error{ LibraryNotFound, SymbolNotFound };
@@ -107,6 +109,15 @@ const Glib = struct {
 
 const GObject = struct {
     g_object_set_property: *const fn (*Object, [*:0]const u8, *const Value) callconv(.c) void,
+    /// `g_signal_connect` is a macro over this one, and this one takes no varargs.
+    g_signal_connect_data: *const fn (
+        *Object,
+        [*:0]const u8,
+        *const anyopaque,
+        ?*anyopaque,
+        ?*const anyopaque,
+        c_uint,
+    ) callconv(.c) c_ulong,
     g_value_init: *const fn (*Value, usize) callconv(.c) *Value,
     g_value_set_object: *const fn (*Value, ?*Object) callconv(.c) void,
     g_value_unset: *const fn (*Value) callconv(.c) void,
@@ -272,6 +283,74 @@ pub const Outcome = union(enum) {
     timeout,
 };
 
+/// A 512-byte token and a 64-byte device id, plus the client, device name and version around them.
+pub const max_auth_header_bytes = 1024;
+
+/// Escaping can double the header, and the structure wraps it.
+const max_extra_headers_bytes = max_auth_header_bytes * 2 + 64;
+
+/// The header the auto-plugged HTTP source should send. `configure` writes it, and the
+/// `source-setup` handler reads whatever is set when playbin builds a source.
+pub const SourceSetup = struct {
+    gst: *const Gst,
+    header: [max_auth_header_bytes]u8 = undefined,
+    header_len: usize = 0,
+
+    /// Too long is dropped, not truncated. Half a credential authenticates nothing.
+    pub fn setHeader(self: *SourceSetup, header: []const u8) void {
+        if (header.len > self.header.len) {
+            log.err("audio", "authorization header is {d} bytes, too long to send", .{header.len});
+            self.header_len = 0;
+
+            return;
+        }
+
+        @memcpy(self.header[0..header.len], header);
+        self.header_len = header.len;
+    }
+};
+
+/// `extra-headers` is a `GstStructure`, and its syntax is quotes and commas, which is what an
+/// `Authorization` header is made of. Wrapped and escaped as `gst_string_wrap` does it.
+fn extraHeaders(buffer: []u8, header: []const u8) ?[:0]const u8 {
+    var writer = std.Io.Writer.fixed(buffer);
+
+    writer.writeAll("headers, Authorization=(string)\"") catch return null;
+
+    for (header) |byte| {
+        switch (byte) {
+            '"', '\\' => writer.writeByte('\\') catch return null,
+            // Escaping a control byte would still leave it able to split the request itself.
+            0...31, 127 => return null,
+            else => {},
+        }
+
+        writer.writeByte(byte) catch return null;
+    }
+
+    writer.writeAll("\"") catch return null;
+    writer.writeByte(0) catch return null;
+
+    const written = writer.buffered();
+
+    return written[0 .. written.len - 1 :0];
+}
+
+fn onSourceSetup(_: *Object, source: *Object, user_data: ?*anyopaque) callconv(.c) void {
+    const context: *SourceSetup = @ptrCast(@alignCast(user_data orelse return));
+
+    if (context.header_len == 0) return;
+
+    var buffer: [max_extra_headers_bytes]u8 = undefined;
+    const text = extraHeaders(&buffer, context.header[0..context.header_len]) orelse {
+        log.err("audio", "the authorization header cannot be sent to the source", .{});
+
+        return;
+    };
+
+    context.gst.gstreamer.gst_util_set_object_arg(source, "extra-headers", text.ptr);
+}
+
 pub const Pipeline = struct {
     gst: *const Gst,
     element: *Object,
@@ -316,6 +395,18 @@ pub const Pipeline = struct {
         const flags = seek_flush_to_keyframe;
 
         return self.gst.gstreamer.gst_element_seek_simple(element, .time, flags, position_ns) != 0;
+    }
+
+    /// `context` must outlive the pipeline: the signal fires every time playbin builds a source.
+    pub fn connectSourceSetup(self: *const Pipeline, context: *SourceSetup) void {
+        _ = self.gst.gobject.g_signal_connect_data(
+            self.element,
+            "source-setup",
+            @ptrCast(&onSourceSetup),
+            context,
+            null,
+            0,
+        );
     }
 
     pub fn set(self: *const Pipeline, name: [:0]const u8, value: [:0]const u8) void {
@@ -424,6 +515,10 @@ fn lookup(library: *std.DynLib, comptime T: type, comptime name: [:0]const u8) E
 }
 
 const testing = std.testing;
+
+fn testIo() std.Io {
+    return std.Io.Threaded.global_single_threaded.io();
+}
 
 fn loaded() !Gst {
     return load() catch |failure| switch (failure) {
@@ -539,6 +634,183 @@ test "gst: lists the audio outputs the machine offers" {
         try testing.expectEqual('\n', sinks[sinks.len - 1]);
         try testing.expect(std.mem.indexOfScalar(u8, sinks, 0) == null);
     }
+}
+
+test "gst: wraps an authorization header so the structure syntax cannot swallow it" {
+    var buffer: [max_extra_headers_bytes]u8 = undefined;
+
+    // Quotes around every parameter and commas between them, which is also GstStructure syntax.
+    const rendered =
+        \\MediaBrowser Client="atolla", Device="Kitchen", DeviceId="atolla-1-2", Token="abc"
+    ;
+
+    try testing.expectEqualStrings(
+        \\headers, Authorization=(string)"MediaBrowser Client=\"atolla\", Device=\"Kitchen\", DeviceId=\"atolla-1-2\", Token=\"abc\""
+    ,
+        extraHeaders(&buffer, rendered).?,
+    );
+
+    try testing.expectEqualStrings(
+        \\headers, Authorization=(string)"a\\b"
+    ,
+        extraHeaders(&buffer, "a\\b").?,
+    );
+
+    try testing.expectEqual(null, extraHeaders(&buffer, "one\r\ntwo"));
+    try testing.expectEqual(null, extraHeaders(buffer[0..8], rendered));
+}
+
+test "gst: the plugin registry has the http source a remote track needs" {
+    var gst = try loaded();
+    defer gst.close();
+
+    gst.initialise();
+
+    try testing.expect(gst.hasElement("souphttpsrc"));
+}
+
+/// Serves one generated WAV over HTTP and remembers the `Authorization` it was asked with, so a
+/// test can see what reached the wire.
+const AuthCapture = struct {
+    audio: []const u8,
+    io: std.Io,
+    listener: net.Server,
+    running: std.atomic.Value(bool) = .init(true),
+    seen: [max_auth_header_bytes]u8 = undefined,
+    seen_len: usize = 0,
+
+    fn start(audio: []const u8) !AuthCapture {
+        const address: net.IpAddress = .{ .ip4 = .loopback(0) };
+
+        return .{
+            .audio = audio,
+            .io = testIo(),
+            .listener = try net.IpAddress.listen(&address, testIo(), .{
+                .mode = .stream,
+                .reuse_address = true,
+            }),
+        };
+    }
+
+    fn authorization(self: *const AuthCapture) []const u8 {
+        return self.seen[0..self.seen_len];
+    }
+
+    fn port(self: *const AuthCapture) u16 {
+        return self.listener.socket.address.getPort();
+    }
+
+    /// Wakes `accept` by connecting to ourselves, as `http_server.zig` does. `shutdown` on a
+    /// listening socket is a no-op on Darwin.
+    fn stop(self: *AuthCapture) void {
+        self.running.store(false, .release);
+
+        const stream = net.IpAddress.connect(
+            &self.listener.socket.address,
+            self.io,
+            .{ .mode = .stream },
+        ) catch {
+            self.listener.deinit(self.io);
+
+            return;
+        };
+
+        stream.close(self.io);
+    }
+
+    fn deinit(self: *AuthCapture) void {
+        self.listener.deinit(self.io);
+    }
+
+    fn run(self: *AuthCapture) void {
+        while (self.running.load(.acquire)) {
+            const stream = self.listener.accept(self.io) catch return;
+            defer stream.close(self.io);
+
+            if (!self.running.load(.acquire)) return;
+
+            self.answer(stream);
+        }
+    }
+
+    fn answer(self: *AuthCapture, stream: net.Stream) void {
+        var head_buffer: [8 * 1024]u8 = undefined;
+        var out_buffer: [4 * 1024]u8 = undefined;
+        var reader: socket_reader.Reader = .init(stream.socket.handle, &head_buffer, 2_000);
+        var writer = stream.writer(self.io, &out_buffer);
+        var http: std.http.Server = .init(&reader.interface, &writer.interface);
+
+        var request = http.receiveHead() catch return;
+        var headers = request.iterateHeaders();
+
+        while (headers.next()) |header| {
+            if (!std.ascii.eqlIgnoreCase(header.name, "authorization")) continue;
+
+            const length = @min(header.value.len, self.seen.len);
+            @memcpy(self.seen[0..length], header.value[0..length]);
+            self.seen_len = length;
+        }
+
+        request.respond(self.audio, .{ .extra_headers = &.{
+            .{ .name = "content-type", .value = "audio/x-wav" },
+        } }) catch return;
+    }
+};
+
+test "gst: sends the authorization header it was given to an http source" {
+    var gst = try loaded();
+    defer gst.close();
+
+    gst.initialise();
+
+    if (!gst.hasElement("souphttpsrc")) return error.SkipZigTest;
+
+    var audio: [wav.tone_bytes]u8 = undefined;
+
+    var upstream = try AuthCapture.start(wav.tone(&audio));
+    defer upstream.deinit();
+
+    const thread = try std.Thread.spawn(.{}, AuthCapture.run, .{&upstream});
+
+    var uri_buffer: [256]u8 = undefined;
+    const uri = try std.fmt.bufPrintZ(
+        &uri_buffer,
+        "http://127.0.0.1:{d}/tone.wav",
+        .{upstream.port()},
+    );
+
+    const rendered =
+        \\MediaBrowser Client="atolla", Device="Kitchen", Token="abc"
+    ;
+
+    var setup: SourceSetup = .{ .gst = &gst };
+    setup.setHeader(rendered);
+
+    var pipeline = try Pipeline.launch(&gst, "playbin audio-sink=\"fakesink sync=true\"");
+    defer pipeline.deinit();
+
+    pipeline.connectSourceSetup(&setup);
+    pipeline.set("uri", uri);
+
+    _ = pipeline.setState(.playing);
+
+    var message: [256]u8 = undefined;
+    const outcome = pipeline.wait(20 * second, &message);
+
+    upstream.stop();
+    thread.join();
+
+    switch (outcome) {
+        .ended => {},
+        .failed => |text| {
+            std.debug.print("pipeline failed: {s}\n", .{text});
+
+            return error.TestUnexpectedResult;
+        },
+        .timeout => return error.TestUnexpectedResult,
+    }
+
+    try testing.expectEqualStrings(rendered, upstream.authorization());
 }
 
 test "gst: turns a path into a uri it can play" {

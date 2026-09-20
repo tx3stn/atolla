@@ -8,7 +8,8 @@ SHA256="529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994"
 DYLIB="/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/libgstreamer-1.0.0.dylib"
 
 # Debian splits the sinks across packages: alsasink is gstreamer1.0-alsa, autoaudiosink lives in
-# -good, and fakesink ships inside the core library itself.
+# -good, and fakesink ships inside the core library itself. souphttpsrc is in -good too, and the
+# TLS backend an https media server needs arrives with it: libsoup2.4-1 depends on glib-networking.
 PACKAGES=(
 	gstreamer1.0-alsa
 	gstreamer1.0-plugins-bad

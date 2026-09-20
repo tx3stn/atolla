@@ -5,7 +5,8 @@ export type AudioDevices = () => Array<string>;
 
 export interface AudioEngine {
 	clear: () => void;
-	configure: (source: string, trackId: string) => boolean;
+	// authHeader travels with the source because it belongs to whichever account owns the queue.
+	configure: (source: string, trackId: string, authHeader: string) => boolean;
 	consumeEvent: () => string;
 	currentTrackId: () => string;
 	positionMs: () => number;
