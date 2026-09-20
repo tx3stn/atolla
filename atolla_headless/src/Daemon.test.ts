@@ -159,7 +159,7 @@ describe('startDaemon', () => {
 			now: () => 1758000000000,
 			randomBytes: () => new Uint8Array(0),
 		});
-		await Promise.resolve();
+		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(reads).toContain('/mnt/usb/atolla/state/queue');
 	});
@@ -283,6 +283,40 @@ describe('startDaemon', () => {
 		await Promise.resolve();
 
 		expect(order[0]).toBe('listen');
+	});
+
+	// The restore notifies, and the subscriber that hears it resolves the current track against the
+	// owner's credential, so an owner loaded afterwards is loaded too late.
+	it('loads the queue owner before the queue it belongs to', async () => {
+		const { log } = capture();
+		const reads: Array<string> = [];
+
+		void startDaemon({
+			audio: unavailableAudio(),
+			config: { ...CONFIG },
+			files: {
+				createDirectorySync: () => true,
+				existsSync: () => false,
+				readFileSync: (path) => {
+					reads.push(path);
+					throw new Error('no such file');
+				},
+				writeFileSync: () => {},
+			},
+			httpServer: fakeHttpServer(),
+			identity: IDENTITY,
+			log,
+			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
+			now: () => 1758000000000,
+			randomBytes: () => new Uint8Array(0),
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(reads).toContain('/var/lib/atolla/state/queue_owner');
+		expect(reads.indexOf('/var/lib/atolla/state/queue_owner')).toBeLessThan(
+			reads.indexOf('/var/lib/atolla/state/queue'),
+		);
 	});
 
 	it('returns a promise that does not settle', async () => {

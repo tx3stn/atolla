@@ -123,4 +123,44 @@ describe('makeMediaServerCredentials', () => {
 
 		expect(version.current).toBe(before);
 	});
+
+	it('tells a listener when the accounts it holds change', () => {
+		const { credentials } = fixture();
+		let changes = 0;
+
+		credentials.subscribe(() => {
+			changes++;
+		});
+		credentials.push(credential('u1'));
+		credentials.drop('u1');
+
+		expect(changes).toBe(2);
+	});
+
+	it('says nothing when a push is refused or a drop finds nothing', () => {
+		const { credentials } = fixture();
+		let changes = 0;
+
+		credentials.push(credential('u1'));
+		credentials.subscribe(() => {
+			changes++;
+		});
+		credentials.push(credential('u2', { serverId: 'other' }));
+		credentials.drop('u3');
+
+		expect(changes).toBe(0);
+	});
+
+	it('stops telling a listener that has unsubscribed', () => {
+		const { credentials } = fixture();
+		let changes = 0;
+		const unsubscribe = credentials.subscribe(() => {
+			changes++;
+		});
+
+		unsubscribe();
+		credentials.push(credential('u1'));
+
+		expect(changes).toBe(0);
+	});
 });

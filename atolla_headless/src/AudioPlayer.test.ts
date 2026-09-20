@@ -97,6 +97,92 @@ describe('makeAudioPlayer', () => {
 		expect(audio.configured).toHaveLength(1);
 	});
 
+	// A credential arriving changes nothing the playback store can notify about, so without refresh
+	// the listener has to press play a second time for the track they already asked for.
+	it('picks the held track up on a refresh, with nothing touching the queue', () => {
+		let resolved: ResolvedSource | null = null;
+		const { audio, player, playback } = fixture(() => resolved);
+
+		playback.playTracks(TRACKS, 0);
+
+		expect(audio.configured).toHaveLength(0);
+
+		resolved = { authHeader: 'MediaBrowser Token="abc"', source: 'https://demo/Audio/t1/stream' };
+		player.refresh();
+
+		expect(audio.configured).toHaveLength(1);
+		expect(audio.playing).toBe(true);
+	});
+
+	// No credential survives a restart, so the restored track resolves to nothing until one is pushed.
+	it('binds the restored track once its credential arrives', () => {
+		let resolved: ResolvedSource | null = null;
+		const { audio, playback } = fixture(() => resolved);
+
+		playback.playTracks(TRACKS, 0);
+		playback.playPause();
+
+		expect(audio.configured).toHaveLength(0);
+
+		resolved = { authHeader: 'MediaBrowser Token="abc"', source: 'https://demo/Audio/t1/stream' };
+		playback.playPause();
+
+		expect(audio.configured).toEqual([
+			{
+				authHeader: 'MediaBrowser Token="abc"',
+				source: 'https://demo/Audio/t1/stream',
+				trackId: 't1',
+			},
+		]);
+		expect(audio.playing).toBe(true);
+	});
+
+	// A pushed credential replaces the transport behind the resolver, so a track paused on the old
+	// token would play it and be refused.
+	it('binds a paused track again once it resolves differently', () => {
+		let resolved: ResolvedSource = {
+			authHeader: 'MediaBrowser Token="old"',
+			source: 'https://demo/Audio/t1/stream',
+		};
+		const { audio, playback } = fixture(() => resolved);
+
+		playback.playTracks(TRACKS, 0);
+		playback.playPause();
+
+		resolved = { authHeader: 'MediaBrowser Token="new"', source: 'https://demo/Audio/t1/stream' };
+		playback.playPause();
+
+		expect(audio.configured[audio.configured.length - 1]).toEqual({
+			authHeader: 'MediaBrowser Token="new"',
+			source: 'https://demo/Audio/t1/stream',
+			trackId: 't1',
+		});
+		expect(audio.playing).toBe(true);
+	});
+
+	it('leaves a paused track alone while it resolves the same way', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		playback.playPause();
+		player.tick();
+		player.tick();
+
+		expect(audio.configured).toHaveLength(1);
+	});
+
+	it('keeps a playing track on the source it started with', () => {
+		let resolved: ResolvedSource = { authHeader: '', source: '/media/t1' };
+		const { audio, player, playback } = fixture(() => resolved);
+
+		playback.playTracks(TRACKS, 0);
+		resolved = { authHeader: 'MediaBrowser Token="abc"', source: 'https://demo/Audio/t1/stream' };
+		audio.position = 5_000;
+		player.tick();
+
+		expect(audio.configured).toEqual([{ authHeader: '', source: '/media/t1', trackId: 't1' }]);
+	});
+
 	it('binds the next track when the queue moves on', () => {
 		const { audio, playback } = fixture();
 

@@ -529,6 +529,24 @@ test "audio_player: announces a track it cannot play, naming it" {
     try testing.expect(event.len > "error:unknown:track-missing:".len);
 }
 
+// `configure` prerolls, so a source it cannot open fails before anything asks the track to play.
+// A caller that hands over a path it knows is missing has spent the track.
+test "audio_player: announces a track it cannot play before it is asked to play it" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure("file:///atolla/not/a/real/file.wav", "track-missing", "");
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    const event = try nextEvent(&player, &buffer);
+
+    try testing.expect(std.mem.startsWith(u8, event, "error:unknown:track-missing:"));
+}
+
 test "audio_player: seeking moves the position it reports" {
     var runtime = try loaded();
     defer runtime.close();

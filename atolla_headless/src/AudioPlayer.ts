@@ -28,6 +28,7 @@ export interface AudioPlayerDeps {
 export interface AudioPlayer {
 	currentNativeTrack: () => { positionSeconds: number; trackId: string } | null;
 	dispose: () => void;
+	refresh: () => void;
 	start: () => void;
 	tick: () => void;
 }
@@ -36,6 +37,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	const log = getLogger('audio');
 
 	let unsubscribe: (() => void) | null = null;
+	let bound: (ResolvedSource & { trackId: string }) | null = null;
 	let consecutiveFailures = 0;
 	let lastPlaying = false;
 	let lastSeekTarget: number | null = null;
@@ -47,11 +49,15 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			if (audio.currentTrackId() !== '') {
 				audio.clear();
 			}
+			bound = null;
 			return;
 		}
 
-		// Rebinding a track the engine already holds restarts it mid-play.
-		if (track.id === audio.currentTrackId()) {
+		const held = track.id === audio.currentTrackId();
+
+		// Swapping the source under a playing track restarts it, so one that resolves differently now
+		// waits until it stops. Checked above the resolve, so the position tick never pays for a stat.
+		if (held && lastPlaying) {
 			return;
 		}
 
@@ -61,11 +67,23 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			return;
 		}
 
+		// Resolved again rather than left alone: a pushed credential rebuilds the transport behind the
+		// resolver, and a track paused on the replaced token would otherwise play it.
+		if (
+			held &&
+			bound?.trackId === track.id &&
+			bound.source === resolved.source &&
+			bound.authHeader === resolved.authHeader
+		) {
+			return;
+		}
+
 		if (!audio.configure(resolved.source, track.id, resolved.authHeader)) {
 			log.warn('engine refused the track', { trackId: track.id });
 			return;
 		}
 
+		bound = { ...resolved, trackId: track.id };
 		lastPlaying = playback.isPlaying;
 		audio.setPlaying(playback.isPlaying);
 	};
@@ -192,6 +210,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			unsubscribe?.();
 			unsubscribe = null;
 		},
+		refresh: apply,
 		start: () => {
 			unsubscribe = playback.subscribe(apply);
 			apply();

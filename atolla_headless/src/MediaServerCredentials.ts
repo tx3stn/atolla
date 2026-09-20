@@ -12,16 +12,28 @@ export interface MediaServerCredentials {
 	drop(userId: string): void;
 	get(userId: string): MediaServer | null;
 	push(credential: MediaServer): PushOutcome;
+	subscribe(listener: () => void): () => void;
 	userIds(): Array<string>;
 }
 
 export function makeMediaServerCredentials(version: StateVersion): MediaServerCredentials {
 	const held = new Map<string, MediaServer>();
+	const listeners = new Set<() => void>();
+
+	// The version is for a controller long polling `/state`. The listeners are for the daemon's own
+	// parts, which have no other way to hear that a queue they were holding can play now.
+	const changed = (): void => {
+		version.bump();
+
+		for (const listener of [...listeners]) {
+			listener();
+		}
+	};
 
 	return {
 		drop: (userId) => {
 			if (held.delete(userId)) {
-				version.bump();
+				changed();
 			}
 		},
 		get: (userId) => held.get(userId) ?? null,
@@ -33,9 +45,16 @@ export function makeMediaServerCredentials(version: StateVersion): MediaServerCr
 			}
 
 			held.set(credential.userId, credential);
-			version.bump();
+			changed();
 
 			return PushOutcomes.stored;
+		},
+		subscribe: (listener) => {
+			listeners.add(listener);
+
+			return () => {
+				listeners.delete(listener);
+			};
 		},
 		userIds: () => [...held.keys()],
 	};

@@ -76,6 +76,9 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 
 	if (deps.audio.start(deps.config.audioDevice)) {
 		audioPlayer.start();
+		// A queue restored before its owner's credential arrives is holding its track, and the push is
+		// the only thing that can tell it to look again.
+		credentials.subscribe(audioPlayer.refresh);
 		setInterval(audioPlayer.tick, POLL_INTERVAL_MS);
 		log.info('audio ready', { device: deps.config.audioDevice });
 	} else {
@@ -98,11 +101,13 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	// a later turn than this one because `setPersistence` reads synchronously before it yields, so
 	// starting it here would put a large queue's read ahead of the listen below.
 	const restored = Promise.resolve().then(async () => {
+		// Before the queue, which notifies as it lands. The resolver picks a credential by owner, so
+		// the restored track would otherwise bind as though the queue belonged to nobody.
+		await queueOwner.load();
 		await playback.setPersistence({
 			progress: makeFileKeyValueStore(deps.files, state),
 			queue: makeFileKeyValueStore(deps.files, state),
 		});
-		await queueOwner.load();
 
 		log.info('queue restored', {
 			owner: queueOwner.get(),
