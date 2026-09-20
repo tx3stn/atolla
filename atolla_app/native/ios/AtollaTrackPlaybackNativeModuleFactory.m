@@ -895,6 +895,11 @@ static NSLock *sScrobbleQueueLock;
 
 @implementation AtollaGaplessAudioEngine
 
+// AVURLAsset reads per-asset request headers from this key. No public constant exists for it and
+// it is undocumented, so it could stop working. Replacing it means AVAssetResourceLoaderDelegate
+// over a custom scheme, and an HTTP client with range handling to go with it.
+static NSString *const kAtollaAssetHTTPHeadersKey = @"AVURLAssetHTTPHeaderFieldsKey";
+
 static AVQueuePlayer *sPlayer = nil;
 // tokens for the block-based NSNotificationCenter observers registered in
 // registerPlayerObservers. they must be removed explicitly in clear; removeObserver: on the
@@ -1253,9 +1258,24 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
     });
 }
 
+// AVPlayer builds its own requests, so the header has to be on the asset before it is handed over.
+// That also puts it beyond AtollaAuthRedirectGuard, which the download path above uses, so the
+// streaming token follows redirects. Only http(s) carries one: a file:// source is already ours.
++ (AVURLAsset *)assetForUrl:(NSURL *)url source:(NSString *)urlString {
+    NSString *header = [AtollaMediaSession authHeader];
+    BOOL remote = [urlString hasPrefix:@"http://"] || [urlString hasPrefix:@"https://"];
+
+    if (!remote || header.length == 0) {
+        return [AVURLAsset URLAssetWithURL:url options:nil];
+    }
+
+    return [AVURLAsset URLAssetWithURL:url
+                               options:@{kAtollaAssetHTTPHeadersKey: @{@"Authorization": header}}];
+}
+
 + (AVPlayerItem *)playerItemForUrl:(NSString *)urlString trackId:(NSString *)trackId {
     NSURL *url = [NSURL URLWithString:urlString];
-    AVPlayerItem *item = [AVPlayerItem playerItemWithURL:url];
+    AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:[self assetForUrl:url source:urlString]];
     objc_setAssociatedObject(item, kAtollaPlayerItemTrackIdKey, trackId ?: @"",
                              OBJC_ASSOCIATION_COPY_NONATOMIC);
     [self observeItem:item];

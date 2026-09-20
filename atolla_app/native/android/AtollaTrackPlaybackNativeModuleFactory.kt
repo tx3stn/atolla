@@ -29,7 +29,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.snap.modules.atolla_app.TrackPlaybackNativeModule
 import com.snap.modules.atolla_app.TrackPlaybackNativeModuleFactory
 import com.snap.valdi.modules.RegisterValdiModule
@@ -245,7 +248,9 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 			}
 
 			override fun setAtollaTrackPlaybackAuthHeader(header: String) {
-				AtollaTrackPlaybackMediaSession.authHeader = header.ifBlank { null }
+				val value = header.ifBlank { null }
+				AtollaTrackPlaybackMediaSession.authHeader = value
+				AtollaGaplessAudioEngine.setAuthHeader(value)
 			}
 
 		}
@@ -898,6 +903,16 @@ object AtollaGaplessAudioEngine {
 		}
 	}
 
+	// Held rather than built with the player: ExoPlayer re-reads these properties each time it opens
+	// a source, so a token refreshed after the player exists still reaches the next track.
+	private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+
+	fun setAuthHeader(header: String?) {
+		httpDataSourceFactory.setDefaultRequestProperties(
+			if (header.isNullOrBlank()) emptyMap() else mapOf("Authorization" to header),
+		)
+	}
+
 	private fun ensurePlayer(): ExoPlayer? {
 		if (sourceUrl.isBlank()) {
 			return exoPlayer
@@ -913,7 +928,13 @@ object AtollaGaplessAudioEngine {
 			return null
 		}
 
-		val player = ExoPlayer.Builder(appContext).build()
+		// DefaultDataSource routes file:// and content:// away from the HTTP source, so downloaded and
+		// cached tracks keep their own read path and never carry the header.
+		val player = ExoPlayer.Builder(appContext)
+			.setMediaSourceFactory(
+				DefaultMediaSourceFactory(DefaultDataSource.Factory(appContext, httpDataSourceFactory)),
+			)
+			.build()
 		val audioAttributes = AudioAttributes.Builder()
 			.setUsage(C.USAGE_MEDIA)
 			.setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
