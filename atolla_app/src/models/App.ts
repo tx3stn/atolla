@@ -24,6 +24,7 @@ export type ConnectionMode = (typeof ConnectionModes)[keyof typeof ConnectionMod
 export const FooterTabs = {
 	home: 'home',
 	library: 'library',
+	players: 'players',
 	search: 'search',
 	settings: 'settings',
 } as const;

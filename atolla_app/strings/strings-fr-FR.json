@@ -256,6 +256,12 @@
 	"play_next": {
 		"defaultMessage": "lire ensuite"
 	},
+	"players_empty": {
+		"defaultMessage": "aucun lecteur"
+	},
+	"players_title": {
+		"defaultMessage": "LECTEURS"
+	},
 	"playing_next_toast": {
 		"defaultMessage": "lecture suivante"
 	},

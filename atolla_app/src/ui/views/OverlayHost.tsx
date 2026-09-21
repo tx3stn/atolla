@@ -170,6 +170,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 			activeTab={appShellStore.activeFooterTab}
 			barColors={services.barColors}
 			downloadingCount={services.downloadingCount}
+			featureFlags={services.featureFlags}
 			onFooterTabTap={appShellStore.handleFooterTabTap}
 		/>;
 		<DetachedSlotRenderer detachedSlot={services.modalSlot} />;

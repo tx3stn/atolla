@@ -26,6 +26,7 @@ import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthedApp } from './AuthedApp';
 import type { DevTools } from './dev/DevTools';
+import type { FeatureFlags } from './FeatureFlags';
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	ensureAtollaImageLoaderBootstrap,
@@ -111,10 +112,12 @@ interface AppState {
 export interface AppViewModel {
 	// only ever supplied by the dev app root (//atolla_app_dev); undefined in the released build
 	devTools?: DevTools;
+	featureFlags?: FeatureFlags;
 }
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
+	private readonly featureFlags: FeatureFlags = this.viewModel.featureFlags ?? { multiRoom: false };
 	private authService = this.createAuthService();
 	// the window width is fixed for the process lifetime (the app is portrait-only and opts out of
 	// iPad multitasking), so grid sizing reads it once here rather than re-measuring per render
@@ -406,6 +409,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			connectionMode: this.state.connectionMode,
 			downloadingCount: this.state.downloadingCount,
 			downloadService: this.downloadService,
+			featureFlags: this.featureFlags,
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
@@ -427,6 +431,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				connectionMode={this.state.connectionMode}
 				devTools={this.viewModel.devTools}
 				downloadService={this.downloadService}
+				featureFlags={this.featureFlags}
 				homeViewModel={this.buildHomeViewModel()}
 				libraryViewModel={this.buildLibraryViewModel()}
 				lyricsService={this.userScope.getLyricsService()}

@@ -10,6 +10,7 @@ function makeBag(overrides: Partial<AppServicesBag> = {}): AppServicesBag {
 		connectionMode: ConnectionModes.online,
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
+		featureFlags: { multiRoom: false },
 		lyricsService: stub as AppServicesBag['lyricsService'],
 		modalSlot: stub as AppServicesBag['modalSlot'],
 		networkStatus: stub as AppServicesBag['networkStatus'],

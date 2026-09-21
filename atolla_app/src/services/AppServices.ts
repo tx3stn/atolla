@@ -2,6 +2,7 @@ import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { FeatureFlags } from '../FeatureFlags';
 import type { ConnectionMode } from '../models/App';
 import type { BarColorStore } from '../stores/BarColor';
 import type { PinnedItemsStore } from '../stores/PinnedItems';
@@ -19,6 +20,7 @@ export interface AppServicesBag {
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	downloadService: DownloadService;
+	featureFlags: FeatureFlags;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;

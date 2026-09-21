@@ -256,6 +256,12 @@
 	"play_next": {
 		"defaultMessage": "play next"
 	},
+	"players_empty": {
+		"defaultMessage": "no players yet"
+	},
+	"players_title": {
+		"defaultMessage": "PLAYERS"
+	},
 	"playing_next_toast": {
 		"defaultMessage": "playing next"
 	},

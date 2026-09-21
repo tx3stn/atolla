@@ -9,6 +9,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DevTools } from './dev/DevTools';
+import type { FeatureFlags } from './FeatureFlags';
 import { type ConnectionMode, type FooterTab, FooterTabs } from './models/App';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
@@ -24,6 +25,7 @@ import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { GaplessPlayer } from './ui/components/GaplessPlayer';
 import { HomeTab, type HomeTabViewModel } from './ui/tabs/Home';
 import { LibraryView, type LibraryViewModel } from './ui/tabs/Library';
+import { PlayersTab } from './ui/tabs/Players';
 import { SearchTab } from './ui/tabs/Search';
 import { SettingsTab } from './ui/tabs/Settings';
 import { OverlayHost } from './ui/views/OverlayHost';
@@ -33,6 +35,7 @@ export interface AuthedAppViewModel {
 	connectionMode: ConnectionMode;
 	devTools?: DevTools;
 	downloadService: DownloadService;
+	featureFlags: FeatureFlags;
 	homeViewModel: Omit<HomeTabViewModel, 'onNavigationControllerReady'>;
 	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
 	lyricsService: LyricsService;
@@ -153,6 +156,14 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 					</ErrorBoundary>
 				</view>
 
+				{this.viewModel.featureFlags.multiRoom && (
+					<view style={this.tabStyle(FooterTabs.players)}>
+						<ErrorBoundary resetKey='players'>
+							<PlayersTab language={this.viewModel.preferences.language} />
+						</ErrorBoundary>
+					</view>
+				)}
+
 				<view style={this.tabStyle(FooterTabs.settings)}>
 					<ErrorBoundary resetKey='settings'>
 						<SettingsTab
@@ -220,6 +231,10 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		headerStore.setDescriptor(FooterTabs.search, {
 			kind: 'title',
 			title: Strings.searchTitle(),
+		});
+		headerStore.setDescriptor(FooterTabs.players, {
+			kind: 'title',
+			title: Strings.playersTitle(),
 		});
 	};
 

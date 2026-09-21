@@ -8,6 +8,6 @@ import { devTools } from './devTools';
 // dev surface it pulls in — stays out of the release dependency closure.
 export class AppDev extends Component {
 	onRender(): void {
-		<App devTools={devTools} />;
+		<App devTools={devTools} featureFlags={{ multiRoom: true }} />;
 	}
 }

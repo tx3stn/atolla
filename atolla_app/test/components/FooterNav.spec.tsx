@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import type { FeatureFlags } from 'atolla_app/src/FeatureFlags';
 import { FooterTabs } from 'atolla_app/src/models/App';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
 import { theme } from 'atolla_app/src/theme';
@@ -20,11 +21,16 @@ function getIconTints(component: Parameters<typeof componentGetElements>[0]) {
 	);
 }
 
-function createFooterNav(driver: IComponentTestDriver, barColors: BarColorStore) {
+function createFooterNav(
+	driver: IComponentTestDriver,
+	barColors: BarColorStore,
+	featureFlags: FeatureFlags = { multiRoom: false },
+) {
 	const viewModel = {
 		activeTab: FooterTabs.home,
 		barColors,
 		downloadingCount: 0,
+		featureFlags,
 		onFooterTabTap: () => {},
 	};
 	return driver.renderComponent(FooterNav, viewModel, undefined);
@@ -57,5 +63,25 @@ describe('FooterNav', () => {
 		const tints = getIconTints(component);
 		expect(tints[0]).toBe(footer.activeIconColor);
 		expect(tints[1]).toBe(footer.inactiveIconColor);
+	});
+});
+
+describe('FooterNav multi-room flag', () => {
+	function getAccessibilityIds(component: Parameters<typeof componentGetElements>[0]) {
+		return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.map((view) => view.getAttribute('accessibilityId'))
+			.filter((id): id is string => typeof id === 'string');
+	}
+
+	valdiIt('omits the players tab when multi-room is off', async (driver) => {
+		const component = createFooterNav(driver, new BarColorStore(), { multiRoom: false });
+
+		expect(getAccessibilityIds(component)).not.toContain('footer-players');
+	});
+
+	valdiIt('shows the players tab when multi-room is on', async (driver) => {
+		const component = createFooterNav(driver, new BarColorStore(), { multiRoom: true });
+
+		expect(getAccessibilityIds(component)).toContain('footer-players');
 	});
 });

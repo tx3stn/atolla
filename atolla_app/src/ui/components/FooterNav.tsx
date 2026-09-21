@@ -3,6 +3,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { FeatureFlags } from '../../FeatureFlags';
 import { type FooterTab, FooterTabs } from '../../models/App';
 import { type BarColorStore, defaultFooterColors, type FooterColors } from '../../stores/BarColor';
 import { theme } from '../../theme';
@@ -12,6 +13,7 @@ export interface FooterNavViewModel {
 	activeTab: FooterTab;
 	barColors: BarColorStore;
 	downloadingCount: number;
+	featureFlags: FeatureFlags;
 	onFooterTabTap: (tabId: FooterTab) => void;
 }
 
@@ -67,6 +69,19 @@ export class FooterNav extends StatefulComponent<FooterNavViewModel, FooterNavSt
 				icon={res.search}
 				inactiveColor={footer.inactiveIconColor}
 			/>
+
+			{this.viewModel.featureFlags.multiRoom && (
+				<FooterIcon
+					accessibilityId='footer-players'
+					action={createReusableCallback(() => {
+						this.viewModel.onFooterTabTap(FooterTabs.players);
+					})}
+					active={this.viewModel.activeTab === FooterTabs.players}
+					activeColor={footer.activeIconColor}
+					icon={res.players}
+					inactiveColor={footer.inactiveIconColor}
+				/>
+			)}
 
 			<FooterIcon
 				accessibilityId='footer-settings'

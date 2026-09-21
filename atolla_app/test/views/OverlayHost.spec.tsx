@@ -69,6 +69,7 @@ function setServices(store: PlaybackStore): { notifyPalette: PaletteListener } {
 		connectionMode: 'online',
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
+		featureFlags: { multiRoom: false },
 		lyricsService: {
 			get: () => undefined,
 			load: () => Promise.resolve(null),
