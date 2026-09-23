@@ -14,6 +14,8 @@ export interface PlayerCardViewModel {
 
 const TILE_SIZE = 72;
 const ICON_SIZE = 34;
+const DOT_SIZE = 8;
+const STATUS_LINE_HEIGHT = 20;
 
 const PLAYER_ICONS: Record<string, typeof res.players> = {
 	speaker: res.players,
@@ -29,7 +31,7 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 			style={styles.card}
 		>
 			<view style={styles.tile}>
-				<image src={iconFor(player)} style={styles.icon} tint={healthColor(player)} />
+				<image src={iconFor(player)} style={styles.icon} />
 			</view>
 			<layout style={styles.details}>
 				<layout style={styles.titleRow}>
@@ -40,18 +42,37 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 						onToggle={onToggle}
 					/>
 				</layout>
-				<label numberOfLines={2} style={statusStyle(player)} value={statusText(player)} />
+				<layout style={styles.statusRow}>
+					{player.enabled && (
+						<view
+							accessibilityId={`player-card-${player.id}-status-dot`}
+							accessibilityLabel={`player-card-${player.id}-status-dot`}
+							style={dotFor(player)}
+						/>
+					)}
+					{player.enabled && (
+						<label numberOfLines={2} style={statusStyleFor(player)} value={statusText(player)} />
+					)}
+				</layout>
 				<label style={styles.meta} value={metaText(player)} />
 			</layout>
 		</view>;
 	}
 }
 
-function healthColor(player: Player): string {
-	if (isUnhealthy(player)) {
-		return theme.colors.destructive;
-	}
-	return player.enabled ? theme.colors.success : theme.colors.disabled;
+function dotFor(player: Player): Style<View> {
+	return isUnhealthy(player) ? styles.dotBad : styles.dotOn;
+}
+
+function dotStyle(backgroundColor: string): Style<View> {
+	return new Style<View>({
+		backgroundColor,
+		borderRadius: theme.radius.pill,
+		flexShrink: 0,
+		height: theme.scale(DOT_SIZE),
+		marginRight: theme.scale(6),
+		width: theme.scale(DOT_SIZE),
+	});
 }
 
 function iconFor(player: Player): typeof res.players {
@@ -66,7 +87,15 @@ function metaText(player: Player): string {
 	return player.isThisDevice ? Strings.playersThisDevice() : (player.address ?? '');
 }
 
-function statusStyle(player: Player): Style<Label> {
+function statusStyle(color: string): Style<Label> {
+	return new Style<Label>({
+		...theme.text.sub,
+		color,
+		flexShrink: 1,
+	});
+}
+
+function statusStyleFor(player: Player): Style<Label> {
 	return isUnhealthy(player) ? styles.statusBad : styles.status;
 }
 
@@ -80,18 +109,13 @@ function statusText(player: Player): string {
 	return Strings.playersStatusConnected();
 }
 
-const status = new Style<Label>({
-	...theme.text.sub,
-	marginTop: theme.scale(6),
-});
-
 const styles = {
 	card: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgRaised,
 		borderRadius: theme.radius.default,
 		flexDirection: 'row',
-		minHeight: theme.scale(112),
+		minHeight: theme.scale(100),
 		padding: theme.scale(14),
 		width: '100%',
 	}),
@@ -100,6 +124,8 @@ const styles = {
 		flexShrink: 1,
 		marginLeft: theme.scale(14),
 	}),
+	dotBad: dotStyle(theme.colors.destructive),
+	dotOn: dotStyle(theme.colors.success),
 	icon: new Style<ImageView>({
 		height: theme.scale(ICON_SIZE),
 		width: theme.scale(ICON_SIZE),
@@ -114,8 +140,15 @@ const styles = {
 		flexGrow: 1,
 		flexShrink: 1,
 	}),
-	status: status,
-	statusBad: status.extend({ color: theme.colors.destructive }),
+	status: statusStyle(theme.colors.muted),
+	statusBad: statusStyle(theme.colors.destructive),
+	statusRow: new Style<Layout>({
+		alignItems: 'center',
+		flexDirection: 'row',
+		marginTop: theme.scale(6),
+		minHeight: theme.scale(STATUS_LINE_HEIGHT),
+		width: '100%',
+	}),
 	tile: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,

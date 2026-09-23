@@ -6,13 +6,14 @@ import {
 	PlayerTiers,
 } from 'atolla_app/src/models/Player';
 import Strings from 'atolla_app/src/Strings';
+import { theme } from 'atolla_app/src/theme';
 import { PlayerCard } from 'atolla_app/src/ui/components/PlayerCard';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import type { IRenderedElement } from 'valdi_core/src/IRenderedElement';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { touchEvent } from '../util/testEvents';
+import { styleAttribute, touchEvent } from '../util/testEvents';
 
 describe('PlayerCard', () => {
 	valdiIt('shows the error when the player reports one', async (driver) => {
@@ -94,9 +95,79 @@ describe('PlayerCard', () => {
 
 		expect(received).toBe(true);
 	});
+
+	valdiIt('marks a healthy player with the success dot', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer() },
+			undefined,
+		);
+
+		expect(dotColor(component)).toBe(theme.colors.success);
+	});
+
+	valdiIt('marks an errored player with the destructive dot', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ lastError: 'boom' }) },
+			undefined,
+		);
+
+		expect(dotColor(component)).toBe(theme.colors.destructive);
+	});
+
+	valdiIt('marks an unreachable player with the destructive dot', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ reachable: false }) },
+			undefined,
+		);
+
+		expect(dotColor(component)).toBe(theme.colors.destructive);
+	});
+
+	valdiIt('says nothing about state while the player is switched off', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ enabled: false }) },
+			undefined,
+		);
+
+		expect(elementById(component, 'player-card-kitchen-status-dot')).toBe(undefined);
+		expect(labelValues(component)).not.toContain(Strings.playersStatusConnected());
+	});
+
+	valdiIt('still names a switched-off player and gives its address', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ enabled: false }) },
+			undefined,
+		);
+
+		expect(labelValues(component)).toContain('Kitchen');
+		expect(labelValues(component)).toContain('192.168.1.42');
+	});
+
+	valdiIt('stays silent about state when a switched-off player is unreachable', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ enabled: false, reachable: false }) },
+			undefined,
+		);
+
+		expect(elementById(component, 'player-card-kitchen-status-dot')).toBe(undefined);
+		expect(labelValues(component)).not.toContain(Strings.playersStatusUnreachable());
+	});
 });
 
 type RenderedComponent = Parameters<typeof componentGetElements>[0];
+
+function dotColor(component: RenderedComponent): unknown {
+	return styleAttribute(
+		elementById(component, 'player-card-kitchen-status-dot'),
+		'backgroundColor',
+	);
+}
 
 function elementById(component: RenderedComponent, id: string): IRenderedElement | undefined {
 	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).find(

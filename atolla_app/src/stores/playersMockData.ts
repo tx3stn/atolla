@@ -55,7 +55,7 @@ export const MOCK_PLAYERS: Array<Player> = [
 	},
 	{
 		address: '192.168.1.47',
-		enabled: false,
+		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,
 		id: '6e13b8d0f7a25c94',
