@@ -11,11 +11,36 @@ import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlayersView } from 'atolla_app/src/ui/views/PlayersView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { untilRenderComplete } from 'foundation/test/util/untilRenderComplete';
+import { Component } from 'valdi_core/src/Component';
 import type { IRenderedElement } from 'valdi_core/src/IRenderedElement';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import type { IComponentTestDriver } from 'valdi_test/test/JSXTestUtils';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { touchEvent } from '../util/testEvents';
+import { editTextEvent, touchEvent } from '../util/testEvents';
+
+interface PlayersViewHostViewModel {
+	playersStore: PlayersStore;
+	preferences: Preferences;
+}
+
+class PlayersViewHost extends Component<PlayersViewHostViewModel> {
+	private slot = new DetachedSlot();
+
+	onRender(): void {
+		<view>
+			<PlayersView
+				language='en'
+				modalSlot={this.slot}
+				playersStore={this.viewModel.playersStore}
+				preferences={this.viewModel.preferences}
+			/>
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
 
 describe('PlayersView', () => {
 	valdiIt('says there are no players when the store is empty', async (driver) => {
@@ -98,6 +123,34 @@ describe('PlayersView', () => {
 		expect(store.sections()[0].players[1].enabled).toBe(false);
 	});
 
+	valdiIt('opens the add modal from the button', async (driver) => {
+		const component = renderWithModals(driver, new PlayersStore([], 0));
+		expect(accessibilityIds(component)).not.toContain('add-player-modal');
+
+		elementById(component, 'players-add-btn')?.getAttribute('onTap')?.(touchEvent);
+
+		expect(accessibilityIds(component)).toContain('add-player-modal');
+	});
+
+	valdiIt('puts a paired player into the list', async (driver) => {
+		const store = new PlayersStore([], 0);
+		const component = renderWithModals(driver, store);
+
+		elementById(component, 'players-add-btn')?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		)[0]?.getAttribute('onChange')?.(editTextEvent('12345678'));
+		elementById(component, 'add-player-connect-btn')?.getAttribute('onTap')?.(touchEvent);
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 0);
+		});
+		await untilRenderComplete(component);
+
+		expect(store.sections()[0].players.length).toBe(1);
+		expect(accessibilityIds(component)).not.toContain('add-player-modal');
+	});
+
 	valdiIt('redraws the card once the store reports the change', async (driver) => {
 		const store = new PlayersStore([makePlayer('a', { enabled: false })], 0);
 		const component = render(driver, store);
@@ -157,7 +210,15 @@ function render(
 ) {
 	return driver.renderComponent(
 		PlayersView,
-		{ language: 'en', playersStore, preferences },
+		{ language: 'en', modalSlot: new DetachedSlot(), playersStore, preferences },
 		undefined,
 	);
+}
+
+function renderWithModals(
+	driver: IComponentTestDriver,
+	playersStore: PlayersStore,
+	preferences: Preferences = makePreferences(),
+) {
+	return driver.renderComponent(PlayersViewHost, { playersStore, preferences }, undefined);
 }

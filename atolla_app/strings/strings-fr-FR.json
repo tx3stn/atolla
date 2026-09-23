@@ -256,6 +256,18 @@
 	"play_next": {
 		"defaultMessage": "lire ensuite"
 	},
+	"players_add_button": {
+		"defaultMessage": "ajouter un lecteur"
+	},
+	"players_add_code_placeholder": {
+		"defaultMessage": "code d'association"
+	},
+	"players_add_failed": {
+		"defaultMessage": "code d'association invalide"
+	},
+	"players_add_title": {
+		"defaultMessage": "AJOUTER UN LECTEUR"
+	},
 	"players_empty": {
 		"defaultMessage": "aucun lecteur"
 	},

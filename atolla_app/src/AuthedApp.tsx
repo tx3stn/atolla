@@ -163,6 +163,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						<ErrorBoundary resetKey='players'>
 							<PlayersTab
 								language={this.viewModel.preferences.language}
+								modalSlot={this.viewModel.modalSlot}
 								playersStore={this.viewModel.playersStore}
 								preferences={this.viewModel.preferences}
 							/>

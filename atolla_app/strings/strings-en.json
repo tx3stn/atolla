@@ -256,6 +256,18 @@
 	"play_next": {
 		"defaultMessage": "play next"
 	},
+	"players_add_button": {
+		"defaultMessage": "add a player"
+	},
+	"players_add_code_placeholder": {
+		"defaultMessage": "pairing code"
+	},
+	"players_add_failed": {
+		"defaultMessage": "invalid pairing code"
+	},
+	"players_add_title": {
+		"defaultMessage": "ADD A PLAYER"
+	},
 	"players_empty": {
 		"defaultMessage": "no players yet"
 	},

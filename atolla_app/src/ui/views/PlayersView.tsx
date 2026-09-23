@@ -2,17 +2,22 @@ import Strings from 'atolla_app/src/Strings';
 import type { LanguageCode } from 'atolla_core/src/Language';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Player } from '../../models/Player';
 import type { PlayersStore } from '../../stores/Players';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { Button } from '../components/Button';
 import { HomeSectionHeader } from '../components/HomeSectionHeader';
 import { PlayerCard } from '../components/PlayerCard';
+import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { AddPlayerModal } from '../modals/AddPlayerModal';
 
 export interface PlayersViewModel {
 	language: LanguageCode;
+	modalSlot: DetachedSlot;
 	playersStore: PlayersStore;
 	preferences: Preferences;
 }
@@ -69,6 +74,12 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 							))}
 						</layout>
 					))}
+					<Button
+						accessibilityId='players-add'
+						animationsEnabled={this.viewModel.preferences.animationsEnabled}
+						label={Strings.playersAddButton()}
+						onTap={this.handleAddTap}
+					/>
 				</view>
 			</scroll>
 		</layout>;
@@ -76,6 +87,22 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
+	};
+
+	private handleAdd = (code: string): Promise<Player> => this.viewModel.playersStore.add(code);
+
+	private handleAddCancel = (): void => {
+		closeSlot(this.viewModel.modalSlot);
+	};
+
+	private handleAddTap = (): void => {
+		openSlot(this.viewModel.modalSlot, () => {
+			<AddPlayerModal
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
+				onAdd={this.handleAdd}
+				onCancel={this.handleAddCancel}
+			/>;
+		});
 	};
 }
 

@@ -7,6 +7,7 @@ export class PlayersTab extends Component<PlayersTabViewModel> {
 	onRender(): void {
 		<PlayersView
 			language={this.viewModel.language}
+			modalSlot={this.viewModel.modalSlot}
 			playersStore={this.viewModel.playersStore}
 			preferences={this.viewModel.preferences}
 		/>;
