@@ -11,9 +11,11 @@ import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlayersView } from 'atolla_app/src/ui/views/PlayersView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import type { IRenderedElement } from 'valdi_core/src/IRenderedElement';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import type { IComponentTestDriver } from 'valdi_test/test/JSXTestUtils';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 
 describe('PlayersView', () => {
 	valdiIt('says there are no players when the store is empty', async (driver) => {
@@ -67,6 +69,44 @@ describe('PlayersView', () => {
 
 		expect(labelValues(component)).toContain('Player a');
 	});
+
+	valdiIt('switches a player on through the store', async (driver) => {
+		const store = new PlayersStore([makePlayer('a', { enabled: false })], 0);
+		const component = render(driver, store);
+
+		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
+
+		expect(store.sections()[0].players[0].enabled).toBe(true);
+	});
+
+	valdiIt('switches a player off through the store', async (driver) => {
+		const store = new PlayersStore([makePlayer('a', { enabled: true })], 0);
+		const component = render(driver, store);
+
+		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
+
+		expect(store.sections()[0].players[0].enabled).toBe(false);
+	});
+
+	valdiIt('toggles only the player whose switch was tapped', async (driver) => {
+		const store = new PlayersStore([makePlayer('a'), makePlayer('b')], 0);
+		const component = render(driver, store);
+
+		elementById(component, 'player-card-b-toggle')?.getAttribute('onTap')?.(touchEvent);
+
+		expect(store.sections()[0].players[0].enabled).toBe(true);
+		expect(store.sections()[0].players[1].enabled).toBe(false);
+	});
+
+	valdiIt('redraws the card once the store reports the change', async (driver) => {
+		const store = new PlayersStore([makePlayer('a', { enabled: false })], 0);
+		const component = render(driver, store);
+		expect(accessibilityIds(component)).not.toContain('player-card-a-status-dot');
+
+		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
+
+		expect(accessibilityIds(component)).toContain('player-card-a-status-dot');
+	});
 });
 
 type RenderedComponent = Parameters<typeof componentGetElements>[0];
@@ -75,6 +115,12 @@ function accessibilityIds(component: RenderedComponent): Array<string> {
 	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
 		.map((view) => view.getAttribute('accessibilityId'))
 		.filter((id): id is string => typeof id === 'string');
+}
+
+function elementById(component: RenderedComponent, id: string): IRenderedElement | undefined {
+	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).find(
+		(element) => element.getAttribute('accessibilityId') === id,
+	);
 }
 
 function labelValues(component: RenderedComponent): Array<unknown> {

@@ -2,6 +2,7 @@ import Strings from 'atolla_app/src/Strings';
 import type { LanguageCode } from 'atolla_core/src/Language';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Player } from '../../models/Player';
 import type { PlayersStore } from '../../stores/Players';
@@ -58,7 +59,12 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 							)}
 							{section.players.map((player) => (
 								<layout key={player.id} style={styles.cardSlot}>
-									<PlayerCard onToggle={this.handleToggle} player={named(player, deviceName)} />
+									<PlayerCard
+										onToggle={createReusableCallback((enabled: boolean) => {
+											this.viewModel.playersStore.setEnabled(player.id, enabled);
+										})}
+										player={named(player, deviceName)}
+									/>
 								</layout>
 							))}
 						</layout>
@@ -71,8 +77,6 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
 	};
-
-	private handleToggle = (): void => {};
 }
 
 function named(player: Player, deviceName: string): Player {
