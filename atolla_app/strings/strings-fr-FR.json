@@ -259,6 +259,15 @@
 	"players_empty": {
 		"defaultMessage": "aucun lecteur"
 	},
+	"players_status_connected": {
+		"defaultMessage": "connecté"
+	},
+	"players_status_unreachable": {
+		"defaultMessage": "injoignable"
+	},
+	"players_this_device": {
+		"defaultMessage": "ce téléphone"
+	},
 	"players_title": {
 		"defaultMessage": "LECTEURS"
 	},

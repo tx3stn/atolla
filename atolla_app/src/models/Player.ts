@@ -23,7 +23,6 @@ export interface Player {
 	lastError: string | null;
 	name: string;
 	reachable: boolean;
-	ready: boolean;
 	state: PlayerState;
 	tier: Member['tier'];
 }

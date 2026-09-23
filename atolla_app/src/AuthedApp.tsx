@@ -19,6 +19,7 @@ import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
 import { appShellStore } from './stores/AppShell';
 import { headerStore } from './stores/Header';
+import type { PlayersStore } from './stores/Players';
 import type { Preferences } from './stores/Preferences';
 import { theme } from './theme';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
@@ -43,6 +44,7 @@ export interface AuthedAppViewModel {
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
+	playersStore: PlayersStore;
 	preferences: Preferences;
 	searchViewModel: Omit<SearchViewModel, 'active' | 'navigationController'>;
 	sessionController: SessionController;
@@ -159,7 +161,11 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				{this.viewModel.featureFlags.multiRoom && (
 					<view style={this.tabStyle(FooterTabs.players)}>
 						<ErrorBoundary resetKey='players'>
-							<PlayersTab language={this.viewModel.preferences.language} />
+							<PlayersTab
+								language={this.viewModel.preferences.language}
+								playersStore={this.viewModel.playersStore}
+								preferences={this.viewModel.preferences}
+							/>
 						</ErrorBoundary>
 					</view>
 				)}

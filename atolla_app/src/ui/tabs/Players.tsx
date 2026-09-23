@@ -1,30 +1,14 @@
-import Strings from 'atolla_app/src/Strings';
-import type { LanguageCode } from 'atolla_core/src/Language';
 import { Component } from 'valdi_core/src/Component';
-import { Style } from 'valdi_core/src/Style';
-import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { theme } from '../../theme';
+import { PlayersView, type PlayersViewModel } from '../views/PlayersView';
 
-export interface PlayersTabViewModel {
-	language: LanguageCode;
-}
+export interface PlayersTabViewModel extends PlayersViewModel {}
 
 export class PlayersTab extends Component<PlayersTabViewModel> {
 	onRender(): void {
-		<view accessibilityId='players-tab' accessibilityLabel='players-tab' style={styles.root}>
-			<label style={styles.message} value={Strings.playersEmpty()} />
-		</view>;
+		<PlayersView
+			language={this.viewModel.language}
+			playersStore={this.viewModel.playersStore}
+			preferences={this.viewModel.preferences}
+		/>;
 	}
 }
-
-const styles = {
-	message: new Style<Label>({
-		...theme.text.sub,
-		textAlign: 'center',
-	}),
-	root: new Style<View>({
-		alignItems: 'center',
-		flexGrow: 1,
-		justifyContent: 'center',
-	}),
-};

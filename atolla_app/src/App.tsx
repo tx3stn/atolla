@@ -61,6 +61,7 @@ import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { UserScope } from './services/UserScope';
 import { appShellStore } from './stores/AppShell';
 import { BarColorStore } from './stores/BarColor';
+import { PlayersStore } from './stores/Players';
 import { Preferences } from './stores/Preferences';
 import {
 	getAtollaDeviceUserScopeKey,
@@ -126,6 +127,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		Device.getWindowWidth(),
 	);
 	private barColors = new BarColorStore();
+	private playersStore = new PlayersStore();
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
 	private modalSlot = new DetachedSlot();
@@ -439,6 +441,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				paletteService={this.userScope.getPaletteService()}
 				playbackOrchestrator={this.playbackOrchestrator}
 				playbackStore={this.playbackStore}
+				playersStore={this.playersStore}
 				preferences={this.preferences}
 				searchViewModel={this.buildSearchViewModel()}
 				sessionController={this.sessionController}

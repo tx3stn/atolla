@@ -102,7 +102,6 @@ export class PlayersStore {
 			lastError: null,
 			name: PAIRED_PLAYER_NAMES[index] ?? `Speaker ${index + 1}`,
 			reachable: true,
-			ready: true,
 			state: PlayerStates.idle,
 			tier: PlayerTiers.tight,
 		};

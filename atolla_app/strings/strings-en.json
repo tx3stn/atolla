@@ -259,6 +259,15 @@
 	"players_empty": {
 		"defaultMessage": "no players yet"
 	},
+	"players_status_connected": {
+		"defaultMessage": "connected"
+	},
+	"players_status_unreachable": {
+		"defaultMessage": "unreachable"
+	},
+	"players_this_device": {
+		"defaultMessage": "this phone"
+	},
 	"players_title": {
 		"defaultMessage": "PLAYERS"
 	},
