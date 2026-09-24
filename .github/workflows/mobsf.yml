@@ -30,11 +30,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run mobsfscan
-        uses: MobSF/mobsfscan@a43635d92434e78b079ed7d860f022cf6c886b43 # 1.0.0
+        uses: MobSF/mobsfscan@4645ea70bc093268502fe9f6df93e41bb482254a # 1.0.1
         with:
           args: . --config .mobsf.yaml --sarif --output results.sarif --no-fail
       - name: Upload mobsfscan report
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           sarif_file: results.sarif
 
