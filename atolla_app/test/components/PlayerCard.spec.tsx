@@ -14,6 +14,7 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import type { IRenderedElement } from 'valdi_core/src/IRenderedElement';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
+import type { IComponentTestDriver } from 'valdi_test/test/JSXTestUtils';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import type { TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import { styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
@@ -192,9 +193,110 @@ describe('PlayerCard', () => {
 		expect(handle).toBeDefined();
 		expect(touches).toBe(1);
 	});
+
+	valdiIt('calls onLongPress once the press is held', async (driver) => {
+		jasmine.clock().install();
+		try {
+			let pressed = 0;
+			const component = renderWithLongPress(driver, () => {
+				pressed += 1;
+			});
+
+			card(component)?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			jasmine.clock().tick(500);
+
+			expect(pressed).toBe(1);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
+	valdiIt('does not call onLongPress when the press is released early', async (driver) => {
+		jasmine.clock().install();
+		try {
+			let pressed = 0;
+			const component = renderWithLongPress(driver, () => {
+				pressed += 1;
+			});
+
+			card(component)?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			jasmine.clock().tick(200);
+			card(component)?.getAttribute('onTouch')?.(touchEventWith({ state: 2 }));
+			jasmine.clock().tick(500);
+
+			expect(pressed).toBe(0);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
+	valdiIt('abandons the long press once the finger moves', async (driver) => {
+		jasmine.clock().install();
+		try {
+			let pressed = 0;
+			const component = renderWithLongPress(driver, () => {
+				pressed += 1;
+			});
+
+			card(component)?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			jasmine.clock().tick(200);
+			card(component)?.getAttribute('onTouch')?.(
+				touchEventWith({ deltaX: 0, deltaY: 40, state: 1 }),
+			);
+			jasmine.clock().tick(500);
+
+			expect(pressed).toBe(0);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
+	valdiIt('abandons the long press when the drag handle is touched', async (driver) => {
+		jasmine.clock().install();
+		try {
+			let pressed = 0;
+			const component = driver.renderComponent(
+				PlayerCard,
+				{
+					dragHandle: makeHandle(() => {}),
+					onLongPress: () => {
+						pressed += 1;
+					},
+					onToggle: () => {},
+					player: makePlayer(),
+				},
+				undefined,
+			);
+
+			card(component)?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			jasmine.clock().tick(200);
+			elementById(component, 'player-card-kitchen-drag')?.getAttribute('onTouch')?.(
+				touchEventWith({ state: 0 }),
+			);
+			jasmine.clock().tick(500);
+
+			expect(pressed).toBe(0);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
+	valdiIt('listens for no touches when nothing wants a long press', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer() },
+			undefined,
+		);
+
+		expect(card(component)?.getAttribute('onTouch')).toBe(undefined);
+	});
 });
 
 type RenderedComponent = Parameters<typeof componentGetElements>[0];
+
+function card(component: RenderedComponent): IRenderedElement | undefined {
+	return elementById(component, 'player-card-kitchen');
+}
 
 function dotColor(component: RenderedComponent): unknown {
 	return styleAttribute(
@@ -223,6 +325,14 @@ function makeHandle(onTouch: (event: TouchEvent) => void): ReorderableRowHandle 
 		onTouch,
 		ref: new ElementRef(),
 	};
+}
+
+function renderWithLongPress(driver: IComponentTestDriver, onLongPress: () => void) {
+	return driver.renderComponent(
+		PlayerCard,
+		{ onLongPress, onToggle: () => {}, player: makePlayer() },
+		undefined,
+	);
 }
 
 function makePlayer(overrides: Partial<Player> = {}): Player {

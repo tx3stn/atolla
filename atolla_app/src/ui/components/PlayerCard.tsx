@@ -2,14 +2,18 @@ import res from 'atolla_app/res';
 import Strings from 'atolla_app/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Player } from '../../models/Player';
 import { theme, withAlpha } from '../../theme';
+import { hapticFeedback } from '../../utils/Haptics';
 import type { ReorderableRowHandle } from './ReorderableList';
 import { Toggle } from './Toggle';
+import { TouchEventState } from './TouchEventState';
 
 export interface PlayerCardViewModel {
 	dragHandle?: ReorderableRowHandle;
+	onLongPress?: () => void;
 	onToggle: (enabled: boolean) => void;
 	player: Player;
 }
@@ -19,18 +23,27 @@ const ICON_SIZE = 34;
 const DOT_SIZE = 8;
 const HANDLE_SIZE = 24;
 const STATUS_LINE_HEIGHT = 20;
+const LONG_PRESS_DELAY_MS = 500;
+const LONG_PRESS_CANCEL_DISTANCE = 5;
 
 const PLAYER_ICONS: Record<string, typeof res.players> = {
 	speaker: res.players,
 };
 
 export class PlayerCard extends Component<PlayerCardViewModel> {
+	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	onDestroy(): void {
+		this.cancelLongPress();
+	}
+
 	onRender(): void {
 		const { dragHandle, onToggle, player } = this.viewModel;
 
 		<view
 			accessibilityId={`player-card-${player.id}`}
 			accessibilityLabel={`player-card-${player.id}`}
+			onTouch={this.viewModel.onLongPress ? this.handleCardTouch : undefined}
 			style={styles.card}
 		>
 			<view style={styles.tile}>
@@ -65,7 +78,7 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 						longPressDuration={dragHandle.longPressDuration}
 						onLongPress={dragHandle.onLongPress}
 						onLongPressDisabled={dragHandle.onLongPressDisabled}
-						onTouch={dragHandle.onTouch}
+						onTouch={this.handleDragHandleTouch}
 						ref={dragHandle.ref}
 						style={styles.handle}
 					>
@@ -78,6 +91,50 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 				)}
 			</layout>
 		</view>;
+	}
+
+	private cancelLongPress(): void {
+		if (!this.longPressTimeout) {
+			return;
+		}
+		clearTimeout(this.longPressTimeout);
+		this.longPressTimeout = null;
+	}
+
+	private handleCardTouch = (event: TouchEvent): void => {
+		if (event.state === TouchEventState.Started) {
+			this.scheduleLongPress();
+			return;
+		}
+
+		if (event.state === TouchEventState.Changed) {
+			const drag = event as DragEvent;
+			if (
+				Math.abs(drag.deltaX) > LONG_PRESS_CANCEL_DISTANCE ||
+				Math.abs(drag.deltaY) > LONG_PRESS_CANCEL_DISTANCE
+			) {
+				this.cancelLongPress();
+			}
+			return;
+		}
+
+		this.cancelLongPress();
+	};
+
+	// the drag handle lives inside the card, so its touches reach this component too; a press
+	// arming a reorder must not also count towards the forget hold
+	private handleDragHandleTouch = (event: TouchEvent): void => {
+		this.cancelLongPress();
+		this.viewModel.dragHandle?.onTouch(event);
+	};
+
+	private scheduleLongPress(): void {
+		this.cancelLongPress();
+		this.longPressTimeout = setTimeout(() => {
+			this.longPressTimeout = null;
+			hapticFeedback();
+			this.viewModel.onLongPress?.();
+		}, LONG_PRESS_DELAY_MS);
 	}
 }
 

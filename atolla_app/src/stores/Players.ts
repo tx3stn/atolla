@@ -154,13 +154,11 @@ export class PlayersStore {
 	}
 
 	private orderedPlayers(): Array<Player> {
-		if (this.order.length === 0) {
-			return [...this.players];
-		}
-
 		const rank = new Map(this.order.map((id, index) => [id, index]));
 		const last = this.order.length;
-		return [...this.players].sort((a, b) => (rank.get(a.id) ?? last) - (rank.get(b.id) ?? last));
+		const rankOf = (player: Player): number =>
+			player.isThisDevice ? -1 : (rank.get(player.id) ?? last);
+		return [...this.players].sort((a, b) => rankOf(a) - rankOf(b));
 	}
 
 	private pairedPlayer(): Player {

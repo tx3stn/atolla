@@ -273,6 +273,34 @@ describe('PlayersStore persisted order', () => {
 		expect(ids(store)).toEqual(['b', 'a', 'c']);
 	});
 
+	it('keeps this device first even when the saved order puts it last', async () => {
+		const keyValueStore = new InMemoryKeyValueStore();
+		await keyValueStore.storeString(
+			PLAYERS_ORDER_KEY,
+			JSON.stringify({ order: ['b', 'a', 'device'], version: 1 }),
+		);
+
+		const store = new PlayersStore({
+			pairDelayMs: 0,
+			seed: [makePlayer('a'), makePlayer('b'), makePlayer('device', { isThisDevice: true })],
+			store: keyValueStore,
+		});
+		await store.ensureLoaded();
+
+		expect(ids(store)).toEqual(['device', 'b', 'a']);
+	});
+
+	it('keeps this device first after another player is reordered', () => {
+		const store = new PlayersStore({
+			pairDelayMs: 0,
+			seed: [makePlayer('a'), makePlayer('b'), makePlayer('device', { isThisDevice: true })],
+		});
+
+		store.reorder(2, 1);
+
+		expect(ids(store)).toEqual(['device', 'b', 'a']);
+	});
+
 	it('sorts a player the saved order has never seen to the bottom', async () => {
 		const keyValueStore = new InMemoryKeyValueStore();
 		await keyValueStore.storeString(

@@ -18,6 +18,7 @@ import { ReorderableList, type ReorderableRowHandle } from '../components/Reorde
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { AddPlayerModal } from '../modals/AddPlayerModal';
+import { Modal } from '../modals/Modal';
 
 export interface PlayersViewModel {
 	language: LanguageCode;
@@ -32,6 +33,7 @@ interface PlayersViewState {
 
 export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersViewState> {
 	state: PlayersViewState = { revision: 0 };
+	private forgetTarget: Player | null = null;
 	private readonly scrollRef = new ElementRef<ScrollView>();
 	private readonly dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 
@@ -44,6 +46,9 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		const sections = this.viewModel.playersStore.sections();
 		const deviceName = this.viewModel.preferences.jellyfinClientDeviceName;
 		const showGroupHeaders = sections.length > 1;
+		const thisDevice = sections
+			.flatMap((section) => section.players)
+			.find((player) => player.isThisDevice);
 
 		<layout style={styles.root}>
 			<scroll
@@ -66,39 +71,61 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 							<label style={styles.emptyLabel} value={Strings.playersEmpty()} />
 						</view>
 					)}
-					{sections.map((section) => (
-						<layout key={section.group} style={styles.section}>
-							{showGroupHeaders && (
-								<HomeSectionHeader
-									accessibilityId={`players-group-${section.group}`}
-									title={section.group.toUpperCase()}
-								/>
-							)}
-							<ReorderableList
-								dragScroller={this.dragAutoScroller}
-								ids={section.players.map((player) => player.id)}
-								onReorder={createReusableCallback((fromIndex: number, toIndex: number) => {
-									this.handleReorder(section.group, fromIndex, toIndex);
+					{thisDevice && (
+						<layout style={styles.cardSlot}>
+							<PlayerCard
+								onToggle={createReusableCallback((enabled: boolean) => {
+									this.viewModel.playersStore.setEnabled(thisDevice.id, enabled);
 								})}
-								renderRow={createReusableCallback((index: number, handle: ReorderableRowHandle) => {
-									const player = section.players[index];
-									if (!player) {
-										return;
-									}
-									<layout style={styles.cardSlot}>
-										<PlayerCard
-											dragHandle={section.players.length > 1 ? handle : undefined}
-											onToggle={createReusableCallback((enabled: boolean) => {
-												this.viewModel.playersStore.setEnabled(player.id, enabled);
-											})}
-											player={named(player, deviceName)}
-										/>
-									</layout>;
-								})}
-								rowIdentityPrefix={`player-${section.group}-`}
+								player={named(thisDevice, deviceName)}
 							/>
 						</layout>
-					))}
+					)}
+					{sections.map((section) => {
+						const players = reorderable(section.players);
+						if (players.length === 0) {
+							return null;
+						}
+
+						return (
+							<layout key={section.group} style={styles.section}>
+								{showGroupHeaders && (
+									<HomeSectionHeader
+										accessibilityId={`players-group-${section.group}`}
+										title={section.group.toUpperCase()}
+									/>
+								)}
+								<ReorderableList
+									dragScroller={this.dragAutoScroller}
+									ids={players.map((player) => player.id)}
+									onReorder={createReusableCallback((fromIndex: number, toIndex: number) => {
+										this.handleReorder(section.group, fromIndex, toIndex);
+									})}
+									renderRow={createReusableCallback(
+										(index: number, handle: ReorderableRowHandle) => {
+											const player = players[index];
+											if (!player) {
+												return;
+											}
+											<layout style={styles.cardSlot}>
+												<PlayerCard
+													dragHandle={players.length > 1 ? handle : undefined}
+													onLongPress={createReusableCallback(() => {
+														this.handleForgetTap(player);
+													})}
+													onToggle={createReusableCallback((enabled: boolean) => {
+														this.viewModel.playersStore.setEnabled(player.id, enabled);
+													})}
+													player={player}
+												/>
+											</layout>;
+										},
+									)}
+									rowIdentityPrefix={`player-${section.group}-`}
+								/>
+							</layout>
+						);
+					})}
 					<Button
 						accessibilityId='players-add'
 						animationsEnabled={this.viewModel.preferences.animationsEnabled}
@@ -124,13 +151,45 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		this.dragAutoScroller.setContentHeight(size.height);
 	};
 
+	private handleForgetCancel = (): void => {
+		this.forgetTarget = null;
+		closeSlot(this.viewModel.modalSlot);
+	};
+
+	private handleForgetConfirm = (): void => {
+		const target = this.forgetTarget;
+		this.forgetTarget = null;
+		closeSlot(this.viewModel.modalSlot);
+		if (target) {
+			this.viewModel.playersStore.forget(target.id);
+		}
+	};
+
+	private handleForgetTap = (player: Player): void => {
+		this.forgetTarget = player;
+		openSlot(this.viewModel.modalSlot, () => {
+			<Modal
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
+				body={Strings.playersForgetBody(player.name)}
+				cancelAccessibilityId='players-forget-cancel'
+				confirmAccessibilityId='players-forget-confirm'
+				confirmLabel={Strings.playersForgetConfirm()}
+				modalAccessibilityId='players-forget-modal'
+				onClose={this.handleForgetCancel}
+				onConfirm={this.handleForgetConfirm}
+				title={Strings.playersForgetTitle()}
+			/>;
+		});
+	};
+
 	// the store orders players across every group, so a drop inside one section is translated
 	// through the ids either side of it rather than by adding a section offset — groups need
 	// not occupy a contiguous run of that order
 	private handleReorder = (group: string, fromIndex: number, toIndex: number): void => {
 		const store = this.viewModel.playersStore;
 		const sections = store.sections();
-		const players = sections.find((section) => section.group === group)?.players ?? [];
+		// the indices come from the rendered list, which leaves this device out
+		const players = reorderable(sections.find((section) => section.group === group)?.players ?? []);
 		const moved = players[fromIndex];
 		const target = players[toIndex];
 		if (!moved || !target) {
@@ -157,6 +216,10 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 			/>;
 		});
 	};
+}
+
+function reorderable(players: Array<Player>): Array<Player> {
+	return players.filter((player) => !player.isThisDevice);
 }
 
 function named(player: Player, deviceName: string): Player {

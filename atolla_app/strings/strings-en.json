@@ -271,6 +271,15 @@
 	"players_empty": {
 		"defaultMessage": "no players yet"
 	},
+	"players_forget_body": {
+		"defaultMessage": "forget {name%s}?\n\nyou'll need the pairing code to connect again"
+	},
+	"players_forget_confirm": {
+		"defaultMessage": "remove"
+	},
+	"players_forget_title": {
+		"defaultMessage": "FORGET PLAYER?"
+	},
 	"players_status_connected": {
 		"defaultMessage": "connected"
 	},

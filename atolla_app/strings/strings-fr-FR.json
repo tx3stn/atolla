@@ -271,6 +271,15 @@
 	"players_empty": {
 		"defaultMessage": "aucun lecteur"
 	},
+	"players_forget_body": {
+		"defaultMessage": "oublier {name%s} ?\n\nil faudra son code d'association pour le reconnecter."
+	},
+	"players_forget_confirm": {
+		"defaultMessage": "supprimer"
+	},
+	"players_forget_title": {
+		"defaultMessage": "OUBLIER LE LECTEUR ?"
+	},
 	"players_status_connected": {
 		"defaultMessage": "connecté"
 	},
