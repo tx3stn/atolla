@@ -19,7 +19,7 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import type { IComponentTestDriver } from 'valdi_test/test/JSXTestUtils';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { editTextEvent, touchEvent } from '../util/testEvents';
+import { editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
 
 interface PlayersViewHostViewModel {
 	playersStore: PlayersStore;
@@ -44,13 +44,13 @@ class PlayersViewHost extends Component<PlayersViewHostViewModel> {
 
 describe('PlayersView', () => {
 	valdiIt('says there are no players when the store is empty', async (driver) => {
-		const component = render(driver, new PlayersStore([], 0));
+		const component = render(driver, new PlayersStore({ pairDelayMs: 0, seed: [] }));
 
 		expect(labelValues(component)).toContain(Strings.playersEmpty());
 	});
 
 	valdiIt('renders a card per player', async (driver) => {
-		const store = new PlayersStore([makePlayer('a'), makePlayer('b')], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
 
 		const component = render(driver, store);
 
@@ -60,7 +60,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('hides the group header while everything is in one group', async (driver) => {
-		const store = new PlayersStore([makePlayer('a'), makePlayer('b')], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
 
 		const component = render(driver, store);
 
@@ -68,7 +68,10 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('shows a group header once there is more than one group', async (driver) => {
-		const store = new PlayersStore([makePlayer('a'), makePlayer('b', { group: 'upstairs' })], 0);
+		const store = new PlayersStore({
+			pairDelayMs: 0,
+			seed: [makePlayer('a'), makePlayer('b', { group: 'upstairs' })],
+		});
 
 		const component = render(driver, store);
 
@@ -77,7 +80,10 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('titles this device with the configured device name', async (driver) => {
-		const store = new PlayersStore([makePlayer('a', { isThisDevice: true })], 0);
+		const store = new PlayersStore({
+			pairDelayMs: 0,
+			seed: [makePlayer('a', { isThisDevice: true })],
+		});
 		const preferences = makePreferences();
 		void preferences.setJellyfinClientDeviceName('Pocket Radio');
 
@@ -88,7 +94,10 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('keeps a player name when the device name is unset', async (driver) => {
-		const store = new PlayersStore([makePlayer('a', { isThisDevice: true })], 0);
+		const store = new PlayersStore({
+			pairDelayMs: 0,
+			seed: [makePlayer('a', { isThisDevice: true })],
+		});
 
 		const component = render(driver, store);
 
@@ -96,7 +105,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('switches a player on through the store', async (driver) => {
-		const store = new PlayersStore([makePlayer('a', { enabled: false })], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a', { enabled: false })] });
 		const component = render(driver, store);
 
 		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
@@ -105,7 +114,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('switches a player off through the store', async (driver) => {
-		const store = new PlayersStore([makePlayer('a', { enabled: true })], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a', { enabled: true })] });
 		const component = render(driver, store);
 
 		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
@@ -114,7 +123,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('toggles only the player whose switch was tapped', async (driver) => {
-		const store = new PlayersStore([makePlayer('a'), makePlayer('b')], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
 		const component = render(driver, store);
 
 		elementById(component, 'player-card-b-toggle')?.getAttribute('onTap')?.(touchEvent);
@@ -124,7 +133,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('opens the add modal from the button', async (driver) => {
-		const component = renderWithModals(driver, new PlayersStore([], 0));
+		const component = renderWithModals(driver, new PlayersStore({ pairDelayMs: 0, seed: [] }));
 		expect(accessibilityIds(component)).not.toContain('add-player-modal');
 
 		elementById(component, 'players-add-btn')?.getAttribute('onTap')?.(touchEvent);
@@ -133,7 +142,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('puts a paired player into the list', async (driver) => {
-		const store = new PlayersStore([], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [] });
 		const component = renderWithModals(driver, store);
 
 		elementById(component, 'players-add-btn')?.getAttribute('onTap')?.(touchEvent);
@@ -151,8 +160,50 @@ describe('PlayersView', () => {
 		expect(accessibilityIds(component)).not.toContain('add-player-modal');
 	});
 
+	valdiIt('moves a player through the store when a card is dropped', async (driver) => {
+		const store = new PlayersStore({
+			pairDelayMs: 0,
+			seed: [makePlayer('a'), makePlayer('b'), makePlayer('c')],
+		});
+		const component = render(driver, store);
+		await driver.performLayout({ height: 800, width: 320 });
+
+		const rowHeight = cardRowHeight(component);
+		expect(rowHeight).toBeGreaterThan(0);
+		// the test runtime reports iOS, so the card arms on a handle long-press and the drag is
+		// read off the handle's touch stream
+		const handle = elementById(component, 'player-card-a-drag');
+		expect(handle).toBeDefined();
+		const originY = 200;
+		handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: originY, state: 0 }));
+		handle?.getAttribute('onTouch')?.(
+			touchEventWith({ absoluteY: originY + rowHeight * 2, state: 1 }),
+		);
+		handle?.getAttribute('onTouch')?.(
+			touchEventWith({ absoluteY: originY + rowHeight * 2, state: 2 }),
+		);
+
+		expect(store.sections()[0].players.map((player) => player.id)).toEqual(['b', 'c', 'a']);
+	});
+
+	valdiIt('gives a lone player no drag handle', async (driver) => {
+		const component = render(driver, new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a')] }));
+
+		expect(accessibilityIds(component)).not.toContain('player-card-a-drag');
+	});
+
+	valdiIt('gives every card a drag handle once there is more than one', async (driver) => {
+		const component = render(
+			driver,
+			new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] }),
+		);
+
+		expect(accessibilityIds(component)).toContain('player-card-a-drag');
+		expect(accessibilityIds(component)).toContain('player-card-b-drag');
+	});
+
 	valdiIt('redraws the card once the store reports the change', async (driver) => {
-		const store = new PlayersStore([makePlayer('a', { enabled: false })], 0);
+		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a', { enabled: false })] });
 		const component = render(driver, store);
 		expect(accessibilityIds(component)).not.toContain('player-card-a-status-dot');
 
@@ -168,6 +219,12 @@ function accessibilityIds(component: RenderedComponent): Array<string> {
 	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
 		.map((view) => view.getAttribute('accessibilityId'))
 		.filter((id): id is string => typeof id === 'string');
+}
+
+function cardRowHeight(component: RenderedComponent): number {
+	const first = elementById(component, 'reorderable-row-player-default-a-0')?.frame?.y ?? 0;
+	const second = elementById(component, 'reorderable-row-player-default-b-1')?.frame?.y ?? 0;
+	return second - first;
 }
 
 function elementById(component: RenderedComponent, id: string): IRenderedElement | undefined {

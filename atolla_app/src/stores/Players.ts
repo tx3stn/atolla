@@ -1,3 +1,4 @@
+import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import {
 	DEFAULT_PLAYER_GROUP,
 	type Player,
@@ -8,21 +9,43 @@ import {
 import { PlayerErrors } from '../services/PlayerErrors';
 import { MOCK_PLAYERS } from './playersMockData';
 
+export const PLAYERS_ORDER_KEY = 'players_order';
 export const REFUSED_PAIRING_CODE = '00000000';
 
 const PAIR_DELAY_MS = 900;
 const PAIRED_PLAYER_NAMES = ['Bedroom', 'Dining Room', 'Studio', 'Conservatory'];
 
+interface PersistedPlayerOrder {
+	order: Array<string>;
+	version: 1;
+}
+
+export interface PlayersStoreOptions {
+	pairDelayMs?: number;
+	seed?: Array<Player>;
+	store?: KeyValueStore;
+}
+
+function isPersistedPlayerOrder(value: unknown): value is PersistedPlayerOrder {
+	if (!value || typeof value !== 'object') return false;
+	const candidate = value as Partial<PersistedPlayerOrder>;
+	return candidate.version === 1 && Array.isArray(candidate.order);
+}
+
 export class PlayersStore {
+	private isLoaded = false;
+	private loadPromise: Promise<void> | null = null;
+	private order: Array<string> = [];
 	private pairedCount = 0;
+	private readonly pairDelayMs: number;
 	private players: Array<Player>;
+	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
 
-	constructor(
-		seed: Array<Player> = MOCK_PLAYERS,
-		private readonly pairDelayMs: number = PAIR_DELAY_MS,
-	) {
-		this.players = [...seed];
+	constructor(options: PlayersStoreOptions = {}) {
+		this.pairDelayMs = options.pairDelayMs ?? PAIR_DELAY_MS;
+		this.players = [...(options.seed ?? MOCK_PLAYERS)];
+		this.store = options.store ?? new InMemoryKeyValueStore();
 	}
 
 	add(code: string): Promise<Player> {
@@ -41,6 +64,16 @@ export class PlayersStore {
 		});
 	}
 
+	ensureLoaded(): Promise<void> {
+		if (this.isLoaded) {
+			return Promise.resolve();
+		}
+		if (!this.loadPromise) {
+			this.loadPromise = this.load();
+		}
+		return this.loadPromise;
+	}
+
 	forget(id: string): void {
 		const player = this.players.find((candidate) => candidate.id === id);
 		if (!player || player.isThisDevice) {
@@ -51,9 +84,23 @@ export class PlayersStore {
 		this.notify();
 	}
 
+	reorder(fromIndex: number, toIndex: number): void {
+		const ordered = this.orderedPlayers();
+		const moved = ordered[fromIndex];
+		if (!moved || fromIndex === toIndex || toIndex < 0 || toIndex >= ordered.length) {
+			return;
+		}
+
+		ordered.splice(fromIndex, 1);
+		ordered.splice(toIndex, 0, moved);
+		this.order = ordered.map((player) => player.id);
+		this.notify();
+		void this.persist();
+	}
+
 	sections(): Array<PlayerSection> {
 		const sections: Array<PlayerSection> = [];
-		for (const player of this.players) {
+		for (const player of this.orderedPlayers()) {
 			const section = sections.find((candidate) => candidate.group === player.group);
 			if (section) {
 				section.players.push(player);
@@ -82,10 +129,38 @@ export class PlayersStore {
 		};
 	}
 
+	private async load(): Promise<void> {
+		let loaded: Array<string> = [];
+		try {
+			const parsed = JSON.parse(await this.store.fetchString(PLAYERS_ORDER_KEY)) as unknown;
+			loaded = isPersistedPlayerOrder(parsed) ? parsed.order : [];
+		} catch {
+			loaded = [];
+		}
+
+		this.isLoaded = true;
+		if (loaded.length === 0 || this.order.length > 0) {
+			return;
+		}
+
+		this.order = loaded;
+		this.notify();
+	}
+
 	private notify(): void {
 		for (const callback of [...this.subscribers]) {
 			callback();
 		}
+	}
+
+	private orderedPlayers(): Array<Player> {
+		if (this.order.length === 0) {
+			return [...this.players];
+		}
+
+		const rank = new Map(this.order.map((id, index) => [id, index]));
+		const last = this.order.length;
+		return [...this.players].sort((a, b) => (rank.get(a.id) ?? last) - (rank.get(b.id) ?? last));
 	}
 
 	private pairedPlayer(): Player {
@@ -105,5 +180,10 @@ export class PlayersStore {
 			state: PlayerStates.idle,
 			tier: PlayerTiers.tight,
 		};
+	}
+
+	private persist(): Promise<void> {
+		const blob: PersistedPlayerOrder = { order: this.order, version: 1 };
+		return this.store.storeString(PLAYERS_ORDER_KEY, JSON.stringify(blob)).catch(() => {});
 	}
 }

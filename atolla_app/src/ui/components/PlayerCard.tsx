@@ -4,10 +4,12 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Player } from '../../models/Player';
-import { theme } from '../../theme';
+import { theme, withAlpha } from '../../theme';
+import type { ReorderableRowHandle } from './ReorderableList';
 import { Toggle } from './Toggle';
 
 export interface PlayerCardViewModel {
+	dragHandle?: ReorderableRowHandle;
 	onToggle: (enabled: boolean) => void;
 	player: Player;
 }
@@ -15,6 +17,7 @@ export interface PlayerCardViewModel {
 const TILE_SIZE = 72;
 const ICON_SIZE = 34;
 const DOT_SIZE = 8;
+const HANDLE_SIZE = 24;
 const STATUS_LINE_HEIGHT = 20;
 
 const PLAYER_ICONS: Record<string, typeof res.players> = {
@@ -23,7 +26,7 @@ const PLAYER_ICONS: Record<string, typeof res.players> = {
 
 export class PlayerCard extends Component<PlayerCardViewModel> {
 	onRender(): void {
-		const { onToggle, player } = this.viewModel;
+		const { dragHandle, onToggle, player } = this.viewModel;
 
 		<view
 			accessibilityId={`player-card-${player.id}`}
@@ -34,14 +37,7 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 				<image src={iconFor(player)} style={styles.icon} />
 			</view>
 			<layout style={styles.details}>
-				<layout style={styles.titleRow}>
-					<label numberOfLines={1} style={styles.name} value={player.name} />
-					<Toggle
-						accessibilityId={`player-card-${player.id}-toggle`}
-						enabled={player.enabled}
-						onToggle={onToggle}
-					/>
-				</layout>
+				<label numberOfLines={1} style={styles.name} value={player.name} />
 				<layout style={styles.statusRow}>
 					{player.enabled && (
 						<view
@@ -55,6 +51,31 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 					)}
 				</layout>
 				<label style={styles.meta} value={metaText(player)} />
+			</layout>
+			<layout style={styles.controls}>
+				<Toggle
+					accessibilityId={`player-card-${player.id}-toggle`}
+					enabled={player.enabled}
+					onToggle={onToggle}
+				/>
+				{dragHandle && (
+					<view
+						accessibilityId={`player-card-${player.id}-drag`}
+						accessibilityLabel={`player-card-${player.id}-drag`}
+						longPressDuration={dragHandle.longPressDuration}
+						onLongPress={dragHandle.onLongPress}
+						onLongPressDisabled={dragHandle.onLongPressDisabled}
+						onTouch={dragHandle.onTouch}
+						ref={dragHandle.ref}
+						style={styles.handle}
+					>
+						<image
+							src={res.draghandle}
+							style={styles.handleIcon}
+							tint={withAlpha(theme.colors.white, 0.45)}
+						/>
+					</view>
+				)}
 			</layout>
 		</view>;
 	}
@@ -111,7 +132,7 @@ function statusText(player: Player): string {
 
 const styles = {
 	card: new Style<View>({
-		alignItems: 'center',
+		alignItems: 'stretch',
 		backgroundColor: theme.colors.bgRaised,
 		borderRadius: theme.radius.default,
 		flexDirection: 'row',
@@ -119,13 +140,30 @@ const styles = {
 		padding: theme.scale(14),
 		width: '100%',
 	}),
+	controls: new Style<Layout>({
+		alignItems: 'flex-end',
+		flexShrink: 0,
+		justifyContent: 'space-between',
+		marginLeft: theme.scale(10),
+	}),
 	details: new Style<Layout>({
 		flexGrow: 1,
 		flexShrink: 1,
+		justifyContent: 'center',
 		marginLeft: theme.scale(14),
 	}),
 	dotBad: dotStyle(theme.colors.destructive),
 	dotOn: dotStyle(theme.colors.success),
+	handle: new Style<View>({
+		alignItems: 'center',
+		justifyContent: 'center',
+		paddingLeft: theme.scale(8),
+		paddingTop: theme.scale(8),
+	}),
+	handleIcon: new Style<ImageView>({
+		height: theme.scale(HANDLE_SIZE),
+		width: theme.scale(HANDLE_SIZE),
+	}),
 	icon: new Style<ImageView>({
 		height: theme.scale(ICON_SIZE),
 		width: theme.scale(ICON_SIZE),
@@ -136,8 +174,6 @@ const styles = {
 	}),
 	name: new Style<Label>({
 		...theme.text.title,
-		flexBasis: 0,
-		flexGrow: 1,
 		flexShrink: 1,
 	}),
 	status: statusStyle(theme.colors.muted),
@@ -158,10 +194,5 @@ const styles = {
 		justifyContent: 'center',
 		slowClipping: true,
 		width: theme.scale(TILE_SIZE),
-	}),
-	titleRow: new Style<Layout>({
-		alignItems: 'center',
-		flexDirection: 'row',
-		width: '100%',
 	}),
 };

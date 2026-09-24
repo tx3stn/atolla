@@ -127,7 +127,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		Device.getWindowWidth(),
 	);
 	private barColors = new BarColorStore();
-	private playersStore = new PlayersStore();
+	private playersStore = new PlayersStore({
+		store: new PersistentStore('atolla/players', { deviceGlobal: true }),
+	});
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
 	private modalSlot = new DetachedSlot();

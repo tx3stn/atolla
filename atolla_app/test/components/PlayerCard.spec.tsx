@@ -8,12 +8,15 @@ import {
 import Strings from 'atolla_app/src/Strings';
 import { theme } from 'atolla_app/src/theme';
 import { PlayerCard } from 'atolla_app/src/ui/components/PlayerCard';
+import type { ReorderableRowHandle } from 'atolla_app/src/ui/components/ReorderableList';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import type { IRenderedElement } from 'valdi_core/src/IRenderedElement';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { styleAttribute, touchEvent } from '../util/testEvents';
+import type { TouchEvent } from 'valdi_tsx/src/GestureEvents';
+import { styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
 
 describe('PlayerCard', () => {
 	valdiIt('shows the error when the player reports one', async (driver) => {
@@ -158,6 +161,37 @@ describe('PlayerCard', () => {
 		expect(elementById(component, 'player-card-kitchen-status-dot')).toBe(undefined);
 		expect(labelValues(component)).not.toContain(Strings.playersStatusUnreachable());
 	});
+
+	valdiIt('shows no drag handle when the card is not reorderable', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer() },
+			undefined,
+		);
+
+		expect(elementById(component, 'player-card-kitchen-drag')).toBe(undefined);
+	});
+
+	valdiIt('wires the drag handle it is given', async (driver) => {
+		let touches = 0;
+		const component = driver.renderComponent(
+			PlayerCard,
+			{
+				dragHandle: makeHandle(() => {
+					touches += 1;
+				}),
+				onToggle: () => {},
+				player: makePlayer(),
+			},
+			undefined,
+		);
+
+		const handle = elementById(component, 'player-card-kitchen-drag');
+		handle?.getAttribute('onTouch')?.(touchEventWith({ state: 1 }));
+
+		expect(handle).toBeDefined();
+		expect(touches).toBe(1);
+	});
 });
 
 type RenderedComponent = Parameters<typeof componentGetElements>[0];
@@ -179,6 +213,16 @@ function labelValues(component: RenderedComponent): Array<unknown> {
 	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label).map(
 		(label) => label.getAttribute('value'),
 	);
+}
+
+function makeHandle(onTouch: (event: TouchEvent) => void): ReorderableRowHandle {
+	return {
+		longPressDuration: 0.1,
+		onLongPress: undefined,
+		onLongPressDisabled: true,
+		onTouch,
+		ref: new ElementRef(),
+	};
 }
 
 function makePlayer(overrides: Partial<Player> = {}): Player {

@@ -77,14 +77,6 @@ const REMOVE_SWIPE_VELOCITY = 700;
 // fallback slot height, used only when live row geometry is unavailable (before the
 // first layout pass or in tests); real drags measure each row's frame
 const ROW_SLOT_HEIGHT = 72;
-const _AUTO_SCROLL_EDGE = 65;
-// pixels moved per tick
-const _AUTO_SCROLL_STEP = 15;
-// tick period in ms - 16 is optimal for the display refresh
-const _AUTO_SCROLL_INTERVAL = 16;
-// finger travel that flips auto-scroll on or off, large enough that a slow drag's jitter
-// doesn't keep reviving a scroll the finger is pulling away from
-const _AUTO_SCROLL_REVERSE_TOLERANCE = 8;
 // the ancestor scroll delays delivering touches on iOS, so the recogniser's timer
 // starts late; with the delay the effective hold is ~250ms (platform-standard). at the
 // 0.25s default the long press fired only after the finger moved and failed its
