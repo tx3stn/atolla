@@ -1,7 +1,6 @@
 import res from 'atolla_app/res';
 import Strings from 'atolla_app/src/Strings';
 import type { Track } from 'atolla_core/src/models/Track';
-import { getLogger } from 'atolla_core/src/services/Logger';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
@@ -15,27 +14,10 @@ import type { Palette } from '../../models/Color';
 import { theme, withAlpha } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { CachedImage } from './CachedImage';
+import { DragReorderEngine } from './DragReorderEngine';
+import type { RowSlot } from './listReorder';
+import type { DragAutoScroller } from './ScrollDragAutoScroller';
 import { TouchEventState } from './TouchEventState';
-import {
-	type AutoScrollEngagement,
-	edgeScrollDelta,
-	neighbourShifts,
-	type RowSlot,
-	resolveAutoScrollEngagement,
-	resolveReorderTarget,
-	snapDisplacement,
-} from './trackReorder';
-
-// lets the scroll owner expose just enough of its <scroll> for the list to auto-scroll
-// while a row is dragged to a viewport edge, without TrackList knowing scroll plumbing
-export interface DragAutoScroller {
-	// scroll by delta points (clamped to content bounds); returns the delta actually applied
-	scrollBy(delta: number): number;
-	// enable/disable the user's scroll pan so a row drag can't fight it
-	setScrollEnabled(enabled: boolean): void;
-	// screen-space vertical bounds of the scrollable viewport, if measured
-	viewport(): { bottom: number; top: number } | undefined;
-}
 
 export interface TrackListEntry {
 	artworkId?: string | null;
@@ -95,22 +77,19 @@ const REMOVE_SWIPE_VELOCITY = 700;
 // fallback slot height, used only when live row geometry is unavailable (before the
 // first layout pass or in tests); real drags measure each row's frame
 const ROW_SLOT_HEIGHT = 72;
-const AUTO_SCROLL_EDGE = 65;
+const _AUTO_SCROLL_EDGE = 65;
 // pixels moved per tick
-const AUTO_SCROLL_STEP = 15;
+const _AUTO_SCROLL_STEP = 15;
 // tick period in ms - 16 is optimal for the display refresh
-const AUTO_SCROLL_INTERVAL = 16;
+const _AUTO_SCROLL_INTERVAL = 16;
 // finger travel that flips auto-scroll on or off, large enough that a slow drag's jitter
 // doesn't keep reviving a scroll the finger is pulling away from
-const AUTO_SCROLL_REVERSE_TOLERANCE = 8;
+const _AUTO_SCROLL_REVERSE_TOLERANCE = 8;
 // the ancestor scroll delays delivering touches on iOS, so the recogniser's timer
 // starts late; with the delay the effective hold is ~250ms (platform-standard). at the
 // 0.25s default the long press fired only after the finger moved and failed its
 // movement tolerance
 const HANDLE_LONG_PRESS_SECONDS = 0.1;
-
-// TEMPORARY: diagnosing why drag auto-scroll never engages upward on device
-const autoScrollLog = getLogger('dragAutoScroll');
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
@@ -129,19 +108,29 @@ export class TrackList extends Component<TrackListViewModel> {
 	private rowRefByIdentity = new Map<string, ElementRef>();
 	private swipeContainerRefByIdentity = new Map<string, ElementRef>();
 	private rowTapHandlerByIdentity = new Map<string, () => void>();
-	private dragSlots: Array<RowSlot> = [];
-	private dragFromIndex = -1;
-	private dragRowIdentity: string | null = null;
 	// the row whose drag was already finalised, so the second of its two end signals
 	// (the prompt handle onTouch and the laggy row onDrag) is a no-op
 	private dragEndedIdentity: string | null = null;
-	private dragScrollAccum = 0;
 	private armedDragOriginY = 0;
-	private lastDragEvent: DragEvent | null = null;
-	private autoScrollTimeout: ReturnType<typeof setTimeout> | null = null;
-	// tracks whether the finger is still asking to be auto-scrolled, so dragging up near the
-	// bottom edge doesn't scroll the list down and drag the row back with it
-	private autoScrollEngagement: AutoScrollEngagement | null = null;
+	private reorder = new DragReorderEngine({
+		dragScroller: () => this.viewModel.dragScroller,
+		identities: () => this.rowIdentitiesByIndex,
+		isDestroyed: () => this.isDestroyed(),
+		measureSlots: () => this.buildDragSlots(),
+		rowViewportCentre: (identity) => this.rowViewportCentre(identity),
+		setRowOffset: (identity, offset, durationSeconds) => {
+			if (durationSeconds === undefined) {
+				this.setRowVerticalOffset(identity, offset);
+				return;
+			}
+			this.animate(
+				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: durationSeconds },
+				() => {
+					this.setRowVerticalOffset(identity, offset);
+				},
+			);
+		},
+	});
 
 	private get holdToReorder(): boolean {
 		return this.viewModel.holdToReorder ?? Device.isIOS();
@@ -176,7 +165,7 @@ export class TrackList extends Component<TrackListViewModel> {
 	};
 
 	onDestroy(): void {
-		this.stopAutoScroll();
+		this.reorder.stopAutoScroll();
 		this.resetDragState();
 		if (this.longPressTimeout) {
 			clearTimeout(this.longPressTimeout);
@@ -655,52 +644,6 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.setRowOffset(identity, 0);
 	}
 
-	private updateNeighbourOffsets(targetIndex: number): void {
-		const shifts = new Map<number, number>();
-		for (const shift of neighbourShifts(this.dragSlots, this.dragFromIndex, targetIndex)) {
-			shifts.set(shift.index, shift.offset);
-		}
-
-		for (let i = 0; i < this.rowIdentitiesByIndex.length; i++) {
-			if (i === this.dragFromIndex) continue;
-			const identity = this.rowIdentitiesByIndex[i];
-			if (!identity) continue;
-
-			const offset = shifts.get(i) ?? 0;
-			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
-			if (offset === current) continue;
-
-			this.neighborOffsetByIdentity.set(identity, offset);
-			this.animateNeighborToOffset(identity, offset);
-		}
-	}
-
-	private animateNeighborToOffset(identity: string, targetOffset: number): void {
-		// one short snap straight to the target: no overshoot/settle bounce, which on fast
-		// drags left rows colliding mid-overshoot or settling to a stale offset behind the gap
-		this.animate(
-			{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.13 },
-			() => {
-				this.setRowVerticalOffset(identity, targetOffset);
-			},
-		);
-	}
-
-	private resetNeighborOffsets(draggingIdentity: string): void {
-		for (const identity of this.rowIdentitiesByIndex) {
-			if (identity === draggingIdentity) continue;
-			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
-			if (current === 0) continue;
-			this.neighborOffsetByIdentity.set(identity, 0);
-			this.animate(
-				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.18 },
-				() => {
-					this.setRowVerticalOffset(identity, 0);
-				},
-			);
-		}
-	}
-
 	private handleRowDrag(
 		event: DragEvent,
 		trackId: string,
@@ -750,12 +693,10 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		if (event.state === TouchEventState.Changed) {
-			if (this.dragFromIndex !== entryIndex) {
+			if (this.reorder.fromIndex !== entryIndex) {
 				this.beginHandleDrag(entryIndex, rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 			}
-			this.lastDragEvent = event;
-			this.updateAutoScroll(event);
-			this.applyDragPosition(event.deltaY);
+			this.reorder.move(event.deltaY);
 			return;
 		}
 
@@ -767,12 +708,12 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		// a late end event for a row superseded by a newer drag must only release its own
 		// highlight, never reset the active drag's state underneath it
-		if (this.dragRowIdentity !== null && this.dragRowIdentity !== rowIdentity) {
+		if (this.reorder.identity !== null && this.reorder.identity !== rowIdentity) {
 			this.releaseRowAppearance(rowIdentity, defaultBackgroundColor);
 			return;
 		}
 
-		this.stopAutoScroll();
+		this.reorder.stopAutoScroll();
 		this.dragEndedIdentity = rowIdentity;
 
 		if (event.state !== TouchEventState.Ended) {
@@ -800,29 +741,23 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 
-		const slots = this.slotsFor(entryIndex);
-		const scrollAccum = this.dragFromIndex === entryIndex ? this.dragScrollAccum : 0;
-		const slot = slots[entryIndex];
-		const targetIndex = slot
-			? resolveReorderTarget(slots, entryIndex, slot.top + slot.height / 2 + deltaY + scrollAccum)
-			: entryIndex;
-
-		if (!slot || targetIndex === entryIndex) {
+		const drop = this.reorder.resolveDrop(entryIndex, deltaY);
+		if (!drop) {
 			this.cancelDrag(rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 			return;
 		}
 
 		// snap dragged row to its final slot; leave neighbours shifted, the re-render from
 		// onTrackReorder replaces this state without a flash
-		this.setRowVerticalOffset(rowIdentity, snapDisplacement(slots, entryIndex, targetIndex));
+		this.setRowVerticalOffset(rowIdentity, drop.snapOffset);
 		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
 		this.resetRowOffset(rowIdentity);
 		this.suppressNextTap = true;
 		// clear stale offset tracking so future drags don't skip animations for elements
 		// that happen to share an identity with a previous neighbour
-		this.clearNeighbourTracking();
+		this.reorder.clearNeighbourTracking();
 		this.resetDragState();
-		this.viewModel.onTrackReorder(entryIndex, targetIndex);
+		this.viewModel.onTrackReorder(entryIndex, drop.targetIndex);
 	}
 
 	private beginHandleDrag(
@@ -832,11 +767,8 @@ export class TrackList extends Component<TrackListViewModel> {
 		dragBackgroundColor: string,
 	): void {
 		this.setRowDraggingAppearance(rowIdentity, true, defaultBackgroundColor, dragBackgroundColor);
-		this.dragSlots = this.buildDragSlots();
-		this.dragFromIndex = entryIndex;
-		this.dragRowIdentity = rowIdentity;
+		this.reorder.begin(entryIndex, rowIdentity);
 		this.dragEndedIdentity = null;
-		this.dragScrollAccum = 0;
 	}
 
 	// hold-to-reorder arm: the native long-press recogniser staying active is what stops
@@ -849,14 +781,14 @@ export class TrackList extends Component<TrackListViewModel> {
 		defaultBackgroundColor: string,
 		dragBackgroundColor: string,
 	): void {
-		if (!this.viewModel.onTrackReorder || this.dragRowIdentity === rowIdentity) {
+		if (!this.viewModel.onTrackReorder || this.reorder.identity === rowIdentity) {
 			return;
 		}
 		// a fresh long-press is a brand new single-touch sequence, so any drag state still
 		// around belongs to a previous gesture whose end signal was dropped (e.g. the ancestor
 		// scroll cancelled the touch mid-drag). tear it down so a leaked selection can never
 		// block this or any future drag
-		if (this.dragRowIdentity !== null || this.draggingRowIdentities.size > 0) {
+		if (this.reorder.identity !== null || this.draggingRowIdentities.size > 0) {
 			this.releaseLingeringDrag(defaultBackgroundColor);
 		}
 		this.cancelLongPress();
@@ -870,14 +802,14 @@ export class TrackList extends Component<TrackListViewModel> {
 	// release every highlighted row, settle shifted neighbours, and clear the active-drag
 	// bookkeeping so the next arm starts from a clean slate
 	private releaseLingeringDrag(defaultBackgroundColor: string): void {
-		if (this.dragRowIdentity) {
-			this.setRowVerticalOffset(this.dragRowIdentity, 0);
+		if (this.reorder.identity) {
+			this.setRowVerticalOffset(this.reorder.identity, 0);
 		}
-		this.resetNeighborOffsets(this.dragRowIdentity ?? '');
+		this.reorder.settleNeighbours(this.reorder.identity ?? '');
 		for (const identity of [...this.draggingRowIdentities]) {
 			this.releaseRowAppearance(identity, defaultBackgroundColor);
 		}
-		this.clearNeighbourTracking();
+		this.reorder.clearNeighbourTracking();
 		this.resetDragState();
 	}
 
@@ -913,15 +845,19 @@ export class TrackList extends Component<TrackListViewModel> {
 			// event arrives late. the handle's touch stream ends promptly on finger lift, so
 			// finalise here too and let whichever end fires first win; the dragEndedIdentity
 			// latch makes the slower one a no-op
-			if (isEnd && this.dragRowIdentity === rowIdentity && this.dragEndedIdentity !== rowIdentity) {
-				this.stopAutoScroll();
+			if (
+				isEnd &&
+				this.reorder.identity === rowIdentity &&
+				this.dragEndedIdentity !== rowIdentity
+			) {
+				this.reorder.stopAutoScroll();
 				this.dragEndedIdentity = rowIdentity;
 				this.finalizeRowDrag(
 					entryIndex,
 					rowIdentity,
 					defaultBackgroundColor,
 					dragBackgroundColor,
-					this.lastDragEvent?.deltaY ?? 0,
+					this.reorder.lastDeltaY,
 				);
 			}
 			return;
@@ -929,7 +865,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		// iOS hold-to-reorder: the touch stream drives the drag itself (it keeps delivering
 		// even while the long-press recogniser is active, unlike onDrag)
-		if (this.dragRowIdentity !== rowIdentity) {
+		if (this.reorder.identity !== rowIdentity) {
 			return;
 		}
 		if (event.state === TouchEventState.Started) {
@@ -951,57 +887,20 @@ export class TrackList extends Component<TrackListViewModel> {
 		);
 	}
 
-	private applyDragPosition(deltaY: number): void {
-		if (this.dragFromIndex < 0 || !this.dragRowIdentity) {
-			return;
-		}
-		const slot = this.dragSlots[this.dragFromIndex];
-		if (!slot) {
-			return;
-		}
-
-		this.setRowVerticalOffset(this.dragRowIdentity, deltaY + this.dragScrollAccum);
-		const centre = slot.top + slot.height / 2 + deltaY + this.dragScrollAccum;
-		this.updateNeighbourOffsets(resolveReorderTarget(this.dragSlots, this.dragFromIndex, centre));
-	}
-
 	private cancelDrag(
 		rowIdentity: string,
 		defaultBackgroundColor: string,
 		dragBackgroundColor: string,
 	): void {
 		this.setRowVerticalOffset(rowIdentity, 0);
-		this.resetNeighborOffsets(rowIdentity);
+		this.reorder.settleNeighbours(rowIdentity);
 		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
 		this.resetDragState();
 	}
 
 	private resetDragState(): void {
-		this.stopAutoScroll();
-		this.dragSlots = [];
-		this.dragFromIndex = -1;
-		this.dragRowIdentity = null;
-		this.dragScrollAccum = 0;
 		this.armedDragOriginY = 0;
-		this.lastDragEvent = null;
-		this.autoScrollEngagement = null;
-		this.viewModel.dragScroller?.setScrollEnabled(true);
-	}
-
-	private clearNeighbourTracking(): void {
-		this.neighborOffsetByIdentity.clear();
-	}
-
-	// live slots snapshotted at drag start; rebuilt fresh if this row isn't the active
-	// drag (e.g. an isolated Ended event in a test)
-	private slotsFor(entryIndex: number): Array<RowSlot> {
-		if (
-			this.dragFromIndex === entryIndex &&
-			this.dragSlots.length === this.viewModel.tracks.length
-		) {
-			return this.dragSlots;
-		}
-		return this.buildDragSlots();
+		this.reorder.reset();
 	}
 
 	// measure each row's natural top/height; fall back to a uniform slot height when
@@ -1029,116 +928,16 @@ export class TrackList extends Component<TrackListViewModel> {
 		return slots;
 	}
 
-	private updateAutoScroll(event: DragEvent): void {
-		const scroller = this.viewModel.dragScroller;
-		if (!scroller) {
-			return;
-		}
-		const viewport = scroller.viewport();
-		const rowY = this.draggedRowViewportY();
-		const desired =
-			viewport && rowY !== undefined
-				? edgeScrollDelta(rowY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP)
-				: 0;
-
-		autoScrollLog.debug('drag', {
-			desired,
-			rowY,
-			viewportBottom: viewport?.bottom,
-			viewportTop: viewport?.top,
-		});
-
-		if (desired === 0 || rowY === undefined) {
-			this.autoScrollEngagement = null;
-			this.stopAutoScroll();
-			return;
-		}
-
-		// never make the finger fight the scroll: dragging away from an edge cancels it and
-		// dragging back toward the edge resumes it, while a finger held at the edge keeps
-		// scrolling via the timer tick below
-		this.autoScrollEngagement = resolveAutoScrollEngagement(
-			this.autoScrollEngagement,
-			rowY,
-			Math.sign(desired),
-			AUTO_SCROLL_REVERSE_TOLERANCE,
-		);
-		if (!this.autoScrollEngagement.engaged) {
-			this.stopAutoScroll();
-			return;
-		}
-
-		// scroll once immediately on reaching an edge for responsiveness, then keep
-		// scrolling on a timer while the finger is held there
-		if (this.autoScrollTimeout === null) {
-			this.performAutoScrollStep(event);
-			this.autoScrollTimeout = setTimeoutInterruptible(this.autoScrollTick, AUTO_SCROLL_INTERVAL);
-		}
-	}
-
 	// the dragged row's live centre in the same space the scroller reports its viewport in.
 	// gesture coordinates can't be used here: Android delivers them in device pixels while
 	// element frames are in points, and the two are only reconcilable via a display scale the
 	// bridge doesn't always provide
-	private draggedRowViewportY(): number | undefined {
-		const identity = this.dragRowIdentity;
-		if (!identity) {
-			return undefined;
-		}
+	private rowViewportCentre(identity: string): number | undefined {
 		const element = this.swipeContainerRefByIdentity.get(identity)?.all()?.[0];
 		if (!element?.frame?.height) {
 			return undefined;
 		}
 		return RenderedElementUtils.absolutePosition(element).y + element.frame.height / 2;
-	}
-
-	private performAutoScrollStep(event: DragEvent): void {
-		if (!this.autoScrollEngagement?.engaged) {
-			return;
-		}
-		const scroller = this.viewModel.dragScroller;
-		const viewport = scroller?.viewport();
-		const rowY = this.draggedRowViewportY();
-		if (!scroller || !viewport || rowY === undefined) {
-			return;
-		}
-		const desired = edgeScrollDelta(rowY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP);
-		if (desired === 0) {
-			return;
-		}
-		const applied = scroller.scrollBy(desired);
-		autoScrollLog.debug('step', { applied, desired });
-		if (applied === 0) {
-			return;
-		}
-		this.dragScrollAccum += applied;
-		this.applyDragPosition(event.deltaY);
-	}
-
-	private autoScrollTick = (): void => {
-		this.autoScrollTimeout = null;
-		if (this.isDestroyed()) {
-			return;
-		}
-		const event = this.lastDragEvent;
-		if (!event) {
-			return;
-		}
-
-		const before = this.dragScrollAccum;
-		this.performAutoScrollStep(event);
-		// stop if the edge was left or a scroll bound was hit (no movement applied)
-		if (this.dragScrollAccum === before) {
-			return;
-		}
-		this.autoScrollTimeout = setTimeoutInterruptible(this.autoScrollTick, AUTO_SCROLL_INTERVAL);
-	};
-
-	private stopAutoScroll(): void {
-		if (this.autoScrollTimeout) {
-			clearTimeout(this.autoScrollTimeout);
-			this.autoScrollTimeout = null;
-		}
 	}
 
 	private scheduleLongPress(track?: Track): void {

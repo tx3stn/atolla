@@ -1,9 +1,12 @@
 import type { ElementRef } from 'valdi_core/src/ElementRef';
 import { RenderedElementUtils } from 'valdi_core/src/utils/RenderedElementUtils';
-import type { DragAutoScroller } from './TrackList';
 
-// backs DragAutoScroller with a <scroll> ref: the owning view feeds live offset and content
-// height so it can scroll within bounds while a row is dragged to a viewport edge
+export interface DragAutoScroller {
+	scrollBy(delta: number): number;
+	setScrollEnabled(enabled: boolean): void;
+	viewport(): { bottom: number; top: number } | undefined;
+}
+
 export class ScrollDragAutoScroller implements DragAutoScroller {
 	private offset = 0;
 	private contentHeight = 0;

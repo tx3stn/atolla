@@ -6,7 +6,7 @@ import {
 	resolveAutoScrollEngagement,
 	resolveReorderTarget,
 	snapDisplacement,
-} from './trackReorder';
+} from './listReorder';
 
 const uniform = (count: number, height = 72): Array<RowSlot> => {
 	const slots: Array<RowSlot> = [];
