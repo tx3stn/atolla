@@ -1,7 +1,10 @@
 import Strings from 'atolla_app/src/Strings';
+import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ProbedPlayer } from '../../models/Player';
+import type { PlayerErrorCode } from '../../services/PlayerErrors';
 import { theme } from '../../theme';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { Button, ButtonType } from '../components/Button';
@@ -15,12 +18,15 @@ export interface AddPlayerModalViewModel {
 	animationsEnabled?: boolean;
 	onAdd: (code: string) => Promise<unknown>;
 	onCancel: () => void;
+	onProbe: (address: string) => Promise<ProbedPlayer>;
 }
 
 interface AddPlayerModalState {
+	address: string;
+	busy: boolean;
 	code: string;
-	failed: boolean;
-	isPairing: boolean;
+	error: PlayerErrorCode | null;
+	player: ProbedPlayer | null;
 }
 
 export class AddPlayerModal extends StatefulComponent<
@@ -28,56 +34,99 @@ export class AddPlayerModal extends StatefulComponent<
 	AddPlayerModalState
 > {
 	state: AddPlayerModalState = {
+		address: '',
+		busy: false,
 		code: '',
-		failed: false,
-		isPairing: false,
+		error: null,
+		player: null,
+	};
+
+	handleAddressChange = (value: unknown): void => {
+		this.setState({ address: normalizeInputValue(value), error: null });
 	};
 
 	handleCodeChange = (value: unknown): void => {
-		this.setState({ code: normalizeInputValue(value), failed: false });
+		this.setState({ code: normalizeInputValue(value), error: null });
 	};
 
 	handleConnect = (): void => {
-		const { code, isPairing } = this.state;
-		if (!CODE_PATTERN.test(code) || isPairing) {
+		const { busy, code } = this.state;
+		if (!CODE_PATTERN.test(code) || busy) {
 			return;
 		}
 
-		this.setState({ failed: false, isPairing: true });
+		this.setState({ busy: true, error: null });
 		this.viewModel.onAdd(code).then(
 			() => {
 				this.viewModel.onCancel();
 			},
-			() => {
-				this.setState({ failed: true, isPairing: false });
+			(error: unknown) => {
+				this.setState({ busy: false, error: errorCodeOf(error) });
+			},
+		);
+	};
+
+	handleContinue = (): void => {
+		const { address, busy } = this.state;
+		if (address.trim() === '' || busy) {
+			return;
+		}
+
+		this.setState({ busy: true, error: null });
+		this.viewModel.onProbe(address).then(
+			(player) => {
+				this.setState({ busy: false, player });
+			},
+			(error: unknown) => {
+				this.setState({ busy: false, error: errorCodeOf(error) });
 			},
 		);
 	};
 
 	onRender(): void {
 		const { animationsEnabled, onCancel } = this.viewModel;
-		const { code, failed, isPairing } = this.state;
+		const { address, busy, code, error, player } = this.state;
 
 		<ModalBase accessibilityId='add-player-modal' onDismiss={onCancel}>
-			<label numberOfLines={0} style={modalStyles.title} value={Strings.playersAddTitle()} />
+			<label
+				numberOfLines={0}
+				style={modalStyles.title}
+				value={
+					player === null ? Strings.playersAddTitle() : Strings.playersAddPairWith(player.name)
+				}
+			/>
 			<view style={modalStyles.divider} />
 			<view style={styles.inputContainer}>
-				<textfield
-					accessibilityId='add-player-code-input'
-					accessibilityLabel='add-player-code-input'
-					autocapitalization='none'
-					characterLimit={CODE_LENGTH}
-					contentType='number'
-					font={theme.text.main.font}
-					onChange={this.handleCodeChange}
-					placeholder={Strings.playersAddCodePlaceholder()}
-					style={styles.input}
-					value={code}
-				/>
+				{player === null ? (
+					<textfield
+						accessibilityId='add-player-address-input'
+						accessibilityLabel='add-player-address-input'
+						autocapitalization='none'
+						contentType='url'
+						font={theme.text.main.font}
+						onChange={this.handleAddressChange}
+						placeholder={Strings.playersAddAddressPlaceholder()}
+						style={styles.input}
+						value={address}
+					/>
+				) : (
+					<textfield
+						accessibilityId='add-player-code-input'
+						accessibilityLabel='add-player-code-input'
+						autocapitalization='none'
+						characterLimit={CODE_LENGTH}
+						contentType='number'
+						font={theme.text.main.font}
+						onChange={this.handleCodeChange}
+						placeholder={Strings.playersAddCodePlaceholder()}
+						style={styles.input}
+						value={code}
+					/>
+				)}
 			</view>
 			<view style={styles.statusSlot}>
-				{isPairing && <LoadingSpinner accessibilityId='add-player-pairing' size={30} />}
-				{failed && <label style={styles.errorLabel} value={Strings.playersAddFailed()} />}
+				{busy && <LoadingSpinner accessibilityId='add-player-pairing' size={30} />}
+				{error !== null && <label style={styles.errorLabel} value={errorMessage(error)} />}
 			</view>
 			<layout style={modalStyles.actions}>
 				<layout style={modalStyles.actionButton}>
@@ -91,14 +140,25 @@ export class AddPlayerModal extends StatefulComponent<
 				</layout>
 				<layout style={modalStyles.actionSeparator} />
 				<layout style={modalStyles.actionButton}>
-					<Button
-						accessibilityId='add-player-connect'
-						animationsEnabled={animationsEnabled}
-						enabled={CODE_PATTERN.test(code) && !isPairing}
-						label={Strings.connectButton()}
-						onTap={this.handleConnect}
-						style={ButtonType.Confirm}
-					/>
+					{player === null ? (
+						<Button
+							accessibilityId='add-player-continue'
+							animationsEnabled={animationsEnabled}
+							enabled={address.trim() !== '' && !busy}
+							label={Strings.playersAddContinue()}
+							onTap={this.handleContinue}
+							style={ButtonType.Confirm}
+						/>
+					) : (
+						<Button
+							accessibilityId='add-player-connect'
+							animationsEnabled={animationsEnabled}
+							enabled={CODE_PATTERN.test(code) && !busy}
+							label={Strings.connectButton()}
+							onTap={this.handleConnect}
+							style={ButtonType.Confirm}
+						/>
+					)}
 				</layout>
 			</layout>
 		</ModalBase>;
@@ -127,3 +187,21 @@ const styles = {
 		width: '100%',
 	}),
 };
+
+function errorCodeOf(error: unknown): PlayerErrorCode | null {
+	return isErrorConst(error) ? (error.err as PlayerErrorCode) : null;
+}
+
+function errorMessage(code: PlayerErrorCode | null): string {
+	switch (code) {
+		case 'invalid_address':
+			return Strings.playersAddInvalidAddress();
+		case 'not_an_atolla_player':
+			return Strings.playersAddNotAPlayer();
+		case 'player_timed_out':
+		case 'player_unreachable':
+			return Strings.playersAddUnreachable();
+		default:
+			return Strings.playersAddFailed();
+	}
+}

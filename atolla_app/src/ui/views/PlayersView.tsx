@@ -7,7 +7,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ContentSizeChangeEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Player } from '../../models/Player';
+import type { Player, ProbedPlayer } from '../../models/Player';
 import type { PlayersStore } from '../../stores/Players';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -203,6 +203,9 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		);
 	};
 
+	private handleProbe = (address: string): Promise<ProbedPlayer> =>
+		this.viewModel.playersStore.probe(address);
+
 	private handleScroll = (event: ScrollEvent): void => {
 		this.dragAutoScroller.setOffset(event.y);
 	};
@@ -213,6 +216,7 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				onAdd={this.handleAdd}
 				onCancel={this.handleAddCancel}
+				onProbe={this.handleProbe}
 			/>;
 		});
 	};

@@ -15,6 +15,7 @@ import {
 	PlaylistEditService,
 } from 'atolla_player/src/services/PlaylistEditService';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -52,6 +53,7 @@ import {
 import { isUnauthorizedCacheError } from './services/NativeCacheResult';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
+import { PlayerTransport } from './services/PlayerTransport';
 import { syncToastText } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
 import { SessionManager } from './services/SessionManager';
@@ -128,6 +130,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	);
 	private barColors = new BarColorStore();
 	private playersStore = new PlayersStore({
+		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
 		store: new PersistentStore('atolla/players', { deviceGlobal: true }),
 	});
 	private sessionController = new SessionController();

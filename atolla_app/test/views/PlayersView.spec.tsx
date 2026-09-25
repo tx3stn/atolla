@@ -9,6 +9,7 @@ import Strings from 'atolla_app/src/Strings';
 import { PlayersStore } from 'atolla_app/src/stores/Players';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlayersView } from 'atolla_app/src/ui/views/PlayersView';
+import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { untilRenderComplete } from 'foundation/test/util/untilRenderComplete';
@@ -142,19 +143,36 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('puts a paired player into the list', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [] });
+		const store = new PlayersStore({
+			createClient: () =>
+				({
+					hello: () =>
+						Promise.resolve({
+							headers: {},
+							json: {
+								apiVersions: [1],
+								id: '0123456789abcdef',
+								name: 'Kitchen',
+								tier: 'tight',
+								v: 1,
+								version: '0.1.0',
+							},
+							status: 200,
+						}),
+				}) as unknown as PlayerClient,
+			pairDelayMs: 0,
+			seed: [],
+		});
 		const component = renderWithModals(driver, store);
 
 		elementById(component, 'players-add-btn')?.getAttribute('onTap')?.(touchEvent);
-		elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.TextField,
-		)[0]?.getAttribute('onChange')?.(editTextEvent('12345678'));
+		typeIntoModal(component, '192.168.1.42:45889');
+		elementById(component, 'add-player-continue-btn')?.getAttribute('onTap')?.(touchEvent);
+		await settle(component);
+
+		typeIntoModal(component, '12345678');
 		elementById(component, 'add-player-connect-btn')?.getAttribute('onTap')?.(touchEvent);
-		await new Promise<void>((resolve) => {
-			setTimeout(resolve, 0);
-		});
-		await untilRenderComplete(component);
+		await settle(component);
 
 		expect(store.sections()[0].players.length).toBe(1);
 		expect(accessibilityIds(component)).not.toContain('add-player-modal');
@@ -330,6 +348,20 @@ describe('PlayersView', () => {
 });
 
 type RenderedComponent = Parameters<typeof componentGetElements>[0];
+
+async function settle(component: Parameters<typeof untilRenderComplete>[0]): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, 0);
+	});
+	await untilRenderComplete(component);
+}
+
+function typeIntoModal(component: RenderedComponent, text: string): void {
+	elementTypeFind(
+		componentGetElements(component),
+		IRenderedElementViewClass.TextField,
+	)[0]?.getAttribute('onChange')?.(editTextEvent(text));
+}
 
 function accessibilityIds(component: RenderedComponent): Array<string> {
 	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)

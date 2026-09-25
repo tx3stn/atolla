@@ -256,17 +256,35 @@
 	"play_next": {
 		"defaultMessage": "play next"
 	},
+	"players_add_address_placeholder": {
+		"defaultMessage": "address, e.g. 192.168.1.42:45889"
+	},
 	"players_add_button": {
 		"defaultMessage": "add a player"
 	},
 	"players_add_code_placeholder": {
 		"defaultMessage": "pairing code"
 	},
+	"players_add_continue": {
+		"defaultMessage": "continue"
+	},
 	"players_add_failed": {
 		"defaultMessage": "invalid pairing code"
 	},
+	"players_add_invalid_address": {
+		"defaultMessage": "that does not look like an address"
+	},
+	"players_add_not_a_player": {
+		"defaultMessage": "something answered, but it is not an atolla player"
+	},
+	"players_add_pair_with": {
+		"defaultMessage": "PAIR WITH {name%s}"
+	},
 	"players_add_title": {
 		"defaultMessage": "ADD A PLAYER"
+	},
+	"players_add_unreachable": {
+		"defaultMessage": "nothing answered at that address"
 	},
 	"players_empty": {
 		"defaultMessage": "no players yet"

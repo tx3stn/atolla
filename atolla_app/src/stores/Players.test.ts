@@ -1,8 +1,99 @@
 import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import type { Hello } from 'atolla_sync/src/api/generated';
+import type { PlayerAnswer, PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { DEFAULT_PLAYER_GROUP, type Player, PlayerStates, PlayerTiers } from '../models/Player';
 import { PlayerErrors } from '../services/PlayerErrors';
 import { PLAYERS_ORDER_KEY, PlayersStore, REFUSED_PAIRING_CODE } from './Players';
+
+describe('PlayersStore probe', () => {
+	function hello(overrides: Partial<Hello> = {}): Hello {
+		return {
+			apiVersions: [1],
+			id: '0123456789abcdef',
+			name: 'Kitchen',
+			tier: 'tight',
+			v: 1,
+			version: '0.1.0',
+			...overrides,
+		};
+	}
+
+	function probing(answer: () => Promise<PlayerAnswer<unknown>>) {
+		const asked: Array<string> = [];
+
+		return {
+			asked,
+			store: new PlayersStore({
+				createClient: (baseUrl: string) => {
+					asked.push(baseUrl);
+					return { hello: answer } as unknown as PlayerClient;
+				},
+				pairDelayMs: 0,
+				seed: [],
+			}),
+		};
+	}
+
+	function answering<T>(json: T, status = 200): () => Promise<PlayerAnswer<T>> {
+		return () => Promise.resolve({ headers: {}, json, status });
+	}
+
+	it('reports what the daemon calls itself', async () => {
+		const { asked, store } = probing(answering(hello()));
+
+		expect(await store.probe('192.168.1.42:45889')).toEqual({
+			baseUrl: 'http://192.168.1.42:45889',
+			id: '0123456789abcdef',
+			name: 'Kitchen',
+		});
+		expect(asked).toEqual(['http://192.168.1.42:45889']);
+	});
+
+	it('refuses an address it cannot make sense of', async () => {
+		const { asked, store } = probing(answering(hello()));
+
+		await expect(store.probe('not an address')).rejects.toBe(PlayerErrors.INVALID_ADDRESS);
+		expect(asked).toEqual([]);
+	});
+
+	it('reports a host that never answers as unreachable', async () => {
+		const { store } = probing(() => Promise.reject(PlayerErrors.PLAYER_TIMED_OUT));
+
+		await expect(store.probe('192.168.1.42:45889')).rejects.toBe(PlayerErrors.PLAYER_UNREACHABLE);
+	});
+
+	it('reports a refused connection as unreachable too', async () => {
+		const { store } = probing(() => Promise.reject(new Error('connection refused')));
+
+		await expect(store.probe('192.168.1.42:45889')).rejects.toBe(PlayerErrors.PLAYER_UNREACHABLE);
+	});
+
+	it('refuses a host that answers something other than a greeting', async () => {
+		const { store } = probing(answering({ title: 'router admin' }));
+
+		await expect(store.probe('192.168.1.42:45889')).rejects.toBe(PlayerErrors.NOT_AN_ATOLLA_PLAYER);
+	});
+
+	it('refuses a greeting that arrives with a failure status', async () => {
+		const { store } = probing(answering(hello(), 404));
+
+		await expect(store.probe('192.168.1.42:45889')).rejects.toBe(PlayerErrors.NOT_AN_ATOLLA_PLAYER);
+	});
+
+	it('adds nothing to the list, since probing is not pairing', async () => {
+		const { store } = probing(answering(hello()));
+		let notifications = 0;
+		store.subscribe(() => {
+			notifications += 1;
+		});
+
+		await store.probe('192.168.1.42:45889');
+
+		expect(store.sections()).toEqual([]);
+		expect(notifications).toBe(0);
+	});
+});
 
 describe('PlayersStore', () => {
 	it('flips a player enabled and tells subscribers', () => {

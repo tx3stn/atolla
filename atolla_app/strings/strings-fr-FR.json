@@ -256,17 +256,35 @@
 	"play_next": {
 		"defaultMessage": "lire ensuite"
 	},
+	"players_add_address_placeholder": {
+		"defaultMessage": "adresse, par ex. 192.168.1.42:45889"
+	},
 	"players_add_button": {
 		"defaultMessage": "ajouter un lecteur"
 	},
 	"players_add_code_placeholder": {
 		"defaultMessage": "code d'association"
 	},
+	"players_add_continue": {
+		"defaultMessage": "continuer"
+	},
 	"players_add_failed": {
 		"defaultMessage": "code d'association invalide"
 	},
+	"players_add_invalid_address": {
+		"defaultMessage": "cela ne ressemble pas à une adresse"
+	},
+	"players_add_not_a_player": {
+		"defaultMessage": "quelque chose a répondu, mais ce n'est pas un lecteur atolla"
+	},
+	"players_add_pair_with": {
+		"defaultMessage": "ASSOCIER À {name%s}"
+	},
 	"players_add_title": {
 		"defaultMessage": "AJOUTER UN LECTEUR"
+	},
+	"players_add_unreachable": {
+		"defaultMessage": "rien n'a répondu à cette adresse"
 	},
 	"players_empty": {
 		"defaultMessage": "aucun lecteur"

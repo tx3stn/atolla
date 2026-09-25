@@ -32,6 +32,12 @@ export interface PlayerSection {
 	players: Array<Player>;
 }
 
+export interface ProbedPlayer {
+	baseUrl: string;
+	id: string;
+	name: string;
+}
+
 type WireFieldName = keyof { [K in keyof Member as string extends K ? never : K]: unknown };
 type AssertNever<T extends never> = T;
 

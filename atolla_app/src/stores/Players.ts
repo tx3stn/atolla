@@ -1,11 +1,15 @@
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import type { Hello } from 'atolla_sync/src/api/generated';
+import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import {
 	DEFAULT_PLAYER_GROUP,
 	type Player,
 	type PlayerSection,
 	PlayerStates,
 	PlayerTiers,
+	type ProbedPlayer,
 } from '../models/Player';
+import { normalizeAddress } from '../services/PlayerAddress';
 import { PlayerErrors } from '../services/PlayerErrors';
 import { MOCK_PLAYERS } from './playersMockData';
 
@@ -20,7 +24,10 @@ interface PersistedPlayerOrder {
 	version: 1;
 }
 
+export type CreatePlayerClient = (baseUrl: string) => PlayerClient;
+
 export interface PlayersStoreOptions {
+	createClient?: CreatePlayerClient;
 	pairDelayMs?: number;
 	seed?: Array<Player>;
 	store?: KeyValueStore;
@@ -37,12 +44,14 @@ export class PlayersStore {
 	private loadPromise: Promise<void> | null = null;
 	private order: Array<string> = [];
 	private pairedCount = 0;
+	private readonly createClient: CreatePlayerClient | undefined;
 	private readonly pairDelayMs: number;
 	private players: Array<Player>;
 	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
 
 	constructor(options: PlayersStoreOptions = {}) {
+		this.createClient = options.createClient;
 		this.pairDelayMs = options.pairDelayMs ?? PAIR_DELAY_MS;
 		this.players = [...(options.seed ?? MOCK_PLAYERS)];
 		this.store = options.store ?? new InMemoryKeyValueStore();
@@ -82,6 +91,32 @@ export class PlayersStore {
 
 		this.players = this.players.filter((candidate) => candidate.id !== id);
 		this.notify();
+	}
+
+	probe(address: string): Promise<ProbedPlayer> {
+		const baseUrl = normalizeAddress(address);
+		if (baseUrl === null) {
+			return Promise.reject(PlayerErrors.INVALID_ADDRESS);
+		}
+
+		const createClient = this.createClient;
+		if (createClient === undefined) {
+			return Promise.reject(new Error('players store was built without a client factory'));
+		}
+
+		return Promise.resolve(createClient(baseUrl).hello()).then(
+			(answer) => {
+				const { id, name } = answer.json as Partial<Hello>;
+				if (answer.status !== 200 || typeof id !== 'string' || typeof name !== 'string') {
+					throw PlayerErrors.NOT_AN_ATOLLA_PLAYER;
+				}
+
+				return { baseUrl, id, name };
+			},
+			() => {
+				throw PlayerErrors.PLAYER_UNREACHABLE;
+			},
+		);
 	}
 
 	reorder(fromIndex: number, toIndex: number): void {
