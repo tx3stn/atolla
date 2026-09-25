@@ -62,20 +62,20 @@ describe('PlayerCard', () => {
 		expect(labelValues(component)).toContain(Strings.playersStatusConnected());
 	});
 
-	valdiIt('shows the address of a networked player', async (driver) => {
+	valdiIt('shows the address of a networked player without its scheme', async (driver) => {
 		const component = driver.renderComponent(
 			PlayerCard,
-			{ onToggle: () => {}, player: makePlayer({ address: '192.168.1.42' }) },
+			{ onToggle: () => {}, player: makePlayer({ baseUrl: 'http://192.168.1.42:45889' }) },
 			undefined,
 		);
 
-		expect(labelValues(component)).toContain('192.168.1.42');
+		expect(labelValues(component)).toContain('192.168.1.42:45889');
 	});
 
 	valdiIt('names this device instead of showing an address', async (driver) => {
 		const component = driver.renderComponent(
 			PlayerCard,
-			{ onToggle: () => {}, player: makePlayer({ address: null, isThisDevice: true }) },
+			{ onToggle: () => {}, player: makePlayer({ baseUrl: null, isThisDevice: true }) },
 			undefined,
 		);
 
@@ -149,7 +149,7 @@ describe('PlayerCard', () => {
 		);
 
 		expect(labelValues(component)).toContain('Kitchen');
-		expect(labelValues(component)).toContain('192.168.1.42');
+		expect(labelValues(component)).toContain('192.168.1.42:45889');
 	});
 
 	valdiIt('stays silent about state when a switched-off player is unreachable', async (driver) => {
@@ -337,7 +337,7 @@ function renderWithLongPress(driver: IComponentTestDriver, onLongPress: () => vo
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
 	return {
-		address: '192.168.1.42',
+		baseUrl: 'http://192.168.1.42:45889',
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,

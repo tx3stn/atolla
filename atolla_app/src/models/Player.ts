@@ -14,7 +14,7 @@ export const PlayerTiers = {
 } as const satisfies Record<Member['tier'], Member['tier']>;
 
 export interface Player {
-	address: string | null;
+	baseUrl: string | null;
 	enabled: boolean;
 	group: string;
 	icon: string | null;

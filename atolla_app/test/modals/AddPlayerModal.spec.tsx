@@ -6,6 +6,7 @@ import {
 	AddPlayerModal,
 	type AddPlayerModalViewModel,
 } from 'atolla_app/src/ui/modals/AddPlayerModal';
+import { InternalError } from 'atolla_core/src/utils/Errors';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { untilRenderComplete } from 'foundation/test/util/untilRenderComplete';
@@ -130,11 +131,11 @@ describe('AddPlayerModal', () => {
 		expect(connectButton(component)?.getAttribute('onTap')).toBe(undefined);
 	});
 
-	valdiIt('hands the typed code to onAdd', async (driver) => {
-		const codes: Array<string> = [];
+	valdiIt('hands the code and the resolved player to onPair', async (driver) => {
+		const attempts: Array<{ code: string; player: ProbedPlayer }> = [];
 		const component = await atCodeStep(driver, {
-			onAdd: (code: string) => {
-				codes.push(code);
+			onPair: (player: ProbedPlayer, code: string) => {
+				attempts.push({ code, player });
 				return Promise.resolve();
 			},
 		});
@@ -142,7 +143,7 @@ describe('AddPlayerModal', () => {
 		type(component, '87654321');
 		tapConnect(component);
 
-		expect(codes).toEqual(['87654321']);
+		expect(attempts).toEqual([{ code: '87654321', player: KITCHEN }]);
 	});
 
 	valdiIt('closes once pairing succeeds', async (driver) => {
@@ -163,10 +164,10 @@ describe('AddPlayerModal', () => {
 	valdiIt('shows the failure and stays open when pairing is refused', async (driver) => {
 		let cancelled = 0;
 		const component = await atCodeStep(driver, {
-			onAdd: () => Promise.reject(PlayerErrors.INVALID_PAIRING_CODE),
 			onCancel: () => {
 				cancelled += 1;
 			},
+			onPair: () => Promise.reject(PlayerErrors.INVALID_PAIRING_CODE),
 		});
 
 		type(component, '12345678');
@@ -177,9 +178,22 @@ describe('AddPlayerModal', () => {
 		expect(cancelled).toBe(0);
 	});
 
+	valdiIt('tells the user how long to wait when the daemon throttles', async (driver) => {
+		const component = await atCodeStep(driver, {
+			onPair: () => Promise.reject(new InternalError('too_many_attempts').withDetail('4')),
+		});
+
+		type(component, '12345678');
+		tapConnect(component);
+		await untilRenderComplete(component);
+
+		expect(labelValues(component)).toContain(Strings.playersAddTooManyAttempts('4'));
+		expect(labelValues(component)).not.toContain(Strings.playersAddFailed());
+	});
+
 	valdiIt('drops the failure once the code is edited again', async (driver) => {
 		const component = await atCodeStep(driver, {
-			onAdd: () => Promise.reject(PlayerErrors.INVALID_PAIRING_CODE),
+			onPair: () => Promise.reject(PlayerErrors.INVALID_PAIRING_CODE),
 		});
 		type(component, '12345678');
 		tapConnect(component);
@@ -244,8 +258,8 @@ function render(driver: IComponentTestDriver, overrides: Overrides) {
 	return driver.renderComponent(
 		ModalHost,
 		{
-			onAdd: () => Promise.resolve(),
 			onCancel: () => {},
+			onPair: () => Promise.resolve(),
 			onProbe: () => Promise.resolve(KITCHEN),
 			...overrides,
 		},

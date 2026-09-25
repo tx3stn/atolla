@@ -6,7 +6,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ContentSizeChangeEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
-import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Player, ProbedPlayer } from '../../models/Player';
 import type { PlayersStore } from '../../stores/Players';
 import type { Preferences } from '../../stores/Preferences';
@@ -44,11 +44,9 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 
 	onRender(): void {
 		const sections = this.viewModel.playersStore.sections();
-		const deviceName = this.viewModel.preferences.jellyfinClientDeviceName;
+		const all = sections.flatMap((section) => section.players);
+		const thisDevice = all.find((player) => player.isThisDevice);
 		const showGroupHeaders = sections.length > 1;
-		const thisDevice = sections
-			.flatMap((section) => section.players)
-			.find((player) => player.isThisDevice);
 
 		<layout style={styles.root}>
 			<scroll
@@ -62,22 +60,13 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 					accessibilityLabel='players-view'
 					style={styles.content}
 				>
-					{sections.length === 0 && (
-						<view
-							accessibilityId='players-empty'
-							accessibilityLabel='players-empty'
-							style={styles.empty}
-						>
-							<label style={styles.emptyLabel} value={Strings.playersEmpty()} />
-						</view>
-					)}
 					{thisDevice && (
 						<layout style={styles.cardSlot}>
 							<PlayerCard
 								onToggle={createReusableCallback((enabled: boolean) => {
 									this.viewModel.playersStore.setEnabled(thisDevice.id, enabled);
 								})}
-								player={named(thisDevice, deviceName)}
+								player={thisDevice}
 							/>
 						</layout>
 					)}
@@ -141,8 +130,6 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
-	private handleAdd = (code: string): Promise<Player> => this.viewModel.playersStore.add(code);
-
 	private handleAddCancel = (): void => {
 		closeSlot(this.viewModel.modalSlot);
 	};
@@ -203,6 +190,9 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		);
 	};
 
+	private handlePair = (player: ProbedPlayer, code: string): Promise<Player> =>
+		this.viewModel.playersStore.pair(player, code);
+
 	private handleProbe = (address: string): Promise<ProbedPlayer> =>
 		this.viewModel.playersStore.probe(address);
 
@@ -214,8 +204,8 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		openSlot(this.viewModel.modalSlot, () => {
 			<AddPlayerModal
 				animationsEnabled={this.viewModel.preferences.animationsEnabled}
-				onAdd={this.handleAdd}
 				onCancel={this.handleAddCancel}
+				onPair={this.handlePair}
 				onProbe={this.handleProbe}
 			/>;
 		});
@@ -224,13 +214,6 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 
 function reorderable(players: Array<Player>): Array<Player> {
 	return players.filter((player) => !player.isThisDevice);
-}
-
-function named(player: Player, deviceName: string): Player {
-	if (!player.isThisDevice || deviceName === '') {
-		return player;
-	}
-	return { ...player, name: deviceName };
 }
 
 const styles = {
@@ -243,15 +226,6 @@ const styles = {
 		paddingLeft: theme.scale(14),
 		paddingRight: theme.scale(14),
 		width: '100%',
-	}),
-	empty: new Style<View>({
-		alignItems: 'center',
-		marginTop: theme.scale(40),
-		width: '100%',
-	}),
-	emptyLabel: new Style<Label>({
-		...theme.text.sub,
-		textAlign: 'center',
 	}),
 	root: new Style<Layout>({
 		flexGrow: 1,

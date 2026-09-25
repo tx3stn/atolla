@@ -130,7 +130,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	);
 	private barColors = new BarColorStore();
 	private playersStore = new PlayersStore({
+		controllerId: () => this.sessionManager.getEffectiveDeviceId(),
 		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
+		deviceName: () => this.sessionManager.getEffectiveDeviceName(),
 		store: new PersistentStore('atolla/players', { deviceGlobal: true }),
 	});
 	private sessionController = new SessionController();

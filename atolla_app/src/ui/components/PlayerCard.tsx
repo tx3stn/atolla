@@ -162,7 +162,11 @@ function isUnhealthy(player: Player): boolean {
 }
 
 function metaText(player: Player): string {
-	return player.isThisDevice ? Strings.playersThisDevice() : (player.address ?? '');
+	if (player.isThisDevice) {
+		return Strings.playersThisDevice();
+	}
+
+	return player.baseUrl?.replace(/^https?:\/\//, '') ?? '';
 }
 
 function statusStyle(color: string): Style<Label> {

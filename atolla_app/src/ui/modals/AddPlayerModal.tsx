@@ -4,7 +4,6 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ProbedPlayer } from '../../models/Player';
-import type { PlayerErrorCode } from '../../services/PlayerErrors';
 import { theme } from '../../theme';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { Button, ButtonType } from '../components/Button';
@@ -16,8 +15,8 @@ const CODE_PATTERN = /^\d{8}$/;
 
 export interface AddPlayerModalViewModel {
 	animationsEnabled?: boolean;
-	onAdd: (code: string) => Promise<unknown>;
 	onCancel: () => void;
+	onPair: (player: ProbedPlayer, code: string) => Promise<unknown>;
 	onProbe: (address: string) => Promise<ProbedPlayer>;
 }
 
@@ -25,7 +24,7 @@ interface AddPlayerModalState {
 	address: string;
 	busy: boolean;
 	code: string;
-	error: PlayerErrorCode | null;
+	error: Refusal | null;
 	player: ProbedPlayer | null;
 }
 
@@ -50,18 +49,18 @@ export class AddPlayerModal extends StatefulComponent<
 	};
 
 	handleConnect = (): void => {
-		const { busy, code } = this.state;
-		if (!CODE_PATTERN.test(code) || busy) {
+		const { busy, code, player } = this.state;
+		if (player === null || !CODE_PATTERN.test(code) || busy) {
 			return;
 		}
 
 		this.setState({ busy: true, error: null });
-		this.viewModel.onAdd(code).then(
+		this.viewModel.onPair(player, code).then(
 			() => {
 				this.viewModel.onCancel();
 			},
 			(error: unknown) => {
-				this.setState({ busy: false, error: errorCodeOf(error) });
+				this.setState({ busy: false, error: refusalOf(error) });
 			},
 		);
 	};
@@ -78,7 +77,7 @@ export class AddPlayerModal extends StatefulComponent<
 				this.setState({ busy: false, player });
 			},
 			(error: unknown) => {
-				this.setState({ busy: false, error: errorCodeOf(error) });
+				this.setState({ busy: false, error: refusalOf(error) });
 			},
 		);
 	};
@@ -126,7 +125,9 @@ export class AddPlayerModal extends StatefulComponent<
 			</view>
 			<view style={styles.statusSlot}>
 				{busy && <LoadingSpinner accessibilityId='add-player-pairing' size={30} />}
-				{error !== null && <label style={styles.errorLabel} value={errorMessage(error)} />}
+				{error !== null && (
+					<label numberOfLines={0} style={styles.errorLabel} value={errorMessage(error)} />
+				)}
 			</view>
 			<layout style={modalStyles.actions}>
 				<layout style={modalStyles.actionButton}>
@@ -182,18 +183,23 @@ const styles = {
 	}),
 	statusSlot: new Style<View>({
 		alignItems: 'center',
-		height: theme.scale(38),
 		justifyContent: 'center',
+		minHeight: theme.scale(38),
 		width: '100%',
 	}),
 };
 
-function errorCodeOf(error: unknown): PlayerErrorCode | null {
-	return isErrorConst(error) ? (error.err as PlayerErrorCode) : null;
+interface Refusal {
+	code: string;
+	detail: string;
 }
 
-function errorMessage(code: PlayerErrorCode | null): string {
-	switch (code) {
+function refusalOf(error: unknown): Refusal | null {
+	return isErrorConst(error) ? { code: error.err, detail: error.detail } : null;
+}
+
+function errorMessage(refusal: Refusal | null): string {
+	switch (refusal?.code) {
 		case 'invalid_address':
 			return Strings.playersAddInvalidAddress();
 		case 'not_an_atolla_player':
@@ -201,6 +207,8 @@ function errorMessage(code: PlayerErrorCode | null): string {
 		case 'player_timed_out':
 		case 'player_unreachable':
 			return Strings.playersAddUnreachable();
+		case 'too_many_attempts':
+			return Strings.playersAddTooManyAttempts(refusal.detail);
 		default:
 			return Strings.playersAddFailed();
 	}

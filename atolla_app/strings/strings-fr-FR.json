@@ -283,11 +283,12 @@
 	"players_add_title": {
 		"defaultMessage": "AJOUTER UN LECTEUR"
 	},
+	"players_add_too_many_attempts": {
+		"defaultMessage": "trop de tentatives\nattendez {seconds%s} secondes et réessayez",
+		"example": "trop de tentatives\nattendez 4 secondes et réessayez"
+	},
 	"players_add_unreachable": {
 		"defaultMessage": "rien n'a répondu à cette adresse"
-	},
-	"players_empty": {
-		"defaultMessage": "aucun lecteur"
 	},
 	"players_forget_body": {
 		"defaultMessage": "oublier {name%s} ?\n\nil faudra son code d'association pour le reconnecter."

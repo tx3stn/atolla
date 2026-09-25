@@ -5,11 +5,10 @@ import {
 	PlayerStates,
 	PlayerTiers,
 } from 'atolla_app/src/models/Player';
-import Strings from 'atolla_app/src/Strings';
+import type { PlayerClientPort } from 'atolla_app/src/stores/Players';
 import { PlayersStore } from 'atolla_app/src/stores/Players';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlayersView } from 'atolla_app/src/ui/views/PlayersView';
-import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { untilRenderComplete } from 'foundation/test/util/untilRenderComplete';
@@ -44,24 +43,27 @@ class PlayersViewHost extends Component<PlayersViewHostViewModel> {
 }
 
 describe('PlayersView', () => {
-	valdiIt('says there are no players when the store is empty', async (driver) => {
-		const component = render(driver, new PlayersStore({ pairDelayMs: 0, seed: [] }));
+	valdiIt('offers this phone and nothing else before anything is paired', async (driver) => {
+		const component = render(driver, new PlayersStore({ seed: [] }));
 
-		expect(labelValues(component)).toContain(Strings.playersEmpty());
+		const cards = accessibilityIds(component).filter(
+			(id) => id.startsWith('player-card-') && !/-(drag|status-dot|toggle)$/.test(id),
+		);
+		expect(cards).toEqual(['player-card-this-device']);
+		expect(accessibilityIds(component)).toContain('players-add-btn');
 	});
 
 	valdiIt('renders a card per player', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
+		const store = new PlayersStore({ seed: [makePlayer('a'), makePlayer('b')] });
 
 		const component = render(driver, store);
 
 		expect(accessibilityIds(component)).toContain('player-card-a');
 		expect(accessibilityIds(component)).toContain('player-card-b');
-		expect(accessibilityIds(component)).not.toContain('players-empty');
 	});
 
 	valdiIt('hides the group header while everything is in one group', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
+		const store = new PlayersStore({ seed: [makePlayer('a'), makePlayer('b')] });
 
 		const component = render(driver, store);
 
@@ -70,7 +72,6 @@ describe('PlayersView', () => {
 
 	valdiIt('shows a group header once there is more than one group', async (driver) => {
 		const store = new PlayersStore({
-			pairDelayMs: 0,
 			seed: [makePlayer('a'), makePlayer('b', { group: 'upstairs' })],
 		});
 
@@ -81,60 +82,43 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('titles this device with the configured device name', async (driver) => {
-		const store = new PlayersStore({
-			pairDelayMs: 0,
-			seed: [makePlayer('a', { isThisDevice: true })],
-		});
-		const preferences = makePreferences();
-		void preferences.setJellyfinClientDeviceName('Pocket Radio');
-
-		const component = render(driver, store, preferences);
-
-		expect(labelValues(component)).toContain('Pocket Radio');
-		expect(labelValues(component)).not.toContain('Player a');
-	});
-
-	valdiIt('keeps a player name when the device name is unset', async (driver) => {
-		const store = new PlayersStore({
-			pairDelayMs: 0,
-			seed: [makePlayer('a', { isThisDevice: true })],
-		});
+		const store = new PlayersStore({ deviceName: () => 'Pocket Radio', seed: [] });
 
 		const component = render(driver, store);
 
-		expect(labelValues(component)).toContain('Player a');
+		expect(labelValues(component)).toContain('Pocket Radio');
 	});
 
 	valdiIt('switches a player on through the store', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a', { enabled: false })] });
+		const store = new PlayersStore({ seed: [makePlayer('a', { enabled: false })] });
 		const component = render(driver, store);
 
 		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
 
-		expect(store.sections()[0].players[0].enabled).toBe(true);
+		expect(isEnabled(store, 'a')).toBe(true);
 	});
 
 	valdiIt('switches a player off through the store', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a', { enabled: true })] });
+		const store = new PlayersStore({ seed: [makePlayer('a', { enabled: true })] });
 		const component = render(driver, store);
 
 		elementById(component, 'player-card-a-toggle')?.getAttribute('onTap')?.(touchEvent);
 
-		expect(store.sections()[0].players[0].enabled).toBe(false);
+		expect(isEnabled(store, 'a')).toBe(false);
 	});
 
 	valdiIt('toggles only the player whose switch was tapped', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
+		const store = new PlayersStore({ seed: [makePlayer('a'), makePlayer('b')] });
 		const component = render(driver, store);
 
 		elementById(component, 'player-card-b-toggle')?.getAttribute('onTap')?.(touchEvent);
 
-		expect(store.sections()[0].players[0].enabled).toBe(true);
-		expect(store.sections()[0].players[1].enabled).toBe(false);
+		expect(isEnabled(store, 'a')).toBe(true);
+		expect(isEnabled(store, 'b')).toBe(false);
 	});
 
 	valdiIt('opens the add modal from the button', async (driver) => {
-		const component = renderWithModals(driver, new PlayersStore({ pairDelayMs: 0, seed: [] }));
+		const component = renderWithModals(driver, new PlayersStore({ seed: [] }));
 		expect(accessibilityIds(component)).not.toContain('add-player-modal');
 
 		elementById(component, 'players-add-btn')?.getAttribute('onTap')?.(touchEvent);
@@ -144,23 +128,27 @@ describe('PlayersView', () => {
 
 	valdiIt('puts a paired player into the list', async (driver) => {
 		const store = new PlayersStore({
-			createClient: () =>
-				({
-					hello: () =>
-						Promise.resolve({
-							headers: {},
-							json: {
-								apiVersions: [1],
-								id: '0123456789abcdef',
-								name: 'Kitchen',
-								tier: 'tight',
-								v: 1,
-								version: '0.1.0',
-							},
-							status: 200,
-						}),
-				}) as unknown as PlayerClient,
-			pairDelayMs: 0,
+			createClient: () => ({
+				hello: () =>
+					Promise.resolve({
+						headers: {},
+						json: {
+							apiVersions: [1],
+							id: '0123456789abcdef',
+							name: 'Kitchen',
+							tier: 'tight',
+							v: 1,
+							version: '0.1.0',
+						},
+						status: 200,
+					}) as ReturnType<PlayerClientPort['hello']>,
+				pair: () =>
+					Promise.resolve({
+						headers: {},
+						json: { token: 'a'.repeat(64) },
+						status: 200,
+					}) as ReturnType<PlayerClientPort['pair']>,
+			}),
 			seed: [],
 		});
 		const component = renderWithModals(driver, store);
@@ -174,13 +162,15 @@ describe('PlayersView', () => {
 		elementById(component, 'add-player-connect-btn')?.getAttribute('onTap')?.(touchEvent);
 		await settle(component);
 
-		expect(store.sections()[0].players.length).toBe(1);
+		expect(store.sections()[0].players.map((player) => player.id)).toEqual([
+			'this-device',
+			'0123456789abcdef',
+		]);
 		expect(accessibilityIds(component)).not.toContain('add-player-modal');
 	});
 
 	valdiIt('moves a player through the store when a card is dropped', async (driver) => {
 		const store = new PlayersStore({
-			pairDelayMs: 0,
 			seed: [makePlayer('a'), makePlayer('b'), makePlayer('c')],
 		});
 		const component = render(driver, store);
@@ -201,11 +191,16 @@ describe('PlayersView', () => {
 			touchEventWith({ absoluteY: originY + rowHeight * 2, state: 2 }),
 		);
 
-		expect(store.sections()[0].players.map((player) => player.id)).toEqual(['b', 'c', 'a']);
+		expect(store.sections()[0].players.map((player) => player.id)).toEqual([
+			'this-device',
+			'b',
+			'c',
+			'a',
+		]);
 	});
 
 	valdiIt('gives a lone player no drag handle', async (driver) => {
-		const component = render(driver, new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a')] }));
+		const component = render(driver, new PlayersStore({ seed: [makePlayer('a')] }));
 
 		expect(accessibilityIds(component)).not.toContain('player-card-a-drag');
 	});
@@ -213,7 +208,7 @@ describe('PlayersView', () => {
 	valdiIt('gives every card a drag handle once there is more than one', async (driver) => {
 		const component = render(
 			driver,
-			new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] }),
+			new PlayersStore({ seed: [makePlayer('a'), makePlayer('b')] }),
 		);
 
 		expect(accessibilityIds(component)).toContain('player-card-a-drag');
@@ -221,7 +216,7 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('redraws the card once the store reports the change', async (driver) => {
-		const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a', { enabled: false })] });
+		const store = new PlayersStore({ seed: [makePlayer('a', { enabled: false })] });
 		const component = render(driver, store);
 		expect(accessibilityIds(component)).not.toContain('player-card-a-status-dot');
 
@@ -233,10 +228,7 @@ describe('PlayersView', () => {
 	valdiIt('opens the forget modal from a long press', async (driver) => {
 		jasmine.clock().install();
 		try {
-			const component = renderWithModals(
-				driver,
-				new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a')] }),
-			);
+			const component = renderWithModals(driver, new PlayersStore({ seed: [makePlayer('a')] }));
 			expect(accessibilityIds(component)).not.toContain('players-forget-confirm-btn');
 
 			holdCard(component, 'a');
@@ -250,13 +242,13 @@ describe('PlayersView', () => {
 	valdiIt('forgets the player once the modal is confirmed', async (driver) => {
 		jasmine.clock().install();
 		try {
-			const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
+			const store = new PlayersStore({ seed: [makePlayer('a'), makePlayer('b')] });
 			const component = renderWithModals(driver, store);
 
 			holdCard(component, 'a');
 			elementById(component, 'players-forget-confirm-btn')?.getAttribute('onTap')?.(touchEvent);
 
-			expect(store.sections()[0].players.map((player) => player.id)).toEqual(['b']);
+			expect(store.sections()[0].players.map((player) => player.id)).toEqual(['this-device', 'b']);
 			expect(accessibilityIds(component)).not.toContain('players-forget-confirm-btn');
 		} finally {
 			jasmine.clock().uninstall();
@@ -266,13 +258,17 @@ describe('PlayersView', () => {
 	valdiIt('keeps the player when the modal is cancelled', async (driver) => {
 		jasmine.clock().install();
 		try {
-			const store = new PlayersStore({ pairDelayMs: 0, seed: [makePlayer('a'), makePlayer('b')] });
+			const store = new PlayersStore({ seed: [makePlayer('a'), makePlayer('b')] });
 			const component = renderWithModals(driver, store);
 
 			holdCard(component, 'a');
 			elementById(component, 'players-forget-cancel-btn')?.getAttribute('onTap')?.(touchEvent);
 
-			expect(store.sections()[0].players.map((player) => player.id)).toEqual(['a', 'b']);
+			expect(store.sections()[0].players.map((player) => player.id)).toEqual([
+				'this-device',
+				'a',
+				'b',
+			]);
 			expect(accessibilityIds(component)).not.toContain('players-forget-confirm-btn');
 		} finally {
 			jasmine.clock().uninstall();
@@ -280,31 +276,21 @@ describe('PlayersView', () => {
 	});
 
 	valdiIt('leaves this device out of the reorderable list', async (driver) => {
-		const component = render(
-			driver,
-			new PlayersStore({
-				pairDelayMs: 0,
-				seed: [makePlayer('a'), makePlayer('device', { isThisDevice: true })],
-			}),
-		);
+		const component = render(driver, new PlayersStore({ seed: [makePlayer('a')] }));
 
-		expect(accessibilityIds(component)).toContain('player-card-device');
-		expect(accessibilityIds(component)).not.toContain('player-card-device-drag');
-		expect(accessibilityIds(component)).not.toContain('reorderable-row-player-default-device-0');
+		expect(accessibilityIds(component)).toContain('player-card-this-device');
+		expect(accessibilityIds(component)).not.toContain('player-card-this-device-drag');
+		expect(accessibilityIds(component)).not.toContain(
+			'reorderable-row-player-default-this-device-0',
+		);
 	});
 
 	valdiIt('will not long press this device', async (driver) => {
 		jasmine.clock().install();
 		try {
-			const component = renderWithModals(
-				driver,
-				new PlayersStore({
-					pairDelayMs: 0,
-					seed: [makePlayer('device', { isThisDevice: true })],
-				}),
-			);
+			const component = renderWithModals(driver, new PlayersStore({ seed: [] }));
 
-			holdCard(component, 'device');
+			holdCard(component, 'this-device');
 
 			expect(accessibilityIds(component)).not.toContain('players-forget-confirm-btn');
 		} finally {
@@ -314,13 +300,7 @@ describe('PlayersView', () => {
 
 	valdiIt('moves the right player when this device shares the list', async (driver) => {
 		const store = new PlayersStore({
-			pairDelayMs: 0,
-			seed: [
-				makePlayer('device', { isThisDevice: true }),
-				makePlayer('a'),
-				makePlayer('b'),
-				makePlayer('c'),
-			],
+			seed: [makePlayer('a'), makePlayer('b'), makePlayer('c')],
 		});
 		const component = render(driver, store);
 		await driver.performLayout({ height: 800, width: 320 });
@@ -339,7 +319,7 @@ describe('PlayersView', () => {
 		);
 
 		expect(store.sections()[0].players.map((player) => player.id)).toEqual([
-			'device',
+			'this-device',
 			'b',
 			'c',
 			'a',
@@ -348,6 +328,13 @@ describe('PlayersView', () => {
 });
 
 type RenderedComponent = Parameters<typeof componentGetElements>[0];
+
+function isEnabled(store: PlayersStore, id: string): boolean | undefined {
+	return store
+		.sections()
+		.flatMap((section) => section.players)
+		.find((player) => player.id === id)?.enabled;
+}
 
 async function settle(component: Parameters<typeof untilRenderComplete>[0]): Promise<void> {
 	await new Promise<void>((resolve) => {
@@ -396,7 +383,7 @@ function labelValues(component: RenderedComponent): Array<unknown> {
 
 function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 	return {
-		address: '192.168.1.42',
+		baseUrl: 'http://192.168.1.42:45889',
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,

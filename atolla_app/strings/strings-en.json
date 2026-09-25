@@ -283,11 +283,12 @@
 	"players_add_title": {
 		"defaultMessage": "ADD A PLAYER"
 	},
+	"players_add_too_many_attempts": {
+		"defaultMessage": "too many attempts\nwait {seconds%s} seconds and try again",
+		"example": "too many attempts\nwait 4 seconds and try again"
+	},
 	"players_add_unreachable": {
 		"defaultMessage": "nothing answered at that address"
-	},
-	"players_empty": {
-		"defaultMessage": "no players yet"
 	},
 	"players_forget_body": {
 		"defaultMessage": "forget {name%s}?\n\nyou'll need the pairing code to connect again"
