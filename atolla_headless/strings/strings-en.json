@@ -129,7 +129,7 @@
 		"defaultMessage": "pair this player with your device"
 	},
 	"pairing_instructions": {
-		"defaultMessage": "enter the pairing code in the app > players > add"
+		"defaultMessage": "enter the url and pairing code in the app > players > add"
 	},
 	"pairing_reset": {
 		"defaultMessage": "pairing reset, devices paired before now must pair again"

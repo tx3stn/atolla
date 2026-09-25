@@ -1,5 +1,6 @@
 import { version } from 'atolla_core/src/version';
 import Strings from 'atolla_headless/src/Strings';
+import { controlUrl, type LocalAddress } from '../ControlUrl';
 import { filterLogWriter, startDaemon } from '../Daemon';
 import { makeFileKeyValueStore } from '../FileKeyValueStore';
 import { loadPairing, type Pairing } from '../Pairing';
@@ -40,7 +41,7 @@ export const CmdRun = {
 			randomBytes,
 		);
 
-		banner(terminal, current, identity, pairing);
+		banner(terminal, current, identity, pairing, httpServer.localAddress);
 
 		return startDaemon({
 			audio,
@@ -62,6 +63,7 @@ function banner(
 	config: PlayerConfig,
 	identity: PlayerIdentity,
 	pairing: Pairing,
+	localAddress: LocalAddress,
 ): void {
 	terminal.write('');
 
@@ -73,7 +75,10 @@ function banner(
 		...fields(terminal, [
 			{ label: Strings.fieldName(), value: config.name },
 			{ label: Strings.fieldPlayerId(), value: identity.id },
-			{ label: Strings.fieldControl(), value: `http://${config.bindAddress}:${config.port}` },
+			{
+				label: Strings.fieldControl(),
+				value: controlUrl(config.bindAddress, config.port, localAddress),
+			},
 			{ label: Strings.fieldAudioDevice(), value: config.audioDevice },
 			{ label: Strings.fieldControllers(), value: `${pairing.controllers.length}` },
 			{ label: Strings.fieldState(), value: Strings.stateIdle() },

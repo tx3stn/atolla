@@ -10,9 +10,16 @@ describe('atolla pair', () => {
 	let configPath: string;
 	let cli: Cli;
 
-	function writeConfig(): void {
+	function writeConfig(extra: Record<string, unknown> = {}): void {
 		mkdirSync(dirname(configPath), { recursive: true });
-		writeFileSync(configPath, JSON.stringify({ dataDir, language: 'en', name: 'Kitchen' }));
+		writeFileSync(
+			configPath,
+			JSON.stringify({ dataDir, language: 'en', name: 'Kitchen', ...extra }),
+		);
+	}
+
+	function urlFrom(stdout: string): string | undefined {
+		return stdout.match(/^ url: (.+)$/m)?.[1];
 	}
 
 	function storedCode(): string {
@@ -45,6 +52,18 @@ describe('atolla pair', () => {
 
 		expect(pairingCode(result.stdout)).toBe(storedCode());
 		expect(storedCode()).toMatch(/^\d{8}$/);
+	});
+
+	it('prints a reachable url beside the code', () => {
+		expect(urlFrom(cli.pair().stdout)).toMatch(
+			/^http:\/\/(?!0\.0\.0\.0)(\d{1,3}\.){3}\d{1,3}:45889$/,
+		);
+	});
+
+	it('prints the configured bind address when it names one interface', () => {
+		writeConfig({ bindAddress: '127.0.0.1', port: 45993 });
+
+		expect(urlFrom(cli.pair().stdout)).toBe('http://127.0.0.1:45993');
 	});
 
 	it('returns the same code when asked again', () => {

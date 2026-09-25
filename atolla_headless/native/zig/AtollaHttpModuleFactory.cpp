@@ -1,4 +1,5 @@
 #include "http_server.h"
+#include "local_address.h"
 #include "valdi_core/cpp/JavaScript/ModuleFactoryRegistry.hpp"
 #include "valdi_core/cpp/Utils/ValueFunctionWithCallable.hpp"
 
@@ -7,6 +8,8 @@ namespace atolla::headless {
 // Must match the path atolla_headless/src/HttpNative.d.ts is imported by, or the declaration
 // resolves to nothing at runtime.
 constexpr const char* kModulePath = "atolla_headless/src/HttpNative";
+
+constexpr size_t kMaxAddressBytes = 15;
 
 // Zig hands back a handle rather than owning a singleton, so the "only one" lives here, where
 // there is genuinely one JavaScript runtime to own it.
@@ -185,6 +188,16 @@ public:
 
                                  return Valdi::Value(
                                      static_cast<int32_t>(atolla_http_port(gServer)));
+                             })))
+            .setMapValue("atollaHttpLocalAddress",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {
+                                 unsigned char address[kMaxAddressBytes];
+                                 const size_t len =
+                                     atolla_local_address(address, sizeof(address));
+
+                                 return Valdi::Value(Valdi::StringBox::fromString(
+                                     std::string(reinterpret_cast<const char*>(address), len)));
                              })))
             .setMapValue("atollaHttpStop",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(

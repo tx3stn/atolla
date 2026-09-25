@@ -57,6 +57,7 @@ function context(argv: Array<string>) {
 				writeFileSync: () => {},
 			},
 			httpServer: {
+				localAddress: () => '192.168.1.42',
 				respond: () => true,
 				setControllersPath: () => {},
 				setHandler: () => {},

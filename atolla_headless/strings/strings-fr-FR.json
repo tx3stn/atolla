@@ -129,7 +129,7 @@
 		"defaultMessage": "associer ce lecteur à votre appareil"
 	},
 	"pairing_instructions": {
-		"defaultMessage": "saisissez le code d'association dans l'app > lecteurs > ajouter"
+		"defaultMessage": "saisissez l'url et le code d'association dans l'app > lecteurs > ajouter"
 	},
 	"pairing_reset": {
 		"defaultMessage": "association réinitialisée, les appareils associés auparavant doivent s'associer à nouveau"

@@ -29,7 +29,11 @@ const CONFIG: PlayerConfig = {
 	port: 45889,
 };
 
-function context(read: ConfigStore['read'], lines: Array<string> = []) {
+function context(
+	read: ConfigStore['read'],
+	lines: Array<string> = [],
+	localAddress: () => string = () => '192.168.1.42',
+) {
 	const stored = new Map<string, string>();
 	let next = 0;
 
@@ -62,6 +66,7 @@ function context(read: ConfigStore['read'], lines: Array<string> = []) {
 			},
 		},
 		httpServer: {
+			localAddress,
 			respond: () => true,
 			setControllersPath: () => {},
 			setHandler: () => {},
@@ -109,6 +114,21 @@ describe('CmdRun', () => {
 
 		expect(lines.some((line) => line.includes('hw:2,0'))).toBe(true);
 		expect(lines.some((line) => line.includes('http://192.168.1.42:45890'))).toBe(true);
+	});
+
+	it('banners the resolved url when bound to every interface', async () => {
+		const lines: Array<string> = [];
+
+		void CmdRun.run(
+			context(
+				() => CONFIG,
+				lines,
+				() => '10.0.0.7',
+			),
+		);
+		await flush();
+
+		expect(lines.some((line) => line.includes('http://10.0.0.7:45889'))).toBe(true);
 	});
 
 	it('banners the real player id rather than a placeholder', async () => {

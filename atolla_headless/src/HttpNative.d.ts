@@ -23,4 +23,6 @@ export function atollaHttpSetControllersPath(path: string): void;
 // ephemeral one. `host` is an IPv4 address; 0.0.0.0 serves every interface.
 export function atollaHttpStart(host: string, port: number): number;
 
+export function atollaHttpLocalAddress(): string;
+
 export function atollaHttpStop(): void;

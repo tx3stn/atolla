@@ -74,6 +74,7 @@ function unavailableAudio(): AudioEngine {
 
 function fakeHttpServer(started: Array<string> = []): HttpServer {
 	return {
+		localAddress: () => '192.168.1.42',
 		respond: () => true,
 		setControllersPath: () => {},
 		setHandler: () => {},
@@ -261,6 +262,7 @@ describe('startDaemon', () => {
 				writeFileSync: () => {},
 			},
 			httpServer: {
+				localAddress: () => '192.168.1.42',
 				respond: () => true,
 				setControllersPath: () => {},
 				setHandler: () => {},

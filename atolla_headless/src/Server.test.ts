@@ -54,6 +54,7 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 	let handler: RequestHandler | undefined;
 
 	const httpServer: HttpServer = {
+		localAddress: () => '192.168.1.42',
 		respond: (requestId, status, body) => {
 			answers.push({ body, requestId, status });
 			return true;

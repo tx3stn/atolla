@@ -1,4 +1,5 @@
 import Strings from 'atolla_headless/src/Strings';
+import { controlUrl } from '../ControlUrl';
 import { makeFileKeyValueStore } from '../FileKeyValueStore';
 import { formatCode, loadPairing, resetPairing } from '../Pairing';
 import { secretsDir } from '../PlayerConfig';
@@ -12,7 +13,14 @@ export const CmdPair = {
 	},
 	helpTextLong: Strings.pairHelpLong,
 	helpTextShort: Strings.pairHelpShort,
-	run: async ({ args, config, files, randomBytes, terminal }: CommandContext): Promise<number> => {
+	run: async ({
+		args,
+		config,
+		files,
+		httpServer,
+		randomBytes,
+		terminal,
+	}: CommandContext): Promise<number> => {
 		const current = config.read();
 		if (current === undefined) {
 			throw CLI_ERROR.withDetail(Strings.errorConfigMissing(config.path));
@@ -30,6 +38,9 @@ export const CmdPair = {
 		}
 
 		terminal.write(terminal.dim(Strings.pairingInstructions()));
+		terminal.write(
+			` url: ${controlUrl(current.bindAddress, current.port, httpServer.localAddress)}`,
+		);
 		terminal.write(`code: ${formatCode(pairing.code)}`);
 
 		return 0;

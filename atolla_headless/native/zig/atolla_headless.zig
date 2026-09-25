@@ -10,6 +10,7 @@ comptime {
     _ = @import("gst.zig");
     _ = @import("hello.zig");
     _ = @import("http_server.zig");
+    _ = @import("local_address.zig");
     _ = @import("log.zig");
     _ = @import("media_server.zig");
     _ = @import("pair.zig");

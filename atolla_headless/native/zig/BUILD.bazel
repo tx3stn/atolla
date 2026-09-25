@@ -43,6 +43,7 @@ zig_static_library(
         "gst.zig",
         "hello.zig",
         "http_server.zig",
+        "local_address.zig",
         "log.zig",
         "media_server.zig",
         "pair.zig",
@@ -77,6 +78,16 @@ cc_library(
     }),
 )
 
+cc_library(
+    name = "local_address",
+    hdrs = ["local_address.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:macos": [":atolla_headless_zig_apple"],
+        "//conditions:default": [":atolla_headless_zig"],
+    }),
+)
+
 # alwayslink: the module registers itself through a static initialiser, which the linker would
 # otherwise drop because nothing references it.
 cc_library(
@@ -88,6 +99,7 @@ cc_library(
     }),
     deps = [
         ":http_server",
+        ":local_address",
         "@valdi//valdi_core",
     ],
     alwayslink = 1,

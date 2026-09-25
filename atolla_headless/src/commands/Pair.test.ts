@@ -28,7 +28,10 @@ const CONFIG: PlayerConfig = {
 	port: 45889,
 };
 
-function harness(read: ConfigStore['read'] = () => CONFIG) {
+function harness(
+	read: ConfigStore['read'] = () => CONFIG,
+	localAddress: () => string = () => '192.168.1.42',
+) {
 	const stored = new Map<string, string>();
 	let next = 0;
 
@@ -64,6 +67,7 @@ function harness(read: ConfigStore['read'] = () => CONFIG) {
 					},
 				},
 				httpServer: {
+					localAddress,
 					respond: () => true,
 					setControllersPath: () => {},
 					setHandler: () => {},
@@ -90,6 +94,10 @@ function codeFrom(lines: Array<string>): string | undefined {
 	return lines.find((line) => line.startsWith('code: '))?.slice('code: '.length);
 }
 
+function urlFrom(lines: Array<string>): string | undefined {
+	return lines.find((line) => line.startsWith(' url: '))?.slice(' url: '.length);
+}
+
 describe('CmdPair', () => {
 	it('rejects naming the config path when no config exists', async () => {
 		try {
@@ -107,6 +115,18 @@ describe('CmdPair', () => {
 		const { lines } = await harness().run();
 
 		expect(codeFrom(lines)).toMatch(/^\d{4} \d{4}$/);
+	});
+
+	it('prints the url a controller reaches it on', async () => {
+		const { lines } = await harness().run();
+
+		expect(urlFrom(lines)).toBe('http://192.168.1.42:45889');
+	});
+
+	it('prints the configured bind address when it names one interface', async () => {
+		const { lines } = await harness(() => ({ ...CONFIG, bindAddress: '10.0.0.7' })).run();
+
+		expect(urlFrom(lines)).toBe('http://10.0.0.7:45889');
 	});
 
 	it('prints the same code on a second invocation', async () => {

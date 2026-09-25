@@ -15,6 +15,7 @@ import {
 	atollaAudioStart,
 } from 'atolla_headless/src/AudioNative';
 import {
+	atollaHttpLocalAddress,
 	atollaHttpRespond,
 	atollaHttpSetControllersPath,
 	atollaHttpSetHandler,
@@ -80,6 +81,7 @@ const audio: AudioEngine = {
 const makeHttpClient: MakeHttpClient = (baseUrl) => new HTTPClient(baseUrl);
 
 const httpServer: HttpServer = {
+	localAddress: atollaHttpLocalAddress,
 	respond: atollaHttpRespond,
 	setControllersPath: atollaHttpSetControllersPath,
 	setHandler: atollaHttpSetHandler,
