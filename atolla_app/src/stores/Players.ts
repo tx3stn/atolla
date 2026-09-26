@@ -1,6 +1,12 @@
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { InternalError } from 'atolla_core/src/utils/Errors';
-import type { Hello, PairAccepted, Problem } from 'atolla_sync/src/api/generated';
+import type {
+	Hello,
+	MediaServer,
+	PairAccepted,
+	Problem,
+	StateSnapshot,
+} from 'atolla_sync/src/api/generated';
 import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import {
 	DEFAULT_PLAYER_GROUP,
@@ -37,14 +43,20 @@ interface PersistedPlayerOrder {
 	version: 1;
 }
 
-export type PlayerClientPort = Pick<PlayerClient, 'hello' | 'pair'>;
+export type PlayerClientPort = Pick<PlayerClient, 'hello' | 'mediaServer' | 'pair' | 'state'>;
 
 export type CreatePlayerClient = (baseUrl: string) => PlayerClientPort;
+
+export interface MediaServerProvisioning {
+	mint: (player: Player) => Promise<MediaServer>;
+	userId: () => string;
+}
 
 export interface PlayersStoreOptions {
 	controllerId?: () => string;
 	createClient?: CreatePlayerClient;
 	deviceName?: () => string;
+	provisioning?: MediaServerProvisioning;
 	seed?: Array<Player>;
 	store?: KeyValueStore;
 }
@@ -79,6 +91,7 @@ export class PlayersStore {
 	private readonly controllerId: () => string;
 	private readonly createClient: CreatePlayerClient | undefined;
 	private readonly deviceName: () => string;
+	private readonly provisioning: MediaServerProvisioning | undefined;
 	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
 	private readonly tokens = new Map<string, string>();
@@ -88,6 +101,7 @@ export class PlayersStore {
 		this.createClient = options.createClient;
 		this.deviceName = options.deviceName ?? (() => '');
 		this.players = [...(options.seed ?? [])];
+		this.provisioning = options.provisioning;
 		this.store = options.store ?? new InMemoryKeyValueStore();
 	}
 
@@ -141,6 +155,49 @@ export class PlayersStore {
 				throw PlayerErrors.PLAYER_UNREACHABLE;
 			},
 		);
+	}
+
+	async provision(id: string): Promise<void> {
+		const provisioning = this.provisioning;
+		const createClient = this.createClient;
+		const player = this.players.find((candidate) => candidate.id === id);
+		const token = this.tokens.get(id);
+		if (
+			provisioning === undefined ||
+			createClient === undefined ||
+			player === undefined ||
+			player.baseUrl === null ||
+			token === undefined
+		) {
+			return;
+		}
+
+		const userId = provisioning.userId();
+		if (userId === '') {
+			return;
+		}
+
+		const client = createClient(player.baseUrl);
+
+		const snapshot = await Promise.resolve(client.state(token)).catch(() => {
+			throw PlayerErrors.PLAYER_UNREACHABLE;
+		});
+		if (snapshot.status !== 200) {
+			throw refusal(snapshot.json as Partial<Problem>);
+		}
+
+		const held = (snapshot.json as Partial<StateSnapshot>).sourceHealth?.mediaServerUsers;
+		if (held === undefined || held.includes(userId)) {
+			return;
+		}
+
+		const credential = await provisioning.mint(player);
+		const pushed = await Promise.resolve(client.mediaServer(token, credential)).catch(() => {
+			throw PlayerErrors.PLAYER_UNREACHABLE;
+		});
+		if (pushed.status !== 200) {
+			throw refusal(pushed.json as Partial<Problem>);
+		}
 	}
 
 	probe(address: string): Promise<ProbedPlayer> {

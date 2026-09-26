@@ -6,7 +6,7 @@ import { defaultTimer, type TimerFn } from 'atolla_core/src/utils/Timer';
 import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { CLIENT_APP, createClientHeader } from '../ClientIdentity';
+import { CLIENT_APP, type ClientIdentity, createClientHeader } from '../ClientIdentity';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 import { JellyfinAuthErrors } from './AuthErrors';
 
@@ -36,24 +36,15 @@ interface SystemInfoPublicResult {
 	ServerName?: string;
 }
 
-// a persisted session is usable only if the identity fields marshalled into native
-// calls are all non-empty strings; partial/legacy/corrupt data is treated as
-// signed-out so we never hand undefined across the native bridge
-function isUsableSession(session: AuthSession | null | undefined): session is AuthSession {
-	return (
-		session != null &&
-		typeof session.serverUrl === 'string' &&
-		session.serverUrl.length > 0 &&
-		typeof session.accessToken === 'string' &&
-		session.accessToken.length > 0 &&
-		typeof session.userId === 'string' &&
-		session.userId.length > 0
-	);
-}
-
 export interface QuickConnectStartResult {
 	code: string;
 	secret: string;
+}
+
+export interface DeviceToken {
+	accessToken: string;
+	serverId: string;
+	userId: string;
 }
 
 interface JellyfinAuthServiceOptions {
@@ -193,34 +184,7 @@ export class JellyfinAuthService {
 			throw JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
 		}
 
-		const response = await this.send(
-			() => this.client.post('/QuickConnect/Initiate', undefined, this.createHeaders()),
-			'startQuickConnect initiate',
-		);
-
-		if (response.statusCode === 401) {
-			throw JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
-		}
-
-		if (!this.isSuccessStatus(response.statusCode)) {
-			throw this.connectionError(
-				`HTTP ${response.statusCode}`,
-				'startQuickConnect returned non-success status',
-			);
-		}
-
-		const parsed = this.parseJSON<QuickConnectResult>(response);
-		if (!parsed.Secret || !parsed.Code) {
-			throw this.connectionError(
-				'invalid quick connect response',
-				'startQuickConnect invalid body',
-			);
-		}
-
-		return {
-			code: parsed.Code,
-			secret: parsed.Secret,
-		};
+		return this.initiateQuickConnect();
 	}
 
 	// cancelation returns rather than throws, so it is indistinguishable from approval here. the
@@ -297,40 +261,29 @@ export class JellyfinAuthService {
 			};
 		}
 
-		const response = await this.send(
-			() =>
-				this.client.post(
-					'/Users/AuthenticateWithQuickConnect',
-					new TextEncoder().encode(JSON.stringify({ Secret: secret })),
-					this.createHeaders(),
-				),
-			'authenticateWithQuickConnect',
-		);
-
-		if (!this.isSuccessStatus(response.statusCode)) {
-			throw this.connectionError(
-				`HTTP ${response.statusCode}`,
-				'authenticateWithQuickConnect returned non-success status',
-			);
-		}
-
-		const parsed = this.parseJSON<QuickConnectAuthenticationResult>(response);
-		if (!parsed.AccessToken || !parsed.ServerId || !parsed.User?.Id) {
-			throw this.connectionError(
-				'invalid authentication response',
-				'authenticateWithQuickConnect invalid body',
-			);
-		}
-
+		const redeemed = await this.redeemQuickConnect(secret);
 		const details = await this.fetchServerDetails();
 
 		return {
-			accessToken: parsed.AccessToken,
-			serverId: parsed.ServerId,
+			accessToken: redeemed.accessToken,
+			serverId: redeemed.serverId,
 			serverName: details.ServerName ?? '',
 			serverUrl: normalizedUrl,
-			userId: parsed.User.Id,
+			userId: redeemed.userId,
 		};
+	}
+
+	async mintDeviceToken(identity: ClientIdentity, owner: AuthSession): Promise<DeviceToken> {
+		const { code, secret } = await this.initiateQuickConnect(identity);
+
+		await this.authorizeQuickConnect(code, owner);
+
+		const minted = await this.redeemQuickConnect(secret, identity);
+		if (minted.userId !== owner.userId) {
+			throw JellyfinAuthErrors.DEVICE_TOKEN_REFUSED;
+		}
+
+		return minted;
 	}
 
 	async fetchServerDetails(): Promise<SystemInfoPublicResult> {
@@ -398,6 +351,101 @@ export class JellyfinAuthService {
 		if (!this.isSuccessStatus(response.statusCode)) {
 			throw AuthErrors.FAILED_TO_FETCH_DATA;
 		}
+	}
+
+	private async authorizeQuickConnect(code: string, owner: AuthSession): Promise<void> {
+		const response = await this.send(
+			() =>
+				this.client.post(
+					`/QuickConnect/Authorize?code=${encodeURIComponent(code)}&userId=${encodeURIComponent(owner.userId)}`,
+					undefined,
+					this.createHeaders(owner.accessToken),
+				),
+			'quick connect authorize',
+		);
+
+		if (response.statusCode === 401) {
+			throw AuthErrors.SESSION_EXPIRED;
+		}
+
+		if (
+			!this.isSuccessStatus(response.statusCode) ||
+			this.tryParseJSON<unknown>(response) !== true
+		) {
+			throw JellyfinAuthErrors.DEVICE_TOKEN_REFUSED;
+		}
+	}
+
+	private async initiateQuickConnect(identity?: ClientIdentity): Promise<QuickConnectStartResult> {
+		const response = await this.send(
+			() =>
+				this.client.post(
+					'/QuickConnect/Initiate',
+					undefined,
+					this.createHeaders(undefined, identity),
+				),
+			'quick connect initiate',
+		);
+
+		if (response.statusCode === 401) {
+			throw JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
+		}
+
+		if (!this.isSuccessStatus(response.statusCode)) {
+			throw this.connectionError(
+				`HTTP ${response.statusCode}`,
+				'quick connect initiate returned non-success status',
+			);
+		}
+
+		const parsed = this.parseJSON<QuickConnectResult>(response);
+		if (!parsed.Secret || !parsed.Code) {
+			throw this.connectionError(
+				'invalid quick connect response',
+				'quick connect initiate invalid body',
+			);
+		}
+
+		return {
+			code: parsed.Code,
+			secret: parsed.Secret,
+		};
+	}
+
+	private async redeemQuickConnect(
+		secret: string,
+		identity?: ClientIdentity,
+	): Promise<DeviceToken> {
+		const response = await this.send(
+			() =>
+				this.client.post(
+					'/Users/AuthenticateWithQuickConnect',
+					new TextEncoder().encode(JSON.stringify({ Secret: secret })),
+					this.createHeaders(undefined, identity),
+				),
+			'quick connect redeem',
+		);
+
+		if (!this.isSuccessStatus(response.statusCode)) {
+			throw this.connectionError(
+				`HTTP ${response.statusCode}`,
+				'quick connect redeem returned non-success status',
+			);
+		}
+
+		const parsed = this.parseJSON<QuickConnectAuthenticationResult>(response);
+		if (!parsed.AccessToken || !parsed.ServerId || !parsed.User?.Id) {
+			throw this.connectionError(
+				'invalid authentication response',
+				'quick connect redeem invalid body',
+			);
+		}
+
+		return {
+			accessToken: parsed.AccessToken,
+			serverId: parsed.ServerId,
+			userId: parsed.User.Id,
+		};
 	}
 
 	// parseJSON throws CONNECTION_ERROR on a body it can't decode, which is exactly the case the
@@ -488,10 +536,10 @@ export class JellyfinAuthService {
 		return statusCode >= 200 && statusCode < 300;
 	}
 
-	private createHeaders(accessToken?: string): Record<string, string> {
+	private createHeaders(accessToken?: string, identity?: ClientIdentity): Record<string, string> {
 		return {
 			Authorization: createClientHeader(
-				{
+				identity ?? {
 					client: CLIENT_APP,
 					deviceId: this.clientDeviceId,
 					deviceName: this.clientDeviceName,
@@ -501,4 +549,19 @@ export class JellyfinAuthService {
 			'Content-Type': 'application/json',
 		};
 	}
+}
+
+// a persisted session is usable only if the identity fields marshalled into native
+// calls are all non-empty strings; partial/legacy/corrupt data is treated as
+// signed-out so we never hand undefined across the native bridge
+function isUsableSession(session: AuthSession | null | undefined): session is AuthSession {
+	return (
+		session != null &&
+		typeof session.serverUrl === 'string' &&
+		session.serverUrl.length > 0 &&
+		typeof session.accessToken === 'string' &&
+		session.accessToken.length > 0 &&
+		typeof session.userId === 'string' &&
+		session.userId.length > 0
+	);
 }

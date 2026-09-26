@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
-import type { Hello, PairAccepted, PairRequest, Problem } from 'atolla_sync/src/api/generated';
+import type {
+	Hello,
+	MediaServer,
+	PairAccepted,
+	PairRequest,
+	Problem,
+} from 'atolla_sync/src/api/generated';
 import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
 import {
 	DEFAULT_PLAYER_GROUP,
@@ -30,9 +36,15 @@ describe('PlayersStore pair', () => {
 					hello: () => {
 						throw new Error('pairing does not greet the player again');
 					},
+					mediaServer: () => {
+						throw new Error('pairing does not provision the player');
+					},
 					pair: (body: PairRequest) => {
 						sent.push(body);
 						return answer() as ReturnType<PlayerClientPort['pair']>;
+					},
+					state: () => {
+						throw new Error('pairing does not read the player state');
 					},
 				}),
 				deviceName: () => 'Pixel 9 Pro',
@@ -162,8 +174,14 @@ describe('PlayersStore probe', () => {
 					asked.push(baseUrl);
 					return {
 						hello: () => answer() as ReturnType<PlayerClientPort['hello']>,
+						mediaServer: () => {
+							throw new Error('greeting a player does not provision it');
+						},
 						pair: () => {
 							throw new Error('greeting a player does not pair with it');
+						},
+						state: () => {
+							throw new Error('greeting a player does not read its state');
 						},
 					};
 				},
@@ -534,12 +552,18 @@ describe('PlayersStore persisted order', () => {
 				hello: () => {
 					throw new Error('pairing does not greet the player again');
 				},
+				mediaServer: () => {
+					throw new Error('pairing does not provision the player');
+				},
 				pair: () =>
 					Promise.resolve({
 						headers: {},
 						json: { token: 'a'.repeat(64) },
 						status: 200,
 					}) as ReturnType<PlayerClientPort['pair']>,
+				state: () => {
+					throw new Error('pairing does not read the player state');
+				},
 			}),
 			seed: [makePlayer('a'), makePlayer('b')],
 			store: keyValueStore,
@@ -566,6 +590,169 @@ describe('PlayersStore persisted order', () => {
 		store.reorder(1, 0);
 
 		expect(await savedOrder(keyValueStore)).toEqual(['b', 'c']);
+	});
+});
+
+describe('PlayersStore provision', () => {
+	const KITCHEN: ProbedPlayer = {
+		baseUrl: 'http://192.168.1.42:45889',
+		id: '0123456789abcdef',
+		name: 'Kitchen',
+	};
+
+	const CREDENTIAL: MediaServer = {
+		accessToken: 'kitchen-token',
+		baseUrl: 'https://demo.jellyfin.local',
+		deviceId: 'atolla-0123456789abcdef-user-1',
+		serverId: 'server-1',
+		userId: 'user-1',
+	};
+
+	interface Options {
+		held?: Array<string>;
+		mint?: () => Promise<MediaServer>;
+		push?: PlayerAnswer<unknown>;
+		state?: () => Promise<PlayerAnswer<unknown>>;
+		userId?: string;
+		withoutProvisioning?: boolean;
+	}
+
+	function answer(json: unknown, status = 200): PlayerAnswer<unknown> {
+		return { headers: {}, json, status };
+	}
+
+	function provisioning(options: Options = {}) {
+		const mints: Array<Player> = [];
+		const pushes: Array<{ body: MediaServer; token: string }> = [];
+
+		const store = new PlayersStore({
+			controllerId: () => 'atolla-phone-1',
+			createClient: () => ({
+				hello: () => {
+					throw new Error('provisioning does not greet the player');
+				},
+				mediaServer: (token: string, body: MediaServer) => {
+					pushes.push({ body, token });
+					return Promise.resolve(options.push ?? answer({ version: 2 })) as ReturnType<
+						PlayerClientPort['mediaServer']
+					>;
+				},
+				pair: () =>
+					Promise.resolve(answer({ token: 'a'.repeat(64) })) as ReturnType<
+						PlayerClientPort['pair']
+					>,
+				state: () =>
+					(options.state?.() ??
+						Promise.resolve(
+							answer({ sourceHealth: { mediaServerUsers: options.held ?? [] } }),
+						)) as ReturnType<PlayerClientPort['state']>,
+			}),
+			deviceName: () => 'Pixel 9 Pro',
+			provisioning: options.withoutProvisioning
+				? undefined
+				: {
+						mint: (player: Player) => {
+							mints.push(player);
+							return options.mint?.() ?? Promise.resolve(CREDENTIAL);
+						},
+						userId: () => options.userId ?? 'user-1',
+					},
+		});
+
+		return { mints, pushes, store };
+	}
+
+	async function paired(options: Options = {}) {
+		const harness = provisioning(options);
+		await harness.store.pair(KITCHEN, '12345678');
+
+		return harness;
+	}
+
+	it('gives the player a credential when its account is missing', async () => {
+		const { pushes, store } = await paired({ held: [] });
+
+		await store.provision(KITCHEN.id);
+
+		expect(pushes).toEqual([{ body: CREDENTIAL, token: 'a'.repeat(64) }]);
+	});
+
+	it('mints nothing when the player already holds that account', async () => {
+		const { mints, pushes, store } = await paired({ held: ['user-1'] });
+
+		await store.provision(KITCHEN.id);
+
+		expect(mints).toEqual([]);
+		expect(pushes).toEqual([]);
+	});
+
+	it('pushes alongside another household member', async () => {
+		const { pushes, store } = await paired({ held: ['user-2'] });
+
+		await store.provision(KITCHEN.id);
+
+		expect(pushes.length).toBe(1);
+	});
+
+	it('leaves a player that has not said what it holds alone', async () => {
+		const { pushes, store } = await paired({ state: () => Promise.resolve(answer({})) });
+
+		await store.provision(KITCHEN.id);
+
+		expect(pushes).toEqual([]);
+	});
+
+	it('surfaces the refusal when the player serves another media server', async () => {
+		const { store } = await paired({
+			push: answer({ code: 'media_server_id_mismatch', status: 409, title: 'x' }, 409),
+		});
+
+		await expect(store.provision(KITCHEN.id)).rejects.toHaveProperty(
+			'err',
+			'media_server_id_mismatch',
+		);
+	});
+
+	it('surfaces a pairing token the player no longer honours', async () => {
+		const { store } = await paired({
+			state: () => Promise.resolve(answer({ code: 'invalid_token', status: 401, title: 'x' }, 401)),
+		});
+
+		await expect(store.provision(KITCHEN.id)).rejects.toHaveProperty('err', 'invalid_token');
+	});
+
+	it('reports a player that never answers as unreachable', async () => {
+		const { store } = await paired({ state: () => Promise.reject(new Error('no route')) });
+
+		await expect(store.provision(KITCHEN.id)).rejects.toHaveProperty(
+			'err',
+			PlayerErrors.PLAYER_UNREACHABLE.err,
+		);
+	});
+
+	it('does nothing while nobody is signed in', async () => {
+		const { mints, pushes, store } = await paired({ held: [], userId: '' });
+
+		await store.provision(KITCHEN.id);
+
+		expect(mints).toEqual([]);
+		expect(pushes).toEqual([]);
+	});
+
+	it('does nothing when the store was built without provisioning', async () => {
+		const { pushes, store } = await paired({ held: [], withoutProvisioning: true });
+
+		await store.provision(KITCHEN.id);
+
+		expect(pushes).toEqual([]);
+	});
+
+	it('does nothing for a player it has never paired with', async () => {
+		const { pushes, store } = provisioning({ held: [] });
+
+		await store.provision('unknown');
+
+		expect(pushes).toEqual([]);
 	});
 });
 

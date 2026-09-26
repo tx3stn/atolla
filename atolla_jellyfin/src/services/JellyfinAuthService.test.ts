@@ -557,6 +557,113 @@ describe('authenticateWithQuickConnect', () => {
 	});
 });
 
+describe('mintDeviceToken', () => {
+	const kitchen = {
+		client: 'atolla-headless',
+		deviceId: 'atolla-0123456789abcdef-user-1',
+		deviceName: 'Kitchen',
+	};
+
+	function minted() {
+		return createHTTPClient([
+			jsonResponse(200, { Code: 'ABC123', Secret: 'secret-1' }),
+			jsonResponse(200, true),
+			jsonResponse(200, { AccessToken: 'kitchen-token', ServerId: 's1', User: { Id: 'user-1' } }),
+		]);
+	}
+
+	function service(client: IHTTPClient) {
+		return makeService({ client, clientDeviceId: 'phone-1', clientDeviceName: 'Pixel 9' });
+	}
+
+	it('initiates under the speaker identity, with no token of its own', async () => {
+		const { calls, client } = minted();
+
+		await service(client).mintDeviceToken(kitchen, validSession);
+
+		expect(calls[0].pathOrUrl).toBe('/QuickConnect/Initiate');
+		expect(calls[0].headers?.Authorization).toContain('Client="atolla-headless"');
+		expect(calls[0].headers?.Authorization).toContain('Device="Kitchen"');
+		expect(calls[0].headers?.Authorization).toContain('DeviceId="atolla-0123456789abcdef-user-1"');
+		expect(calls[0].headers?.Authorization).not.toContain('Token=');
+	});
+
+	it('authorizes the code as the signed-in user, under the phone identity', async () => {
+		const { calls, client } = minted();
+
+		await service(client).mintDeviceToken(kitchen, validSession);
+
+		expect(calls[1].pathOrUrl).toBe('/QuickConnect/Authorize?code=ABC123&userId=user-1');
+		expect(calls[1].headers?.Authorization).toContain('Token="token-1"');
+		expect(calls[1].headers?.Authorization).toContain('DeviceId="phone-1"');
+	});
+
+	it('redeems the secret under the speaker identity', async () => {
+		const { calls, client } = minted();
+
+		await service(client).mintDeviceToken(kitchen, validSession);
+
+		expect(calls[2].pathOrUrl).toBe('/Users/AuthenticateWithQuickConnect');
+		expect(calls[2].headers?.Authorization).toContain('Device="Kitchen"');
+	});
+
+	it('returns the token the server minted for the speaker', async () => {
+		const { client } = minted();
+
+		expect(await service(client).mintDeviceToken(kitchen, validSession)).toEqual({
+			accessToken: 'kitchen-token',
+			serverId: 's1',
+			userId: 'user-1',
+		});
+	});
+
+	it('reads a refused initiate as quick connect being switched off', async () => {
+		const { client } = createHTTPClient([jsonResponse(401, {})]);
+
+		await expect(service(client).mintDeviceToken(kitchen, validSession)).rejects.toHaveProperty(
+			'err',
+			JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE.err,
+		);
+	});
+
+	it('reports our own dead session when the authorize leg is rejected', async () => {
+		const { client } = createHTTPClient([
+			jsonResponse(200, { Code: 'ABC123', Secret: 'secret-1' }),
+			jsonResponse(401, {}),
+		]);
+
+		await expect(service(client).mintDeviceToken(kitchen, validSession)).rejects.toHaveProperty(
+			'err',
+			AuthErrors.SESSION_EXPIRED.err,
+		);
+	});
+
+	it('refuses when the server declines to authorize the code', async () => {
+		const { client } = createHTTPClient([
+			jsonResponse(200, { Code: 'ABC123', Secret: 'secret-1' }),
+			jsonResponse(200, false),
+		]);
+
+		await expect(service(client).mintDeviceToken(kitchen, validSession)).rejects.toHaveProperty(
+			'err',
+			JellyfinAuthErrors.DEVICE_TOKEN_REFUSED.err,
+		);
+	});
+
+	it('refuses a token minted against a different account', async () => {
+		const { client } = createHTTPClient([
+			jsonResponse(200, { Code: 'ABC123', Secret: 'secret-1' }),
+			jsonResponse(200, true),
+			jsonResponse(200, { AccessToken: 'kitchen-token', ServerId: 's1', User: { Id: 'user-2' } }),
+		]);
+
+		await expect(service(client).mintDeviceToken(kitchen, validSession)).rejects.toHaveProperty(
+			'err',
+			JellyfinAuthErrors.DEVICE_TOKEN_REFUSED.err,
+		);
+	});
+});
+
 describe('fetchServerDetails', () => {
 	it('returns the server name from /System/Info/Public', async () => {
 		const { calls, client } = createHTTPClient([

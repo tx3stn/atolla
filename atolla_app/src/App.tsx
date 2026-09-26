@@ -1,6 +1,7 @@
 import Strings from 'atolla_app/src/Strings';
 import { DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
 import { applyLanguage } from 'atolla_core/src/Localization';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
@@ -15,6 +16,7 @@ import {
 	PlaylistEditService,
 } from 'atolla_player/src/services/PlaylistEditService';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import type { MediaServer } from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
@@ -37,6 +39,7 @@ import {
 } from './ImageLoaderBootstrap';
 import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
 import { type ConnectionMode, ConnectionModes } from './models/App';
+import type { Player } from './models/Player';
 import {
 	clearAtollaNetworkStatusObserver,
 	getAtollaNetworkStatus,
@@ -53,6 +56,7 @@ import {
 import { isUnauthorizedCacheError } from './services/NativeCacheResult';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
+import { mintPlayerCredential } from './services/PlayerCredential';
 import { PlayerTransport } from './services/PlayerTransport';
 import { syncToastText } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
@@ -133,6 +137,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		controllerId: () => this.sessionManager.getEffectiveDeviceId(),
 		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
 		deviceName: () => this.sessionManager.getEffectiveDeviceName(),
+		provisioning: {
+			mint: (player) => this.playerCredential(player),
+			userId: () => this.sessionManager.getSession()?.userId ?? '',
+		},
 		store: new PersistentStore('atolla/players', { deviceGlobal: true }),
 	});
 	private sessionController = new SessionController();
@@ -584,6 +592,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				store: new InMemoryAuthStore(),
 			});
 		}
+	}
+
+	private playerCredential(player: Player): Promise<MediaServer> {
+		const session = this.sessionManager.getSession();
+		if (session === null) {
+			return Promise.reject(AuthErrors.SESSION_EXPIRED);
+		}
+
+		return mintPlayerCredential(this.authService, player, session);
 	}
 
 	private handleCancelConnect = (): void => {

@@ -166,6 +166,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 								modalSlot={this.viewModel.modalSlot}
 								playersStore={this.viewModel.playersStore}
 								preferences={this.viewModel.preferences}
+								toastService={this.viewModel.toastService}
 							/>
 						</ErrorBoundary>
 					</view>

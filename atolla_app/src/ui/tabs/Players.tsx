@@ -10,6 +10,7 @@ export class PlayersTab extends Component<PlayersTabViewModel> {
 			modalSlot={this.viewModel.modalSlot}
 			playersStore={this.viewModel.playersStore}
 			preferences={this.viewModel.preferences}
+			toastService={this.viewModel.toastService}
 		/>;
 	}
 }

@@ -5,10 +5,13 @@ import {
 	PlayerStates,
 	PlayerTiers,
 } from 'atolla_app/src/models/Player';
+import Strings from 'atolla_app/src/Strings';
+import { ToastService } from 'atolla_app/src/services/ToastService';
 import type { PlayerClientPort } from 'atolla_app/src/stores/Players';
 import { PlayersStore } from 'atolla_app/src/stores/Players';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlayersView } from 'atolla_app/src/ui/views/PlayersView';
+import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { untilRenderComplete } from 'foundation/test/util/untilRenderComplete';
@@ -24,6 +27,7 @@ import { editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
 interface PlayersViewHostViewModel {
 	playersStore: PlayersStore;
 	preferences: Preferences;
+	toastService: ToastService;
 }
 
 class PlayersViewHost extends Component<PlayersViewHostViewModel> {
@@ -36,11 +40,15 @@ class PlayersViewHost extends Component<PlayersViewHostViewModel> {
 				modalSlot={this.slot}
 				playersStore={this.viewModel.playersStore}
 				preferences={this.viewModel.preferences}
+				toastService={this.viewModel.toastService}
 			/>
 			<DetachedSlotRenderer detachedSlot={this.slot} />
 		</view>;
 	}
 }
+
+const KITCHEN = { baseUrl: 'http://192.168.1.42:45889', id: 'a', name: 'Kitchen' };
+const STUDY = { baseUrl: 'http://192.168.1.51:45889', id: 'b', name: 'Study' };
 
 describe('PlayersView', () => {
 	valdiIt('offers this phone and nothing else before anything is paired', async (driver) => {
@@ -142,12 +150,24 @@ describe('PlayersView', () => {
 						},
 						status: 200,
 					}) as ReturnType<PlayerClientPort['hello']>,
+				mediaServer: () =>
+					Promise.resolve<PlayerAnswer<unknown>>({
+						headers: {},
+						json: { version: 2 },
+						status: 200,
+					}) as ReturnType<PlayerClientPort['mediaServer']>,
 				pair: () =>
 					Promise.resolve({
 						headers: {},
 						json: { token: 'a'.repeat(64) },
 						status: 200,
 					}) as ReturnType<PlayerClientPort['pair']>,
+				state: () =>
+					Promise.resolve<PlayerAnswer<unknown>>({
+						headers: {},
+						json: { sourceHealth: { mediaServerUsers: [] } },
+						status: 200,
+					}) as ReturnType<PlayerClientPort['state']>,
 			}),
 			seed: [],
 		});
@@ -167,6 +187,56 @@ describe('PlayersView', () => {
 			'0123456789abcdef',
 		]);
 		expect(accessibilityIds(component)).not.toContain('add-player-modal');
+	});
+
+	valdiIt('says so when a player already serves another media server', async (driver) => {
+		const { shown, toastService } = recordToasts();
+		const { store } = provisioningStore({ push: 409 });
+		await store.pair(KITCHEN, '12345678');
+
+		await settle(render(driver, store, makePreferences(), toastService));
+
+		expect(shown).toEqual([Strings.playersProvisionOtherServer('Kitchen')]);
+	});
+
+	valdiIt('stays quiet when a player cannot be reached', async (driver) => {
+		const { shown, toastService } = recordToasts();
+		const { store } = provisioningStore({ unreachable: true });
+		await store.pair(KITCHEN, '12345678');
+
+		await settle(render(driver, store, makePreferences(), toastService));
+
+		expect(shown).toEqual([]);
+	});
+
+	valdiIt('interrupts once however many players are refused', async (driver) => {
+		const { shown, toastService } = recordToasts();
+		const { store } = provisioningStore({ push: 409 });
+		await store.pair(KITCHEN, '12345678');
+		await store.pair(STUDY, '12345678');
+
+		await settle(render(driver, store, makePreferences(), toastService));
+
+		expect(shown.length).toBe(1);
+	});
+
+	valdiIt('keeps going through the rest after one player is refused', async (driver) => {
+		const { asked, store } = provisioningStore({ push: 409 });
+		await store.pair(KITCHEN, '12345678');
+		await store.pair(STUDY, '12345678');
+
+		await settle(render(driver, store));
+
+		expect(asked).toEqual([KITCHEN.baseUrl, STUDY.baseUrl]);
+	});
+
+	valdiIt('never asks this phone whether it holds a credential', async (driver) => {
+		const { asked, store } = provisioningStore({});
+		await store.pair(KITCHEN, '12345678');
+
+		await settle(render(driver, store));
+
+		expect(asked).toEqual([KITCHEN.baseUrl]);
 	});
 
 	valdiIt('moves a player through the store when a card is dropped', async (driver) => {
@@ -398,6 +468,74 @@ function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 	};
 }
 
+function provisioningStore(options: { push?: number; unreachable?: boolean }) {
+	const asked: Array<string> = [];
+
+	const store = new PlayersStore({
+		createClient: (baseUrl) => ({
+			hello: () => {
+				throw new Error('provisioning does not greet the player');
+			},
+			mediaServer: () =>
+				Promise.resolve<PlayerAnswer<unknown>>({
+					headers: {},
+					json:
+						options.push === undefined
+							? { version: 2 }
+							: { code: 'media_server_id_mismatch', status: options.push, title: 'x' },
+					status: options.push ?? 200,
+				}) as ReturnType<PlayerClientPort['mediaServer']>,
+			pair: () =>
+				Promise.resolve({
+					headers: {},
+					json: { token: 'a'.repeat(64) },
+					status: 200,
+				}) as ReturnType<PlayerClientPort['pair']>,
+			state: () => {
+				asked.push(baseUrl);
+
+				return (
+					options.unreachable
+						? Promise.reject(new Error('no route'))
+						: Promise.resolve<PlayerAnswer<unknown>>({
+								headers: {},
+								json: { sourceHealth: { mediaServerUsers: [] } },
+								status: 200,
+							})
+				) as ReturnType<PlayerClientPort['state']>;
+			},
+		}),
+		provisioning: {
+			mint: (player) =>
+				Promise.resolve({
+					accessToken: 'player-token',
+					baseUrl: 'https://demo.jellyfin.local',
+					deviceId: `atolla-${player.id}-user-1`,
+					serverId: 'server-1',
+					userId: 'user-1',
+				}),
+			userId: () => 'user-1',
+		},
+		seed: [],
+	});
+
+	return { asked, store };
+}
+
+function recordToasts() {
+	const toastService = new ToastService();
+	const shown: Array<string> = [];
+
+	toastService.subscribe(() => {
+		const message = toastService.getCurrent()?.model.message;
+		if (message !== undefined) {
+			shown.push(message);
+		}
+	});
+
+	return { shown, toastService };
+}
+
 function makePreferences(): Preferences {
 	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
 }
@@ -406,10 +544,11 @@ function render(
 	driver: IComponentTestDriver,
 	playersStore: PlayersStore,
 	preferences: Preferences = makePreferences(),
+	toastService: ToastService = new ToastService(),
 ) {
 	return driver.renderComponent(
 		PlayersView,
-		{ language: 'en', modalSlot: new DetachedSlot(), playersStore, preferences },
+		{ language: 'en', modalSlot: new DetachedSlot(), playersStore, preferences, toastService },
 		undefined,
 	);
 }
@@ -419,5 +558,9 @@ function renderWithModals(
 	playersStore: PlayersStore,
 	preferences: Preferences = makePreferences(),
 ) {
-	return driver.renderComponent(PlayersViewHost, { playersStore, preferences }, undefined);
+	return driver.renderComponent(
+		PlayersViewHost,
+		{ playersStore, preferences, toastService: new ToastService() },
+		undefined,
+	);
 }

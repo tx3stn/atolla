@@ -1,5 +1,6 @@
 import Strings from 'atolla_app/src/Strings';
 import type { LanguageCode } from 'atolla_core/src/Language';
+import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
@@ -8,6 +9,7 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ContentSizeChangeEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Player, ProbedPlayer } from '../../models/Player';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { PlayersStore } from '../../stores/Players';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -25,6 +27,7 @@ export interface PlayersViewModel {
 	modalSlot: DetachedSlot;
 	playersStore: PlayersStore;
 	preferences: Preferences;
+	toastService: ToastService;
 }
 
 interface PlayersViewState {
@@ -33,13 +36,18 @@ interface PlayersViewState {
 
 export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersViewState> {
 	state: PlayersViewState = { revision: 0 };
+	private destroyed = false;
 	private forgetTarget: Player | null = null;
 	private readonly scrollRef = new ElementRef<ScrollView>();
 	private readonly dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.playersStore.subscribe(this.bump));
-		void this.viewModel.playersStore.ensureLoaded();
+		void this.provisionPaired();
+	}
+
+	onDestroy(): void {
+		this.destroyed = true;
 	}
 
 	onRender(): void {
@@ -126,6 +134,14 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 		</layout>;
 	}
 
+	private announce = (failure: string | null): void => {
+		if (failure === null || this.destroyed) {
+			return;
+		}
+
+		this.viewModel.toastService.show({ message: failure, variant: ToastTypes.error });
+	};
+
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
 	};
@@ -191,7 +207,11 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 	};
 
 	private handlePair = (player: ProbedPlayer, code: string): Promise<Player> =>
-		this.viewModel.playersStore.pair(player, code);
+		this.viewModel.playersStore.pair(player, code).then((paired) => {
+			void this.provision(paired).then(this.announce);
+
+			return paired;
+		});
 
 	private handleProbe = (address: string): Promise<ProbedPlayer> =>
 		this.viewModel.playersStore.probe(address);
@@ -199,6 +219,37 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 	private handleScroll = (event: ScrollEvent): void => {
 		this.dragAutoScroller.setOffset(event.y);
 	};
+
+	private async provision(player: Player): Promise<string | null> {
+		try {
+			await this.viewModel.playersStore.provision(player.id);
+
+			return null;
+		} catch (error) {
+			return provisionMessage(error, player.name);
+		}
+	}
+
+	private async provisionPaired(): Promise<void> {
+		await this.viewModel.playersStore.ensureLoaded();
+
+		const paired = this.viewModel.playersStore
+			.sections()
+			.flatMap((section) => section.players)
+			.filter((player) => !player.isThisDevice);
+
+		let failure: string | null = null;
+		for (const player of paired) {
+			if (this.destroyed) {
+				return;
+			}
+
+			const message = await this.provision(player);
+			failure ??= message;
+		}
+
+		this.announce(failure);
+	}
 
 	private handleAddTap = (): void => {
 		openSlot(this.viewModel.modalSlot, () => {
@@ -210,6 +261,25 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 			/>;
 		});
 	};
+}
+
+function provisionMessage(error: unknown, name: string): string | null {
+	if (!isErrorConst(error)) {
+		return null;
+	}
+
+	switch (error.err) {
+		case 'auth_quick_connect_not_available':
+			return Strings.playersProvisionQuickConnectOff();
+		case 'invalid_token':
+			return Strings.playersProvisionNeedsPairing(name);
+		case 'media_server_id_mismatch':
+			return Strings.playersProvisionOtherServer(name);
+		case 'media_server_user_mismatch':
+			return Strings.playersProvisionRefused(name);
+		default:
+			return null;
+	}
 }
 
 function reorderable(players: Array<Player>): Array<Player> {

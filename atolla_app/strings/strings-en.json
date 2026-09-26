@@ -299,6 +299,21 @@
 	"players_forget_title": {
 		"defaultMessage": "FORGET PLAYER?"
 	},
+	"players_provision_needs_pairing": {
+		"defaultMessage": "{name%s} needs pairing again",
+		"example": "kitchen needs pairing again"
+	},
+	"players_provision_other_server": {
+		"defaultMessage": "{name%s} is already using another media server",
+		"example": "kitchen is already using another media server"
+	},
+	"players_provision_quick_connect_off": {
+		"defaultMessage": "turn on quick connect to give players access"
+	},
+	"players_provision_refused": {
+		"defaultMessage": "{name%s} couldn't get access to your library",
+		"example": "kitchen couldn't get access to your library"
+	},
 	"players_status_connected": {
 		"defaultMessage": "connected"
 	},

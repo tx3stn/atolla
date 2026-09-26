@@ -299,6 +299,21 @@
 	"players_forget_title": {
 		"defaultMessage": "OUBLIER LE LECTEUR ?"
 	},
+	"players_provision_needs_pairing": {
+		"defaultMessage": "{name%s} doit être associé à nouveau",
+		"example": "cuisine doit être associé à nouveau"
+	},
+	"players_provision_other_server": {
+		"defaultMessage": "{name%s} utilise déjà un autre serveur multimédia",
+		"example": "cuisine utilise déjà un autre serveur multimédia"
+	},
+	"players_provision_quick_connect_off": {
+		"defaultMessage": "activez quick connect pour donner accès aux lecteurs"
+	},
+	"players_provision_refused": {
+		"defaultMessage": "{name%s} n'a pas pu accéder à votre bibliothèque",
+		"example": "cuisine n'a pas pu accéder à votre bibliothèque"
+	},
 	"players_status_connected": {
 		"defaultMessage": "connecté"
 	},

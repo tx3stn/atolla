@@ -214,6 +214,7 @@ function generate(): void {
 		Code: 'ATOLLA-1234',
 		Secret: 'atolla-mock-secret',
 	});
+	fixture('auth-authorize', post('/QuickConnect/Authorize'), true);
 	fixture('auth-connect', get('/QuickConnect/Connect'), {
 		Authenticated: true,
 		Code: 'ATOLLA-1234',

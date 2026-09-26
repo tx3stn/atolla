@@ -1,6 +1,7 @@
 import { type ErrorType, InternalError } from 'atolla_core/src/utils/Errors';
 
 export const JellyfinAuthErrors = {
+	DEVICE_TOKEN_REFUSED: new InternalError('auth_device_token_refused'),
 	NOT_A_JELLYFIN_SERVER: new InternalError('auth_not_a_jellyfin_server'),
 	QUICK_CONNECT_NOT_AVAILABLE: new InternalError('auth_quick_connect_not_available'),
 	QUICK_CONNECT_TIMED_OUT: new InternalError('auth_quick_connect_timed_out'),
