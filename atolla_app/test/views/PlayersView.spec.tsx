@@ -10,7 +10,7 @@ import { ToastService } from 'atolla_app/src/services/ToastService';
 import type { PlayerClientPort } from 'atolla_app/src/stores/Players';
 import { PlayersStore } from 'atolla_app/src/stores/Players';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
-import { PlayersView } from 'atolla_app/src/ui/views/PlayersView';
+import { PlayersView, type PlayersViewModel } from 'atolla_app/src/ui/views/PlayersView';
 import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -21,7 +21,7 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import type { IComponentTestDriver } from 'valdi_test/test/JSXTestUtils';
-import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
 
 interface PlayersViewHostViewModel {
@@ -36,6 +36,7 @@ class PlayersViewHost extends Component<PlayersViewHostViewModel> {
 	onRender(): void {
 		<view>
 			<PlayersView
+				active={true}
 				language='en'
 				modalSlot={this.slot}
 				playersStore={this.viewModel.playersStore}
@@ -218,6 +219,41 @@ describe('PlayersView', () => {
 		await settle(render(driver, store, makePreferences(), toastService));
 
 		expect(shown.length).toBe(1);
+	});
+
+	// The shell hides inactive tabs with style rather than unmounting them, so onCreate fires once
+	// per launch and cannot be the trigger on its own.
+	valdiIt('provisions when the tab becomes the active one', async () => {
+		const { asked, store } = provisioningStore({});
+		await store.pair(KITCHEN, '12345678');
+		const instrumented = InstrumentedComponentJSX.create(
+			PlayersView,
+			playersViewModel(store, { active: false }),
+			undefined,
+		);
+		await settle(instrumented.getComponent());
+		expect(asked).toEqual([]);
+
+		instrumented.setViewModel(playersViewModel(store, { active: true }));
+		await settle(instrumented.getComponent());
+
+		expect(asked).toEqual([KITCHEN.baseUrl]);
+	});
+
+	valdiIt('does not provision again while the tab stays active', async () => {
+		const { asked, store } = provisioningStore({});
+		await store.pair(KITCHEN, '12345678');
+		const instrumented = InstrumentedComponentJSX.create(
+			PlayersView,
+			playersViewModel(store, { active: true }),
+			undefined,
+		);
+		await settle(instrumented.getComponent());
+
+		instrumented.setViewModel(playersViewModel(store, { active: true }));
+		await settle(instrumented.getComponent());
+
+		expect(asked).toEqual([KITCHEN.baseUrl]);
 	});
 
 	valdiIt('keeps going through the rest after one player is refused', async (driver) => {
@@ -540,6 +576,21 @@ function makePreferences(): Preferences {
 	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
 }
 
+function playersViewModel(
+	playersStore: PlayersStore,
+	overrides: Partial<PlayersViewModel> = {},
+): PlayersViewModel {
+	return {
+		active: true,
+		language: 'en',
+		modalSlot: new DetachedSlot(),
+		playersStore,
+		preferences: makePreferences(),
+		toastService: new ToastService(),
+		...overrides,
+	};
+}
+
 function render(
 	driver: IComponentTestDriver,
 	playersStore: PlayersStore,
@@ -548,7 +599,7 @@ function render(
 ) {
 	return driver.renderComponent(
 		PlayersView,
-		{ language: 'en', modalSlot: new DetachedSlot(), playersStore, preferences, toastService },
+		playersViewModel(playersStore, { preferences, toastService }),
 		undefined,
 	);
 }

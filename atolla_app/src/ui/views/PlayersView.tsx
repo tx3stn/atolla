@@ -23,6 +23,7 @@ import { AddPlayerModal } from '../modals/AddPlayerModal';
 import { Modal } from '../modals/Modal';
 
 export interface PlayersViewModel {
+	active: boolean;
 	language: LanguageCode;
 	modalSlot: DetachedSlot;
 	playersStore: PlayersStore;
@@ -43,11 +44,19 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.playersStore.subscribe(this.bump));
-		void this.provisionPaired();
+		if (this.viewModel.active) {
+			void this.provisionPaired();
+		}
 	}
 
 	onDestroy(): void {
 		this.destroyed = true;
+	}
+
+	onViewModelUpdate(prevViewModel?: PlayersViewModel): void {
+		if (prevViewModel !== undefined && this.viewModel.active && !prevViewModel.active) {
+			void this.provisionPaired();
+		}
 	}
 
 	onRender(): void {

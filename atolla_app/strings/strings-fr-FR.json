@@ -462,7 +462,7 @@
 		"defaultMessage": "uniquement en wi-fi"
 	},
 	"settings_http_warning": {
-		"defaultMessage": "connecté via HTTP — les identifiants sont envoyés sans chiffrement"
+		"defaultMessage": "connecté via HTTP\nles identifiants sont envoyés sans chiffrement"
 	},
 	"settings_image_cache_size": {
 		"defaultMessage": "taille du cache d'images"

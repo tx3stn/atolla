@@ -162,6 +162,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 					<view style={this.tabStyle(FooterTabs.players)}>
 						<ErrorBoundary resetKey='players'>
 							<PlayersTab
+								active={appShellStore.activeFooterTab === FooterTabs.players}
 								language={this.viewModel.preferences.language}
 								modalSlot={this.viewModel.modalSlot}
 								playersStore={this.viewModel.playersStore}

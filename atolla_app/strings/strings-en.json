@@ -462,7 +462,7 @@
 		"defaultMessage": "only on wi-fi"
 	},
 	"settings_http_warning": {
-		"defaultMessage": "connected via HTTP — credentials are sent unencrypted"
+		"defaultMessage": "connected via HTTP\ncredentials are sent unencrypted"
 	},
 	"settings_image_cache_size": {
 		"defaultMessage": "image cache max"
