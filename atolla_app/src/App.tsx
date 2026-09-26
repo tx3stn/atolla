@@ -142,7 +142,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			mint: (player) => this.playerCredential(player),
 			userId: () => this.sessionManager.getSession()?.userId ?? '',
 		},
-		store: new PersistentStore('atolla/players', { deviceGlobal: true }),
+		store: new PersistentStore('atolla/players', {
+			deviceGlobal: true,
+			enableEncryption: true,
+		}),
 	});
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
