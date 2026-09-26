@@ -286,6 +286,8 @@ function provisionMessage(error: unknown, name: string): string | null {
 			return Strings.playersProvisionOtherServer(name);
 		case 'media_server_user_mismatch':
 			return Strings.playersProvisionRefused(name);
+		case 'not_the_paired_player':
+			return Strings.playersProvisionMoved(name);
 		default:
 			return null;
 	}

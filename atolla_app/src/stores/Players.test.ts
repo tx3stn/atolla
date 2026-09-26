@@ -15,6 +15,7 @@ import {
 	PlayerTiers,
 	type ProbedPlayer,
 } from '../models/Player';
+import type { NetworkTransport } from '../services/NetworkStatus';
 import { PlayerErrors } from '../services/PlayerErrors';
 import { PLAYERS_KEY, PLAYERS_ORDER_KEY, type PlayerClientPort, PlayersStore } from './Players';
 
@@ -152,18 +153,6 @@ describe('PlayersStore pair', () => {
 });
 
 describe('PlayersStore probe', () => {
-	function hello(overrides: Partial<Hello> = {}): Hello {
-		return {
-			apiVersions: [1],
-			id: '0123456789abcdef',
-			name: 'Kitchen',
-			tier: 'tight',
-			v: 1,
-			version: '0.1.0',
-			...overrides,
-		};
-	}
-
 	function probing(answer: () => Promise<PlayerAnswer<unknown>>) {
 		const asked: Array<string> = [];
 
@@ -609,8 +598,10 @@ describe('PlayersStore provision', () => {
 	};
 
 	interface Options {
+		greeting?: () => Promise<PlayerAnswer<unknown>>;
 		held?: Array<string>;
 		mint?: () => Promise<MediaServer>;
+		networkTransport?: NetworkTransport;
 		push?: PlayerAnswer<unknown>;
 		state?: () => Promise<PlayerAnswer<unknown>>;
 		userId?: string;
@@ -622,14 +613,19 @@ describe('PlayersStore provision', () => {
 	}
 
 	function provisioning(options: Options = {}) {
+		const greetings: Array<string> = [];
 		const mints: Array<Player> = [];
 		const pushes: Array<{ body: MediaServer; token: string }> = [];
+		const reads: Array<string> = [];
 
 		const store = new PlayersStore({
 			controllerId: () => 'atolla-phone-1',
-			createClient: () => ({
+			createClient: (baseUrl: string) => ({
 				hello: () => {
-					throw new Error('provisioning does not greet the player');
+					greetings.push(baseUrl);
+					return (options.greeting?.() ?? Promise.resolve(answer(hello()))) as ReturnType<
+						PlayerClientPort['hello']
+					>;
 				},
 				mediaServer: (token: string, body: MediaServer) => {
 					pushes.push({ body, token });
@@ -641,13 +637,16 @@ describe('PlayersStore provision', () => {
 					Promise.resolve(answer({ token: 'a'.repeat(64) })) as ReturnType<
 						PlayerClientPort['pair']
 					>,
-				state: () =>
-					(options.state?.() ??
+				state: (token: string) => {
+					reads.push(token);
+					return (options.state?.() ??
 						Promise.resolve(
 							answer({ sourceHealth: { mediaServerUsers: options.held ?? [] } }),
-						)) as ReturnType<PlayerClientPort['state']>,
+						)) as ReturnType<PlayerClientPort['state']>;
+				},
 			}),
 			deviceName: () => 'Pixel 9 Pro',
+			networkTransport: () => options.networkTransport ?? 'none',
 			provisioning: options.withoutProvisioning
 				? undefined
 				: {
@@ -659,7 +658,7 @@ describe('PlayersStore provision', () => {
 					},
 		});
 
-		return { mints, pushes, store };
+		return { greetings, mints, pushes, reads, store };
 	}
 
 	async function paired(options: Options = {}) {
@@ -754,7 +753,79 @@ describe('PlayersStore provision', () => {
 
 		expect(pushes).toEqual([]);
 	});
+
+	it('sends nothing to a player that is not the one we paired with', async () => {
+		const { mints, pushes, reads, store } = await paired({
+			greeting: () => Promise.resolve(answer(hello({ id: 'ffffffffffffffff' }))),
+		});
+
+		await expect(store.provision(KITCHEN.id)).rejects.toHaveProperty(
+			'err',
+			PlayerErrors.NOT_THE_PAIRED_PLAYER.err,
+		);
+		expect(reads).toEqual([]);
+		expect(mints).toEqual([]);
+		expect(pushes).toEqual([]);
+	});
+
+	it('greets a player before it sends the pairing token', async () => {
+		const { greetings, reads, store } = await paired({ held: [] });
+
+		await store.provision(KITCHEN.id);
+
+		expect(greetings).toEqual([KITCHEN.baseUrl]);
+		expect(reads).toEqual(['a'.repeat(64)]);
+	});
+
+	it('reports a player whose greeting never answers as unreachable', async () => {
+		const { reads, store } = await paired({
+			greeting: () => Promise.reject(new Error('no route')),
+		});
+
+		await expect(store.provision(KITCHEN.id)).rejects.toHaveProperty(
+			'err',
+			PlayerErrors.PLAYER_UNREACHABLE.err,
+		);
+		expect(reads).toEqual([]);
+	});
+
+	it('does not reach for a player on mobile data', async () => {
+		const { greetings, pushes, store } = await paired({ held: [], networkTransport: 'cellular' });
+
+		await store.provision(KITCHEN.id);
+
+		expect(greetings).toEqual([]);
+		expect(pushes).toEqual([]);
+	});
+
+	it('provisions over wifi', async () => {
+		const { pushes, store } = await paired({ held: [], networkTransport: 'wifi' });
+
+		await store.provision(KITCHEN.id);
+
+		expect(pushes.length).toBe(1);
+	});
+
+	it('provisions when nothing reports a transport at all', async () => {
+		const { pushes, store } = await paired({ held: [], networkTransport: 'none' });
+
+		await store.provision(KITCHEN.id);
+
+		expect(pushes.length).toBe(1);
+	});
 });
+
+function hello(overrides: Partial<Hello> = {}): Hello {
+	return {
+		apiVersions: [1],
+		id: '0123456789abcdef',
+		name: 'Kitchen',
+		tier: 'tight',
+		v: 1,
+		version: '0.1.0',
+		...overrides,
+	};
+}
 
 function ids(store: PlayersStore): Array<string> {
 	return store.sections().flatMap((section) => section.players.map((player) => player.id));

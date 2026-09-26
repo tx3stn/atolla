@@ -299,6 +299,10 @@
 	"players_forget_title": {
 		"defaultMessage": "OUBLIER LE LECTEUR ?"
 	},
+	"players_provision_moved": {
+		"defaultMessage": "{name%s} n'est plus à cette adresse",
+		"example": "cuisine n'est plus à cette adresse"
+	},
 	"players_provision_needs_pairing": {
 		"defaultMessage": "{name%s} doit être associé à nouveau",
 		"example": "cuisine doit être associé à nouveau"

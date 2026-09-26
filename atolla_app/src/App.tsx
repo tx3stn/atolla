@@ -137,6 +137,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		controllerId: () => this.sessionManager.getEffectiveDeviceId(),
 		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
 		deviceName: () => this.sessionManager.getEffectiveDeviceName(),
+		networkTransport: () => this.networkStatus.getTransport(),
 		provisioning: {
 			mint: (player) => this.playerCredential(player),
 			userId: () => this.sessionManager.getSession()?.userId ?? '',

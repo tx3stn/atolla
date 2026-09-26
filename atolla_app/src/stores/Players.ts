@@ -16,6 +16,7 @@ import {
 	PlayerTiers,
 	type ProbedPlayer,
 } from '../models/Player';
+import type { NetworkTransport } from '../services/NetworkStatus';
 import { normalizeAddress } from '../services/PlayerAddress';
 import { PlayerErrors } from '../services/PlayerErrors';
 
@@ -56,6 +57,7 @@ export interface PlayersStoreOptions {
 	controllerId?: () => string;
 	createClient?: CreatePlayerClient;
 	deviceName?: () => string;
+	networkTransport?: () => NetworkTransport;
 	provisioning?: MediaServerProvisioning;
 	seed?: Array<Player>;
 	store?: KeyValueStore;
@@ -91,6 +93,7 @@ export class PlayersStore {
 	private readonly controllerId: () => string;
 	private readonly createClient: CreatePlayerClient | undefined;
 	private readonly deviceName: () => string;
+	private readonly networkTransport: () => NetworkTransport;
 	private readonly provisioning: MediaServerProvisioning | undefined;
 	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
@@ -100,6 +103,7 @@ export class PlayersStore {
 		this.controllerId = options.controllerId ?? (() => 'atolla');
 		this.createClient = options.createClient;
 		this.deviceName = options.deviceName ?? (() => '');
+		this.networkTransport = options.networkTransport ?? (() => 'none');
 		this.players = [...(options.seed ?? [])];
 		this.provisioning = options.provisioning;
 		this.store = options.store ?? new InMemoryKeyValueStore();
@@ -167,7 +171,8 @@ export class PlayersStore {
 			createClient === undefined ||
 			player === undefined ||
 			player.baseUrl === null ||
-			token === undefined
+			token === undefined ||
+			this.networkTransport() === 'cellular'
 		) {
 			return;
 		}
@@ -178,6 +183,13 @@ export class PlayersStore {
 		}
 
 		const client = createClient(player.baseUrl);
+
+		const greeting = await Promise.resolve(client.hello()).catch(() => {
+			throw PlayerErrors.PLAYER_UNREACHABLE;
+		});
+		if (greeting.status !== 200 || (greeting.json as Partial<Hello>).id !== player.id) {
+			throw PlayerErrors.NOT_THE_PAIRED_PLAYER;
+		}
 
 		const snapshot = await Promise.resolve(client.state(token)).catch(() => {
 			throw PlayerErrors.PLAYER_UNREACHABLE;

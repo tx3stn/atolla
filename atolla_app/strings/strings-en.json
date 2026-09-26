@@ -299,6 +299,10 @@
 	"players_forget_title": {
 		"defaultMessage": "FORGET PLAYER?"
 	},
+	"players_provision_moved": {
+		"defaultMessage": "{name%s} is no longer at that address",
+		"example": "kitchen is no longer at that address"
+	},
 	"players_provision_needs_pairing": {
 		"defaultMessage": "{name%s} needs pairing again",
 		"example": "kitchen needs pairing again"

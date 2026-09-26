@@ -50,6 +50,7 @@ class PlayersViewHost extends Component<PlayersViewHostViewModel> {
 
 const KITCHEN = { baseUrl: 'http://192.168.1.42:45889', id: 'a', name: 'Kitchen' };
 const STUDY = { baseUrl: 'http://192.168.1.51:45889', id: 'b', name: 'Study' };
+const PAIRABLE = [KITCHEN, STUDY];
 
 describe('PlayersView', () => {
 	valdiIt('offers this phone and nothing else before anything is paired', async (driver) => {
@@ -198,6 +199,17 @@ describe('PlayersView', () => {
 		await settle(render(driver, store, makePreferences(), toastService));
 
 		expect(shown).toEqual([Strings.playersProvisionOtherServer('Kitchen')]);
+	});
+
+	valdiIt('says so when a player is no longer at that address', async (driver) => {
+		const { shown, toastService } = recordToasts();
+		const { asked, store } = provisioningStore({ moved: true });
+		await store.pair(KITCHEN, '12345678');
+
+		await settle(render(driver, store, makePreferences(), toastService));
+
+		expect(shown).toEqual([Strings.playersProvisionMoved('Kitchen')]);
+		expect(asked).toEqual([]);
 	});
 
 	valdiIt('stays quiet when a player cannot be reached', async (driver) => {
@@ -504,13 +516,26 @@ function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 	};
 }
 
-function provisioningStore(options: { push?: number; unreachable?: boolean }) {
+function provisioningStore(options: { moved?: boolean; push?: number; unreachable?: boolean }) {
 	const asked: Array<string> = [];
 
 	const store = new PlayersStore({
 		createClient: (baseUrl) => ({
 			hello: () => {
-				throw new Error('provisioning does not greet the player');
+				const player = PAIRABLE.find((candidate) => candidate.baseUrl === baseUrl);
+
+				return Promise.resolve<PlayerAnswer<unknown>>({
+					headers: {},
+					json: {
+						apiVersions: [1],
+						id: options.moved ? 'somebody-else' : (player?.id ?? ''),
+						name: player?.name ?? '',
+						tier: 'tight',
+						v: 1,
+						version: '0.1.0',
+					},
+					status: 200,
+				}) as ReturnType<PlayerClientPort['hello']>;
 			},
 			mediaServer: () =>
 				Promise.resolve<PlayerAnswer<unknown>>({
