@@ -42,7 +42,7 @@
 ### player
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/bad2dae2-e427-48b9-a838-783fc062f1aa" alt="player and play queue" width="720" />
+ <img src="https://github.com/user-attachments/assets/b4dde04c-8928-4b7b-8a47-527804ece50d" alt="player and play queue" width="720" />
 </p>
 
 * color palettes generated from album art.
@@ -52,7 +52,7 @@
 ### home tab
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/3d4051cd-b033-4c36-a55b-d43f8c41f469" alt="home tab" width="720" />
+ <img src="https://github.com/user-attachments/assets/084249f2-d93d-4d44-ba4f-58947daa71a3" alt="home tab" width="720" />
 </p>
 
 * albums released on this day
@@ -63,7 +63,7 @@
 ### artist view
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/e779748a-17df-4453-85b0-275897656f59" alt="artist view" width="720" />
+ <img src="https://github.com/user-attachments/assets/9c77fff8-a9ba-4f74-946d-33a863128eba" alt="artist view" width="720" />
 </p>
 
 * artist most played tracks
@@ -73,13 +73,16 @@
 ### library
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/9a4cc163-c2bf-489a-8112-721555def5d9" alt="library" width="720" />
+ <img src="https://github.com/user-attachments/assets/6ade9217-c821-4775-b477-ebd369dab54b" alt="library" width="720" />
 </p>
+
+* genre playlists that work online and offline
+* genre tags on artists and albums online and offline
 
 ### album
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/ad43454b-97d3-4e68-a59c-8f7ecc0fda2a" alt="album" width="720" />
+ <img src="https://github.com/user-attachments/assets/7c9da4a5-6e4b-40fd-81d2-31df26f9d250" alt="album" width="720" />
 </p>
 
 * audio file quality badges on albums
@@ -89,12 +92,11 @@
 ### search & settings
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/cc37cd58-fcef-4181-86ae-84d1b3cf191b" alt="search and settings" width="720" />
+ <img src="https://github.com/user-attachments/assets/de4b9b35-5e76-43f6-ba23-d163ea2c8ebb" alt="search and settings" width="720" />
 </p>
 
 * search that works online and offline
-* genre playlists that work online and offline
-* genre tags on artists and albums online and offline
+* caching and download config
 
 ## Installing
 
