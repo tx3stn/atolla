@@ -127,6 +127,8 @@ export class CardGrid extends Component<CardGridViewModel> {
 									)}
 								</view>
 								<label
+									accessibilityId={`grid-card-title-${entry.id}`}
+									accessibilityLabel={`grid-card-title-${entry.id}`}
 									numberOfLines={entry.icon ? 2 : 1}
 									style={entry.icon ? styles.cardTitleIcon : styles.cardTitle}
 									value={entry.primaryText}

@@ -107,7 +107,15 @@ function resolveAppPath(appPath: string | undefined): string | undefined {
 	}
 }
 
-function buildCapability(cfg: DeviceConfig, appPath: string | undefined) {
+interface CapabilityOptions {
+	noReset?: boolean;
+}
+
+function buildCapability(
+	cfg: DeviceConfig,
+	appPath: string | undefined,
+	options: CapabilityOptions = {},
+) {
 	const resolvedPath = resolveAppPath(appPath);
 	return {
 		...(resolvedPath && { 'appium:app': resolvedPath }),
@@ -127,7 +135,7 @@ function buildCapability(cfg: DeviceConfig, appPath: string | undefined) {
 		...(!resolvedPath && cfg.bundleId && { 'appium:bundleId': cfg.bundleId }),
 		'appium:fullReset': false,
 		'appium:newCommandTimeout': cfg.newCommandTimeout,
-		'appium:noReset': false,
+		'appium:noReset': options.noReset ?? false,
 		...(cfg.systemPort && { 'appium:systemPort': cfg.systemPort }),
 		...(cfg.udid && { 'appium:udid': cfg.udid }),
 		...(cfg.wdaLocalPort && { 'appium:wdaLocalPort': cfg.wdaLocalPort }),
@@ -136,6 +144,10 @@ function buildCapability(cfg: DeviceConfig, appPath: string | undefined) {
 
 export function getCapabilities(device: Platform) {
 	return [buildCapability(getDeviceConfig(device), process.env.E2E_APP_PATH)];
+}
+
+export function getAttachedCapabilities(device: Platform) {
+	return [buildCapability(getDeviceConfig(device), undefined, { noReset: true })];
 }
 
 export function getAndroidCapabilities() {

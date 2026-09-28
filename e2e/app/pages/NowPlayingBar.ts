@@ -52,10 +52,14 @@ export class NowPlayingBar extends BasePage {
 
 	// requires the expanded surface open; the progress bar usually scrolls off the top by now, so reveal it first
 	async seekToNearEnd(): Promise<void> {
+		await this.seekToRatio(0.92);
+	}
+
+	async seekToRatio(ratio: number): Promise<void> {
 		const el = this.elementByID(await this.revealProgressBar());
 		const location = await el.getLocation();
 		const size = await el.getSize();
-		const x = Math.floor(location.x + size.width * 0.92);
+		const x = Math.floor(location.x + size.width * ratio);
 		const y = Math.floor(location.y + size.height * 0.5);
 		await this.driver.performActions([
 			{
@@ -65,7 +69,7 @@ export class NowPlayingBar extends BasePage {
 					{ duration: 50, type: 'pause' },
 					{ button: 0, type: 'pointerUp' },
 				],
-				id: 'seek-near-end-finger',
+				id: 'seek-finger',
 				parameters: { pointerType: 'touch' },
 				type: 'pointer',
 			},
@@ -496,12 +500,17 @@ export class NowPlayingBar extends BasePage {
 		// scroll back to top so the artwork drag zone is under the collapse swipe
 		await this.swipeVertical('scroll-to-top', 0.28, 0.78);
 
+		// check before each swipe, not after: the scroll-to-top drag above can collapse the surface
+		// on its own, and a further downward swipe then lands on the view behind it as a pull to
+		// refresh, which reloads whatever screen the caller is about to look at
 		for (let attempt = 0; attempt < 5; attempt += 1) {
-			await this.swipeVertical(`collapse-${attempt}`, 0.12, 0.45, 50, 250);
 			if (!(await this.isExpanded())) return;
+			await this.swipeVertical(`collapse-${attempt}`, 0.12, 0.45, 50, 250);
 		}
 
-		throw new Error('Timed out collapsing expanded now playing surface');
+		if (await this.isExpanded()) {
+			throw new Error('Timed out collapsing expanded now playing surface');
+		}
 	}
 
 	async swipeAwayIfVisible(): Promise<void> {

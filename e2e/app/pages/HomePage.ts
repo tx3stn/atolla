@@ -1,6 +1,7 @@
 import { BasePage } from './Base';
 
 export class HomePage extends BasePage {
+	private readonly root = 'home';
 	private readonly recentlyAddedGrid = 'home-recently-added-grid';
 	private readonly albumCardPrefix = 'card-album-';
 	private readonly shuffleLibraryMix = 'card-mix-shuffle-library';
@@ -12,6 +13,14 @@ export class HomePage extends BasePage {
 
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.recentlyAddedGrid).waitForExist({
+			timeoutMsg: 'Timed out waiting for home view',
+		});
+	}
+
+	// recently added is the third section down, so on a library with pinned items it sits outside
+	// the accessibility tree: the scroll root is the only part of the tab always reachable
+	async waitForVisible(): Promise<void> {
+		await this.elementByID(this.root).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for home view',
 		});
 	}

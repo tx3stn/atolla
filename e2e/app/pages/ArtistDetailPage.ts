@@ -24,6 +24,13 @@ export class ArtistDetailPage extends BasePage {
 		return (await el.getText()) ?? '';
 	}
 
+	// top tracks sit below the album grid, so they are the wrong readiness signal for an artist with
+	// enough albums to push them off screen
+	async waitForAlbumsVisible(): Promise<void> {
+		await this.waitForLoad();
+		await this.waitForVisibleAccessibilityPrefix(this.anyCardPrefix);
+	}
+
 	async waitForTrackRowsVisible(): Promise<void> {
 		await this.waitForLoad();
 		await this.waitForVisibleAccessibilityPrefix(this.trackRowSwipeRegionPrefix);

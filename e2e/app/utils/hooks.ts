@@ -75,6 +75,34 @@ export async function connectToServer(serverURL: string): Promise<void> {
 	await new HomePage(browser).waitForAlbumCards();
 }
 
+export async function attachToRunningApp(): Promise<void> {
+	const connectionPage = new ConnectionPage(browser);
+	const footer = new FooterPage(browser);
+
+	// noReset keeps the signed-in session, which also means the app resumes exactly where the last
+	// run left it: scroll positions, pushed views and playback all persist. credentials are on disk,
+	// so relaunching resets the UI without costing the session the whole run depends on
+	const bundleId = (browser.requestedCapabilities as Record<string, string>)['appium:bundleId'];
+	if (bundleId) {
+		await browser.terminateApp(bundleId);
+		await browser.activateApp(bundleId);
+	}
+
+	await browser.waitUntil(
+		async () => (await connectionPage.isVisible()) || (await footer.isVisible()),
+		{ timeout: 30_000, timeoutMsg: 'App did not finish bootstrapping' },
+	);
+
+	if (await connectionPage.isVisible()) {
+		throw new Error(
+			'app is not signed in — connect it to a server on the device before capturing screenshots',
+		);
+	}
+
+	await footer.tapHome();
+	await new HomePage(browser).waitForVisible();
+}
+
 export function onCompleteHook(): void {
 	const manifest = path.join(SCREENSHOT_DIR, 'manifest.txt');
 	try {

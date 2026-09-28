@@ -8,8 +8,10 @@ export class LibraryGenresTabPage extends BasePage {
 		return (await this.allByAccessibilityPrefix(this.cardPrefix)).length > 0;
 	}
 
+	// the grid marker is a zero-size view pinned to the top of the grid, so it stops reporting as
+	// displayed once the grid is scrolled: its existence plus a visible card is the real signal
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.grid).waitForDisplayed({
+		await this.elementByID(this.grid).waitForExist({
 			timeoutMsg: 'Timed out waiting for genres grid',
 		});
 		await this.waitForVisibleAccessibilityPrefix(this.cardPrefix);

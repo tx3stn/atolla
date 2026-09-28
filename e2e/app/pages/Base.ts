@@ -1,6 +1,11 @@
 import type { Browser, ChainablePromiseElement } from 'webdriverio';
 
 export class BasePage {
+	protected readonly anyCardPrefix = 'card-';
+	private readonly cardTitlePrefix = 'grid-card-title-';
+	private readonly anyTrackTitlePrefix = 'track-title-';
+	private readonly anyTrackRowPrefix = 'track-row-';
+
 	constructor(protected readonly driver: Browser) {}
 
 	public isIOS(): boolean {
@@ -53,6 +58,18 @@ export class BasePage {
 		return elements;
 	}
 
+	public async visibleCardIDs(): Promise<Array<string>> {
+		const attribute = this.isIOS() ? 'name' : 'content-desc';
+		const ids: Array<string> = [];
+		for (const el of await this.allByAccessibilityPrefix(this.anyCardPrefix)) {
+			const id = (await el.getAttribute(attribute)) ?? '';
+			if (id.startsWith(this.anyCardPrefix)) {
+				ids.push(id);
+			}
+		}
+		return ids;
+	}
+
 	public async waitForVisibleAccessibilityPrefix(prefix: string): Promise<void> {
 		await this.driver.waitUntil(
 			async () => {
@@ -86,6 +103,72 @@ export class BasePage {
 	public async tapFirstVisibleByAccessibilityPrefix(prefix: string): Promise<void> {
 		const element = await this.firstVisibleByAccessibilityPrefix(prefix);
 		await element.click();
+	}
+
+	public async tapCardByTitle(title: string, maxSteps = 20): Promise<void> {
+		await this.tapByTitle(title, this.cardTitlePrefix, this.anyCardPrefix, maxSteps, 'card');
+	}
+
+	public async tapTrackByTitle(title: string, maxSteps = 20): Promise<void> {
+		await this.tapByTitle(
+			title,
+			this.anyTrackTitlePrefix,
+			this.anyTrackRowPrefix,
+			maxSteps,
+			'track',
+		);
+	}
+
+	// steps creep rather than fling so a whole screen of rows can't slip by between checks, since
+	// only what is on screen is queryable. this searches downwards from wherever the list already
+	// is, so callers open the list fresh rather than reusing one somebody left scrolled
+	private async tapByTitle(
+		title: string,
+		titlePrefix: string,
+		targetPrefix: string,
+		maxSteps: number,
+		subject: string,
+	): Promise<void> {
+		for (let step = 0; step <= maxSteps; step += 1) {
+			const id = await this.idByTitle(title, titlePrefix);
+			if (id) {
+				const element = await this.scrollUntilDisplayed(`${targetPrefix}${id}`);
+				await element.click();
+				return;
+			}
+			await this.creepDown();
+		}
+		throw new Error(`No ${subject} titled "${title}" found after ${maxSteps} steps`);
+	}
+
+	// matching the title text directly keeps this to one query per step: reading every row's title
+	// instead costs a round trip per row, which is minutes on a full library grid
+	private async idByTitle(title: string, titlePrefix: string): Promise<string | undefined> {
+		const selector = this.isAndroid()
+			? `android=new UiSelector().text(${JSON.stringify(title)})`
+			: `//*[@value=${JSON.stringify(title)}]`;
+
+		for await (const element of this.driver.$$(selector)) {
+			const id = await this.titleIDOf(element, titlePrefix);
+			if (id) return id;
+		}
+		return undefined;
+	}
+
+	// the same text also appears on genre pills and detail headers, so the accessibility id is what
+	// confirms a match is the title we mean. android appends the element's value to content-desc
+	private async titleIDOf(
+		element: WebdriverIO.Element,
+		titlePrefix: string,
+	): Promise<string | undefined> {
+		try {
+			const attribute = this.isIOS() ? 'name' : 'content-desc';
+			const value = (await element.getAttribute(attribute)) ?? '';
+			if (!value.startsWith(titlePrefix)) return undefined;
+			return value.slice(titlePrefix.length).split(/[\s,]/)[0];
+		} catch {
+			return undefined;
+		}
 	}
 
 	public async longPressElement(
@@ -238,18 +321,36 @@ export class BasePage {
 
 	// swipe the content up to reveal what sits below the fold
 	public async scrollDown(): Promise<void> {
+		await this.verticalSwipe('scroll-down-finger', 0.75, 0.3);
+	}
+
+	// a flung scroll coasts well past where the finger lifted, skipping whole screens of rows.
+	// moving a shorter distance slowly and holding still before release lifts at zero velocity,
+	// so the list stops where it was put
+	public async creepDown(): Promise<void> {
+		await this.verticalSwipe('creep-down-finger', 0.7, 0.4, 600, 250);
+	}
+
+	private async verticalSwipe(
+		id: string,
+		fromRatio: number,
+		toRatio: number,
+		moveMs = 260,
+		settleMs = 0,
+	): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		const x = Math.floor(rect.width * 0.5);
 		await this.driver.performActions([
 			{
 				actions: [
-					{ duration: 0, type: 'pointerMove', x, y: Math.floor(rect.height * 0.75) },
+					{ duration: 0, type: 'pointerMove', x, y: Math.floor(rect.height * fromRatio) },
 					{ button: 0, type: 'pointerDown' },
 					{ duration: 40, type: 'pause' },
-					{ duration: 260, type: 'pointerMove', x, y: Math.floor(rect.height * 0.3) },
+					{ duration: moveMs, type: 'pointerMove', x, y: Math.floor(rect.height * toRatio) },
+					...(settleMs > 0 ? [{ duration: settleMs, type: 'pause' }] : []),
 					{ button: 0, type: 'pointerUp' },
 				],
-				id: 'scroll-down-finger',
+				id,
 				parameters: { pointerType: 'touch' },
 				type: 'pointer',
 			},
