@@ -23,10 +23,13 @@
 	},
 	"name": "atolla",
 	"overrides": {
-		"fast-uri": "^3.1.5",
+		"@puppeteer/browsers": "^3.2.3",
+		"axios": "^1.20.0",
+		"diff": "^8.0.4",
+		"fast-uri": "^3.1.8",
 		"js-yaml": "^4.3.1",
-		"morgan": "^1.12.0",
-		"serialize-javascript": "^7.0.7",
+		"morgan": "^1.12.1",
+		"serialize-javascript": "^7.1.2",
 		"sharp": "^0.35.4"
 	},
 	"private": true,
