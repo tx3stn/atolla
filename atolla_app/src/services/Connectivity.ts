@@ -128,6 +128,10 @@ export class Connectivity {
 		});
 	}
 
+	isLive(): boolean {
+		return this.mode === ConnectionModes.online && this.deps.sessionManager.getSession() != null;
+	}
+
 	logout(): void {
 		void (async () => {
 			this.mode = ConnectionModes.online;

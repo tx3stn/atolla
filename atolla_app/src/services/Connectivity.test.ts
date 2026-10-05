@@ -181,6 +181,43 @@ describe('Connectivity image sources offline flag', () => {
 	});
 });
 
+describe('Connectivity.isLive', () => {
+	it('is live online with a session', async () => {
+		const session = makeSession();
+		const { connectivity } = makeConnectivity({ mode: ConnectionModes.online, session });
+
+		await connectivity.bootstrap(session);
+
+		expect(connectivity.isLive()).toBe(true);
+	});
+
+	it('is not live online without a session', async () => {
+		const { connectivity } = makeConnectivity({ mode: ConnectionModes.online });
+
+		await connectivity.bootstrap(null);
+
+		expect(connectivity.isLive()).toBe(false);
+	});
+
+	it('is not live offline, even with a session', async () => {
+		const session = makeSession();
+		const { connectivity } = makeConnectivity({ mode: ConnectionModes.offline, session });
+
+		await connectivity.bootstrap(session);
+
+		expect(connectivity.isLive()).toBe(false);
+	});
+
+	it('is not live before bootstrap has adopted the stored mode', () => {
+		const { connectivity } = makeConnectivity({
+			mode: ConnectionModes.online,
+			session: makeSession(),
+		});
+
+		expect(connectivity.isLive()).toBe(false);
+	});
+});
+
 describe('Connectivity.bootstrap auth-required decision', () => {
 	it('requires auth on a fresh install (offline default, mode never stored)', async () => {
 		const { connectivity, state } = makeConnectivity({

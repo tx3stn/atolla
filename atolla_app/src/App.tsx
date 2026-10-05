@@ -176,9 +176,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					}
 					throw error;
 				}),
+		canDownload: () => this.networkStatus.isReachable() && this.connectivity.isLive(),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
-		isOnline: () => this.networkStatus.isReachable(),
 		onTrackDownloaded: (trackId) => {
 			this.playbackOrchestrator.handleTrackCached(trackId);
 			this.prefetchDownloadedTrackLyrics(trackId);
@@ -575,6 +575,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (this.isDestroyed()) return;
 			this.setState({ isBootstrapped: true });
 			this.playbackOrchestrator.notifyAppReady();
+			this.downloadService.onAppReady();
 			// cold start doesn't fire onOnline(), so kick the downloaded-collection sync here
 			this.syncDownloadedCollections();
 		}, remaining);

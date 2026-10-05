@@ -95,9 +95,9 @@ export interface DownloadServiceStore {
 export interface DownloadServiceOptions {
 	cacheImage?: (id: string, url: string, category: ImageCategory) => Promise<void>;
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
+	canDownload?: () => boolean;
 	getTotalDownloadedSizeBytes?: () => number;
 	getTrackPlaybackUrl: (trackId: string) => string;
-	isOnline?: () => boolean;
 	onTrackDownloaded?: (trackId: string) => void;
 	removeTrack: (trackId: string) => Promise<void> | void;
 	removeTracks?: (trackIds: Array<string>) => Promise<void> | void;
@@ -173,7 +173,7 @@ export class DownloadService {
 	private readonly onTrackDownloadedFn: DownloadServiceOptions['onTrackDownloaded'];
 	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
 	private readonly removeTracksFn: DownloadServiceOptions['removeTracks'];
-	private readonly isOnlineFn: () => boolean;
+	private readonly canDownloadFn: () => boolean;
 
 	constructor(options: DownloadServiceOptions) {
 		this.store = options.store;
@@ -184,7 +184,7 @@ export class DownloadService {
 		this.onTrackDownloadedFn = options.onTrackDownloaded;
 		this.removeTrackFn = options.removeTrack;
 		this.removeTracksFn = options.removeTracks;
-		this.isOnlineFn = options.isOnline ?? (() => true);
+		this.canDownloadFn = options.canDownload ?? (() => true);
 	}
 
 	private enqueueOperation(operation: () => Promise<void>): void {
@@ -252,6 +252,8 @@ export class DownloadService {
 						this.enqueueImage(key);
 					}
 				}
+				this.drainQueue();
+				this.drainImageQueue();
 				this.notify();
 			} catch (err) {
 				console.warn('[downloads] failed to load on app ready', err);
@@ -1372,6 +1374,7 @@ export class DownloadService {
 	}
 
 	private drainImageQueue(): void {
+		if (!this.canDownloadFn()) return;
 		while (this.activeImageCount < MAX_CONCURRENT_IMAGE_DOWNLOADS && this.imageQueue.length > 0) {
 			const key = this.imageQueue.shift();
 			if (key == null) break;
@@ -1452,6 +1455,7 @@ export class DownloadService {
 	}
 
 	private drainQueue(): void {
+		if (!this.canDownloadFn()) return;
 		while (this.activeCount < MAX_CONCURRENT_DOWNLOADS && this.queue.length > 0) {
 			const item = this.queue.shift();
 			if (!item) break;
@@ -1463,7 +1467,7 @@ export class DownloadService {
 				// retry in-session while reachable; when offline the track parks (no hot-loop)
 				// and resumes on the next reachability-up / onAppReady
 				const entry = this.tracks[item.trackId];
-				if (entry && !entry.complete && !entry.failed && this.isOnlineFn()) {
+				if (entry && !entry.complete && !entry.failed && this.canDownloadFn()) {
 					this.enqueueTrack(item.trackId, item.streamUrl);
 				}
 				this.drainQueue();
@@ -1491,7 +1495,7 @@ export class DownloadService {
 			const entry = this.tracks[trackId];
 			// only count the failure toward giving up when the device is really online; an
 			// offline stretch leaves the track parked to retry when connectivity returns
-			if (!entry || !this.isOnlineFn()) return;
+			if (!entry || !this.canDownloadFn()) return;
 			entry.attempts += 1;
 			if (entry.attempts >= TRACK_MAX_ATTEMPTS) {
 				entry.failed = true;

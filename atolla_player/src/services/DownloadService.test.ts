@@ -1234,12 +1234,9 @@ describe('DownloadService', () => {
 			const store = new InMemoryStore();
 			const cacheCalls: Array<CacheCall> = [];
 
-			// first service instance: starts a download but fails while offline, so the track
-			// parks as incomplete (offline failures don't count toward giving up) rather than
-			// exhausting its retries
+			// first service instance: downloads aren't allowed, so the track parks as incomplete
 			const { service: s1 } = createService({
-				cacheTrack: () => Promise.reject(new Error('network failure')),
-				isOnline: () => false,
+				canDownload: () => false,
 				store,
 			});
 
@@ -1317,57 +1314,6 @@ describe('DownloadService', () => {
 			expect(service.getAllAlbums()).toHaveLength(0);
 			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded');
 			expect(removeCalls).toContain('track-1');
-		});
-
-		it('does not count failures or retry in-session while offline', async () => {
-			const cacheCalls: Array<CacheCall> = [];
-			const { service } = createService({
-				cacheTrack: (trackId, url) => {
-					cacheCalls.push({ trackId, url });
-					return Promise.reject(new Error('offline'));
-				},
-				isOnline: () => false,
-			});
-
-			service.downloadAlbum({
-				album: makeAlbum('album-1'),
-				artistLogoUrl: null,
-				tracks: [
-					{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
-					{ streamUrl: 'http://s/track-2', track: makeTrack('track-2') },
-				],
-			});
-
-			for (let i = 0; i < 6; i += 1) await flush();
-
-			// each track attempted once then parked — no hot-loop, nothing failed or pruned
-			expect(cacheCalls).toHaveLength(2);
-			expect(service.getAlbum('album-1')).toBeDefined();
-			expect(service.getDownloadingCount()).toBe(2);
-			expect(service.getAlbumDownloadState('album-1')).toBe('downloading');
-		});
-
-		it('resumes parked tracks when connectivity returns', async () => {
-			let online = false;
-			const { service } = createService({
-				cacheTrack: () => (online ? Promise.resolve() : Promise.reject(new Error('offline'))),
-				isOnline: () => online,
-			});
-
-			service.downloadAlbum({
-				album: makeAlbum('album-1'),
-				artistLogoUrl: null,
-				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
-			});
-
-			for (let i = 0; i < 4; i += 1) await flush();
-			expect(service.getAlbumDownloadState('album-1')).toBe('downloading');
-
-			online = true;
-			service.onAppReady();
-			for (let i = 0; i < 4; i += 1) await flush();
-
-			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
 		});
 
 		it('marks an artist downloaded only when all of its albums are', async () => {
@@ -1471,6 +1417,124 @@ describe('DownloadService', () => {
 				resolve();
 				await flush();
 			}
+		});
+	});
+
+	describe('download gating', () => {
+		it('starts no track or image work while downloads are not allowed', async () => {
+			const { cacheCalls, imageCalls, service } = createService({ canDownload: () => false });
+
+			service.downloadAlbum({
+				album: { ...makeAlbum('album-1'), imageUrl: 'https://img/album-1.jpg' },
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			service.onAppReady();
+			for (let i = 0; i < 4; i += 1) await flush();
+
+			expect(cacheCalls).toHaveLength(0);
+			expect(imageCalls).toHaveLength(0);
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloading');
+		});
+
+		it('resumes parked tracks once downloads are allowed again', async () => {
+			let allowed = false;
+			const { cacheCalls, service } = createService({ canDownload: () => allowed });
+
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			for (let i = 0; i < 4; i += 1) await flush();
+			expect(cacheCalls).toHaveLength(0);
+
+			allowed = true;
+			service.onAppReady();
+			for (let i = 0; i < 4; i += 1) await flush();
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+		});
+
+		it('resumes parked images once downloads are allowed again', async () => {
+			let allowed = false;
+			const { imageCalls, service } = createService({ canDownload: () => allowed });
+
+			service.downloadAlbum({
+				album: { ...makeAlbum('album-1'), imageUrl: 'https://img/album-1.jpg' },
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			for (let i = 0; i < 4; i += 1) await flush();
+			expect(imageCalls).toHaveLength(0);
+
+			allowed = true;
+			service.onAppReady();
+			for (let i = 0; i < 4; i += 1) await flush();
+
+			expect(imageCalls).toContainEqual({ category: 'album_art', url: 'https://img/album-1.jpg' });
+		});
+
+		it('lets running downloads finish but starts nothing new once downloads stop being allowed', async () => {
+			let allowed = true;
+			const resolvers: Array<() => void> = [];
+			const { cacheCalls, service } = createService({
+				cacheTrack: (trackId, url) => {
+					cacheCalls.push({ trackId, url });
+					return new Promise<void>((resolve) => resolvers.push(resolve));
+				},
+				canDownload: () => allowed,
+			});
+			const tracks = Array.from({ length: 4 }, (_, i) => makeTrack(`track-${i + 1}`));
+
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: tracks.map((t) => ({ streamUrl: `http://s/${t.id}`, track: t })),
+			});
+			await flush();
+			expect(cacheCalls).toHaveLength(3);
+
+			allowed = false;
+			for (const resolve of [...resolvers]) resolve();
+			for (let i = 0; i < 4; i += 1) await flush();
+
+			expect(cacheCalls).toHaveLength(3);
+			expect(service.isTrackDownloaded('track-1')).toBe(true);
+			expect(service.isTrackDownloaded('track-4')).toBe(false);
+		});
+
+		it('does not count a failure toward giving up once downloads stop being allowed', async () => {
+			let allowed = true;
+			let failFirstAttempt: () => void = () => {};
+			const cacheCalls: Array<CacheCall> = [];
+			const { service } = createService({
+				cacheTrack: (trackId, url) => {
+					cacheCalls.push({ trackId, url });
+					if (cacheCalls.length > 1) return Promise.reject(new Error('boom'));
+					return new Promise<void>((_, reject) => {
+						failFirstAttempt = () => reject(new Error('offline'));
+					});
+				},
+				canDownload: () => allowed,
+			});
+
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			await flush();
+			allowed = false;
+			failFirstAttempt();
+			for (let i = 0; i < 4; i += 1) await flush();
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloading');
+
+			allowed = true;
+			service.onAppReady();
+			for (let i = 0; i < 10; i += 1) await flush();
+
+			expect(cacheCalls).toHaveLength(4);
 		});
 	});
 
