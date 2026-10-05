@@ -1185,6 +1185,10 @@ private fun redirectKeepsAuth(server: URL, target: URL): Boolean {
 	return !isDowngrade
 }
 
+private fun requestCarriesAuth(authHeader: String?, server: URL, target: URL): Boolean {
+	return !authHeader.isNullOrBlank() && redirectKeepsAuth(server, target)
+}
+
 private fun openAuthedConnectionFollowingRedirects(
 	rawUrl: String,
 	authHeader: String?,
@@ -1200,7 +1204,7 @@ private fun openAuthedConnectionFollowingRedirects(
 			instanceFollowRedirects = false
 			requestMethod = "GET"
 			setRequestProperty("Accept", accept)
-			if (!authHeader.isNullOrBlank() && redirectKeepsAuth(serverOrigin, current)) {
+			if (requestCarriesAuth(authHeader, serverOrigin, current)) {
 				setRequestProperty("Authorization", authHeader)
 			}
 		}
@@ -1274,7 +1278,10 @@ object AtollaTrackPlaybackNativeCache {
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
-				return AtollaDownloadGuards.failureResultForStatus(status)
+				return AtollaDownloadGuards.failureResultForStatus(
+					status,
+					requestCarriesAuth(authHeader, URL(url), connection.url),
+				)
 			}
 
 			val mimeType = connection.contentType ?: "application/octet-stream"
@@ -1578,7 +1585,10 @@ object AtollaDownloadedTrackNativeCache {
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
-				return AtollaDownloadGuards.failureResultForStatus(status)
+				return AtollaDownloadGuards.failureResultForStatus(
+					status,
+					requestCarriesAuth(authHeader, URL(url), connection.url),
+				)
 			}
 
 			val mimeType = connection.contentType ?: "application/octet-stream"

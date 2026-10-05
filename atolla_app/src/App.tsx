@@ -167,15 +167,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
 	private downloadService = new DownloadService({
 		cacheImage: (id, url, category) => this.assetCache.cacheImageAsset(id, url, category),
-		cacheTrack: (trackId, url) =>
-			this.downloadWorkerClient.target.api
-				.cacheDownloadedTrack(trackId, url, this.sessionManager.getAuthHeader())
+		cacheTrack: (trackId, url) => {
+			const authHeader = this.sessionManager.getAuthHeader();
+			return this.downloadWorkerClient.target.api
+				.cacheDownloadedTrack(trackId, url, authHeader)
 				.catch((error: unknown) => {
 					if (isUnauthorizedCacheError(error)) {
-						this.connectivity.expireSession();
+						this.connectivity.expireSessionIfCurrent(authHeader);
 					}
 					throw error;
-				}),
+				});
+		},
 		canDownload: () => this.networkStatus.isReachable() && this.connectivity.isLive(),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
@@ -210,7 +212,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		resolveArtistLogoUrl: (artistId) =>
 			Promise.resolve(this.connectivity.getTransport().getArtistLogoUrl(artistId)),
 		showToast: (model) => this.toastService.show(model),
-		trackSourceNative: new TrackSourceNativeAdapter(() => this.connectivity.expireSession()),
+		trackSourceNative: new TrackSourceNativeAdapter((authHeader) =>
+			this.connectivity.expireSessionIfCurrent(authHeader),
+		),
 	});
 	private downloadWorkerClient = new Lazy<IWorkerServiceClient<IDownloadNativeWorker>>(() =>
 		startWorkerService(DownloadNativeWorkerEntryPoint, []),

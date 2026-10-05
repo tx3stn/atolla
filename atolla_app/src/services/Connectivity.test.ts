@@ -6,6 +6,8 @@ import type { Preferences } from '../stores/Preferences';
 import { Connectivity, type ConnectivityDeps, type ConnectivityRenderState } from './Connectivity';
 import type { SessionManager } from './SessionManager';
 
+const CURRENT_AUTH_HEADER = 'MediaBrowser Token="tok"';
+
 function makeSession(): AuthSession {
 	return {
 		accessToken: 'tok',
@@ -99,7 +101,7 @@ function makeConnectivity(over?: {
 			connectivity.handleSessionChanged(null);
 			return Promise.resolve();
 		},
-		getAuthHeader: () => 'MediaBrowser Token="tok"',
+		getAuthHeader: () => CURRENT_AUTH_HEADER,
 		getEffectiveDeviceId: () => 'atolla-default',
 		getEffectiveDeviceName: () => 'Pixel 9 Pro',
 		getHttpClient: () => over?.httpClient ?? ({} as unknown as IHTTPClient),
@@ -459,6 +461,98 @@ describe('Connectivity session expiry', () => {
 		await flush();
 
 		expect(harness.calls.onSessionExpired).toBe(1);
+	});
+
+	it('expires once when several native 401s land together', async () => {
+		const session = makeSession();
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online, session });
+		await connectivity.bootstrap(session);
+
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		await flush();
+
+		expect(calls.expireSession).toBe(1);
+		expect(calls.onSessionExpired).toBe(1);
+	});
+
+	it('expires once when a native 401 and a transport 401 land together', async () => {
+		const session = makeSession();
+		const { calls, connectivity } = makeConnectivity({
+			httpClient: unauthorizedClient(),
+			mode: ConnectionModes.online,
+			session,
+		});
+		await connectivity.bootstrap(session);
+
+		const request = settled(connectivity.getTransport().getAlbums(1, 50));
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		await request;
+		await flush();
+
+		expect(calls.expireSession).toBe(1);
+		expect(calls.onSessionExpired).toBe(1);
+	});
+
+	it('expires a later session once the first expiry has finished', async () => {
+		const session = makeSession();
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online, session });
+		await connectivity.bootstrap(session);
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		await flush();
+
+		await connectivity.reauthenticate('https://server');
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		await flush();
+
+		expect(calls.expireSession).toBe(2);
+	});
+});
+
+describe('Connectivity.expireSessionIfCurrent', () => {
+	async function liveConnectivity(): Promise<ReturnType<typeof makeConnectivity>> {
+		const session = makeSession();
+		const harness = makeConnectivity({ mode: ConnectionModes.online, session });
+		await harness.connectivity.bootstrap(session);
+		return harness;
+	}
+
+	it('expires the session when the 401 was for the current token', async () => {
+		const { calls, connectivity } = await liveConnectivity();
+
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		await flush();
+
+		expect(calls.expireSession).toBe(1);
+	});
+
+	it('ignores a 401 for a request sent before the session had loaded', async () => {
+		const { calls, connectivity } = await liveConnectivity();
+
+		connectivity.expireSessionIfCurrent('MediaBrowser');
+		await flush();
+
+		expect(calls.expireSession).toBe(0);
+	});
+
+	it('ignores a 401 for a token that has since been replaced', async () => {
+		const { calls, connectivity } = await liveConnectivity();
+
+		connectivity.expireSessionIfCurrent('MediaBrowser Token="old"');
+		await flush();
+
+		expect(calls.expireSession).toBe(0);
+	});
+
+	it('ignores a 401 when there is no session', async () => {
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.offline });
+		await connectivity.bootstrap(null);
+
+		connectivity.expireSessionIfCurrent(CURRENT_AUTH_HEADER);
+		await flush();
+
+		expect(calls.expireSession).toBe(0);
 	});
 });
 

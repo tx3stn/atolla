@@ -39,6 +39,7 @@ export class Connectivity {
 	// claimed synchronously by connect() and bumped by cancelConnect(), so a cancel arriving while
 	// connect() is still awaiting setMode — before there is any login to stop — is not discarded
 	private connectAttempt = 0;
+	private expiringSession = false;
 	private mode: ConnectionMode = ConnectionModes.offline;
 	private transport!: Transport;
 	private transportGeneration = 0;
@@ -104,6 +105,16 @@ export class Connectivity {
 
 	expireSession(): void {
 		if (this.deps.sessionManager.getSession() == null) {
+			return;
+		}
+		this.expireCurrentSession();
+	}
+
+	expireSessionIfCurrent(sentAuthHeader: string): void {
+		if (
+			this.deps.sessionManager.getSession() == null ||
+			sentAuthHeader !== this.deps.sessionManager.getAuthHeader()
+		) {
 			return;
 		}
 		this.expireCurrentSession();
@@ -196,6 +207,10 @@ export class Connectivity {
 	}
 
 	private expireCurrentSession(): void {
+		if (this.expiringSession) {
+			return;
+		}
+		this.expiringSession = true;
 		void (async () => {
 			this.mode = ConnectionModes.offline;
 			try {
@@ -205,6 +220,7 @@ export class Connectivity {
 				// this launch is offline either way; the session still has to be dropped
 			}
 			await this.deps.sessionManager.expireSession();
+			this.expiringSession = false;
 			this.deps.onSessionExpired();
 		})();
 	}

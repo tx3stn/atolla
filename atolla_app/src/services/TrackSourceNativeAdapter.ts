@@ -19,7 +19,7 @@ export interface TrackSourceNative {
 }
 
 export class TrackSourceNativeAdapter implements TrackSourceNative {
-	constructor(private readonly onUnauthorized: () => void) {}
+	constructor(private readonly onUnauthorized: (authHeader: string) => void) {}
 
 	cacheTrackFromUrl(
 		trackId: string,
@@ -29,7 +29,7 @@ export class TrackSourceNativeAdapter implements TrackSourceNative {
 	): void {
 		cacheAtollaTrackFromUrlAsync(trackId, url, authHeader, (source) => {
 			if (source === NATIVE_CACHE_UNAUTHORIZED) {
-				this.onUnauthorized();
+				this.onUnauthorized(authHeader);
 				onComplete(null);
 				return;
 			}
