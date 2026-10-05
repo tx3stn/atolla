@@ -42,7 +42,6 @@ import kotlin.math.min
 
 data class AtollaCacheRequestPayload(
 	val cacheKey: String,
-	val cacheOnly: Boolean,
 	val category: String,
 	// only consulted when writing: a changed tag means the artwork was replaced on the server.
 	// it is deliberately not part of cacheKey, so a caller holding only an id still resolves
@@ -351,7 +350,6 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	@Throws(ValdiException::class)
 	override fun getRequestPayload(url: Uri): Any {
 		val category = url.getQueryParameter("c")
-		val cacheOnly = url.getQueryParameter("co") == "1"
 		val source = url.getQueryParameter("u")
 		val id = url.getQueryParameter("id")
 		val identity = if (id.isNullOrBlank()) source else id
@@ -360,7 +358,6 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 		return AtollaCacheRequestPayload(
 			cacheKey = identity,
-			cacheOnly = cacheOnly,
 			category = category,
 			tag = url.getQueryParameter("t"),
 			sourceUrl = source,
@@ -589,10 +586,9 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				}
 			}
 
-			// a caller holding only an id has nowhere to fetch from, which is the offline case and
-			// behaves exactly like a cache-only miss
+			// a caller holding only an id has nowhere to fetch from, which is the offline case
 			val source = payload.sourceUrl
-			if (payload.cacheOnly || source.isNullOrBlank()) {
+			if (source.isNullOrBlank()) {
 				inFlight.remove(key)
 				if (deliveredFallback) {
 					future.complete(fallbackBytes!!)

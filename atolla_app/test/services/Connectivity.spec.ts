@@ -89,6 +89,7 @@ function makeConnectivity(opts?: {
 		preferences,
 		resolveCachedImage: () => null,
 		sessionManager,
+		setImageSourcesOffline: () => {},
 		setNativeAuthHeader: (header) => calls.setNativeAuthHeader.push(header),
 		showToast: (message) => calls.showToast.push(message),
 	};

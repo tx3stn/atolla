@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import {
 	atollaCacheHost,
 	atollaCacheScheme,
 	buildImageSource,
+	configureImageSourcesOffline,
 	extractImageTag,
 	imageCacheKey,
 	normalizeImageUrlForCategory,
@@ -71,6 +72,47 @@ describe('buildImageSource', () => {
 
 		expect(params(source).get('t')).toBeNull();
 		expect(params(source).get('u')).toContain('/Items/album-1/Images/Primary');
+	});
+});
+
+describe('buildImageSource while offline', () => {
+	const ref = {
+		category: 'album_art',
+		id: 'album-1',
+		url: 'https://media.example.com/Items/album-1/Images/Primary?tag=xyz',
+	} as const;
+
+	afterEach(() => {
+		configureImageSourcesOffline(false);
+	});
+
+	it('drops the fetch source and tag so a cache miss never fetches', () => {
+		configureImageSourcesOffline(true);
+
+		const source = buildImageSource(ref);
+
+		expect(params(source).get('u')).toBeNull();
+		expect(params(source).get('t')).toBeNull();
+	});
+
+	it('keeps the same address, so cached images still resolve', () => {
+		const online = buildImageSource(ref);
+		configureImageSourcesOffline(true);
+
+		const offline = buildImageSource(ref);
+
+		expect(params(offline).get('c')).toBe(params(online).get('c'));
+		expect(params(offline).get('id')).toBe(params(online).get('id'));
+	});
+
+	it('restores the fetch source and tag once back online', () => {
+		configureImageSourcesOffline(true);
+		configureImageSourcesOffline(false);
+
+		const source = buildImageSource(ref);
+
+		expect(params(source).get('u')).toContain('/Items/album-1/Images/Primary');
+		expect(params(source).get('t')).toBe('xyz');
 	});
 });
 

@@ -356,16 +356,6 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
         return [[AtollaNoopCancelable alloc] init];
     }
 
-    // a caller holding only an id has nowhere to fetch from, which is the offline case
-    if (!payload.sourceURL) {
-        completion(nil, [NSError errorWithDomain:@"AtollaIOSImageLoader" code:3
-                                        userInfo:@{NSLocalizedDescriptionKey:
-                                                       @"Cache miss with no fetch source"}]);
-        return [[AtollaNoopCancelable alloc] init];
-    }
-
-    NSMutableURLRequest *request = [self imageRequestForURL:payload.sourceURL];
-
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
         // the blur is downsampled before storage, so prefer the (always-downloaded) thumb and
         // fall back to the full original; only fetch from network if neither is cached
@@ -388,8 +378,14 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
             }
             return [[AtollaNoopCancelable alloc] init];
         }
+        if (!payload.sourceURL) {
+            completion(nil, [NSError errorWithDomain:@"AtollaIOSImageLoader" code:3
+                                            userInfo:@{NSLocalizedDescriptionKey:
+                                                           @"Cache miss with no fetch source"}]);
+            return [[AtollaNoopCancelable alloc] init];
+        }
         NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession]
-            dataTaskWithRequest:request
+            dataTaskWithRequest:[self imageRequestForURL:payload.sourceURL]
             completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
                 if (!data) { completion(nil, err); return; }
                 [self->_cache writeData:data forKey:originalKey];
@@ -415,8 +411,11 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
         NSData *thumbData = [_cache readForKey:thumbKey];
         if (thumbData) {
             completion(thumbData, nil);
+            if (!payload.sourceURL) {
+                return [[AtollaNoopCancelable alloc] init];
+            }
             NSURLSessionDataTask *bgTask = [[AtollaAuthRedirectGuard sharedDefaultSession]
-                dataTaskWithRequest:request
+                dataTaskWithRequest:[self imageRequestForURL:payload.sourceURL]
                 completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
                     if (!data) { return; }
                     [self->_cache writeData:data forKey:key];
@@ -432,8 +431,16 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
         }
     }
 
+    // a caller holding only an id has nowhere to fetch from, which is the offline case
+    if (!payload.sourceURL) {
+        completion(nil, [NSError errorWithDomain:@"AtollaIOSImageLoader" code:3
+                                        userInfo:@{NSLocalizedDescriptionKey:
+                                                       @"Cache miss with no fetch source"}]);
+        return [[AtollaNoopCancelable alloc] init];
+    }
+
     NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession]
-        dataTaskWithRequest:request
+        dataTaskWithRequest:[self imageRequestForURL:payload.sourceURL]
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
             if (!data) { completion(nil, err); return; }
             [self->_cache writeData:data forKey:key];

@@ -2,7 +2,10 @@ import Strings from 'atolla_app/src/Strings';
 import { DEFAULT_LANGUAGE, type LanguageCode } from 'atolla_core/src/Language';
 import { applyLanguage } from 'atolla_core/src/Localization';
 import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
-import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
+import {
+	configureAlbumArtMaxDimension,
+	configureImageSourcesOffline,
+} from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
 import type { InternalError } from 'atolla_core/src/utils/Errors';
@@ -255,6 +258,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		preferences: this.preferences,
 		resolveCachedImage: (category, identity) => this.resolveCachedImage(category, identity),
 		sessionManager: this.sessionManager,
+		setImageSourcesOffline: (offline) => configureImageSourcesOffline(offline),
 		setNativeAuthHeader: (header) => this.pushNativeAuthHeader(header),
 		showToast: (message) => this.toastService.show({ message, variant: ToastTypes.error }),
 	});

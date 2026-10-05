@@ -20,6 +20,7 @@ interface Calls {
 	cancelLogin: number;
 	ensureLoaded: number;
 	expireSession: number;
+	imageSourcesOffline: Array<boolean>;
 	login: Array<string>;
 	onOnline: number;
 	onSessionExpired: number;
@@ -65,6 +66,7 @@ function makeConnectivity(over?: {
 		cancelLogin: 0,
 		ensureLoaded: 0,
 		expireSession: 0,
+		imageSourcesOffline: [],
 		login: [],
 		onOnline: 0,
 		onSessionExpired: 0,
@@ -134,6 +136,7 @@ function makeConnectivity(over?: {
 		preferences,
 		resolveCachedImage: () => null,
 		sessionManager,
+		setImageSourcesOffline: (offline) => calls.imageSourcesOffline.push(offline),
 		setNativeAuthHeader: () => {},
 		showToast: (message) => calls.showToast.push(message),
 	};
@@ -141,6 +144,42 @@ function makeConnectivity(over?: {
 	const connectivity = new Connectivity(deps);
 	return { calls, connectivity, state };
 }
+
+describe('Connectivity image sources offline flag', () => {
+	it('allows image fetches online with a session', async () => {
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online });
+
+		await connectivity.bootstrap(makeSession());
+
+		expect(calls.imageSourcesOffline).toEqual([false]);
+	});
+
+	it('blocks image fetches offline, even with a session', async () => {
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.offline });
+
+		await connectivity.bootstrap(makeSession());
+
+		expect(calls.imageSourcesOffline).toEqual([true]);
+	});
+
+	it('blocks image fetches online without a session', async () => {
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online });
+
+		await connectivity.bootstrap(null);
+
+		expect(calls.imageSourcesOffline).toEqual([true]);
+	});
+
+	it('follows a switch to offline mode', async () => {
+		const session = makeSession();
+		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online, session });
+		await connectivity.bootstrap(session);
+
+		await connectivity.setMode(ConnectionModes.offline);
+
+		expect(calls.imageSourcesOffline).toEqual([false, true]);
+	});
+});
 
 describe('Connectivity.bootstrap auth-required decision', () => {
 	it('requires auth on a fresh install (offline default, mode never stored)', async () => {

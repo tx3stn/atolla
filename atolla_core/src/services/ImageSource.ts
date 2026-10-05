@@ -3,20 +3,27 @@ import type { ImageCategory } from './ImageCache';
 export const atollaCacheScheme = 'atolla-cache';
 export const atollaCacheHost = 'image';
 
-// `id` addresses the cache entry and is the only thing the native loader keys on. `url` is a
-// fetch source used on a miss, and is absent whenever the caller holds an id but no URL —
-// offline, or an artist logo reached from an album. `tag` is derived from the url and only
-// consulted when writing, so a caller with an id alone still resolves cached bytes.
+// `id` addresses the cache entry and is the only thing the native loader keys on. `url` is the
+// fetch source for a miss. It is absent when the caller only has an id (an artist logo reached
+// from an album), and buildImageSource drops it while offline so a miss can't fetch. `tag` comes
+// from the url and is only read when writing, so a caller with just an id still resolves cached
+// bytes.
 export interface ImageSourceRef {
 	category: ImageCategory;
 	id: string;
 	url?: string | null;
 }
 
+let imageSourcesOffline = false;
+
+export function configureImageSourcesOffline(offline: boolean): void {
+	imageSourcesOffline = offline;
+}
+
 export function buildImageSource({ category, id, url }: ImageSourceRef): string {
 	const params = [`c=${encodeURIComponent(category)}`, `id=${encodeURIComponent(id)}`];
 
-	if (url) {
+	if (url && !imageSourcesOffline) {
 		const normalized = stripApiKeyFromUrl(normalizeImageUrlForCategory(url, category));
 		const tag = extractImageTag(normalized);
 		if (tag) {
