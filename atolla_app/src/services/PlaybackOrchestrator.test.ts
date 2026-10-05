@@ -647,6 +647,54 @@ describe('PlaybackOrchestrator playback subscription', () => {
 	});
 });
 
+describe('PlaybackOrchestrator scrobble delivery', () => {
+	it('delivers pending scrobbles once when the track changes', () => {
+		const first = makeTrack('a');
+		const second = makeTrack('b');
+		const { store, notify } = subscribablePlaybackStore({
+			track: first,
+			tracks: [first, second],
+		});
+		const { service, state } = trackingScrobbleService();
+		const orchestrator = createOrchestrator(store);
+		orchestrator.setUserServices(userServices({ scrobble: service }));
+		orchestrator.start();
+		notify();
+		state.syncCalls = 0;
+
+		store.track = second;
+		store.trackIndex = 1;
+		notify();
+		orchestrator.dispose();
+
+		expect(state.syncCalls).toBe(1);
+	});
+
+	it('does not redeliver on ticks more than 1s apart for the same track', () => {
+		let nowValue = 1000;
+		const nowSpy = spyOn(Date, 'now').mockImplementation(() => nowValue);
+		try {
+			const { store, notify } = subscribablePlaybackStore();
+			const { service, state } = trackingScrobbleService();
+			const orchestrator = createOrchestrator(store);
+			orchestrator.setUserServices(userServices({ scrobble: service }));
+			orchestrator.start();
+			notify();
+			state.syncCalls = 0;
+
+			nowValue = 2200;
+			notify();
+			nowValue = 3400;
+			notify();
+			orchestrator.dispose();
+
+			expect(state.syncCalls).toBe(0);
+		} finally {
+			nowSpy.mockRestore();
+		}
+	});
+});
+
 describe('PlaybackOrchestrator lifecycle ownership', () => {
 	it('reads the recently-played raw blob through the bound store, undefined before binding', async () => {
 		const recentlyPlayed = new RecentlyPlayedStore();

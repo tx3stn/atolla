@@ -159,6 +159,7 @@ export class PlaybackOrchestrator {
 	private unsubscribePlayback?: () => void;
 	private lastPlaybackSignature = '';
 	private lastPlaybackTickAt = 0;
+	private lastScrobbleDeliveryTrackId: string | null = null;
 
 	constructor(deps: PlaybackOrchestratorDeps) {
 		this.playbackStore = deps.playbackStore;
@@ -236,7 +237,11 @@ export class PlaybackOrchestrator {
 
 		// a track change means the engine may have just persisted a scrobble (natural end or a leave
 		// past threshold); deliver anything pending. offline deliveries fail and stay queued.
-		fireAndForget('deliverScrobbles', this.deliverPendingScrobbles());
+		const trackId = track?.id ?? null;
+		if (trackId !== this.lastScrobbleDeliveryTrackId) {
+			this.lastScrobbleDeliveryTrackId = trackId;
+			fireAndForget('deliverScrobbles', this.deliverPendingScrobbles());
+		}
 		this.onPlaybackTick();
 	}
 
