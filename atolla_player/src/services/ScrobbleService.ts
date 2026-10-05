@@ -1,4 +1,5 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
 
 export interface PendingScrobble {
 	playedAtMs: number;
@@ -33,7 +34,7 @@ export class ScrobbleService {
 	private readonly queue: NativeScrobbleQueue;
 	private readonly maxAgeMs: number;
 	private readonly now: () => number;
-	private syncing = false;
+	private drainInFlight: Promise<void> | null = null;
 
 	constructor(options: ScrobbleServiceOptions) {
 		this.deliverScrobble = options.deliverScrobble;
@@ -46,18 +47,17 @@ export class ScrobbleService {
 		return this.readPending().length;
 	}
 
-	// deliver everything currently pending, oldest first; acks each on success, keeps it on failure.
-	// guarded so overlapping triggers (playback tick, reconnect, app ready) don't double-deliver.
-	async syncFromNative(): Promise<void> {
-		if (this.syncing) {
-			return;
+	// deliver everything pending, oldest first. delivered scrobbles are acked, as are ones whose track
+	// no longer exists on the server; any other failure leaves the scrobble queued. overlapping
+	// triggers (playback tick, reconnect, app ready) share the running drain, so nothing is delivered
+	// twice and every caller waits for it to finish.
+	syncFromNative(): Promise<void> {
+		if (!this.drainInFlight) {
+			this.drainInFlight = this.drain().finally(() => {
+				this.drainInFlight = null;
+			});
 		}
-		this.syncing = true;
-		try {
-			await this.drain();
-		} finally {
-			this.syncing = false;
-		}
+		return this.drainInFlight;
 	}
 
 	private async drain(): Promise<void> {
@@ -72,6 +72,14 @@ export class ScrobbleService {
 			try {
 				await this.deliverScrobble(entry.trackId, new Date(entry.playedAtMs).toISOString());
 			} catch (error) {
+				if (error === TransportErrors.LIVE_NOT_FOUND) {
+					log.warn('scrobble dropped, track no longer on the server', {
+						playedAtMs: entry.playedAtMs,
+						trackId: entry.trackId,
+					});
+					this.ack(entry);
+					continue;
+				}
 				log.warn('scrobble not delivered, keeping queued', {
 					error: error instanceof Error ? error.message : String(error),
 					playedAtMs: entry.playedAtMs,

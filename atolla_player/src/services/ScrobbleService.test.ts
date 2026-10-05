@@ -1,4 +1,5 @@
 import { describe, expect, it, spyOn } from 'bun:test';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import { type NativeScrobbleQueue, type PendingScrobble, ScrobbleService } from './ScrobbleService';
 
 const TEST_NOW = Date.UTC(2026, 0, 15, 0, 0, 0);
@@ -165,5 +166,56 @@ describe('ScrobbleService', () => {
 		await Promise.all([first, second]);
 
 		expect(calls).toBe(1);
+	});
+
+	it('makes a caller wait for a drain that is already running', async () => {
+		let releaseFirst: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		const queue = createQueue([{ playedAtMs: TEST_NOW - 1000, trackId: 'a' }]);
+		const { service } = createService({ deliverScrobble: () => gate, queue });
+
+		const first = service.syncFromNative();
+		let secondSettled = false;
+		const second = service.syncFromNative().then(() => {
+			secondSettled = true;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(secondSettled).toBe(false);
+
+		releaseFirst();
+		await Promise.all([first, second]);
+		expect(queue.entries).toHaveLength(0);
+	});
+
+	it('drops scrobbles for tracks no longer on the server without blocking the rest', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const queue = createQueue([
+				{ playedAtMs: TEST_NOW - 4000, trackId: 'deleted-1' },
+				{ playedAtMs: TEST_NOW - 3000, trackId: 'deleted-2' },
+				{ playedAtMs: TEST_NOW - 2000, trackId: 'deleted-3' },
+				{ playedAtMs: TEST_NOW - 1000, trackId: 'kept' },
+			]);
+			const delivered: Array<string> = [];
+			const { service } = createService({
+				deliverScrobble: (trackId) => {
+					if (trackId.startsWith('deleted')) {
+						return Promise.reject(TransportErrors.LIVE_NOT_FOUND);
+					}
+					delivered.push(trackId);
+					return Promise.resolve();
+				},
+				queue,
+			});
+
+			await service.syncFromNative();
+
+			expect(delivered).toEqual(['kept']);
+			expect(queue.entries).toHaveLength(0);
+		} finally {
+			warnSpy.mockRestore();
+		}
 	});
 });
