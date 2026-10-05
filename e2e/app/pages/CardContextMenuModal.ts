@@ -43,7 +43,7 @@ export class CardContextMenu extends BasePage {
 			await backdrop.click();
 			return;
 		}
-		const rect = await this.driver.getElementRect(await backdrop.elementId);
+		const rect = { ...(await backdrop.getLocation()), ...(await backdrop.getSize()) };
 		await this.driver.performActions([
 			{
 				actions: [

@@ -5,6 +5,8 @@ export class BasePage {
 	private readonly cardTitlePrefix = 'grid-card-title-';
 	private readonly anyTrackTitlePrefix = 'track-title-';
 	private readonly anyTrackRowPrefix = 'track-row-';
+	private readonly appHeader = 'app-header';
+	protected readonly footerHome = 'footer-home';
 
 	constructor(protected readonly driver: Browser) {}
 
@@ -173,7 +175,7 @@ export class BasePage {
 		// ChainablePromiseElement is a runtime thenable but TS doesn't type it as Promise
 		const resolvedElement = await (element as unknown as Promise<WebdriverIO.Element>);
 		await resolvedElement.waitForDisplayed();
-		const rect = await this.driver.getElementRect(resolvedElement.elementId);
+		const rect = { ...(await resolvedElement.getLocation()), ...(await resolvedElement.getSize()) };
 		const centerX = Math.floor(rect.x + rect.width / 2);
 		const centerY = Math.floor(rect.y + rect.height / 2);
 
@@ -191,6 +193,26 @@ export class BasePage {
 			},
 		]);
 		await this.driver.releaseActions();
+	}
+
+	public async scrollIntoTappableArea(
+		element: ChainablePromiseElement,
+		maxSteps = 6,
+	): Promise<void> {
+		const header = this.elementByID(this.appHeader);
+		const headerBottom = (await header.getLocation('y')) + (await header.getSize('height'));
+		const footerTop = await this.elementByID(this.footerHome).getLocation('y');
+		for (let step = 0; step < maxSteps; step += 1) {
+			const rect = { ...(await element.getLocation()), ...(await element.getSize()) };
+			if (rect.y < headerBottom) {
+				await this.creepUp();
+			} else if (rect.y + rect.height > footerTop) {
+				await this.creepDown();
+			} else {
+				return;
+			}
+		}
+		throw new Error('Element never scrolled clear of the header and footer nav');
 	}
 
 	public async longPressFirstVisibleByAccessibilityPrefix(
@@ -225,7 +247,7 @@ export class BasePage {
 				return false;
 			}
 			const { height } = await this.driver.getWindowSize();
-			const rect = await this.driver.getElementRect(await element.elementId);
+			const rect = { ...(await element.getLocation()), ...(await element.getSize()) };
 			return rect.y >= 0 && rect.y + rect.height <= height;
 		} catch {
 			return false;
@@ -286,8 +308,8 @@ export class BasePage {
 			throw new Error('Need at least two rows to reorder');
 		}
 
-		const start = await this.driver.getElementRect(handles[0].elementId);
-		const second = await this.driver.getElementRect(handles[1].elementId);
+		const start = { ...(await handles[0].getLocation()), ...(await handles[0].getSize()) };
+		const second = { ...(await handles[1].getLocation()), ...(await handles[1].getSize()) };
 		const x = Math.floor(start.x + start.width / 2);
 		const startY = Math.floor(start.y + start.height / 2);
 		const rowGap = Math.max(1, Math.floor(second.y - start.y));
@@ -321,6 +343,10 @@ export class BasePage {
 	// so the list stops where it was put
 	public async creepDown(): Promise<void> {
 		await this.verticalSwipe('creep-down-finger', 0.7, 0.4, 600, 250);
+	}
+
+	public async creepUp(): Promise<void> {
+		await this.verticalSwipe('creep-up-finger', 0.4, 0.7, 600, 250);
 	}
 
 	private async verticalSwipe(

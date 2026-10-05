@@ -42,7 +42,7 @@ export class LyricsModal extends BasePage {
 	async dismiss(): Promise<void> {
 		const card = this.elementByID(this.root);
 		await card.waitForDisplayed({ timeoutMsg: 'Lyrics modal not visible' });
-		const cardRect = await this.driver.getElementRect(await card.elementId);
+		const cardRect = { ...(await card.getLocation()), ...(await card.getSize()) };
 		const { height, width } = await this.driver.getWindowSize();
 
 		const cardBottom = cardRect.y + cardRect.height;

@@ -1,39 +1,61 @@
 import { BasePage } from './Base';
 
 export class SettingsPage extends BasePage {
-	private readonly pageIndicator = 'settings-animations-toggle';
+	private readonly settingsPrefix = 'settings-';
+	private readonly firstRow = 'settings-animations-toggle';
 	private readonly clearCacheButton = 'settings-cache-clear-btn';
 	private readonly cacheClearConfirmButton = 'cache-clear-confirm-btn';
 	private readonly logoutButton = 'settings-logout-btn';
 	private readonly logoutConfirmButton = 'settings-logout-confirm-btn';
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.pageIndicator).waitForDisplayed({
+		await this.driver.waitUntil(async () => this.isVisible(), {
 			timeoutMsg: 'Timed out waiting for settings view',
 		});
 	}
 
-	isVisible(): Promise<boolean> {
-		return this.elementByID(this.pageIndicator).isExisting();
+	async isVisible(): Promise<boolean> {
+		return (await this.allByAccessibilityPrefix(this.settingsPrefix)).length > 0;
+	}
+
+	async scrollToTop(maxSteps = 10): Promise<void> {
+		const firstRow = this.elementByID(this.firstRow);
+		for (let step = 0; step < maxSteps; step += 1) {
+			if (await firstRow.isExisting()) {
+				await this.scrollIntoTappableArea(firstRow);
+				return;
+			}
+			await this.creepUp();
+		}
+		throw new Error('Timed out scrolling settings back to the top');
 	}
 
 	async tapClearCache(): Promise<void> {
-		const clearBtn = this.elementByID(this.clearCacheButton);
-		await clearBtn.waitForDisplayed({ timeoutMsg: 'Timed out waiting for clear cache button' });
-		await clearBtn.click();
-		const confirmBtn = this.elementByID(this.cacheClearConfirmButton);
-		await confirmBtn.waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for cache clear confirm button',
-		});
-		await confirmBtn.click();
+		await this.tapAndConfirm(this.clearCacheButton, this.cacheClearConfirmButton, 'clear cache');
 	}
 
 	async tapLogout(): Promise<void> {
-		const logoutBtn = this.elementByID(this.logoutButton);
-		await logoutBtn.waitForDisplayed({ timeoutMsg: 'Timed out waiting for logout button' });
-		await logoutBtn.click();
-		const confirmBtn = this.elementByID(this.logoutConfirmButton);
-		await confirmBtn.waitForDisplayed({ timeoutMsg: 'Timed out waiting for logout confirmation' });
-		await confirmBtn.click();
+		await this.tapAndConfirm(this.logoutButton, this.logoutConfirmButton, 'logout');
+	}
+
+	private async tapAndConfirm(buttonId: string, confirmId: string, label: string): Promise<void> {
+		const button = this.elementByID(buttonId);
+		await button.waitForExist({ timeoutMsg: `Timed out waiting for ${label} button` });
+		const confirm = this.elementByID(confirmId);
+
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			await this.scrollIntoTappableArea(button);
+			await button.click();
+			const confirmShown = await confirm.waitForDisplayed({ timeout: 2_000 }).then(
+				() => true,
+				() => false,
+			);
+			if (confirmShown) {
+				await confirm.click();
+				return;
+			}
+		}
+
+		throw new Error(`Timed out waiting for ${label} confirmation`);
 	}
 }

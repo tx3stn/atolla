@@ -92,7 +92,7 @@ export class LibraryPage extends BasePage {
 		const header = this.elementByID(this.headerNav);
 		await header.waitForDisplayed({ timeoutMsg: 'Timed out waiting for library header nav' });
 
-		const rect = await this.driver.getElementRect(await header.elementId);
+		const rect = { ...(await header.getLocation()), ...(await header.getSize()) };
 		const y = Math.floor(rect.y + rect.height * 0.6);
 		const startX = Math.floor(rect.x + rect.width * 0.9);
 		const endX = Math.floor(rect.x + rect.width * 0.2);

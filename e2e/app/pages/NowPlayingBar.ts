@@ -17,7 +17,6 @@ export class NowPlayingBar extends BasePage {
 	private readonly createPlaylistFromQueue = 'now-playing-create-playlist-from-queue';
 	private readonly queuePageUpNext = 'now-playing-queue-page-up-next';
 	private readonly queuePageBackTo = 'now-playing-queue-page-back-to';
-	private readonly footerHome = 'footer-home';
 	private readonly artworkPager = 'now-playing-artwork-pager';
 	// deliberately the line prefix and not 'now-playing-lyrics-', which would also match the page
 	// container and let the wait pass while the pager is still mid-slide
@@ -60,7 +59,7 @@ export class NowPlayingBar extends BasePage {
 	async seekToRatio(ratio: number): Promise<void> {
 		const progressId = await this.revealProgressBar();
 		const el = this.elementByID(progressId);
-		const rect = await this.driver.getElementRect(await el.elementId);
+		const rect = { ...(await el.getLocation()), ...(await el.getSize()) };
 		const x = Math.floor(rect.x + rect.width * ratio);
 		const y = Math.floor(rect.y + rect.height * 0.5);
 		await this.driver.performActions([
@@ -174,7 +173,7 @@ export class NowPlayingBar extends BasePage {
 	private async swipeArtworkPager(id: string, from: number, to: number): Promise<void> {
 		const pager = this.elementByID(this.artworkPager);
 		await pager.waitForDisplayed({ timeoutMsg: 'Timed out waiting for the artwork pager' });
-		const rect = await this.driver.getElementRect(await pager.elementId);
+		const rect = { ...(await pager.getLocation()), ...(await pager.getSize()) };
 		const y = Math.floor(rect.y + rect.height * 0.5);
 		const fromX = Math.floor(rect.x + rect.width * from);
 		const toX = Math.floor(rect.x + rect.width * to);
@@ -365,7 +364,7 @@ export class NowPlayingBar extends BasePage {
 		const tab = this.elementByID(tabId);
 		if (!(await tab.isDisplayed().catch(() => false))) return false;
 
-		const rect = await this.driver.getElementRect(await tab.elementId);
+		const rect = { ...(await tab.getLocation()), ...(await tab.getSize()) };
 		return rect.y >= 0 && rect.y + rect.height <= (await this.footerNavTop());
 	}
 
@@ -530,7 +529,7 @@ export class NowPlayingBar extends BasePage {
 
 		const bar = this.elementByID(this.bar);
 		await bar.waitForDisplayed();
-		const rect = await this.driver.getElementRect(await bar.elementId);
+		const rect = { ...(await bar.getLocation()), ...(await bar.getSize()) };
 		const y = Math.floor(rect.y + rect.height * 0.5);
 		const startX = Math.floor(rect.x + rect.width * 0.8);
 		const endX = Math.floor(rect.x + rect.width * 0.1);

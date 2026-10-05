@@ -14,6 +14,7 @@ describe('settings', () => {
 
 		await footer.tapSettings();
 		await settingsPage.waitForLoad();
+		await settingsPage.scrollToTop();
 	});
 
 	afterEach(async () => {

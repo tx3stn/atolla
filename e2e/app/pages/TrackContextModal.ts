@@ -141,7 +141,7 @@ export class TrackContextMenu extends BasePage {
 			return;
 		}
 
-		const rect = await this.driver.getElementRect(await backdrop.elementId);
+		const rect = { ...(await backdrop.getLocation()), ...(await backdrop.getSize()) };
 		await this.driver.performActions([
 			{
 				actions: [
