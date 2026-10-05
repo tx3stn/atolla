@@ -28,6 +28,7 @@ interface DeviceConfig {
 	platformVersion: string;
 	systemPort?: number;
 	udid?: string;
+	usePreinstalledWDA?: boolean;
 	wdaLocalPort?: number;
 }
 
@@ -70,6 +71,7 @@ export function getDeviceConfig(device: Platform, index = 0): DeviceConfig {
 				platformName: 'iOS',
 				platformVersion: process.env.E2E_PLATFORM_VERSION ?? '26.5',
 				udid: iosUdids[index],
+				usePreinstalledWDA: process.env.E2E_IOS_WDA_PREINSTALLED === 'true',
 				wdaLocalPort: IOS_WDA_PORT_BASE + index,
 			};
 		}
@@ -138,7 +140,16 @@ function buildCapability(
 		'appium:noReset': options.noReset ?? false,
 		...(cfg.systemPort && { 'appium:systemPort': cfg.systemPort }),
 		...(cfg.udid && { 'appium:udid': cfg.udid }),
+		...(cfg.usePreinstalledWDA && { 'appium:usePreinstalledWDA': true }),
 		...(cfg.wdaLocalPort && { 'appium:wdaLocalPort': cfg.wdaLocalPort }),
+		...(cfg.platformName === Platforms.Android && {
+			'appium:disableWindowAnimation': true,
+			'appium:settings': { waitForIdleTimeout: 0 },
+		}),
+		...(cfg.platformName === Platforms.iOS && {
+			'appium:reduceMotion': true,
+			'appium:settings': { animationCoolOffTimeout: 0, waitForIdleTimeout: 0 },
+		}),
 	};
 }
 

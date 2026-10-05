@@ -42,15 +42,14 @@ export class LyricsModal extends BasePage {
 	async dismiss(): Promise<void> {
 		const card = this.elementByID(this.root);
 		await card.waitForDisplayed({ timeoutMsg: 'Lyrics modal not visible' });
-		const cardLocation = await card.getLocation();
-		const cardSize = await card.getSize();
+		const cardRect = await this.driver.getElementRect(await card.elementId);
 		const { height, width } = await this.driver.getWindowSize();
 
-		const cardBottom = cardLocation.y + cardSize.height;
-		const gapAbove = cardLocation.y;
+		const cardBottom = cardRect.y + cardRect.height;
+		const gapAbove = cardRect.y;
 		const gapBelow = height - cardBottom;
 		const y =
-			gapBelow >= gapAbove ? Math.floor(cardBottom + gapBelow / 2) : Math.floor(cardLocation.y / 2);
+			gapBelow >= gapAbove ? Math.floor(cardBottom + gapBelow / 2) : Math.floor(cardRect.y / 2);
 
 		await this.driver.performActions([
 			{

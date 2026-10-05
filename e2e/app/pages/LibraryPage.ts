@@ -55,7 +55,10 @@ export class LibraryPage extends BasePage {
 
 	async openGenresTab(): Promise<void> {
 		await this.swipeHeaderLeft();
-		await this.tapHeaderTab(this.genresHeaderTab, 'genres');
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			await this.tapHeaderTab(this.genresHeaderTab, 'genres');
+			if (await this.tabs.genres.gridExistsWithin(2_000)) break;
+		}
 		await this.tabs.genres.waitForLoad();
 	}
 
@@ -89,11 +92,10 @@ export class LibraryPage extends BasePage {
 		const header = this.elementByID(this.headerNav);
 		await header.waitForDisplayed({ timeoutMsg: 'Timed out waiting for library header nav' });
 
-		const location = await header.getLocation();
-		const size = await header.getSize();
-		const y = Math.floor(location.y + size.height * 0.6);
-		const startX = Math.floor(location.x + size.width * 0.9);
-		const endX = Math.floor(location.x + size.width * 0.2);
+		const rect = await this.driver.getElementRect(await header.elementId);
+		const y = Math.floor(rect.y + rect.height * 0.6);
+		const startX = Math.floor(rect.x + rect.width * 0.9);
+		const endX = Math.floor(rect.x + rect.width * 0.2);
 
 		await this.driver.performActions([
 			{
@@ -102,6 +104,7 @@ export class LibraryPage extends BasePage {
 					{ button: 0, type: 'pointerDown' },
 					{ duration: 80, type: 'pause' },
 					{ duration: 320, type: 'pointerMove', x: endX, y },
+					{ duration: 250, type: 'pause' },
 					{ button: 0, type: 'pointerUp' },
 				],
 				id: 'library-header-custom-swipe-left',

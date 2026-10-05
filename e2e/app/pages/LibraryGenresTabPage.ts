@@ -4,6 +4,15 @@ export class LibraryGenresTabPage extends BasePage {
 	private readonly grid = 'library-genres-grid';
 	private readonly cardPrefix = 'card-';
 
+	gridExistsWithin(timeout: number): Promise<boolean> {
+		return this.elementByID(this.grid)
+			.waitForExist({ timeout })
+			.then(
+				() => true,
+				() => false,
+			);
+	}
+
 	async isVisible(): Promise<boolean> {
 		return (await this.allByAccessibilityPrefix(this.cardPrefix)).length > 0;
 	}

@@ -31,7 +31,7 @@ export class BasePage {
 	public async allByAccessibilityPrefix(prefix: string): Promise<Array<WebdriverIO.Element>> {
 		const selector = this.isAndroid()
 			? `android=new UiSelector().descriptionStartsWith("${prefix}")`
-			: `//*[starts-with(@name, "${prefix}")]`;
+			: `-ios predicate string:name BEGINSWITH "${prefix}"`;
 		const elements: Array<WebdriverIO.Element> = [];
 		for await (const el of this.driver.$$(selector)) {
 			elements.push(el);
@@ -51,7 +51,7 @@ export class BasePage {
 				elements.push(el);
 			}
 		} else {
-			for await (const el of container.$$(`.//*[starts-with(@name, "${prefix}")]`)) {
+			for await (const el of container.$$(`-ios predicate string:name BEGINSWITH "${prefix}"`)) {
 				elements.push(el);
 			}
 		}
@@ -71,12 +71,16 @@ export class BasePage {
 	}
 
 	public async waitForVisibleAccessibilityPrefix(prefix: string): Promise<void> {
+		await this.firstVisibleByAccessibilityPrefix(prefix);
+	}
+
+	public async firstVisibleByAccessibilityPrefix(prefix: string): Promise<WebdriverIO.Element> {
+		let visible: WebdriverIO.Element | undefined;
 		await this.driver.waitUntil(
 			async () => {
-				for await (const element of this.driver.$$(
-					`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
-				)) {
+				for (const element of await this.allByAccessibilityPrefix(prefix)) {
 					if (await element.isDisplayed()) {
+						visible = element;
 						return true;
 					}
 				}
@@ -84,20 +88,11 @@ export class BasePage {
 			},
 			{ timeoutMsg: `Timed out waiting for visible accessibility prefix: ${prefix}` },
 		);
-	}
 
-	public async firstVisibleByAccessibilityPrefix(prefix: string): Promise<WebdriverIO.Element> {
-		await this.waitForVisibleAccessibilityPrefix(prefix);
-
-		for await (const element of this.driver.$$(
-			`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
-		)) {
-			if (await element.isDisplayed()) {
-				return element;
-			}
+		if (!visible) {
+			throw new Error(`No visible elements found for accessibility prefix: ${prefix}`);
 		}
-
-		throw new Error(`No visible elements found for accessibility prefix: ${prefix}`);
+		return visible;
 	}
 
 	public async tapFirstVisibleByAccessibilityPrefix(prefix: string): Promise<void> {
@@ -146,7 +141,7 @@ export class BasePage {
 	private async idByTitle(title: string, titlePrefix: string): Promise<string | undefined> {
 		const selector = this.isAndroid()
 			? `android=new UiSelector().text(${JSON.stringify(title)})`
-			: `//*[@value=${JSON.stringify(title)}]`;
+			: `-ios predicate string:value == ${JSON.stringify(title)}`;
 
 		for await (const element of this.driver.$$(selector)) {
 			const id = await this.titleIDOf(element, titlePrefix);
@@ -178,10 +173,9 @@ export class BasePage {
 		// ChainablePromiseElement is a runtime thenable but TS doesn't type it as Promise
 		const resolvedElement = await (element as unknown as Promise<WebdriverIO.Element>);
 		await resolvedElement.waitForDisplayed();
-		const location = await resolvedElement.getLocation();
-		const size = await resolvedElement.getSize();
-		const centerX = Math.floor(location.x + size.width / 2);
-		const centerY = Math.floor(location.y + size.height / 2);
+		const rect = await this.driver.getElementRect(resolvedElement.elementId);
+		const centerX = Math.floor(rect.x + rect.width / 2);
+		const centerY = Math.floor(rect.y + rect.height / 2);
 
 		await this.driver.performActions([
 			{
@@ -231,9 +225,8 @@ export class BasePage {
 				return false;
 			}
 			const { height } = await this.driver.getWindowSize();
-			const location = await element.getLocation();
-			const size = await element.getSize();
-			return location.y >= 0 && location.y + size.height <= height;
+			const rect = await this.driver.getElementRect(await element.elementId);
+			return rect.y >= 0 && rect.y + rect.height <= height;
 		} catch {
 			return false;
 		}
@@ -293,12 +286,11 @@ export class BasePage {
 			throw new Error('Need at least two rows to reorder');
 		}
 
-		const startLocation = await handles[0].getLocation();
-		const startSize = await handles[0].getSize();
-		const secondLocation = await handles[1].getLocation();
-		const x = Math.floor(startLocation.x + startSize.width / 2);
-		const startY = Math.floor(startLocation.y + startSize.height / 2);
-		const rowGap = Math.max(1, Math.floor(secondLocation.y - startLocation.y));
+		const start = await this.driver.getElementRect(handles[0].elementId);
+		const second = await this.driver.getElementRect(handles[1].elementId);
+		const x = Math.floor(start.x + start.width / 2);
+		const startY = Math.floor(start.y + start.height / 2);
+		const rowGap = Math.max(1, Math.floor(second.y - start.y));
 
 		await this.driver.performActions([
 			{

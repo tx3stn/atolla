@@ -54,12 +54,11 @@ export class DetailHeaderPage extends BasePage {
 		let usedArtworkSwipe = false;
 		try {
 			if ((await artworkEl.isExisting()) && (await artworkEl.isDisplayed())) {
-				const location = await artworkEl.getLocation();
-				const size = await artworkEl.getSize();
+				const rect = await this.driver.getElementRect(await artworkEl.elementId);
 
-				const x = Math.floor(location.x + size.width * 0.5);
-				const startY = Math.floor(location.y + size.height * 0.3);
-				const endY = Math.floor(location.y + size.height * 0.9);
+				const x = Math.floor(rect.x + rect.width * 0.5);
+				const startY = Math.floor(rect.y + rect.height * 0.3);
+				const endY = Math.floor(rect.y + rect.height * 0.9);
 
 				await swipe(x, startY, endY);
 				usedArtworkSwipe = true;

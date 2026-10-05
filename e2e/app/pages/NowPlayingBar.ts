@@ -7,6 +7,8 @@ export class NowPlayingBar extends BasePage {
 	private readonly progress = 'now-playing-progress';
 	// the progress bar falls back to a plain bar (different id) when no waveform mask is available
 	private readonly progressPlain = 'playback-progress-track';
+	private readonly progressFill = 'waveform-progress-clip';
+	private readonly progressPlainFill = 'playback-progress-fill';
 	private readonly togglePlayback = 'now-playing-play-pause';
 	private readonly next = 'now-playing-next';
 	private readonly previous = 'now-playing-previous';
@@ -56,11 +58,11 @@ export class NowPlayingBar extends BasePage {
 	}
 
 	async seekToRatio(ratio: number): Promise<void> {
-		const el = this.elementByID(await this.revealProgressBar());
-		const location = await el.getLocation();
-		const size = await el.getSize();
-		const x = Math.floor(location.x + size.width * ratio);
-		const y = Math.floor(location.y + size.height * 0.5);
+		const progressId = await this.revealProgressBar();
+		const el = this.elementByID(progressId);
+		const rect = await this.driver.getElementRect(await el.elementId);
+		const x = Math.floor(rect.x + rect.width * ratio);
+		const y = Math.floor(rect.y + rect.height * 0.5);
 		await this.driver.performActions([
 			{
 				actions: [
@@ -75,6 +77,14 @@ export class NowPlayingBar extends BasePage {
 			},
 		]);
 		await this.driver.releaseActions();
+
+		const fill = this.elementByID(
+			progressId === this.progress ? this.progressFill : this.progressPlainFill,
+		);
+		await this.driver.waitUntil(
+			async () => (await fill.getSize()).width >= rect.width * (ratio - 0.1),
+			{ timeoutMsg: `Seek to ${ratio} never showed on the progress bar` },
+		);
 	}
 
 	async waitForVisible(): Promise<void> {
@@ -164,11 +174,10 @@ export class NowPlayingBar extends BasePage {
 	private async swipeArtworkPager(id: string, from: number, to: number): Promise<void> {
 		const pager = this.elementByID(this.artworkPager);
 		await pager.waitForDisplayed({ timeoutMsg: 'Timed out waiting for the artwork pager' });
-		const location = await pager.getLocation();
-		const size = await pager.getSize();
-		const y = Math.floor(location.y + size.height * 0.5);
-		const fromX = Math.floor(location.x + size.width * from);
-		const toX = Math.floor(location.x + size.width * to);
+		const rect = await this.driver.getElementRect(await pager.elementId);
+		const y = Math.floor(rect.y + rect.height * 0.5);
+		const fromX = Math.floor(rect.x + rect.width * from);
+		const toX = Math.floor(rect.x + rect.width * to);
 
 		await this.driver.performActions([
 			{
@@ -356,9 +365,8 @@ export class NowPlayingBar extends BasePage {
 		const tab = this.elementByID(tabId);
 		if (!(await tab.isDisplayed().catch(() => false))) return false;
 
-		const location = await tab.getLocation();
-		const size = await tab.getSize();
-		return location.y >= 0 && location.y + size.height <= (await this.footerNavTop());
+		const rect = await this.driver.getElementRect(await tab.elementId);
+		return rect.y >= 0 && rect.y + rect.height <= (await this.footerNavTop());
 	}
 
 	private async footerNavTop(): Promise<number> {
@@ -506,6 +514,9 @@ export class NowPlayingBar extends BasePage {
 		for (let attempt = 0; attempt < 5; attempt += 1) {
 			if (!(await this.isExpanded())) return;
 			await this.swipeVertical(`collapse-${attempt}`, 0.12, 0.45, 50, 250);
+			await this.driver
+				.waitUntil(async () => !(await this.isExpanded()), { timeout: 1_500, timeoutMsg: '' })
+				.catch(() => {});
 		}
 
 		if (await this.isExpanded()) {
@@ -519,11 +530,10 @@ export class NowPlayingBar extends BasePage {
 
 		const bar = this.elementByID(this.bar);
 		await bar.waitForDisplayed();
-		const location = await bar.getLocation();
-		const size = await bar.getSize();
-		const y = Math.floor(location.y + size.height * 0.5);
-		const startX = Math.floor(location.x + size.width * 0.8);
-		const endX = Math.floor(location.x + size.width * 0.1);
+		const rect = await this.driver.getElementRect(await bar.elementId);
+		const y = Math.floor(rect.y + rect.height * 0.5);
+		const startX = Math.floor(rect.x + rect.width * 0.8);
+		const endX = Math.floor(rect.x + rect.width * 0.1);
 
 		await this.driver.performActions([
 			{

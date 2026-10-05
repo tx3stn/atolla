@@ -27,6 +27,11 @@ IOS_DEVICE_NAME="${IOS_DEVICE_NAME:-$DEFAULT_IOS_DEVICE_NAME}"
 ANDROID_INSTANCES="${E2E_ANDROID_INSTANCES:-2}"
 IOS_INSTANCES="${E2E_IOS_INSTANCES:-2}"
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WDA_VERSION=$(bun -p "require('$REPO_ROOT/node_modules/appium-webdriveragent/package.json').version")
+WDA_DIR="$REPO_ROOT/build/wda/$WDA_VERSION"
+WDA_RUNNER_APP="$WDA_DIR/WebDriverAgentRunner-Runner.app"
+
 # ── Android ──────────────────────────────────────────────────────────────────
 
 running_android_serials() {
@@ -163,19 +168,6 @@ for runtime, devices in sorted(data.get('devices', {}).items(), reverse=True):
 " "$name" 2>/dev/null || true
 }
 
-sim_state() {
-	local udid=$1
-	xcrun simctl list devices --json | python3 -c "
-import json, sys
-for rt, devs in json.load(sys.stdin)['devices'].items():
-    for d in devs:
-        if d.get('udid') == sys.argv[1]:
-            print(d.get('state', ''))
-            sys.exit(0)
-print('')
-" "$udid" 2>/dev/null || true
-}
-
 start_ios_simulators() {
 	local target=$1
 	local name=$2
@@ -205,19 +197,40 @@ start_ios_simulators() {
 	local to_boot
 	to_boot=$(echo "$udids" | head -n "$target")
 
+	local boot_pids=()
 	while IFS= read -r udid; do
 		[[ -z "$udid" ]] && continue
-		local state
-		state=$(sim_state "$udid")
-		if [[ "$state" != "Booted" ]]; then
-			echo "Booting iOS simulator $udid..." >&2
-			xcrun simctl boot "$udid" 2>/dev/null || true
-		else
-			echo "iOS simulator $udid already booted." >&2
-		fi
+		echo "Booting iOS simulator $udid..." >&2
+		xcrun simctl bootstatus "$udid" -b >/dev/null &
+		boot_pids+=($!)
+	done <<<"$to_boot"
+
+	download_wda
+
+	for pid in "${boot_pids[@]}"; do
+		wait "$pid"
+	done
+
+	while IFS= read -r udid; do
+		[[ -z "$udid" ]] && continue
+		echo "Installing WebDriverAgent on $udid..." >&2
+		xcrun simctl install "$udid" "$WDA_RUNNER_APP"
+		echo "$udid is ready." >&2
 	done <<<"$to_boot"
 
 	echo "$to_boot" | tr '\n' ',' | sed 's/,$//'
+}
+
+download_wda() {
+	[[ -d "$WDA_RUNNER_APP" ]] && return
+	echo "Downloading WebDriverAgent $WDA_VERSION..." >&2
+	local zip
+	zip=$(mktemp)
+	curl -fsSL -o "$zip" \
+		"https://github.com/appium/WebDriverAgent/releases/download/v${WDA_VERSION}/WebDriverAgentRunner-Build-Sim-$(uname -m).zip"
+	mkdir -p "$WDA_DIR"
+	unzip -q "$zip" -d "$WDA_DIR"
+	rm -f "$zip"
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -230,10 +243,20 @@ echo "=== Starting e2e devices ==="
 # devices".
 adb start-server >/dev/null 2>&1 || true
 
-ANDROID_SERIALS=$(start_android_emulators "$ANDROID_INSTANCES" "$AVD_NAME")
-echo "Android: $ANDROID_SERIALS"
+ANDROID_OUT=$(mktemp)
+IOS_OUT=$(mktemp)
+trap 'rm -f "$ANDROID_OUT" "$IOS_OUT"' EXIT
 
-IOS_UDIDS=$(start_ios_simulators "$IOS_INSTANCES" "$IOS_DEVICE_NAME")
+start_android_emulators "$ANDROID_INSTANCES" "$AVD_NAME" >"$ANDROID_OUT" &
+ANDROID_PID=$!
+start_ios_simulators "$IOS_INSTANCES" "$IOS_DEVICE_NAME" >"$IOS_OUT" &
+IOS_PID=$!
+wait "$ANDROID_PID"
+wait "$IOS_PID"
+
+ANDROID_SERIALS=$(cat "$ANDROID_OUT")
+echo "Android: $ANDROID_SERIALS"
+IOS_UDIDS=$(cat "$IOS_OUT")
 echo "iOS: $IOS_UDIDS"
 
 cat >/tmp/atolla-e2e-devices.env <<EOF
@@ -243,4 +266,5 @@ export E2E_ANDROID_INSTANCES="$ANDROID_INSTANCES"
 export E2E_IOS_INSTANCES="$IOS_INSTANCES"
 export E2E_ANDROID_DEVICE_NAMES="$AVD_NAME"
 export E2E_IOS_DEVICE_NAMES="$IOS_DEVICE_NAME"
+export E2E_IOS_WDA_PREINSTALLED="true"
 EOF

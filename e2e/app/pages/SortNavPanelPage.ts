@@ -10,10 +10,9 @@ export class SortNavPanelPage extends BasePage {
 		const nav = this.elementByID(this.headerNav);
 		await nav.waitForDisplayed({ timeoutMsg: 'Timed out waiting for the library header tabs' });
 
-		const location = await nav.getLocation();
-		const size = await nav.getSize();
-		const x = Math.floor(location.x + size.width * 0.5);
-		const startY = Math.floor(location.y + size.height * 0.5);
+		const rect = await this.driver.getElementRect(await nav.elementId);
+		const x = Math.floor(rect.x + rect.width * 0.5);
+		const startY = Math.floor(rect.y + rect.height * 0.5);
 
 		// the header opens the panel on a vertical drag past 18px; overshoot so the
 		// threshold is cleared even when the drag is sampled coarsely

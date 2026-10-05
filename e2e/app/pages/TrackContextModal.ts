@@ -98,7 +98,7 @@ export class TrackContextMenu extends BasePage {
 	): Promise<WebdriverIO.Element> {
 		const attempts = 3;
 		const timeoutPerAttemptMs = 2_000;
-		const selector = `//*[(@name="${id}" or @content-desc="${id}")]`;
+		const selector = `~${id}`;
 
 		for (let attempt = 1; attempt <= attempts; attempt += 1) {
 			try {
@@ -141,16 +141,15 @@ export class TrackContextMenu extends BasePage {
 			return;
 		}
 
-		const location = await backdrop.getLocation();
-		const size = await backdrop.getSize();
+		const rect = await this.driver.getElementRect(await backdrop.elementId);
 		await this.driver.performActions([
 			{
 				actions: [
 					{
 						duration: 0,
 						type: 'pointerMove',
-						x: Math.floor(location.x + size.width / 2),
-						y: Math.floor(location.y + 10),
+						x: Math.floor(rect.x + rect.width / 2),
+						y: Math.floor(rect.y + 10),
 					},
 					{ button: 0, type: 'pointerDown' },
 					{ duration: 50, type: 'pause' },
