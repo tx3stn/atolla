@@ -49,6 +49,13 @@ export const LoopModes = {
 
 export type LoopMode = (typeof LoopModes)[keyof typeof LoopModes];
 
+export const PlayheadMoves = {
+	finished: 'finished',
+	jumped: 'jumped',
+} as const;
+
+export type PlayheadMove = (typeof PlayheadMoves)[keyof typeof PlayheadMoves];
+
 export function shuffleArray<T>(arr: Array<T>): Array<T> {
 	const copy = [...arr];
 	for (let i = copy.length - 1; i > 0; i--) {
@@ -85,6 +92,8 @@ export class PlaybackStore {
 	// bumped whenever the queue array changes, so subscribers that collapse progress-only
 	// notifications can still see a reorder (which leaves track, index and length identical)
 	queueRevision: number = 0;
+	playheadMove: PlayheadMove = PlayheadMoves.jumped;
+	playheadRevision: number = 0;
 	// deliberate track changes (play/previous/jump) may rebuild the native queue backward; a restore/reconcile snap following the engine must not (that snap is the stale wake-race the native guard suppresses); read by NativeAudioPlayer when configuring the engine
 	allowBackwardRebuild: boolean = true;
 
@@ -182,6 +191,7 @@ export class PlaybackStore {
 				// seeked to, so this stays true on a cold start
 				this.allowBackwardRebuild = false;
 			}
+			this.movePlayhead(PlayheadMoves.jumped);
 			this.notify();
 		} catch {
 			// best effort restore
@@ -240,6 +250,7 @@ export class PlaybackStore {
 		this.seekTarget = null;
 		this._artistLogoUrls = [];
 		this.clearUpNext();
+		this.movePlayhead(PlayheadMoves.jumped);
 		// clear inactive marker so the next cold start can restore this queue
 		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
@@ -255,6 +266,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this.isPlaying = true;
+		this.movePlayhead(PlayheadMoves.jumped);
 		this.persistQueue();
 		this.notify();
 	}
@@ -270,6 +282,7 @@ export class PlaybackStore {
 		this.trackIndex += 1;
 		this.progressSeconds = 0;
 		this.seekTarget = null;
+		this.movePlayhead(PlayheadMoves.jumped);
 		this.persistQueue();
 		this.notify();
 	}
@@ -289,6 +302,7 @@ export class PlaybackStore {
 				return;
 			}
 			this.progressSeconds = 0;
+			this.movePlayhead(PlayheadMoves.finished);
 			this.persistQueue();
 			this.notify();
 			return;
@@ -310,6 +324,7 @@ export class PlaybackStore {
 				this.trackIndex = 0;
 				this.progressSeconds = 0;
 				this.clearUpNext();
+				this.movePlayhead(PlayheadMoves.finished);
 			} else {
 				this.trackIndex = finishedIndex;
 				this.progressSeconds = this.tracks[finishedIndex]?.duration ?? 0;
@@ -318,6 +333,7 @@ export class PlaybackStore {
 		} else {
 			this.trackIndex = finishedIndex + 1;
 			this.progressSeconds = 0;
+			this.movePlayhead(PlayheadMoves.finished);
 		}
 
 		this.persistQueue();
@@ -341,6 +357,7 @@ export class PlaybackStore {
 		this.allowBackwardRebuild = false;
 		this.trackIndex = targetIndex;
 		this.progressSeconds = 0;
+		this.movePlayhead(PlayheadMoves.jumped);
 		this.persistQueue();
 		this.notify();
 	}
@@ -373,6 +390,7 @@ export class PlaybackStore {
 		this.progressSeconds = clamped;
 		this.seekTarget = null;
 		this.lastPersistedProgressSeconds = clamped;
+		this.movePlayhead(PlayheadMoves.jumped);
 		this.persistQueue();
 		this.notify();
 	}
@@ -399,6 +417,7 @@ export class PlaybackStore {
 		this.trackIndex = Math.max(this.trackIndex - 1, 0);
 		this.progressSeconds = 0;
 		this.seekTarget = null;
+		this.movePlayhead(PlayheadMoves.jumped);
 		this.persistQueue();
 		this.notify();
 	}
@@ -469,6 +488,7 @@ export class PlaybackStore {
 				// this branch resets position without persisting, so the checkpoint baseline has to come
 				// back with it or the step below stays negative for the whole looped play-through
 				this.lastPersistedProgressSeconds = 0;
+				this.movePlayhead(PlayheadMoves.finished);
 			} else if (this.trackIndex >= this.tracks.length - 1) {
 				if (this.loopMode === LoopModes.queue && this.tracks.length > 0) {
 					this.allowBackwardRebuild = true;
@@ -476,6 +496,7 @@ export class PlaybackStore {
 					this.progressSeconds = 0;
 					this.seekTarget = 0;
 					this.clearUpNext();
+					this.movePlayhead(PlayheadMoves.finished);
 					queueStateChanged = true;
 				} else {
 					this.progressSeconds = activeTrack.duration;
@@ -486,6 +507,7 @@ export class PlaybackStore {
 				this.allowBackwardRebuild = true;
 				this.trackIndex += 1;
 				this.progressSeconds = 0;
+				this.movePlayhead(PlayheadMoves.finished);
 				queueStateChanged = true;
 			}
 		} else {
@@ -520,6 +542,7 @@ export class PlaybackStore {
 		// small, so it stays debounced — and a seek changes neither tracks nor index, so the checkpoint
 		// refines the current queue rather than outrunning it
 		this.persistProgress();
+		this.movePlayhead(PlayheadMoves.jumped);
 		if (this.seekPersistTimer != null) clearTimeout(this.seekPersistTimer);
 		this.seekPersistTimer = setTimeout(() => {
 			this.seekPersistTimer = null;
@@ -546,6 +569,7 @@ export class PlaybackStore {
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
+		this.movePlayhead(PlayheadMoves.jumped);
 		// write the inactive marker before the full queue payload so that if the process is
 		// killed between the two writes, setPersistence sees active=false and skips restoration
 		// even though the queue payload still has tracks
@@ -567,6 +591,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this._artistLogoUrls = [];
 		this.clearUpNext();
+		this.movePlayhead(PlayheadMoves.jumped);
 		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
 		this.notify();
@@ -627,9 +652,11 @@ export class PlaybackStore {
 			this.trackIndex = Math.max(0, this.tracks.length - 1);
 			this.progressSeconds = 0;
 			this.seekTarget = null;
+			this.movePlayhead(PlayheadMoves.jumped);
 		} else if (wasCurrentTrack) {
 			this.progressSeconds = 0;
 			this.seekTarget = null;
+			this.movePlayhead(PlayheadMoves.jumped);
 		}
 
 		this.persistQueue();
@@ -824,6 +851,11 @@ export class PlaybackStore {
 				this.notify();
 			}
 		}
+	}
+
+	private movePlayhead(move: PlayheadMove): void {
+		this.playheadMove = move;
+		this.playheadRevision += 1;
 	}
 
 	private notify(): void {

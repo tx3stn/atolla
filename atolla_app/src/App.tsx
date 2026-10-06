@@ -64,6 +64,7 @@ import { PlayerTransport } from './services/PlayerTransport';
 import { syncToastText } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
 import { SessionManager } from './services/SessionManager';
+import { SpeakerOutput } from './services/SpeakerOutput';
 import { ToastService, ToastTypes } from './services/ToastService';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
@@ -165,6 +166,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
 	private playbackStore = new PlaybackStore();
+	private readonly speakerOutput = new SpeakerOutput({
+		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
+		playbackStore: this.playbackStore,
+		playersStore: this.playersStore,
+		userId: () => this.sessionManager.getSession()?.userId ?? '',
+	});
 	private downloadService = new DownloadService({
 		cacheImage: (id, url, category) => this.assetCache.cacheImageAsset(id, url, category),
 		cacheTrack: (trackId, url) => {
@@ -352,6 +359,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// overlay-window spike bootstrap is iOS-only
 		}
 		this.playbackOrchestrator.start();
+		if (this.featureFlags.multiRoom) {
+			this.speakerOutput.start();
+		}
 		this.sessionController.register({
 			applyDeviceName: (value) => this.connectivity.applyDeviceName(value),
 			connectionMode: () => this.state.connectionMode,
@@ -391,6 +401,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		void this.diagnosticsStore.target.storeString('session_active', '0').catch(() => {});
 		this.playbackStore.persistNow();
 		this.playbackOrchestrator.dispose();
+		this.speakerOutput.dispose();
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
 		}

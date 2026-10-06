@@ -109,6 +109,10 @@ export class PlayersStore {
 		this.store = options.store ?? new InMemoryKeyValueStore();
 	}
 
+	enabledSpeakers(): Array<Player> {
+		return this.players.filter((player) => player.enabled);
+	}
+
 	ensureLoaded(): Promise<void> {
 		if (this.isLoaded) {
 			return Promise.resolve();

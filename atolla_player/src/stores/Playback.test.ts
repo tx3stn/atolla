@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
-import { PlaybackStore, shuffleArray } from './Playback';
+import { LoopModes, PlaybackStore, PlayheadMoves, shuffleArray } from './Playback';
 
 const album: Album = {
 	artistId: 'artist-1',
@@ -1253,6 +1253,99 @@ describe('PlaybackStore', () => {
 
 			expect(observed).toEqual([before + 1]);
 			expect(store.queueRevision).toBe(before + 1);
+		});
+	});
+
+	describe('playhead moves', () => {
+		function playing(): PlaybackStore {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			return store;
+		}
+
+		it('records a track the engine finished as finished', () => {
+			const store = playing();
+			const before = store.playheadRevision;
+
+			store.advancePastTrackId(track1.id);
+
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+		});
+
+		it('records progress running past the end of a track as finished', () => {
+			const store = playing();
+			const before = store.playheadRevision;
+
+			store.updateProgress(track1.duration);
+
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+		});
+
+		it('records a repeated track as finished', () => {
+			const store = playing();
+			store.setLoopMode(LoopModes.track);
+			const before = store.playheadRevision;
+
+			store.updateProgress(track1.duration);
+
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+		});
+
+		it('records every move the user makes as jumped', () => {
+			const moves: Array<[string, (store: PlaybackStore) => void]> = [
+				['play', (store) => store.play(tracks, album, 1)],
+				['playTracks', (store) => store.playTracks(tracks, 1)],
+				['next', (store) => store.next()],
+				['previous', (store) => store.previous()],
+				['jumpToIndex', (store) => store.jumpToIndex(2)],
+				['jumpToTrackId', (store) => store.jumpToTrackId(track3.id)],
+				['reconcileToNativeTrack', (store) => store.reconcileToNativeTrack(track2.id, 30)],
+				['seekTo', (store) => store.seekTo(42)],
+				['removeFromQueueAt the current track', (store) => store.removeFromQueueAt(1)],
+				['stop', (store) => store.stop()],
+			];
+
+			for (const [name, move] of moves) {
+				const store = playing();
+				store.advancePastTrackId(track1.id);
+				store.previous();
+				store.advancePastTrackId(track1.id);
+				const before = store.playheadRevision;
+
+				move(store);
+
+				expect({ move: store.playheadMove, name }).toEqual({ move: PlayheadMoves.jumped, name });
+				expect(store.playheadRevision).toBe(before + 1);
+			}
+		});
+
+		it('records a restored queue as jumped', async () => {
+			const queue = new InMemoryQueueStore();
+			const progress = new InMemoryQueueStore();
+			seedRestore(queue, progress, 1, 30, track2.id);
+			const store = new PlaybackStore();
+			const before = store.playheadRevision;
+
+			await attach(store, queue, progress);
+
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
+		});
+
+		it('does not move for progress within a track or edits around it', () => {
+			const store = playing();
+			const before = store.playheadRevision;
+
+			store.updateProgress(10);
+			store.addToQueue([{ duration: 120, id: 'track-5', name: 'Track Five' }]);
+			store.moveQueueTrack(2, 1);
+			store.removeFromQueueAt(2);
+			store.setPlaying(false);
+
+			expect(store.playheadRevision).toBe(before);
 		});
 	});
 
