@@ -3,11 +3,14 @@ import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/store
 import type {
 	Hello,
 	MediaServer,
+	Member,
 	PairAccepted,
 	PairRequest,
 	Problem,
+	StateSnapshot,
 } from 'atolla_sync/src/api/generated';
 import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
+import type { PendingRequest } from 'atolla_sync/src/api/Transport';
 import {
 	DEFAULT_PLAYER_GROUP,
 	type Player,
@@ -826,6 +829,146 @@ describe('PlayersStore provision', () => {
 		await store.provision(KITCHEN.id);
 
 		expect(pushes.length).toBe(1);
+	});
+});
+
+describe('PlayersStore status', () => {
+	const SPEAKER = {
+		baseUrl: 'http://192.168.1.42:45889',
+		enabled: true,
+		icon: null,
+		id: '0123456789abcdef',
+		name: 'Kitchen',
+		token: 'k'.repeat(64),
+	};
+
+	type StatusAnswer = () => PendingRequest<PlayerAnswer<StateSnapshot | Problem | undefined>>;
+
+	function answered(status: number, json?: StateSnapshot | Problem): StatusAnswer {
+		return () =>
+			Object.assign(Promise.resolve({ headers: {}, json, status }), { cancel: () => {} });
+	}
+
+	function unanswered(): StatusAnswer {
+		return () => Object.assign(Promise.reject(new Error('timed out')), { cancel: () => {} });
+	}
+
+	async function watching(answers: Array<StatusAnswer>) {
+		const keyValueStore = new InMemoryKeyValueStore();
+		await keyValueStore.storeString(
+			PLAYERS_KEY,
+			JSON.stringify({ players: [SPEAKER], thisDeviceEnabled: true, version: 1 }),
+		);
+		const asked: Array<number | undefined> = [];
+		let cancelled = 0;
+		const store = new PlayersStore({
+			createStatusClient: () => ({
+				state: (_token, since) => {
+					asked.push(since);
+					const next = answers.shift();
+					if (next !== undefined) {
+						return next();
+					}
+					return Object.assign(new Promise<never>(() => {}), {
+						cancel: () => {
+							cancelled += 1;
+						},
+					});
+				},
+			}),
+			store: keyValueStore,
+			wait: () => new Promise<void>(() => {}),
+		});
+		await store.ensureLoaded();
+		let notifications = 0;
+		store.subscribe(() => {
+			notifications += 1;
+		});
+
+		const stop = store.watchStatus();
+		await settle();
+
+		return {
+			asked,
+			cancelled: () => cancelled,
+			notifications: () => notifications,
+			speaker: () => store.enabledSpeakers()[0],
+			stop,
+		};
+	}
+
+	function snapshot(member: Partial<Member>, version = 3): StateSnapshot {
+		return {
+			group: DEFAULT_PLAYER_GROUP,
+			leader: SPEAKER.id,
+			members: [
+				{
+					enabled: true,
+					id: SPEAKER.id,
+					name: SPEAKER.name,
+					state: PlayerStates.idle,
+					tier: PlayerTiers.tight,
+					...member,
+				},
+			],
+			playback: { isPlaying: false, loopMode: 'none', positionAtMs: 0, positionMs: 0 },
+			queue: { trackIndex: 0, tracks: [] },
+			version,
+		};
+	}
+
+	function settle(): Promise<void> {
+		return new Promise((resolve) => setTimeout(resolve, 0));
+	}
+
+	it('shows what the speaker reports for itself', async () => {
+		const { speaker } = await watching([
+			answered(200, snapshot({ lastError: 'could not reach the media server', state: 'playing' })),
+		]);
+
+		expect(speaker().state).toBe(PlayerStates.playing);
+		expect(speaker().lastError).toBe('could not reach the media server');
+		expect(speaker().reachable).toBe(true);
+	});
+
+	it('asks only for what changed since the version it last saw', async () => {
+		const { asked } = await watching([answered(200, snapshot({}, 7)), answered(304)]);
+
+		expect(asked).toEqual([undefined, 7, 7]);
+	});
+
+	it('marks a speaker unreachable when it does not answer', async () => {
+		const { speaker } = await watching([unanswered()]);
+
+		expect(speaker().reachable).toBe(false);
+	});
+
+	it('stops asking a speaker that refuses, leaving its status as it was', async () => {
+		const problem: Problem = { code: 'invalid_token', status: 401, title: 'Invalid token' };
+		const { asked, speaker } = await watching([answered(401, problem)]);
+
+		expect(asked.length).toBe(1);
+		expect(speaker().reachable).toBe(true);
+		expect(speaker().lastError).toBeNull();
+	});
+
+	it('only tells subscribers when the status changed', async () => {
+		const { notifications } = await watching([
+			answered(200, snapshot({ state: 'playing' }, 3)),
+			answered(200, snapshot({ state: 'playing' }, 4)),
+		]);
+
+		expect(notifications()).toBe(1);
+	});
+
+	it('cancels the poll in flight and asks nothing more once stopped', async () => {
+		const { asked, cancelled, stop } = await watching([]);
+
+		stop();
+		await settle();
+
+		expect(cancelled()).toBe(1);
+		expect(asked.length).toBe(1);
 	});
 });
 

@@ -321,6 +321,12 @@
 	"players_status_connected": {
 		"defaultMessage": "connecté"
 	},
+	"players_status_paused": {
+		"defaultMessage": "en pause"
+	},
+	"players_status_playing": {
+		"defaultMessage": "en lecture"
+	},
 	"players_status_unreachable": {
 		"defaultMessage": "injoignable"
 	},

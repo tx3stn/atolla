@@ -140,6 +140,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playersStore = new PlayersStore({
 		controllerId: () => this.sessionManager.getEffectiveDeviceId(),
 		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
+		createStatusClient: (baseUrl) =>
+			new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient(), { timeoutMs: 30_000 })),
 		deviceName: () => this.sessionManager.getEffectiveDeviceName(),
 		networkTransport: () => this.networkStatus.getTransport(),
 		provisioning: {

@@ -268,6 +268,41 @@ describe('PlayersView', () => {
 		expect(asked).toEqual([KITCHEN.baseUrl]);
 	});
 
+	valdiIt('watches speaker status only while the tab is active', async () => {
+		const store = new PlayersStore({ seed: [] });
+		const stop = jasmine.createSpy('stop');
+		const watch = spyOn(store, 'watchStatus').and.returnValue(stop);
+		const instrumented = InstrumentedComponentJSX.create(
+			PlayersView,
+			playersViewModel(store, { active: false }),
+			undefined,
+		);
+		expect(watch).not.toHaveBeenCalled();
+
+		instrumented.setViewModel(playersViewModel(store, { active: true }));
+		expect(watch).toHaveBeenCalledTimes(1);
+
+		instrumented.setViewModel(playersViewModel(store, { active: false }));
+		expect(stop).toHaveBeenCalledTimes(1);
+
+		instrumented.destroy();
+	});
+
+	valdiIt('stops watching speaker status when the view goes away', async () => {
+		const store = new PlayersStore({ seed: [] });
+		const stop = jasmine.createSpy('stop');
+		spyOn(store, 'watchStatus').and.returnValue(stop);
+		const instrumented = InstrumentedComponentJSX.create(
+			PlayersView,
+			playersViewModel(store, { active: true }),
+			undefined,
+		);
+
+		instrumented.destroy();
+
+		expect(stop).toHaveBeenCalledTimes(1);
+	});
+
 	valdiIt('keeps going through the rest after one player is refused', async (driver) => {
 		const { asked, store } = provisioningStore({ push: 409 });
 		await store.pair(KITCHEN, '12345678');

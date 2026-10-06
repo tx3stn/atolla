@@ -4,7 +4,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Player } from '../../models/Player';
+import { type Player, PlayerStates } from '../../models/Player';
 import { theme, withAlpha } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import type { ReorderableRowHandle } from './ReorderableList';
@@ -187,6 +187,12 @@ function statusText(player: Player): string {
 	}
 	if (!player.reachable) {
 		return Strings.playersStatusUnreachable();
+	}
+	if (player.state === PlayerStates.playing) {
+		return Strings.playersStatusPlaying();
+	}
+	if (player.state === PlayerStates.paused) {
+		return Strings.playersStatusPaused();
 	}
 	return Strings.playersStatusConnected();
 }

@@ -1,3 +1,4 @@
+import { getLogger } from 'atolla_core/src/services/Logger';
 import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { InternalError } from 'atolla_core/src/utils/Errors';
 import type {
@@ -20,9 +21,13 @@ import type { NetworkTransport } from '../services/NetworkStatus';
 import { normalizeAddress } from '../services/PlayerAddress';
 import { PlayerErrors } from '../services/PlayerErrors';
 
+const log = getLogger('players');
+
 export const PLAYERS_KEY = 'players';
 export const PLAYERS_ORDER_KEY = 'players_order';
 export const THIS_DEVICE_ID = 'this-device';
+
+const STATUS_RETRY_MS = 5_000;
 
 interface PersistedPlayer {
 	baseUrl: string;
@@ -48,6 +53,15 @@ export type PlayerClientPort = Pick<PlayerClient, 'hello' | 'mediaServer' | 'pai
 
 export type CreatePlayerClient = (baseUrl: string) => PlayerClientPort;
 
+export type CreateStatusClient = (baseUrl: string) => Pick<PlayerClient, 'state'>;
+
+type PlayerStatus = Pick<Player, 'lastError' | 'reachable' | 'state'>;
+
+interface StatusWatch {
+	requests: Set<{ cancel?: () => void }>;
+	stopped: boolean;
+}
+
 export interface MediaServerProvisioning {
 	mint: (player: Player) => Promise<MediaServer>;
 	userId: () => string;
@@ -56,11 +70,13 @@ export interface MediaServerProvisioning {
 export interface PlayersStoreOptions {
 	controllerId?: () => string;
 	createClient?: CreatePlayerClient;
+	createStatusClient?: CreateStatusClient;
 	deviceName?: () => string;
 	networkTransport?: () => NetworkTransport;
 	provisioning?: MediaServerProvisioning;
 	seed?: Array<Player>;
 	store?: KeyValueStore;
+	wait?: (ms: number) => Promise<void>;
 }
 
 function isPersistedPlayerOrder(value: unknown): value is PersistedPlayerOrder {
@@ -92,21 +108,25 @@ export class PlayersStore {
 	private thisDeviceEnabled = true;
 	private readonly controllerId: () => string;
 	private readonly createClient: CreatePlayerClient | undefined;
+	private readonly createStatusClient: CreateStatusClient | undefined;
 	private readonly deviceName: () => string;
 	private readonly networkTransport: () => NetworkTransport;
 	private readonly provisioning: MediaServerProvisioning | undefined;
 	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
 	private readonly tokens = new Map<string, string>();
+	private readonly wait: (ms: number) => Promise<void>;
 
 	constructor(options: PlayersStoreOptions = {}) {
 		this.controllerId = options.controllerId ?? (() => 'atolla');
 		this.createClient = options.createClient;
+		this.createStatusClient = options.createStatusClient;
 		this.deviceName = options.deviceName ?? (() => '');
 		this.networkTransport = options.networkTransport ?? (() => 'none');
 		this.players = [...(options.seed ?? [])];
 		this.provisioning = options.provisioning;
 		this.store = options.store ?? new InMemoryKeyValueStore();
+		this.wait = options.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
 	}
 
 	enabledSpeakers(): Array<Player> {
@@ -309,6 +329,73 @@ export class PlayersStore {
 		return this.tokens.get(id);
 	}
 
+	watchStatus(): () => void {
+		const watch: StatusWatch = { requests: new Set(), stopped: false };
+		void this.ensureLoaded().then(() => {
+			for (const player of this.players) {
+				void this.followStatus(player.id, watch);
+			}
+		});
+
+		return () => {
+			watch.stopped = true;
+			for (const request of watch.requests) {
+				request.cancel?.();
+			}
+		};
+	}
+
+	private applyStatus(id: string, snapshot: StateSnapshot): void {
+		const member = snapshot.members.find((candidate) => candidate.id === id);
+		this.updateStatus(id, {
+			lastError: member?.lastError ?? null,
+			reachable: true,
+			state: member?.state ?? PlayerStates.idle,
+		});
+	}
+
+	private async followStatus(id: string, watch: StatusWatch): Promise<void> {
+		const baseUrl = this.players.find((candidate) => candidate.id === id)?.baseUrl;
+		if (this.createStatusClient === undefined || baseUrl == null) {
+			return;
+		}
+
+		const client = this.createStatusClient(baseUrl);
+		let since: number | undefined;
+
+		while (!watch.stopped) {
+			const token = this.tokens.get(id);
+			if (token === undefined) {
+				return;
+			}
+
+			const request = client.state(token, since);
+			watch.requests.add(request);
+			const answer = await Promise.resolve(request)
+				.catch(() => null)
+				.finally(() => watch.requests.delete(request));
+
+			if (watch.stopped) {
+				return;
+			}
+
+			if (answer === null) {
+				this.updateStatus(id, { reachable: false });
+				await this.wait(STATUS_RETRY_MS);
+				continue;
+			}
+
+			if (answer.status === 200) {
+				const snapshot = answer.json as StateSnapshot;
+				since = snapshot.version;
+				this.applyStatus(id, snapshot);
+			} else if (answer.status !== 304) {
+				log.warn('player refused a status read', { id, status: answer.status });
+				return;
+			}
+		}
+	}
+
 	private async load(): Promise<void> {
 		const [players, order] = await Promise.all([this.readPlayers(), this.readOrder()]);
 
@@ -442,5 +529,24 @@ export class PlayersStore {
 			state: PlayerStates.idle,
 			tier: PlayerTiers.loose,
 		};
+	}
+
+	private updateStatus(id: string, status: Partial<PlayerStatus>): void {
+		const player = this.players.find((candidate) => candidate.id === id);
+		if (player === undefined) {
+			return;
+		}
+
+		const changed = (Object.keys(status) as Array<keyof PlayerStatus>).some(
+			(key) => status[key] !== player[key],
+		);
+		if (!changed) {
+			return;
+		}
+
+		this.players = this.players.map((candidate) =>
+			candidate.id === id ? { ...candidate, ...status } : candidate,
+		);
+		this.notify();
 	}
 }

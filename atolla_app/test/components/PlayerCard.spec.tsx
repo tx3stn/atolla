@@ -62,6 +62,39 @@ describe('PlayerCard', () => {
 		expect(labelValues(component)).toContain(Strings.playersStatusConnected());
 	});
 
+	valdiIt('shows playing while the player plays', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ state: PlayerStates.playing }) },
+			undefined,
+		);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusPlaying());
+	});
+
+	valdiIt('shows paused while the player holds a paused queue', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{ onToggle: () => {}, player: makePlayer({ state: PlayerStates.paused }) },
+			undefined,
+		);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusPaused());
+	});
+
+	valdiIt('prefers unreachable over the last state it reported', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{
+				onToggle: () => {},
+				player: makePlayer({ reachable: false, state: PlayerStates.playing }),
+			},
+			undefined,
+		);
+
+		expect(labelValues(component)).not.toContain(Strings.playersStatusPlaying());
+	});
+
 	valdiIt('shows the address of a networked player without its scheme', async (driver) => {
 		const component = driver.renderComponent(
 			PlayerCard,

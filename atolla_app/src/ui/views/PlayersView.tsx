@@ -41,21 +41,32 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 	private forgetTarget: Player | null = null;
 	private readonly scrollRef = new ElementRef<ScrollView>();
 	private readonly dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
+	private stopWatchingStatus: (() => void) | null = null;
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.playersStore.subscribe(this.bump));
 		if (this.viewModel.active) {
 			void this.provisionPaired();
+			this.stopWatchingStatus = this.viewModel.playersStore.watchStatus();
 		}
 	}
 
 	onDestroy(): void {
 		this.destroyed = true;
+		this.stopWatchingStatus?.();
 	}
 
 	onViewModelUpdate(prevViewModel?: PlayersViewModel): void {
-		if (prevViewModel !== undefined && this.viewModel.active && !prevViewModel.active) {
+		if (prevViewModel === undefined || this.viewModel.active === prevViewModel.active) {
+			return;
+		}
+
+		if (this.viewModel.active) {
 			void this.provisionPaired();
+			this.stopWatchingStatus = this.viewModel.playersStore.watchStatus();
+		} else {
+			this.stopWatchingStatus?.();
+			this.stopWatchingStatus = null;
 		}
 	}
 
