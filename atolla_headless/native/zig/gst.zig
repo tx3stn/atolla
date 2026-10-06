@@ -488,7 +488,7 @@ pub fn load() Error!Gst {
     };
 }
 
-fn resolve(comptime Symbols: type, library: *std.DynLib) Error!Symbols {
+pub fn resolve(comptime Symbols: type, library: *std.DynLib) Error!Symbols {
     var symbols: Symbols = undefined;
 
     inline for (@typeInfo(Symbols).@"struct".fields) |field| {
@@ -498,7 +498,7 @@ fn resolve(comptime Symbols: type, library: *std.DynLib) Error!Symbols {
     return symbols;
 }
 
-fn open(paths: []const []const u8) Error!std.DynLib {
+pub fn open(paths: []const []const u8) Error!std.DynLib {
     for (paths) |path| {
         return std.DynLib.open(path) catch continue;
     }

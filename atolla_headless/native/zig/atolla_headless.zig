@@ -8,6 +8,7 @@ comptime {
     _ = @import("command.zig");
     _ = @import("credentials.zig");
     _ = @import("gst.zig");
+    _ = @import("gst_net.zig");
     _ = @import("hello.zig");
     _ = @import("http_server.zig");
     _ = @import("local_address.zig");

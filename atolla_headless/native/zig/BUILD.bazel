@@ -41,6 +41,7 @@ zig_static_library(
         "command.zig",
         "credentials.zig",
         "gst.zig",
+        "gst_net.zig",
         "hello.zig",
         "http_server.zig",
         "local_address.zig",
