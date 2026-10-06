@@ -18,6 +18,16 @@ class AtollaPlaybackGuardsTest {
 	}
 
 	@Test
+	fun `an audible player pauses for audio focus loss and unplugged headphones`() {
+		assertTrue(AtollaPlaybackGuards.shouldPauseForInterruptions(volume = 0.4f))
+	}
+
+	@Test
+	fun `a muted player plays through interruptions so the speakers are not paused`() {
+		assertFalse(AtollaPlaybackGuards.shouldPauseForInterruptions(volume = 0f))
+	}
+
+	@Test
 	fun `clear notification preserves foreground service while audio is active`() {
 		assertTrue(AtollaPlaybackGuards.shouldPreserveServiceOnClear(isAudioActive = true))
 	}

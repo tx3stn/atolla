@@ -17,7 +17,13 @@ import {
 } from '../models/Player';
 import type { NetworkTransport } from '../services/NetworkStatus';
 import { PlayerErrors } from '../services/PlayerErrors';
-import { PLAYERS_KEY, PLAYERS_ORDER_KEY, type PlayerClientPort, PlayersStore } from './Players';
+import {
+	PLAYERS_KEY,
+	PLAYERS_ORDER_KEY,
+	type PlayerClientPort,
+	PlayersStore,
+	THIS_DEVICE_ID,
+} from './Players';
 
 describe('PlayersStore pair', () => {
 	const KITCHEN: ProbedPlayer = {
@@ -251,6 +257,14 @@ describe('PlayersStore', () => {
 
 		expect(store.sections()[0].players[0].enabled).toBe(true);
 		expect(notifications).toBe(1);
+	});
+
+	it('reports this device disabled once it is switched off', () => {
+		const store = new PlayersStore();
+
+		store.setEnabled(THIS_DEVICE_ID, false);
+
+		expect(store.isThisDeviceEnabled()).toBe(false);
 	});
 
 	it('ignores setEnabled for an id it does not hold', () => {

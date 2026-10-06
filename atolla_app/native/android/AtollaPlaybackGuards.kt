@@ -17,6 +17,8 @@ object AtollaPlaybackGuards {
 	fun shouldEmitPauseForReason(reason: Int): Boolean =
 		reason == REASON_AUDIO_BECOMING_NOISY || reason == REASON_AUDIO_FOCUS_LOSS
 
+	fun shouldPauseForInterruptions(volume: Float): Boolean = volume > 0f
+
 	// returns true when the foreground service should be left alive despite a clear-notification
 	// call. on every app start the JS store restores asynchronously; during that window
 	// clearAtollaTrackPlaybackNotification() fires with track=null while ExoPlayer may still be

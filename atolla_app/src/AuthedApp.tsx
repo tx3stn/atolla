@@ -95,12 +95,14 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 			<view style={theme.app.content}>
 				<GaplessPlayer
 					activeSourceUrl={this.viewModel.playbackOrchestrator.getTrackPlaybackSourceUrl()}
+					featureFlags={this.viewModel.featureFlags}
 					isPlaying={this.viewModel.playbackStore.isPlaying}
 					nextSourceUrl={this.viewModel.playbackOrchestrator.getNextTrackSourceUrl()}
 					onPlaybackError={this.handlePlaybackError}
 					onPlaybackEvent={this.handlePlaybackEvent}
 					onTrackCompleted={this.handleTrackCompleted}
 					playbackStore={this.viewModel.playbackStore}
+					playersStore={this.viewModel.playersStore}
 				/>
 
 				<view style={this.tabStyle(FooterTabs.home)}>

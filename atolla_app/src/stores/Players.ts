@@ -130,6 +130,10 @@ export class PlayersStore {
 		void this.persist();
 	}
 
+	isThisDeviceEnabled(): boolean {
+		return this.thisDeviceEnabled;
+	}
+
 	pair(player: ProbedPlayer, code: string): Promise<Player> {
 		const createClient = this.createClient;
 		if (createClient === undefined) {

@@ -597,6 +597,12 @@ object AtollaGaplessAudioEngine {
 		mainHandler.post {
 			val player = ensurePlayer() ?: return@post
 			player.volume = this.volume.coerceIn(0f, 1f)
+			val shouldPause = AtollaPlaybackGuards.shouldPauseForInterruptions(this.volume)
+			if (shouldPause != pausesForInterruptions) {
+				pausesForInterruptions = shouldPause
+				player.setAudioAttributes(audioAttributes, shouldPause)
+				player.setHandleAudioBecomingNoisy(shouldPause)
+			}
 		}
 	}
 
@@ -907,6 +913,13 @@ object AtollaGaplessAudioEngine {
 	// a source, so a token refreshed after the player exists still reaches the next track.
 	private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
 
+	private val audioAttributes = AudioAttributes.Builder()
+		.setUsage(C.USAGE_MEDIA)
+		.setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+		.build()
+
+	private var pausesForInterruptions = true
+
 	fun setAuthHeader(header: String?) {
 		httpDataSourceFactory.setDefaultRequestProperties(
 			if (header.isNullOrBlank()) emptyMap() else mapOf("Authorization" to header),
@@ -935,13 +948,10 @@ object AtollaGaplessAudioEngine {
 				DefaultMediaSourceFactory(DefaultDataSource.Factory(appContext, httpDataSourceFactory)),
 			)
 			.build()
-		val audioAttributes = AudioAttributes.Builder()
-			.setUsage(C.USAGE_MEDIA)
-			.setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-			.build()
-		player.setAudioAttributes(audioAttributes, true)
+		pausesForInterruptions = AtollaPlaybackGuards.shouldPauseForInterruptions(volume)
+		player.setAudioAttributes(audioAttributes, pausesForInterruptions)
 		player.setWakeMode(C.WAKE_MODE_NETWORK)
-		player.setHandleAudioBecomingNoisy(true)
+		player.setHandleAudioBecomingNoisy(pausesForInterruptions)
 		player.addListener(playerListener)
 		player.volume = volume.coerceIn(0f, 1f)
 		exoPlayer = player
