@@ -5,7 +5,7 @@ import {
 	parseNativeAudioErrorEvent,
 	parseNativeAudioJumpedEvent,
 } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
-import { type PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
+import { LoopModes, type PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import type { ResolvedSource } from './SourceResolver';
 
@@ -21,6 +21,10 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 
 // A source that never accepts a seek must not hold the reported position back for good.
 const MAX_SEEK_ATTEMPTS = 25;
+
+const TRACK_END_MARGIN_SECONDS = 0.05;
+
+type Bound = ResolvedSource & { trackId: string };
 
 export interface AudioPlayerDeps {
 	audio: AudioEngine;
@@ -40,7 +44,9 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	const log = getLogger('audio');
 
 	let unsubscribe: (() => void) | null = null;
-	let bound: (ResolvedSource & { trackId: string }) | null = null;
+	let bound: Bound | null = null;
+	let handed: Bound | null = null;
+	let offeredNextId: string | null = null;
 	let consecutiveFailures = 0;
 	let lastPlaying = false;
 	let lastSeekTarget: number | null = null;
@@ -60,6 +66,8 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 				audio.clear();
 			}
 			bound = null;
+			handed = null;
+			offeredNextId = null;
 			pendingSeekMs = null;
 			return;
 		}
@@ -95,6 +103,8 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		}
 
 		bound = { ...resolved, trackId: track.id };
+		handed = null;
+		offeredNextId = null;
 
 		pendingSeekMs = null;
 		if (playback.progressSeconds > 0) {
@@ -104,6 +114,52 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		lastPlaying = playback.isPlaying;
 		audio.setPlaying(playback.isPlaying);
 	};
+
+	const upcomingTrack = (): Track | null => {
+		const track = playback.track;
+		if (track === null || audio.currentTrackId() !== track.id) {
+			return null;
+		}
+
+		return playback.loopMode === LoopModes.track ? track : playback.nextTrack;
+	};
+
+	const bindNextTrack = (): void => {
+		const next = upcomingTrack();
+		const nextId = next?.id ?? null;
+		if (nextId === offeredNextId) {
+			return;
+		}
+
+		offeredNextId = nextId;
+		handed = null;
+
+		if (next === null) {
+			audio.clearNext();
+			return;
+		}
+
+		const resolved = resolveSource(next);
+		if (resolved === null) {
+			log.warn('no source for the next track', { trackId: next.id });
+			audio.clearNext();
+			return;
+		}
+
+		if (!audio.configureNext(resolved.source, next.id, resolved.authHeader)) {
+			log.warn('engine refused the next track', { trackId: next.id });
+			audio.clearNext();
+			return;
+		}
+
+		handed = { ...resolved, trackId: next.id };
+	};
+
+	const engineMovedOnUnheard = (): boolean =>
+		handed !== null &&
+		handed.trackId !== bound?.trackId &&
+		audio.currentTrackId() === handed.trackId &&
+		playback.track?.id === bound?.trackId;
 
 	const applyPlaying = (): void => {
 		if (playback.isPlaying === lastPlaying) {
@@ -162,7 +218,10 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			consecutiveFailures = 0;
 		}
 
-		bindTrack();
+		if (!engineMovedOnUnheard()) {
+			bindTrack();
+			bindNextTrack();
+		}
 		applyPlaying();
 		applySeek();
 	};
@@ -176,6 +235,12 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 
 			const completed = parseNativeAudioCompletedEvent(event);
 			if (completed.isCompleted) {
+				if (handed !== null && audio.currentTrackId() === handed.trackId) {
+					bound = handed;
+				}
+				handed = null;
+				offeredNextId = null;
+
 				if (completed.finishedTrackId === null) {
 					playback.next();
 				} else {
@@ -231,7 +296,12 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			consecutiveFailures = 0;
 		}
 
-		playback.updateProgress(positionMs / 1000);
+		const seconds = positionMs / 1000;
+		playback.updateProgress(
+			track.duration > 0
+				? Math.min(seconds, Math.max(0, track.duration - TRACK_END_MARGIN_SECONDS))
+				: seconds,
+		);
 	};
 
 	return {
@@ -252,7 +322,10 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			unsubscribe?.();
 			unsubscribe = null;
 		},
-		refresh: apply,
+		refresh: () => {
+			offeredNextId = null;
+			apply();
+		},
 		start: () => {
 			unsubscribe = playback.subscribe(apply);
 			apply();

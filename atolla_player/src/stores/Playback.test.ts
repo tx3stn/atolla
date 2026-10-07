@@ -1417,6 +1417,27 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('nextTrack getter', () => {
+		it('returns the track after the current one', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			expect(store.nextTrack).toBe(track3);
+		});
+
+		it('wraps round to the first track at the end of a looping queue', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.setLoopMode(LoopModes.queue);
+			expect(store.nextTrack).toBe(track1);
+		});
+
+		it('returns null at the end of a queue that does not loop', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			expect(store.nextTrack).toBeNull();
+		});
+	});
+
 	describe('playTracks()', () => {
 		it('sets tracks and starts playing from index 0 by default', () => {
 			const store = new PlaybackStore();

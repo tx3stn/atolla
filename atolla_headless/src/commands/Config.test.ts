@@ -33,7 +33,9 @@ function context(argv: Array<string>) {
 			args: parseArguments(argv, CmdConfig.flags),
 			audio: {
 				clear: () => {},
+				clearNext: () => {},
 				configure: () => true,
+				configureNext: () => true,
 				consumeEvent: () => '',
 				currentTrackId: () => '',
 				positionMs: () => 0,

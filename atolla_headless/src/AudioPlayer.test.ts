@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Track } from 'atolla_core/src/models/Track';
-import { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import { type AudioPlayer, makeAudioPlayer } from './AudioPlayer';
 import type { ResolvedSource } from './SourceResolver';
@@ -11,10 +11,19 @@ function track(id: string): Track {
 
 const TRACKS = [track('t1'), track('t2'), track('t3')];
 
+interface Handed {
+	authHeader: string;
+	source: string;
+	trackId: string;
+}
+
 interface FakeEngine extends AudioEngine {
 	cleared: number;
-	configured: Array<{ authHeader: string; source: string; trackId: string }>;
+	configured: Array<Handed>;
+	current: string;
 	events: Array<string>;
+	handedOver: Array<Handed>;
+	next: Handed | null;
 	playing: boolean;
 	position: number;
 	seeks: Array<number>;
@@ -25,17 +34,32 @@ function fakeEngine(): FakeEngine {
 		clear: () => {
 			engine.cleared++;
 			engine.configured.length = 0;
+			engine.current = '';
+			engine.next = null;
 		},
 		cleared: 0,
+		clearNext: () => {
+			engine.next = null;
+		},
 		configure: (source: string, trackId: string, authHeader: string) => {
 			engine.configured.push({ authHeader, source, trackId });
+			engine.current = trackId;
+			engine.next = null;
 			engine.position = 0;
 			return true;
 		},
 		configured: [],
+		configureNext: (source: string, trackId: string, authHeader: string) => {
+			engine.handedOver.push({ authHeader, source, trackId });
+			engine.next = { authHeader, source, trackId };
+			return true;
+		},
 		consumeEvent: () => engine.events.shift() ?? '',
-		currentTrackId: () => engine.configured[engine.configured.length - 1]?.trackId ?? '',
+		current: '',
+		currentTrackId: () => engine.current,
 		events: [],
+		handedOver: [],
+		next: null,
 		playing: false,
 		position: 0,
 		positionMs: () => engine.position,
@@ -52,6 +76,14 @@ function fakeEngine(): FakeEngine {
 	};
 
 	return engine;
+}
+
+function moveOnToNext(engine: FakeEngine): void {
+	const finished = engine.current;
+	engine.current = engine.next?.trackId ?? finished;
+	engine.next = null;
+	engine.position = 0;
+	engine.events.push(`completed:${finished}`);
 }
 
 function fixture(
@@ -340,7 +372,7 @@ describe('makeAudioPlayer', () => {
 		const { audio, player, playback } = fixture();
 
 		playback.playTracks(TRACKS, 0);
-		audio.configured.push({ authHeader: '', source: '/media/other', trackId: 'other' });
+		audio.current = 'other';
 		audio.position = 30_000;
 		player.tick();
 
@@ -467,6 +499,172 @@ describe('makeAudioPlayer', () => {
 		player.tick();
 
 		expect(playback.trackIndex).toBe(1);
+	});
+
+	it('hands the engine the next track once the current one is bound', () => {
+		const { audio, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+
+		expect(audio.next).toEqual({ authHeader: '', source: '/media/t2', trackId: 't2' });
+	});
+
+	it('leaves the track alone when the engine moves on to the next one by itself', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		moveOnToNext(audio);
+		player.tick();
+
+		expect(playback.trackIndex).toBe(1);
+		expect(audio.configured).toHaveLength(1);
+		expect(audio.next?.trackId).toBe('t3');
+	});
+
+	it('leaves the engine alone when the queue changes before it hears the engine moved on', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		moveOnToNext(audio);
+		playback.addToQueue([track('t4')]);
+		player.tick();
+
+		expect(playback.trackIndex).toBe(1);
+		expect(audio.configured).toHaveLength(1);
+		expect(audio.next?.trackId).toBe('t3');
+	});
+
+	it('binds the track the listener skipped to before it hears the engine moved on', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		moveOnToNext(audio);
+		playback.jumpToIndex(2);
+		player.tick();
+
+		expect(playback.trackIndex).toBe(2);
+		expect(audio.current).toBe('t3');
+	});
+
+	it('binds the queued track when the engine moved on to one it no longer expects', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		audio.events.push('completed:t1');
+		audio.current = 't2';
+		playback.playNext([track('t4')]);
+		player.tick();
+
+		expect(playback.trackIndex).toBe(1);
+		expect(audio.current).toBe('t4');
+	});
+
+	it('hands over a different next track when the queue after the current one changes', () => {
+		const { audio, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		playback.playNext([track('t4')]);
+
+		expect(audio.next?.trackId).toBe('t4');
+	});
+
+	it('clears the next track when nothing follows the current one any more', () => {
+		const { audio, playback } = fixture();
+
+		playback.playTracks(TRACKS, 1);
+		playback.removeFromQueueAt(2);
+
+		expect(audio.next).toBeNull();
+	});
+
+	it('hands the current track back as its next on repeat-one', () => {
+		const { audio, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		playback.setLoopMode(LoopModes.track);
+
+		expect(audio.next?.trackId).toBe('t1');
+	});
+
+	it('plays a track again on repeat-one without binding it afresh', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		playback.setLoopMode(LoopModes.track);
+		moveOnToNext(audio);
+		player.tick();
+
+		expect(playback.trackIndex).toBe(0);
+		expect(audio.configured).toHaveLength(1);
+		expect(audio.next?.trackId).toBe('t1');
+	});
+
+	it('hands over the first track as next at the end of a looping queue', () => {
+		const { audio, playback } = fixture();
+
+		playback.playTracks(TRACKS, 2);
+		playback.setLoopMode(LoopModes.queue);
+
+		expect(audio.next?.trackId).toBe('t1');
+	});
+
+	it('hands the next track over again when it binds the current one afresh', () => {
+		let resolved = (id: string): ResolvedSource => ({
+			authHeader: 'Token="old"',
+			source: `https://demo/${id}`,
+		});
+		const { audio, playback } = fixture((id) => resolved(id));
+
+		playback.playTracks(TRACKS, 0);
+		playback.playPause();
+		resolved = (id) => ({ authHeader: 'Token="new"', source: `https://demo/${id}` });
+		playback.playPause();
+
+		expect(audio.next).toEqual({
+			authHeader: 'Token="new"',
+			source: 'https://demo/t2',
+			trackId: 't2',
+		});
+	});
+
+	it('does not load the track again when paused straight after the engine moves on', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		moveOnToNext(audio);
+		player.tick();
+		playback.playPause();
+
+		expect(audio.configured).toHaveLength(1);
+		expect(audio.playing).toBe(false);
+	});
+
+	it('resolves the next track once, not on every position read', () => {
+		const resolvedIds: Array<string> = [];
+		const { audio, player, playback } = fixture((id) => {
+			resolvedIds.push(id);
+			return { authHeader: '', source: `/media/${id}` };
+		});
+
+		playback.playTracks(TRACKS, 0);
+		audio.position = 1_000;
+		player.tick();
+		audio.position = 2_000;
+		player.tick();
+
+		expect(resolvedIds).toEqual(['t1', 't2']);
+	});
+
+	it('keeps the reported position under the track duration, so the engine decides when it ends', () => {
+		const { audio, player, playback } = fixture();
+
+		playback.playTracks(TRACKS, 0);
+		audio.position = 180_500;
+		player.tick();
+
+		expect(playback.trackIndex).toBe(0);
+		expect(playback.progressSeconds).toBeLessThan(180);
+		expect(audio.configured).toHaveLength(1);
 	});
 
 	it('clears the engine when the queue empties', () => {

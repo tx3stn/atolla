@@ -10,6 +10,8 @@ extern "C" {
 bool atolla_audio_start(const char *device);
 size_t atolla_audio_devices(unsigned char *out, size_t len);
 bool atolla_audio_configure(const char *source, const char *track_id, const char *auth_header);
+bool atolla_audio_configure_next(const char *source, const char *track_id, const char *auth_header);
+void atolla_audio_clear_next(void);
 void atolla_audio_set_playing(bool playing);
 bool atolla_audio_seek_to_ms(int64_t position_ms);
 int64_t atolla_audio_position_ms(void);

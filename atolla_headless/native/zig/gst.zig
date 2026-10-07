@@ -28,6 +28,7 @@ pub const StateChange = enum(c_int) {
 pub const MessageType = enum(c_uint) {
     eos = 1,
     @"error" = 2,
+    stream_start = 1 << 28,
     _,
 };
 
@@ -280,6 +281,7 @@ pub const PipelineError = error{ UnreadablePath, UriTooLong, LaunchFailed, NoBus
 pub const Outcome = union(enum) {
     ended,
     failed: []const u8,
+    started,
     timeout,
 };
 
@@ -293,11 +295,17 @@ const max_extra_headers_bytes = max_auth_header_bytes * 2 + 64;
 /// `source-setup` handler reads whatever is set when playbin builds a source.
 pub const SourceSetup = struct {
     gst: *const Gst,
+    mutex: std.Io.Mutex = .init,
     header: [max_auth_header_bytes]u8 = undefined,
     header_len: usize = 0,
 
     /// Too long is dropped, not truncated. Half a credential authenticates nothing.
     pub fn setHeader(self: *SourceSetup, header: []const u8) void {
+        const io = std.Io.Threaded.global_single_threaded.io();
+
+        self.mutex.lockUncancelable(io);
+        defer self.mutex.unlock(io);
+
         if (header.len > self.header.len) {
             log.err("audio", "authorization header is {d} bytes, too long to send", .{header.len});
             self.header_len = 0;
@@ -338,6 +346,10 @@ fn extraHeaders(buffer: []u8, header: []const u8) ?[:0]const u8 {
 
 fn onSourceSetup(_: *Object, source: *Object, user_data: ?*anyopaque) callconv(.c) void {
     const context: *SourceSetup = @ptrCast(@alignCast(user_data orelse return));
+    const io = std.Io.Threaded.global_single_threaded.io();
+
+    context.mutex.lockUncancelable(io);
+    defer context.mutex.unlock(io);
 
     if (context.header_len == 0) return;
 
@@ -399,14 +411,24 @@ pub const Pipeline = struct {
 
     /// `context` must outlive the pipeline: the signal fires every time playbin builds a source.
     pub fn connectSourceSetup(self: *const Pipeline, context: *SourceSetup) void {
-        _ = self.gst.gobject.g_signal_connect_data(
-            self.element,
-            "source-setup",
-            @ptrCast(&onSourceSetup),
-            context,
-            null,
-            0,
-        );
+        self.connect("source-setup", @ptrCast(&onSourceSetup), context);
+    }
+
+    pub fn connectAboutToFinish(
+        self: *const Pipeline,
+        handler: *const fn (*Object, ?*anyopaque) callconv(.c) void,
+        context: *anyopaque,
+    ) void {
+        self.connect("about-to-finish", @ptrCast(handler), context);
+    }
+
+    fn connect(
+        self: *const Pipeline,
+        signal: [:0]const u8,
+        handler: *const anyopaque,
+        context: *anyopaque,
+    ) void {
+        _ = self.gst.gobject.g_signal_connect_data(self.element, signal.ptr, handler, context, null, 0);
     }
 
     pub fn set(self: *const Pipeline, name: [:0]const u8, value: [:0]const u8) void {
@@ -430,13 +452,16 @@ pub const Pipeline = struct {
     /// `failed` borrows `buffer`, so it stays valid only until the next call. A state change that
     /// fails outright still posts its reason here, so this is the only place an error is read from.
     pub fn wait(self: *const Pipeline, timeout_ns: u64, buffer: []u8) Outcome {
-        const mask = @intFromEnum(MessageType.eos) | @intFromEnum(MessageType.@"error");
+        const mask = @intFromEnum(MessageType.eos) |
+            @intFromEnum(MessageType.@"error") |
+            @intFromEnum(MessageType.stream_start);
         const message = self.gst.gstreamer.gst_bus_timed_pop_filtered(self.bus, timeout_ns, mask) orelse {
             return .timeout;
         };
         defer self.gst.gstreamer.gst_mini_object_unref(message);
 
         if (message.type == .eos) return .ended;
+        if (message.type == .stream_start) return .started;
 
         var failure: ?*GError = null;
         var debug: ?[*:0]u8 = null;
@@ -534,6 +559,13 @@ fn silentPipeline(gst: *const Gst, uri: [:0]const u8) !Pipeline {
     return pipeline;
 }
 
+fn waitPastStart(pipeline: *const Pipeline, timeout_ns: u64, buffer: []u8) Outcome {
+    while (true) {
+        const outcome = pipeline.wait(timeout_ns, buffer);
+        if (outcome != .started) return outcome;
+    }
+}
+
 /// The shape `createClientHeader` renders for the daemon. Every field is here so a fixture cannot
 /// pass on a header narrower than the one that is really sent.
 const test_auth_header =
@@ -597,15 +629,44 @@ test "gst: plays a file to the end" {
 
     var message: [256]u8 = undefined;
 
-    switch (pipeline.wait(10 * second, &message)) {
+    switch (waitPastStart(&pipeline, 10 * second, &message)) {
         .ended => {},
         .failed => |text| {
             std.debug.print("pipeline failed: {s}\n", .{text});
 
             return error.TestUnexpectedResult;
         },
-        .timeout => return error.TestUnexpectedResult,
+        .started, .timeout => return error.TestUnexpectedResult,
     }
+}
+
+test "gst: says a stream has started before it says it ended" {
+    var gst = try loaded();
+    defer gst.close();
+
+    gst.initialise();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var audio: [wav.tone_bytes]u8 = undefined;
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "tone.wav", .data = wav.tone(&audio) });
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try std.fmt.bufPrintZ(&path_buffer, ".zig-cache/tmp/{s}/tone.wav", .{tmp.sub_path});
+
+    var uri_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const uri = try gst.fileUri(&uri_buffer, path);
+
+    var pipeline = try silentPipeline(&gst, uri);
+    defer pipeline.deinit();
+
+    _ = pipeline.setState(.playing);
+
+    var message: [256]u8 = undefined;
+
+    try testing.expect(pipeline.wait(10 * second, &message) == .started);
+    try testing.expect(pipeline.wait(10 * second, &message) == .ended);
 }
 
 test "gst: reports a source it cannot read rather than hanging" {
@@ -620,7 +681,7 @@ test "gst: reports a source it cannot read rather than hanging" {
     try testing.expectEqual(StateChange.failure, pipeline.setState(.playing));
 
     var message: [256]u8 = undefined;
-    const outcome = pipeline.wait(5 * second, &message);
+    const outcome = waitPastStart(&pipeline, 5 * second, &message);
 
     try testing.expect(outcome == .failed);
     try testing.expect(outcome.failed.len > 0);
@@ -793,7 +854,7 @@ test "gst: sends the authorization header it was given to an http source" {
     _ = pipeline.setState(.playing);
 
     var message: [256]u8 = undefined;
-    const outcome = pipeline.wait(20 * second, &message);
+    const outcome = waitPastStart(&pipeline, 20 * second, &message);
 
     upstream.stop();
     thread.join();
@@ -805,7 +866,7 @@ test "gst: sends the authorization header it was given to an http source" {
 
             return error.TestUnexpectedResult;
         },
-        .timeout => return error.TestUnexpectedResult,
+        .started, .timeout => return error.TestUnexpectedResult,
     }
 
     try testing.expectEqualStrings(test_auth_header, upstream.authorization());

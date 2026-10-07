@@ -26,6 +26,8 @@ const TRACKS: Array<Track> = [
 // on its own.
 const UNHURRIED: Track = { duration: 30, id: 'unhurried', name: 'unhurried' };
 
+const LOOPED: Track = { duration: 3, id: 'looped', name: 'looped' };
+
 function silence(seconds: number): Buffer {
 	const samples = RATE * seconds;
 	const data = samples * 2;
@@ -92,6 +94,7 @@ describe('playback', () => {
 		}
 
 		writeFileSync(join(dataDir, 'media', UNHURRIED.id), silence(UNHURRIED.duration));
+		writeFileSync(join(dataDir, 'media', LOOPED.id), silence(LOOPED.duration));
 
 		writeFileSync(
 			configPath,
@@ -136,6 +139,24 @@ describe('playback', () => {
 		const advanced = await until((state) => state.queue.trackIndex === 1, 'the track to finish');
 
 		expect(advanced.members[0].state).toBe('playing');
+	});
+
+	it('keeps playing the track again on repeat-one', async () => {
+		await client.command(token, { command: 'setQueue', trackIndex: 0, tracks: [LOOPED] });
+		await client.command(token, { command: 'setLoopMode', loopMode: 'track' });
+		await client.command(token, { command: 'play' });
+
+		await until((state) => state.playback.positionMs > 2_000, 'the track to near its end');
+		await until((state) => state.playback.positionMs < 1_000, 'the track to start again');
+		await until((state) => state.playback.positionMs > 2_000, 'the repeat to near its end');
+
+		const again = await until(
+			(state) => state.playback.positionMs < 1_000,
+			'the repeat to start again',
+		);
+
+		expect(again.playback.isPlaying).toBe(true);
+		expect(again.queue.trackIndex).toBe(0);
 	});
 
 	it('pauses where it was asked to', async () => {

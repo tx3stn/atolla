@@ -42,7 +42,9 @@ function harness(
 				args: parseArguments(argv, CmdPair.flags),
 				audio: {
 					clear: () => {},
+					clearNext: () => {},
 					configure: () => true,
+					configureNext: () => true,
 					consumeEvent: () => '',
 					currentTrackId: () => '',
 					positionMs: () => 0,

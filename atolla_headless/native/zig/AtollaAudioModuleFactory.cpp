@@ -70,6 +70,34 @@ public:
                                                             copiedTrackId.c_str(),
                                                             copiedAuthHeader.c_str()));
                              })))
+            .setMapValue("atollaAudioConfigureNext",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const Valdi::StringBox source = callContext.getParameterAsString(0);
+                                 const Valdi::StringBox trackId =
+                                     callContext.getParameterAsString(1);
+                                 const Valdi::StringBox authHeader =
+                                     callContext.getParameterAsString(2);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 const std::string copiedSource(source.toStringView());
+                                 const std::string copiedTrackId(trackId.toStringView());
+                                 const std::string copiedAuthHeader(authHeader.toStringView());
+
+                                 return Valdi::Value(
+                                     atolla_audio_configure_next(copiedSource.c_str(),
+                                                                 copiedTrackId.c_str(),
+                                                                 copiedAuthHeader.c_str()));
+                             })))
+            .setMapValue("atollaAudioClearNext",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {
+                                 atolla_audio_clear_next();
+
+                                 return Valdi::Value::undefined();
+                             })))
             .setMapValue("atollaAudioSetPlaying",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {

@@ -5,7 +5,9 @@ import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { version } from 'atolla_core/src/version';
 import {
 	atollaAudioClear,
+	atollaAudioClearNext,
 	atollaAudioConfigure,
+	atollaAudioConfigureNext,
 	atollaAudioConsumeEvent,
 	atollaAudioCurrentTrackId,
 	atollaAudioDevices,
@@ -67,7 +69,9 @@ const audioDevices: AudioDevices = () =>
 
 const audio: AudioEngine = {
 	clear: atollaAudioClear,
+	clearNext: atollaAudioClearNext,
 	configure: atollaAudioConfigure,
+	configureNext: atollaAudioConfigureNext,
 	consumeEvent: atollaAudioConsumeEvent,
 	currentTrackId: atollaAudioCurrentTrackId,
 	positionMs: atollaAudioPositionMs,

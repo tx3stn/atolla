@@ -4,6 +4,14 @@ export function atollaAudioDevices(): string;
 
 export function atollaAudioConfigure(source: string, trackId: string, authHeader: string): boolean;
 
+export function atollaAudioConfigureNext(
+	source: string,
+	trackId: string,
+	authHeader: string,
+): boolean;
+
+export function atollaAudioClearNext(): void;
+
 export function atollaAudioSetPlaying(playing: boolean): void;
 
 export function atollaAudioSeekToMs(positionMs: number): boolean;

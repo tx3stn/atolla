@@ -216,6 +216,17 @@ export class PlaybackStore {
 		return this._artistLogoUrls[this.trackIndex] ?? null;
 	}
 
+	get nextTrack(): Track | null {
+		const following = this.tracks[this.trackIndex + 1];
+		if (following !== undefined) {
+			return following;
+		}
+		if (this.loopMode === LoopModes.queue) {
+			return this.tracks[0] ?? null;
+		}
+		return null;
+	}
+
 	// artist id whose logo is missing for the current track, or null when there's already a logo, no current track, or nothing to resolve from
 	get unresolvedArtistLogoArtistId(): string | null {
 		if (!this.track || this.artistLogoUrl) return null;

@@ -62,7 +62,9 @@ const unusedHttpClient: MakeHttpClient = () => {
 function unavailableAudio(): AudioEngine {
 	return {
 		clear: () => {},
+		clearNext: () => {},
 		configure: () => false,
+		configureNext: () => false,
 		consumeEvent: () => '',
 		currentTrackId: () => '',
 		positionMs: () => 0,

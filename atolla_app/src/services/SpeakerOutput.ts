@@ -80,7 +80,7 @@ export class SpeakerOutput {
 			}
 		}
 
-		const next = this.nextTrack();
+		const next = store.nextTrack;
 		const nextTrackId = next?.id ?? null;
 		if (nextTrackId !== speaker.nextTrackId) {
 			if (speaker.nextTrackId !== null) {
@@ -107,18 +107,6 @@ export class SpeakerOutput {
 		}
 	}
 
-	private nextTrack(): Track | null {
-		const store = this.options.playbackStore;
-		const following = store.tracks[store.trackIndex + 1];
-		if (following !== undefined) {
-			return following;
-		}
-		if (store.loopMode === LoopModes.queue) {
-			return store.tracks[0] ?? null;
-		}
-		return null;
-	}
-
 	private owner(): { userId?: string } {
 		const userId = this.options.userId();
 		return userId === '' ? {} : { userId };
@@ -127,7 +115,7 @@ export class SpeakerOutput {
 	private restart(speaker: Speaker): void {
 		const store = this.options.playbackStore;
 		const current = store.track;
-		const next = this.nextTrack();
+		const next = store.nextTrack;
 		const tracks = [current, next].filter((track): track is Track => track !== null);
 
 		this.send(speaker, this.setQueue(tracks));

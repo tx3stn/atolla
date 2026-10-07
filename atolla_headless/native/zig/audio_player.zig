@@ -23,8 +23,9 @@ fn isRemote(source: []const u8) bool {
     return std.ascii.eqlIgnoreCase(scheme, "http") or std.ascii.eqlIgnoreCase(scheme, "https");
 }
 
-pub const Error =
-    gst.PipelineError || std.Thread.SpawnError || error{ OutputNotFound, TrackIdTooLong };
+pub const Error = gst.PipelineError ||
+    std.Thread.SpawnError ||
+    error{ HeaderTooLong, OutputNotFound, TrackIdTooLong };
 
 pub fn sinkFor(device: []const u8) ?[:0]const u8 {
     if (std.mem.eql(u8, device, silent_device)) return "fakesink sync=true";
@@ -87,6 +88,22 @@ const Events = struct {
     }
 };
 
+const Next = struct {
+    uri: [std.Io.Dir.max_path_bytes]u8 = undefined,
+    uri_len: usize = 0,
+    track_id: [max_track_id_bytes]u8 = undefined,
+    track_id_len: usize = 0,
+    header: [gst.max_auth_header_bytes]u8 = undefined,
+    header_len: usize = 0,
+    remote: bool = false,
+};
+
+fn onAboutToFinish(_: *gst.Object, user_data: ?*anyopaque) callconv(.c) void {
+    const player: *Player = @ptrCast(@alignCast(user_data orelse return));
+
+    player.takeNext();
+}
+
 /// The same wire vocabulary the ExoPlayer and AVQueuePlayer engines emit.
 pub const Player = struct {
     gst: *const gst.Gst,
@@ -101,6 +118,9 @@ pub const Player = struct {
 
     track_id: [max_track_id_bytes]u8 = undefined,
     track_id_len: usize = 0,
+
+    next: ?Next = null,
+    pending: ?Next = null,
 
     pump: ?std.Thread = null,
     stopping: std.atomic.Value(bool) = .init(false),
@@ -122,6 +142,7 @@ pub const Player = struct {
 
         // After the assignment, because the handler is handed the field's final address.
         self.pipeline.connectSourceSetup(&self.source_setup);
+        self.pipeline.connectAboutToFinish(onAboutToFinish, self);
 
         if (sinkFor(device) == null) {
             const sink = runtime.sinkNamed(device) orelse {
@@ -159,6 +180,17 @@ pub const Player = struct {
         defer self.mutex.unlock(io);
 
         self.track_id_len = 0;
+        self.next = null;
+        self.pending = null;
+    }
+
+    pub fn clearNext(self: *Player) void {
+        const io = io_context();
+
+        self.mutex.lockUncancelable(io);
+        defer self.mutex.unlock(io);
+
+        self.next = null;
     }
 
     /// A local path or a URI, the same either-or the app's `resolveTrackSource` hands its engine.
@@ -195,9 +227,48 @@ pub const Player = struct {
 
             @memcpy(self.track_id[0..track_id.len], track_id);
             self.track_id_len = track_id.len;
+            self.next = null;
+            self.pending = null;
         }
 
         _ = self.pipeline.setState(.paused);
+    }
+
+    pub fn configureNext(
+        self: *Player,
+        source: [:0]const u8,
+        track_id: []const u8,
+        auth_header: []const u8,
+    ) Error!void {
+        if (track_id.len > max_track_id_bytes) return error.TrackIdTooLong;
+
+        var next: Next = .{ .remote = isRemote(source) };
+
+        const header = if (next.remote) auth_header else "";
+        if (header.len > next.header.len) return error.HeaderTooLong;
+
+        if (std.mem.indexOf(u8, source, "://") != null) {
+            if (source.len + 1 > next.uri.len) return error.UriTooLong;
+
+            @memcpy(next.uri[0..source.len], source);
+            next.uri[source.len] = 0;
+            next.uri_len = source.len;
+        } else {
+            next.uri_len = (try self.gst.fileUri(&next.uri, source)).len;
+        }
+
+        @memcpy(next.track_id[0..track_id.len], track_id);
+        next.track_id_len = track_id.len;
+
+        @memcpy(next.header[0..header.len], header);
+        next.header_len = header.len;
+
+        const io = io_context();
+
+        self.mutex.lockUncancelable(io);
+        defer self.mutex.unlock(io);
+
+        self.next = next;
     }
 
     /// Empty when nothing is queued, so a caller drains until it gets an empty answer.
@@ -241,11 +312,29 @@ pub const Player = struct {
                 .ended => self.events.push("completed:{s}", .{self.currentTrackId(&id)}),
                 .failed => |text| self.events.push("error:{s}:{s}:{s}", .{
                     @tagName(self.kind()),
-                    self.currentTrackId(&id),
+                    self.failedTrackId(&id),
                     text,
                 }),
+                .started => self.startPending(),
             }
         }
+    }
+
+    fn failedTrackId(self: *Player, buffer: []u8) []const u8 {
+        const io = io_context();
+
+        self.mutex.lockUncancelable(io);
+        defer self.mutex.unlock(io);
+
+        const failed = if (self.pending) |*held|
+            held.track_id[0..held.track_id_len]
+        else
+            self.track_id[0..self.track_id_len];
+        const length = @min(failed.len, buffer.len);
+
+        @memcpy(buffer[0..length], failed[0..length]);
+
+        return buffer[0..length];
     }
 
     /// The `GError` domain looks like the signal to use here and is the wrong way round. Playbin
@@ -254,6 +343,45 @@ pub const Player = struct {
     /// exception: that one keeps its domain and its code.
     fn kind(self: *const Player) Kind {
         return if (self.remote.load(.acquire)) .network else .unknown;
+    }
+
+    fn startPending(self: *Player) void {
+        var finished: [max_track_id_bytes]u8 = undefined;
+        var finished_len: usize = 0;
+
+        {
+            const io = io_context();
+
+            self.mutex.lockUncancelable(io);
+            defer self.mutex.unlock(io);
+
+            const pending = if (self.pending) |*held| held else return;
+
+            finished_len = self.track_id_len;
+            @memcpy(finished[0..finished_len], self.track_id[0..finished_len]);
+
+            @memcpy(self.track_id[0..pending.track_id_len], pending.track_id[0..pending.track_id_len]);
+            self.track_id_len = pending.track_id_len;
+            self.pending = null;
+        }
+
+        self.events.push("completed:{s}", .{finished[0..finished_len]});
+    }
+
+    fn takeNext(self: *Player) void {
+        const io = io_context();
+
+        self.mutex.lockUncancelable(io);
+        defer self.mutex.unlock(io);
+
+        const next = if (self.next) |*held| held else return;
+
+        self.source_setup.setHeader(next.header[0..next.header_len]);
+        self.remote.store(next.remote, .release);
+        self.pipeline.set("uri", next.uri[0..next.uri_len :0]);
+
+        self.pending = next.*;
+        self.next = null;
     }
 };
 
@@ -313,6 +441,26 @@ export fn atolla_audio_configure(
     ) catch return false;
 
     return true;
+}
+
+export fn atolla_audio_configure_next(
+    source: [*:0]const u8,
+    track_id: [*:0]const u8,
+    auth_header: [*:0]const u8,
+) bool {
+    if (!hosted.started) return false;
+
+    hosted.player.configureNext(
+        std.mem.span(source),
+        std.mem.span(track_id),
+        std.mem.span(auth_header),
+    ) catch return false;
+
+    return true;
+}
+
+export fn atolla_audio_clear_next() void {
+    if (hosted.started) hosted.player.clearNext();
 }
 
 export fn atolla_audio_set_playing(playing: bool) void {
@@ -377,6 +525,13 @@ fn until(player: *Player, reached: *const fn (*Player) bool) !void {
     }
 
     return error.TestExpectedState;
+}
+
+fn writeTone(tmp: *const testing.TmpDir, path_buffer: []u8) ![:0]const u8 {
+    var audio: [wav.tone_bytes]u8 = undefined;
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "tone.wav", .data = wav.tone(&audio) });
+
+    return std.fmt.bufPrintZ(path_buffer, ".zig-cache/tmp/{s}/tone.wav", .{tmp.sub_path});
 }
 
 fn nextEvent(player: *Player, buffer: []u8) ![]const u8 {
@@ -663,6 +818,197 @@ test "audio_player: blames the network for a remote track it could not reach" {
     const event = try nextEvent(&player, &buffer);
 
     try testing.expect(std.mem.startsWith(u8, event, "error:network:track-unreachable:"));
+}
+
+test "audio_player: plays the track it was handed as next without ending in between" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-a", "");
+    try player.configureNext(path, "track-b", "");
+    player.setPlaying(true);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    var id: [max_track_id_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings("completed:track-a", try nextEvent(&player, &buffer));
+    try testing.expectEqualStrings("track-b", player.currentTrackId(&id));
+    try testing.expect(player.positionMs() < 1_000);
+    try testing.expectEqualStrings("completed:track-b", try nextEvent(&player, &buffer));
+}
+
+test "audio_player: plays a track again when it is handed over as its own next" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-a", "");
+    try player.configureNext(path, "track-a", "");
+    player.setPlaying(true);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    var id: [max_track_id_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings("completed:track-a", try nextEvent(&player, &buffer));
+    try testing.expectEqualStrings("track-a", player.currentTrackId(&id));
+    try testing.expectEqualStrings("completed:track-a", try nextEvent(&player, &buffer));
+}
+
+test "audio_player: a configure drops the next track it was holding" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-a", "");
+    try player.configureNext(path, "track-b", "");
+    try player.configure(path, "track-c", "");
+    player.setPlaying(true);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    var id: [max_track_id_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings("completed:track-c", try nextEvent(&player, &buffer));
+    try testing.expectEqualStrings("track-c", player.currentTrackId(&id));
+}
+
+test "audio_player: ends on the current track once the next one is cleared" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-a", "");
+    try player.configureNext(path, "track-b", "");
+    player.clearNext();
+    player.setPlaying(true);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    var id: [max_track_id_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings("completed:track-a", try nextEvent(&player, &buffer));
+    try testing.expectEqualStrings("track-a", player.currentTrackId(&id));
+}
+
+test "audio_player: blames the next track when it cannot be opened" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-a", "");
+    try player.configureNext("file:///atolla/not/a/real/file.wav", "track-missing", "");
+    player.setPlaying(true);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+
+    try testing.expect(std.mem.startsWith(
+        u8,
+        try nextEvent(&player, &buffer),
+        "error:unknown:track-missing:",
+    ));
+}
+
+test "audio_player: a remote next track carries its own credential, and a local one none" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure("file:///atolla/nothing.wav", "track-local", "");
+
+    try player.configureNext("http://127.0.0.1:1/x.wav", "track-remote", test_auth_header);
+    player.takeNext();
+
+    try testing.expectEqualStrings(
+        test_auth_header,
+        player.source_setup.header[0..player.source_setup.header_len],
+    );
+
+    try player.configureNext("file:///atolla/nothing.wav", "track-local", test_auth_header);
+    player.takeNext();
+
+    try testing.expectEqual(0, player.source_setup.header_len);
+}
+
+test "audio_player: a seek after the next track was handed over plays the rest, then the next" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-a", "");
+    try player.configureNext(path, "track-b", "");
+    player.setPlaying(true);
+
+    try until(&player, struct {
+        fn halfway(current: *Player) bool {
+            return current.positionMs() > 1_000;
+        }
+    }.halfway);
+
+    player.takeNext();
+    try testing.expect(player.seekToMs(200));
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    var id: [max_track_id_bytes]u8 = undefined;
+
+    try testing.expectEqualStrings("completed:track-a", try nextEvent(&player, &buffer));
+    try testing.expectEqualStrings("track-b", player.currentTrackId(&id));
+    try testing.expectEqualStrings("completed:track-b", try nextEvent(&player, &buffer));
 }
 
 test "audio_player: refuses a track id it cannot hold" {
