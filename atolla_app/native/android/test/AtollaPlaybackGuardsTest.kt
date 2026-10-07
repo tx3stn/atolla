@@ -18,6 +18,21 @@ class AtollaPlaybackGuardsTest {
 	}
 
 	@Test
+	fun `an auto-advance is a natural end`() {
+		assertTrue(AtollaPlaybackGuards.isNaturalEnd(AtollaPlaybackGuards.TransitionKind.ADVANCE, wasUserSkip = false))
+	}
+
+	@Test
+	fun `a skip from the lock screen is not a natural end`() {
+		assertFalse(AtollaPlaybackGuards.isNaturalEnd(AtollaPlaybackGuards.TransitionKind.ADVANCE, wasUserSkip = true))
+	}
+
+	@Test
+	fun `a step back is not a natural end`() {
+		assertFalse(AtollaPlaybackGuards.isNaturalEnd(AtollaPlaybackGuards.TransitionKind.STEP_BACK, wasUserSkip = false))
+	}
+
+	@Test
 	fun `an audible player pauses for audio focus loss and unplugged headphones`() {
 		assertTrue(AtollaPlaybackGuards.shouldPauseForInterruptions(volume = 0.4f))
 	}

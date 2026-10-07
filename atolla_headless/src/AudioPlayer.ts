@@ -5,7 +5,7 @@ import {
 	parseNativeAudioErrorEvent,
 	parseNativeAudioJumpedEvent,
 } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
-import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { type PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import type { ResolvedSource } from './SourceResolver';
 
@@ -179,7 +179,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 				if (completed.finishedTrackId === null) {
 					playback.next();
 				} else {
-					playback.advancePastTrackId(completed.finishedTrackId);
+					playback.advancePastTrackId(completed.finishedTrackId, PlayheadMoves.finished);
 				}
 				continue;
 			}
@@ -199,7 +199,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 				}
 
 				if (failure.trackId !== null) {
-					playback.advancePastTrackId(failure.trackId);
+					playback.advancePastTrackId(failure.trackId, PlayheadMoves.jumped);
 				}
 				continue;
 			}

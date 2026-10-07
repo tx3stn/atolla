@@ -97,6 +97,9 @@ export function getAtollaAudioPlaybackDurationMs(): number;
 // @ExportFunction
 export function consumeAtollaAudioPlaybackEvent(): string;
 
+// @ExportFunction
+export function setAtollaAudioPlaybackEventListener(onEvent: () => void): void;
+
 // pending scrobbles the native engine has decided are "played" and persisted to a durable,
 // kill-safe on-disk queue. returns a JSON array [{ trackId, playedAtMs }], oldest first
 // @ExportFunction

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
-import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { LoopModes, PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
 import type { Command, CommandAccepted, Problem } from 'atolla_sync/src/api/generated';
 import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
 import type { PendingRequest } from 'atolla_sync/src/api/Transport';
@@ -185,10 +185,28 @@ describe('SpeakerOutput', () => {
 	it('only sends the following track when a track finishes, since the speaker moves on by itself', async () => {
 		const { commands, playbackStore } = await playingThroughKitchen();
 
-		playbackStore.advancePastTrackId(track1.id);
+		playbackStore.reconcileToNativeTrack(track2.id, 0.3, PlayheadMoves.finished);
 		await settle();
 
 		expect(commands()).toEqual([{ command: 'addToQueue', tracks: [track3], userId: 'user-1' }]);
+	});
+
+	it('sends the queue again when the phone steps past a track that failed', async () => {
+		const { commands, playbackStore } = await playingThroughKitchen();
+
+		playbackStore.advancePastTrackId(track1.id, PlayheadMoves.jumped);
+		await settle();
+
+		expect(commands()).toEqual([
+			{
+				album,
+				command: 'setQueue',
+				trackIndex: 0,
+				tracks: [track2, track3],
+				userId: 'user-1',
+			},
+			{ command: 'setLoopMode', loopMode: LoopModes.none },
+		]);
 	});
 
 	it('sends the queue again when the user skips', async () => {
@@ -223,7 +241,7 @@ describe('SpeakerOutput', () => {
 
 	it('finds the next track further along the speaker queue after a track finishes', async () => {
 		const { clear, commands, playbackStore } = await playingThroughKitchen();
-		playbackStore.advancePastTrackId(track1.id);
+		playbackStore.reconcileToNativeTrack(track2.id, 0.3, PlayheadMoves.finished);
 		await settle();
 		clear();
 
@@ -251,7 +269,7 @@ describe('SpeakerOutput', () => {
 		await settle();
 		clear();
 
-		playbackStore.updateProgress(track1.duration);
+		playbackStore.advancePastTrackId(track1.id, PlayheadMoves.finished);
 		await settle();
 
 		expect(commands()).toEqual([]);
@@ -264,7 +282,7 @@ describe('SpeakerOutput', () => {
 		await settle();
 		clear();
 
-		playbackStore.advancePastTrackId(track3.id);
+		playbackStore.reconcileToNativeTrack(track1.id, 0.3, PlayheadMoves.finished);
 		await settle();
 
 		expect(commands()).toEqual([{ command: 'addToQueue', tracks: [track2], userId: 'user-1' }]);

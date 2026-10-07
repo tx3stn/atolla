@@ -3,7 +3,12 @@ import {
 	NativeAudioPlayer,
 	type NativeAudioPlayerViewModel,
 } from 'atolla_app/src/ui/components/NativeAudioPlayer';
-import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import {
+	LoopModes,
+	PlaybackStore,
+	type PlayheadMove,
+	PlayheadMoves,
+} from 'atolla_player/src/stores/Playback';
 import { type IComponentTestDriver, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(overrides: Record<string, unknown> = {}) {
@@ -196,29 +201,24 @@ describe('NativeAudioPlayer', () => {
 	});
 
 	describe('reconcileStoreToNativeTrack()', () => {
-		valdiIt(
-			'snaps the store to the native track and position when they diverge',
-			async (driver) => {
-				const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
-				const component = mountPlayer(driver, {
-					playbackSourceUrl: 'file://test.mp3',
-					playbackStore: store,
-				});
+		valdiIt('reads the native track and position when they diverge', async (driver) => {
+			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
 
-				const player = getInternal(component);
-				player.readNativeCurrentTrackId = () => 'track-5';
-				player.safeGetNativePositionMs = () => 12000;
+			const player = getInternal(component);
+			player.readNativeCurrentTrackId = () => 'track-5';
+			player.safeGetNativePositionMs = () => 12000;
 
-				(player.reconcileStoreToNativeTrack as () => void)();
+			expect((player.readNativeTrack as () => unknown)()).toEqual({
+				positionSeconds: 12,
+				trackId: 'track-5',
+			});
+		});
 
-				expect(
-					(store as unknown as PlayerInternal).reconcileToNativeTrack as jasmine.Spy,
-				).toHaveBeenCalledWith('track-5', 12);
-				expect(player.lastConfiguredTrackId).toBe('track-5');
-			},
-		);
-
-		valdiIt('is a no-op when the engine is already on the store track', async (driver) => {
+		valdiIt('reads nothing when the engine is already on the store track', async (driver) => {
 			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
 			const component = mountPlayer(driver, {
 				playbackSourceUrl: 'file://test.mp3',
@@ -228,7 +228,40 @@ describe('NativeAudioPlayer', () => {
 			const player = getInternal(component);
 			player.readNativeCurrentTrackId = () => 'track-1';
 
-			(player.reconcileStoreToNativeTrack as () => void)();
+			expect((player.readNativeTrack as () => unknown)()).toBeNull();
+		});
+
+		valdiIt('snaps the store to the native track with the move it is given', async (driver) => {
+			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			(player.reconcileStoreToNativeTrack as (track: unknown, move: PlayheadMove) => void)(
+				{ positionSeconds: 12, trackId: 'track-5' },
+				PlayheadMoves.finished,
+			);
+
+			expect(
+				(store as unknown as PlayerInternal).reconcileToNativeTrack as jasmine.Spy,
+			).toHaveBeenCalledWith('track-5', 12, PlayheadMoves.finished);
+			expect(player.lastConfiguredTrackId).toBe('track-5');
+		});
+
+		valdiIt('leaves the store alone when there is nothing to catch up to', async (driver) => {
+			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			(player.reconcileStoreToNativeTrack as (track: unknown, move: PlayheadMove) => void)(
+				null,
+				PlayheadMoves.jumped,
+			);
 
 			expect(
 				(store as unknown as PlayerInternal).reconcileToNativeTrack as jasmine.Spy,
@@ -237,30 +270,175 @@ describe('NativeAudioPlayer', () => {
 	});
 
 	describe('syncProgressAndEvents() wake reconciliation', () => {
-		valdiIt('reconciles to the native track before draining buffered events', async (driver) => {
-			const store = mockPlaybackStore();
+		valdiIt(
+			'reads the engine, then takes its events, then reconciles, then applies them',
+			async (driver) => {
+				const store = mockPlaybackStore();
+				const component = mountPlayer(driver, {
+					playbackSourceUrl: 'file://test.mp3',
+					playbackStore: store,
+				});
+
+				const player = getInternal(component);
+				const calls: Array<string> = [];
+				player.readNativeTrack = () => {
+					calls.push('read');
+					return null;
+				};
+				player.consumeNativeEvents = () => {
+					calls.push('consume');
+					return [];
+				};
+				player.reconcileStoreToNativeTrack = () => {
+					calls.push('reconcile');
+				};
+				player.applyNativePlaybackEvents = () => {
+					calls.push('apply');
+					return false;
+				};
+				player.nativeIsActive = () => false;
+				player.applyNativePosition = () => {};
+				player.checkForStall = () => {};
+
+				(player.syncProgressAndEvents as () => void)();
+
+				expect(calls).toEqual(['read', 'consume', 'reconcile', 'apply']);
+			},
+		);
+	});
+
+	describe('syncProgressAndEvents() records how the engine moved', () => {
+		const queue = [
+			mockTrack({ id: 'track-1' }),
+			mockTrack({ id: 'track-2' }),
+			mockTrack({ id: 'track-3' }),
+		];
+
+		interface Engine {
+			events: Array<string>;
+			positionMs: number;
+			trackId: string;
+		}
+
+		function playingStore(): PlaybackStore {
+			const store = new PlaybackStore();
+			store.playTracks(queue, 0);
+			return store;
+		}
+
+		function syncWithEngine(
+			driver: IComponentTestDriver,
+			store: PlaybackStore,
+			engine: Engine,
+		): void {
 			const component = mountPlayer(driver, {
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
-
 			const player = getInternal(component);
-			const calls: Array<string> = [];
-			player.reconcileStoreToNativeTrack = () => {
-				calls.push('reconcile');
-			};
-			player.drainNativePlaybackEvents = () => {
-				calls.push('drain');
-				return false;
-			};
-			player.nativeIsActive = () => false;
+			const events = [...engine.events];
+			player.readNativeCurrentTrackId = () => engine.trackId;
+			player.safeGetNativePositionMs = () => engine.positionMs;
+			player.nativeConsumeEvent = () => events.shift() ?? '';
+			player.nativeIsActive = () => true;
 			player.applyNativePosition = () => {};
 			player.checkForStall = () => {};
 
 			(player.syncProgressAndEvents as () => void)();
+		}
 
-			expect(calls.indexOf('reconcile')).toBe(0);
-			expect(calls.indexOf('reconcile')).toBeLessThan(calls.indexOf('drain'));
+		valdiIt('a natural end is finished, at the engine position', async (driver) => {
+			const store = playingStore();
+
+			syncWithEngine(driver, store, {
+				events: ['completed:track-1'],
+				positionMs: 400,
+				trackId: 'track-2',
+			});
+
+			expect(store.track?.id).toBe('track-2');
+			expect(store.progressSeconds).toBe(0.4);
+			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+		});
+
+		valdiIt('a skip from the lock screen is jumped', async (driver) => {
+			const store = playingStore();
+
+			syncWithEngine(driver, store, {
+				events: ['jumped:track-2'],
+				positionMs: 100,
+				trackId: 'track-2',
+			});
+
+			expect(store.track?.id).toBe('track-2');
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
+		});
+
+		valdiIt('a natural end followed by a skip is jumped', async (driver) => {
+			const store = playingStore();
+
+			syncWithEngine(driver, store, {
+				events: ['completed:track-1', 'jumped:track-3'],
+				positionMs: 100,
+				trackId: 'track-3',
+			});
+
+			expect(store.track?.id).toBe('track-3');
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
+		});
+
+		valdiIt('stepping past a failed track is jumped', async (driver) => {
+			const store = playingStore();
+
+			syncWithEngine(driver, store, {
+				events: ['error:network:track-1:timed out'],
+				positionMs: 0,
+				trackId: 'track-1',
+			});
+
+			expect(store.track?.id).toBe('track-2');
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
+		});
+
+		valdiIt('an engine that moved with no events left to say why is jumped', async (driver) => {
+			const store = playingStore();
+
+			syncWithEngine(driver, store, { events: [], positionMs: 400, trackId: 'track-2' });
+
+			expect(store.track?.id).toBe('track-2');
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
+		});
+
+		valdiIt(
+			'a completion seen before the engine reports its new track is finished',
+			async (driver) => {
+				const store = playingStore();
+
+				syncWithEngine(driver, store, {
+					events: ['completed:track-1'],
+					positionMs: 179000,
+					trackId: 'track-1',
+				});
+
+				expect(store.track?.id).toBe('track-2');
+				expect(store.playheadMove).toBe(PlayheadMoves.finished);
+			},
+		);
+
+		valdiIt('a repeated track coming round again is finished', async (driver) => {
+			const store = playingStore();
+			store.setLoopMode(LoopModes.track);
+			const before = store.playheadRevision;
+
+			syncWithEngine(driver, store, {
+				events: ['completed:track-1'],
+				positionMs: 300,
+				trackId: 'track-1',
+			});
+
+			expect(store.track?.id).toBe('track-1');
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.finished);
 		});
 	});
 
@@ -565,7 +743,7 @@ describe('NativeAudioPlayer', () => {
 		});
 	});
 
-	describe('drainNativePlaybackEvents() error events', () => {
+	describe('applyNativePlaybackEvents() error events', () => {
 		function drainEvents(
 			driver: IComponentTestDriver,
 			events: Array<string>,
@@ -577,11 +755,9 @@ describe('NativeAudioPlayer', () => {
 				playbackStore: store,
 				...viewModel,
 			});
-			const queue = [...events];
 			const player = getInternal(component);
-			player.nativeConsumeEvent = () => queue.shift() ?? '';
 
-			(player.drainNativePlaybackEvents as () => boolean)();
+			(player.applyNativePlaybackEvents as (events: Array<string>) => boolean)(events);
 		}
 
 		valdiIt('reports the parsed kind, track and message for an error event', async (driver) => {
@@ -605,7 +781,7 @@ describe('NativeAudioPlayer', () => {
 
 			expect(
 				(store as unknown as PlayerInternal).advancePastTrackId as jasmine.Spy,
-			).toHaveBeenCalledWith('track-1');
+			).toHaveBeenCalledWith('track-1', PlayheadMoves.jumped);
 		});
 
 		valdiIt('leaves a paused queue where it is', async (driver) => {

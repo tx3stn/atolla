@@ -151,6 +151,7 @@ export class SpeakerOutput {
 	}
 
 	private send(speaker: Speaker, command: Command): void {
+		log.debug('sending a command', { command: command.command });
 		speaker.sending = speaker.sending
 			.then(() => speaker.client.command(speaker.token, command))
 			.then((answer) => {

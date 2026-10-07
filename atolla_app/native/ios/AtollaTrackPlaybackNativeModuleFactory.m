@@ -881,6 +881,7 @@ static NSLock *sScrobbleQueueLock;
 + (BOOL)isActive;
 + (NSString * _Nonnull)currentTrackId;
 + (NSString * _Nonnull)consumeEvent;
++ (void)setEventListener:(dispatch_block_t)listener;
 + (void)clear;
 + (void)setNextNotificationTrackName:(NSString *)trackName
                           artistName:(NSString *)artistName
@@ -922,6 +923,7 @@ static float sVolume = 1.0f;
 static long sPendingSeekMs = -1;
 static NSMutableArray<NSString *> *sEventQueue;
 static NSLock *sEngineLock;
+static dispatch_block_t sEventListener = nil;
 
 static NSString *sNextNotificationTrackName = @"";
 static NSString *sNextNotificationArtistName = @"";
@@ -985,6 +987,17 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
     // that JS only drains on wake
     if (sEventQueue.count >= 128) [sEventQueue removeObjectAtIndex:0];
     [sEventQueue addObject:event];
+    dispatch_block_t listener = sEventListener;
+    [sEngineLock unlock];
+
+    if (listener == nil) return;
+    NSLog(@"[AtollaGaplessAudio] notifying JS of event=%@", event);
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), listener);
+}
+
++ (void)setEventListener:(dispatch_block_t)listener {
+    [sEngineLock lock];
+    sEventListener = [listener copy];
     [sEngineLock unlock];
 }
 
@@ -1925,6 +1938,10 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
 
 - (NSString * _Nonnull)consumeAtollaAudioPlaybackEvent {
     return [AtollaGaplessAudioEngine consumeEvent];
+}
+
+- (void)setAtollaAudioPlaybackEventListenerWithOnEvent:(atolla_appTrackPlaybackNativeModuleSetAtollaAudioPlaybackEventListenerOnEventBlock _Nonnull)onEvent {
+    [AtollaGaplessAudioEngine setEventListener:onEvent];
 }
 
 - (NSString * _Nonnull)readAtollaPendingScrobbles {

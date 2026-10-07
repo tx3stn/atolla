@@ -1,4 +1,4 @@
-import type { PlaybackStore } from '../stores/Playback';
+import { type PlaybackStore, type PlayheadMove, PlayheadMoves } from '../stores/Playback';
 import type { PendingScrobble } from './ScrobbleService';
 
 export type NativeAudioPlaybackEventAction = 'pause' | 'play' | '';
@@ -75,6 +75,15 @@ export function parseNativeAudioJumpedEvent(rawEvent: string): string | null {
 
 // native readAtollaPendingScrobbles() returns a JSON array [{ trackId, playedAtMs }]; parse
 // defensively (native/desktop stubs may return "" or malformed data) and drop invalid entries
+export function playheadMoveFor(events: Array<string>): PlayheadMove {
+	const finished = events.some((event) => parseNativeAudioCompletedEvent(event).isCompleted);
+	const moved = events.some(
+		(event) =>
+			parseNativeAudioJumpedEvent(event) !== null || parseNativeAudioErrorEvent(event) !== null,
+	);
+	return finished && !moved ? PlayheadMoves.finished : PlayheadMoves.jumped;
+}
+
 export function parseNativePendingScrobbles(rawJson: string): Array<PendingScrobble> {
 	if (!rawJson) {
 		return [];

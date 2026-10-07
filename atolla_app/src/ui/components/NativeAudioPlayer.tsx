@@ -6,8 +6,13 @@ import {
 	parseNativeAudioCompletedEvent,
 	parseNativeAudioErrorEvent,
 	parseNativeAudioJumpedEvent,
+	playheadMoveFor,
 } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
-import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import {
+	type PlaybackStore,
+	type PlayheadMove,
+	PlayheadMoves,
+} from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import {
 	clearAtollaAudioPlayback,
@@ -17,6 +22,7 @@ import {
 	getAtollaAudioPlaybackIsActive,
 	getAtollaAudioPlaybackPositionMs,
 	seekAtollaAudioPlaybackToMs,
+	setAtollaAudioPlaybackEventListener,
 	setAtollaAudioPlaybackNextNotification,
 	setAtollaAudioPlaybackRate,
 	setAtollaAudioPlaybackVolume,
@@ -32,6 +38,11 @@ const STALL_TIMEOUT_MS = 5000;
 const PLAYBACK_BUFFER_CUSHION_MS = 3000;
 
 const log = getLogger('NativeAudioPlayer');
+
+interface NativeTrack {
+	positionSeconds: number;
+	trackId: string;
+}
 
 export interface NativeAudioPlayerViewModel {
 	isActive?: boolean;
@@ -103,9 +114,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 		this.progressInterval = setInterval(() => {
 			this.syncProgressAndEvents();
 		}, PROGRESS_POLL_INTERVAL_MS);
+		this.safeSetEventListener(this.handleNativeEvent);
 	}
 
 	onDestroy(): void {
+		this.safeSetEventListener(() => {});
 		this.unsubscribePlaybackStore?.();
 		if (this.progressInterval != null) {
 			clearInterval(this.progressInterval);
@@ -324,8 +337,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 		// push a stale source that rebuilds the native queue from 0 (audible as a restart)
 		let resumedFromBackground = false;
 		this.viewModel.playbackStore.runBatched(() => {
-			this.reconcileStoreToNativeTrack();
-			const nativeAdvanced = this.drainNativePlaybackEvents();
+			// read the engine's track before taking its events. the engine queues a completion before it
+			// changes track, so when the id read here is a new track, its completion is already in the
+			// events below
+			const nativeTrack = this.readNativeTrack();
+			const events = this.consumeNativeEvents();
+			this.reconcileStoreToNativeTrack(nativeTrack, playheadMoveFor(events));
+			const nativeAdvanced = this.applyNativePlaybackEvents(events);
 			// engine auto-advanced while JS was frozen and is still playing, but the store may
 			// have caught up to isPlaying=false (e.g. a queue-end branch). follow the engine,
 			// the background source of truth, rather than pushing a stale paused state onto a
@@ -362,15 +380,43 @@ export class NativeAudioPlayer extends StatefulComponent<
 	// directly rather than relying on the drained event queue, which drops its earliest entries
 	// (cap 128) over a long screen-off session. aligns lastConfiguredTrackId so the same tick's
 	// applyNativePosition guard accepts the engine position.
-	private reconcileStoreToNativeTrack(): void {
-		const nativeTrackId = this.readNativeCurrentTrackId();
-		if (!nativeTrackId || nativeTrackId === (this.viewModel.playbackStore.track?.id ?? '')) {
+	private reconcileStoreToNativeTrack(nativeTrack: NativeTrack | null, move: PlayheadMove): void {
+		if (nativeTrack === null) {
 			return;
+		}
+		this.viewModel.playbackStore.reconcileToNativeTrack(
+			nativeTrack.trackId,
+			nativeTrack.positionSeconds,
+			move,
+		);
+		this.lastConfiguredTrackId = nativeTrack.trackId;
+	}
+
+	private readNativeTrack(): NativeTrack | null {
+		const trackId = this.readNativeCurrentTrackId();
+		if (!trackId || trackId === (this.viewModel.playbackStore.track?.id ?? '')) {
+			return null;
 		}
 		const positionMs = this.safeGetNativePositionMs();
 		const positionSeconds = Number.isFinite(positionMs) && positionMs >= 0 ? positionMs / 1000 : 0;
-		this.viewModel.playbackStore.reconcileToNativeTrack(nativeTrackId, positionSeconds);
-		this.lastConfiguredTrackId = nativeTrackId;
+		return { positionSeconds, trackId };
+	}
+
+	private consumeNativeEvents(): Array<string> {
+		const events: Array<string> = [];
+		while (true) {
+			let event = '';
+			try {
+				event = this.nativeConsumeEvent();
+			} catch {
+				break;
+			}
+			if (!event) {
+				break;
+			}
+			events.push(event);
+		}
+		return events;
 	}
 
 	private readNativeCurrentTrackId(): string {
@@ -397,20 +443,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 		}
 	}
 
-	private drainNativePlaybackEvents(): boolean {
+	private applyNativePlaybackEvents(events: Array<string>): boolean {
 		let nativeAdvanced = false;
-		while (true) {
-			let event = '';
-			try {
-				event = this.nativeConsumeEvent();
-			} catch {
-				break;
-			}
-
-			if (!event) {
-				break;
-			}
-
+		for (const event of events) {
 			const jumpedTrackId = parseNativeAudioJumpedEvent(event);
 			if (jumpedTrackId) {
 				// native moved outside the forward advance (e.g. the previous button); follow
@@ -431,7 +466,10 @@ export class NativeAudioPlayer extends StatefulComponent<
 					log.debug('event:completed', {
 						finishedTrackId: completedEvent.finishedTrackId,
 					});
-					this.viewModel.playbackStore.advancePastTrackId(completedEvent.finishedTrackId);
+					this.viewModel.playbackStore.advancePastTrackId(
+						completedEvent.finishedTrackId,
+						PlayheadMoves.finished,
+					);
 					this.viewModel.onPlaybackEvent?.('completed');
 					continue;
 				}
@@ -472,7 +510,10 @@ export class NativeAudioPlayer extends StatefulComponent<
 					if (errorEvent.trackId) {
 						// carries the failed track, so step past it directly. advancePastTrackId is
 						// idempotent for stale/duplicate events, mirroring the completed path
-						this.viewModel.playbackStore.advancePastTrackId(errorEvent.trackId);
+						this.viewModel.playbackStore.advancePastTrackId(
+							errorEvent.trackId,
+							PlayheadMoves.jumped,
+						);
 					} else {
 						this.triggerTrackCompletion();
 					}
@@ -626,6 +667,19 @@ export class NativeAudioPlayer extends StatefulComponent<
 			});
 		}
 	}
+
+	private safeSetEventListener(listener: () => void): void {
+		try {
+			setAtollaAudioPlaybackEventListener(listener);
+		} catch {
+			// best effort
+		}
+	}
+
+	private handleNativeEvent = (): void => {
+		log.debug('draining after a native event');
+		this.syncProgressAndEvents();
+	};
 
 	private safeSetVolume(volume: number): void {
 		try {

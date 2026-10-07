@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'bun:test';
-import { PlaybackStore } from '../stores/Playback';
+import { PlaybackStore, PlayheadMoves } from '../stores/Playback';
 import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
 	parseNativeAudioCompletedEvent,
 	parseNativeAudioErrorEvent,
 	parseNativeAudioJumpedEvent,
+	playheadMoveFor,
 } from './NativeAudioPlaybackEventSync';
 
 describe('NativeAudioPlaybackEventSync', () => {
@@ -106,5 +107,31 @@ describe('NativeAudioPlaybackEventSync', () => {
 
 		applyNativeAudioPlaybackEventAction(store, 'pause');
 		expect(store.isPlaying).toBe(false);
+	});
+
+	describe('playheadMoveFor', () => {
+		it('treats natural ends as the track finishing by itself', () => {
+			expect(playheadMoveFor(['completed:a', 'pause-requested', 'completed:b'])).toBe(
+				PlayheadMoves.finished,
+			);
+		});
+
+		it('treats a completion without a track id as finishing by itself', () => {
+			expect(playheadMoveFor(['completed'])).toBe(PlayheadMoves.finished);
+		});
+
+		it('treats a skip as a jump, even alongside a natural end', () => {
+			expect(playheadMoveFor(['completed:a', 'jumped:b'])).toBe(PlayheadMoves.jumped);
+		});
+
+		it('treats a failed track as a jump', () => {
+			expect(playheadMoveFor(['completed:a', 'error:network:b:timed out'])).toBe(
+				PlayheadMoves.jumped,
+			);
+		});
+
+		it('treats no events as a jump', () => {
+			expect(playheadMoveFor([])).toBe(PlayheadMoves.jumped);
+		});
 	});
 });

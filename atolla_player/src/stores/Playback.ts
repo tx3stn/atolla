@@ -290,7 +290,7 @@ export class PlaybackStore {
 	// reconciles the store with native auto-advances that happened while JS was frozen: the
 	// engine reports the trackId that finished and the store jumps to the track after it.
 	// never sets seekTarget (the native player already moved); idempotent for stale completions
-	advancePastTrackId(finishedTrackId: string): void {
+	advancePastTrackId(finishedTrackId: string, move: PlayheadMove): void {
 		if (this.tracks.length === 0 || !finishedTrackId) {
 			return;
 		}
@@ -302,7 +302,7 @@ export class PlaybackStore {
 				return;
 			}
 			this.progressSeconds = 0;
-			this.movePlayhead(PlayheadMoves.finished);
+			this.movePlayhead(move);
 			this.persistQueue();
 			this.notify();
 			return;
@@ -324,7 +324,7 @@ export class PlaybackStore {
 				this.trackIndex = 0;
 				this.progressSeconds = 0;
 				this.clearUpNext();
-				this.movePlayhead(PlayheadMoves.finished);
+				this.movePlayhead(move);
 			} else {
 				this.trackIndex = finishedIndex;
 				this.progressSeconds = this.tracks[finishedIndex]?.duration ?? 0;
@@ -333,7 +333,7 @@ export class PlaybackStore {
 		} else {
 			this.trackIndex = finishedIndex + 1;
 			this.progressSeconds = 0;
-			this.movePlayhead(PlayheadMoves.finished);
+			this.movePlayhead(move);
 		}
 
 		this.persistQueue();
@@ -366,7 +366,7 @@ export class PlaybackStore {
 	// before App.tsx computes a playback source. while JS was frozen the engine auto-advanced;
 	// the store (and disk) are stale, and pushing the stale source down makes the native player
 	// rebuild its queue from position 0 (audible as a restart)
-	reconcileToNativeTrack(trackId: string, positionSeconds: number): void {
+	reconcileToNativeTrack(trackId: string, positionSeconds: number, move: PlayheadMove): void {
 		if (!trackId || this.tracks.length === 0) {
 			return;
 		}
@@ -390,7 +390,7 @@ export class PlaybackStore {
 		this.progressSeconds = clamped;
 		this.seekTarget = null;
 		this.lastPersistedProgressSeconds = clamped;
-		this.movePlayhead(PlayheadMoves.jumped);
+		this.movePlayhead(move);
 		this.persistQueue();
 		this.notify();
 	}
@@ -488,7 +488,7 @@ export class PlaybackStore {
 				// this branch resets position without persisting, so the checkpoint baseline has to come
 				// back with it or the step below stays negative for the whole looped play-through
 				this.lastPersistedProgressSeconds = 0;
-				this.movePlayhead(PlayheadMoves.finished);
+				this.movePlayhead(PlayheadMoves.jumped);
 			} else if (this.trackIndex >= this.tracks.length - 1) {
 				if (this.loopMode === LoopModes.queue && this.tracks.length > 0) {
 					this.allowBackwardRebuild = true;
@@ -496,7 +496,7 @@ export class PlaybackStore {
 					this.progressSeconds = 0;
 					this.seekTarget = 0;
 					this.clearUpNext();
-					this.movePlayhead(PlayheadMoves.finished);
+					this.movePlayhead(PlayheadMoves.jumped);
 					queueStateChanged = true;
 				} else {
 					this.progressSeconds = activeTrack.duration;
@@ -507,7 +507,7 @@ export class PlaybackStore {
 				this.allowBackwardRebuild = true;
 				this.trackIndex += 1;
 				this.progressSeconds = 0;
-				this.movePlayhead(PlayheadMoves.finished);
+				this.movePlayhead(PlayheadMoves.jumped);
 				queueStateChanged = true;
 			}
 		} else {

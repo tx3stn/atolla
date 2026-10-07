@@ -341,7 +341,7 @@ describe('PlaybackStore', () => {
 		it('advances to the track after the finished one', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(1);
 			expect(store.progressSeconds).toBe(0);
 		});
@@ -349,7 +349,7 @@ describe('PlaybackStore', () => {
 		it('jumps multiple tracks when several completions were missed', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.advancePastTrackId('track-2');
+			store.advancePastTrackId('track-2', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(2);
 			expect(store.progressSeconds).toBe(0);
 		});
@@ -357,28 +357,28 @@ describe('PlaybackStore', () => {
 		it('keeps playing state across the advance', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			expect(store.isPlaying).toBe(true);
 		});
 
 		it('ignores a stale completion for a track already passed', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 2);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(2);
 		});
 
 		it('ignores unknown track ids', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 1);
-			store.advancePastTrackId('not-in-queue');
+			store.advancePastTrackId('not-in-queue', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(1);
 		});
 
 		it('stops playback when the last track finishes without looping', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 2);
-			store.advancePastTrackId('track-3');
+			store.advancePastTrackId('track-3', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(2);
 			expect(store.isPlaying).toBe(false);
 			expect(store.progressSeconds).toBe(track3.duration);
@@ -389,7 +389,7 @@ describe('PlaybackStore', () => {
 			store.play(tracks, album, 2);
 			store.cycleLoopMode();
 			expect(store.loopMode).toBe('queue');
-			store.advancePastTrackId('track-3');
+			store.advancePastTrackId('track-3', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(0);
 			expect(store.isPlaying).toBe(true);
 			expect(store.progressSeconds).toBe(0);
@@ -402,7 +402,7 @@ describe('PlaybackStore', () => {
 			store.cycleLoopMode();
 			expect(store.loopMode).toBe('track');
 			store.updateProgress(100);
-			store.advancePastTrackId('track-2');
+			store.advancePastTrackId('track-2', PlayheadMoves.finished);
 			expect(store.trackIndex).toBe(1);
 			expect(store.progressSeconds).toBe(0);
 			expect(store.isPlaying).toBe(true);
@@ -411,7 +411,7 @@ describe('PlaybackStore', () => {
 		it('does not set a seek target so the native player is left untouched', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			expect(store.seekTarget).toBeNull();
 		});
 
@@ -420,7 +420,7 @@ describe('PlaybackStore', () => {
 			store.play(tracks, album, 0);
 			let calls = 0;
 			store.subscribe(() => calls++);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			expect(calls).toBe(1);
 		});
 	});
@@ -432,8 +432,8 @@ describe('PlaybackStore', () => {
 			let calls = 0;
 			store.subscribe(() => calls++);
 			store.runBatched(() => {
-				store.advancePastTrackId('track-1');
-				store.advancePastTrackId('track-2');
+				store.advancePastTrackId('track-1', PlayheadMoves.finished);
+				store.advancePastTrackId('track-2', PlayheadMoves.finished);
 			});
 			expect(calls).toBe(1);
 			expect(store.trackIndex).toBe(2);
@@ -454,9 +454,9 @@ describe('PlaybackStore', () => {
 			let calls = 0;
 			store.subscribe(() => calls++);
 			store.runBatched(() => {
-				store.advancePastTrackId('track-1');
+				store.advancePastTrackId('track-1', PlayheadMoves.finished);
 				store.runBatched(() => {
-					store.advancePastTrackId('track-2');
+					store.advancePastTrackId('track-2', PlayheadMoves.finished);
 				});
 				expect(calls).toBe(0);
 			});
@@ -471,7 +471,7 @@ describe('PlaybackStore', () => {
 			store.subscribe(() => calls++);
 			expect(() =>
 				store.runBatched(() => {
-					store.advancePastTrackId('track-1');
+					store.advancePastTrackId('track-1', PlayheadMoves.finished);
 					throw new Error('boom');
 				}),
 			).toThrow('boom');
@@ -510,7 +510,7 @@ describe('PlaybackStore', () => {
 			let calls = 0;
 			store.subscribe(() => calls++);
 			store.runBatched(() => {
-				store.advancePastTrackId('track-1');
+				store.advancePastTrackId('track-1', PlayheadMoves.finished);
 				store.setPlaying(true);
 			});
 			expect(calls).toBe(1);
@@ -589,7 +589,7 @@ describe('PlaybackStore', () => {
 		it('moves to the named track and adopts the native position', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.reconcileToNativeTrack('track-3', 42);
+			store.reconcileToNativeTrack('track-3', 42, PlayheadMoves.jumped);
 			expect(store.trackIndex).toBe(2);
 			expect(store.progressSeconds).toBe(42);
 		});
@@ -597,21 +597,21 @@ describe('PlaybackStore', () => {
 		it('clamps the adopted position to the target track duration', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.reconcileToNativeTrack('track-1', 9999);
+			store.reconcileToNativeTrack('track-1', 9999, PlayheadMoves.jumped);
 			expect(store.progressSeconds).toBe(track1.duration);
 		});
 
 		it('does not set a seek target so the native player is left untouched', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.reconcileToNativeTrack('track-2', 30);
+			store.reconcileToNativeTrack('track-2', 30, PlayheadMoves.jumped);
 			expect(store.seekTarget).toBeNull();
 		});
 
 		it('resolves duplicate ids to the occurrence nearest the current track', () => {
 			const store = new PlaybackStore();
 			store.play([track1, track2, track1, track3], album, 3);
-			store.reconcileToNativeTrack('track-1', 10);
+			store.reconcileToNativeTrack('track-1', 10, PlayheadMoves.jumped);
 			expect(store.trackIndex).toBe(2);
 		});
 
@@ -619,7 +619,7 @@ describe('PlaybackStore', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 1);
 			store.updateProgress(42);
-			store.reconcileToNativeTrack('not-in-queue', 5);
+			store.reconcileToNativeTrack('not-in-queue', 5, PlayheadMoves.jumped);
 			expect(store.trackIndex).toBe(1);
 			expect(store.progressSeconds).toBe(42);
 		});
@@ -627,7 +627,7 @@ describe('PlaybackStore', () => {
 		it('does not touch the playing state', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.reconcileToNativeTrack('track-3', 12);
+			store.reconcileToNativeTrack('track-3', 12, PlayheadMoves.jumped);
 			expect(store.isPlaying).toBe(true);
 		});
 
@@ -637,7 +637,7 @@ describe('PlaybackStore', () => {
 			store.updateProgress(30);
 			let calls = 0;
 			store.subscribe(() => calls++);
-			store.reconcileToNativeTrack('track-2', 30);
+			store.reconcileToNativeTrack('track-2', 30, PlayheadMoves.jumped);
 			expect(calls).toBe(0);
 		});
 
@@ -646,7 +646,7 @@ describe('PlaybackStore', () => {
 			store.play(tracks, album, 0);
 			let calls = 0;
 			store.subscribe(() => calls++);
-			store.reconcileToNativeTrack('track-3', 12);
+			store.reconcileToNativeTrack('track-3', 12, PlayheadMoves.jumped);
 			expect(calls).toBe(1);
 		});
 
@@ -657,7 +657,7 @@ describe('PlaybackStore', () => {
 			store.play(tracks, album, 0);
 			const writesBefore = queueStore.writeCount;
 
-			store.reconcileToNativeTrack('track-3', 12);
+			store.reconcileToNativeTrack('track-3', 12, PlayheadMoves.jumped);
 
 			expect(queueStore.writeCount).toBe(writesBefore + 1);
 			expect(queueIn(queueStore)?.trackIndex).toBe(2);
@@ -735,7 +735,7 @@ describe('PlaybackStore', () => {
 		it('is true after a deliberate previous()', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 2);
-			store.advancePastTrackId('track-3'); // flips the flag false (engine-follow)
+			store.advancePastTrackId('track-3', PlayheadMoves.finished); // flips the flag false (engine-follow)
 			store.previous();
 			expect(store.allowBackwardRebuild).toBe(true);
 		});
@@ -743,7 +743,7 @@ describe('PlaybackStore', () => {
 		it('is true after previousOrRestart() steps back a track', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.reconcileToNativeTrack('track-2', 1); // engine-follow → flag false, 1s into track 2
+			store.reconcileToNativeTrack('track-2', 1, PlayheadMoves.jumped); // engine-follow → flag false, 1s into track 2
 			store.previousOrRestart(); // under the 3s threshold and not first track, so it steps back
 			expect(store.allowBackwardRebuild).toBe(true);
 		});
@@ -751,7 +751,7 @@ describe('PlaybackStore', () => {
 		it('is true after jumpToIndex()', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 2);
-			store.advancePastTrackId('track-3');
+			store.advancePastTrackId('track-3', PlayheadMoves.finished);
 			store.jumpToIndex(0);
 			expect(store.allowBackwardRebuild).toBe(true);
 		});
@@ -765,7 +765,7 @@ describe('PlaybackStore', () => {
 		it('is true after next()', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			store.next();
 			expect(store.allowBackwardRebuild).toBe(true);
 		});
@@ -773,14 +773,14 @@ describe('PlaybackStore', () => {
 		it('is false after reconcileToNativeTrack() follows the engine', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.reconcileToNativeTrack('track-3', 12);
+			store.reconcileToNativeTrack('track-3', 12, PlayheadMoves.jumped);
 			expect(store.allowBackwardRebuild).toBe(false);
 		});
 
 		it('is false after advancePastTrackId() follows the engine', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 0);
-			store.advancePastTrackId('track-1');
+			store.advancePastTrackId('track-1', PlayheadMoves.finished);
 			expect(store.allowBackwardRebuild).toBe(false);
 		});
 
@@ -1263,35 +1263,55 @@ describe('PlaybackStore', () => {
 			return store;
 		}
 
-		it('records a track the engine finished as finished', () => {
+		it('records a track the engine finished by itself as finished', () => {
 			const store = playing();
 			const before = store.playheadRevision;
 
-			store.advancePastTrackId(track1.id);
+			store.advancePastTrackId(track1.id, PlayheadMoves.finished);
 
 			expect(store.playheadRevision).toBe(before + 1);
 			expect(store.playheadMove).toBe(PlayheadMoves.finished);
 		});
 
-		it('records progress running past the end of a track as finished', () => {
+		it('records stepping past a failed track as jumped', () => {
 			const store = playing();
 			const before = store.playheadRevision;
 
-			store.updateProgress(track1.duration);
+			store.advancePastTrackId(track1.id, PlayheadMoves.jumped);
 
 			expect(store.playheadRevision).toBe(before + 1);
-			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
 		});
 
-		it('records a repeated track as finished', () => {
+		it('records a repeated track coming round again as finished', () => {
 			const store = playing();
 			store.setLoopMode(LoopModes.track);
 			const before = store.playheadRevision;
 
-			store.updateProgress(track1.duration);
+			store.advancePastTrackId(track1.id, PlayheadMoves.finished);
 
 			expect(store.playheadRevision).toBe(before + 1);
 			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+		});
+
+		it('records catching up to an engine that finished a track by itself as finished', () => {
+			const store = playing();
+			const before = store.playheadRevision;
+
+			store.reconcileToNativeTrack(track2.id, 0.3, PlayheadMoves.finished);
+
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.finished);
+		});
+
+		it('records progress running past the end of a track as jumped, since it cannot tell why', () => {
+			const store = playing();
+			const before = store.playheadRevision;
+
+			store.updateProgress(track1.duration);
+
+			expect(store.playheadRevision).toBe(before + 1);
+			expect(store.playheadMove).toBe(PlayheadMoves.jumped);
 		});
 
 		it('records every move the user makes as jumped', () => {
@@ -1302,7 +1322,6 @@ describe('PlaybackStore', () => {
 				['previous', (store) => store.previous()],
 				['jumpToIndex', (store) => store.jumpToIndex(2)],
 				['jumpToTrackId', (store) => store.jumpToTrackId(track3.id)],
-				['reconcileToNativeTrack', (store) => store.reconcileToNativeTrack(track2.id, 30)],
 				['seekTo', (store) => store.seekTo(42)],
 				['removeFromQueueAt the current track', (store) => store.removeFromQueueAt(1)],
 				['stop', (store) => store.stop()],
@@ -1310,9 +1329,9 @@ describe('PlaybackStore', () => {
 
 			for (const [name, move] of moves) {
 				const store = playing();
-				store.advancePastTrackId(track1.id);
+				store.advancePastTrackId(track1.id, PlayheadMoves.finished);
 				store.previous();
-				store.advancePastTrackId(track1.id);
+				store.advancePastTrackId(track1.id, PlayheadMoves.finished);
 				const before = store.playheadRevision;
 
 				move(store);

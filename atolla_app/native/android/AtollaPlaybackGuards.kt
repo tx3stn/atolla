@@ -123,6 +123,9 @@ object AtollaPlaybackGuards {
 			else -> TransitionKind.IGNORE
 		}
 
+	fun isNaturalEnd(kind: TransitionKind, wasUserSkip: Boolean): Boolean =
+		kind == TransitionKind.ADVANCE && !wasUserSkip
+
 	// the expecting-native-skip / -step-back flags arm a single upcoming SEEK transition. any
 	// real track transition consumes that expectation: the SEEK that lands, or an AUTO advance
 	// that races ahead and supersedes the pending seek. clear on both, so a stale flag can't

@@ -43,6 +43,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.ArrayDeque
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
@@ -201,6 +202,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				return AtollaGaplessAudioEngine.consumeEvent()
 			}
 
+			override fun setAtollaAudioPlaybackEventListener(onEvent: () -> Unit) {
+				AtollaGaplessAudioEngine.setEventListener(onEvent)
+			}
+
 			override fun readAtollaPendingScrobbles(): String {
 				return AtollaScrobbleQueue.readPendingJson()
 			}
@@ -261,6 +266,8 @@ object AtollaGaplessAudioEngine {
 	private const val tag = "AtollaGaplessAudio"
 	private val mainHandler = Handler(Looper.getMainLooper())
 	private val eventQueue = ArrayDeque<String>()
+	private val eventListenerExecutor = Executors.newSingleThreadExecutor()
+	@Volatile private var eventListener: (() -> Unit)? = null
 
 	@Volatile private var sourceUrl: String = ""
 	@Volatile private var sourceTrackId: String = ""
@@ -384,13 +391,12 @@ object AtollaGaplessAudioEngine {
 
 			val finishedTrackId = sourceTrackId
 			Log.d(tag, "onMediaItemTransition $kind trackId=${mediaItem?.mediaId} finished=$finishedTrackId reason=$reason")
-			if (kind == AtollaPlaybackGuards.TransitionKind.ADVANCE) {
+			val naturalEnd = AtollaPlaybackGuards.isNaturalEnd(kind, wasUserSkip)
+			if (naturalEnd) {
 				// an auto-advance means the finished track played to its natural end and counts as
 				// played; a user "next" is instead handled at its leave point (handleMediaAction /
 				// configure) so a skip before the end does not force a scrobble
-				if (!wasUserSkip) {
-					maybeAppendScrobble(finishedTrackId, 0L, 0L, isNaturalEnd = true)
-				}
+				maybeAppendScrobble(finishedTrackId, 0L, 0L, isNaturalEnd = true)
 				// carry the finished trackId so JS can reconcile deterministically after being
 				// frozen across several transitions (it advances past the last finished id
 				// rather than counting events)
@@ -411,10 +417,11 @@ object AtollaGaplessAudioEngine {
 				windowAnchorHint += 1
 			} else {
 				windowAnchorHint = (windowAnchorHint - 1).coerceAtLeast(0)
-				// tells JS which track is now current so the store can move backwards too
-				if (sourceTrackId.isNotBlank()) {
-					enqueueEvent("jumped:$sourceTrackId")
-				}
+			}
+			// tells JS which track is now current after a skip or step back, so the store follows
+			// in either direction
+			if (!naturalEnd && sourceTrackId.isNotBlank()) {
+				enqueueEvent("jumped:$sourceTrackId")
 			}
 			trimExcessHistory()
 			exoPlayer?.let { ensureWindow(it) }
@@ -667,7 +674,7 @@ object AtollaGaplessAudioEngine {
 
 	// applies a media-session/notification transport action directly to the player so the
 	// controls stay responsive while the JS runtime is frozen. the store reconciles afterwards
-	// through the engine event queue (play/pause-requested, and the skip's completed:<trackId>
+	// through the engine event queue (play/pause-requested, and the skip's jumped:<trackId>
 	// from the resulting transition)
 	fun handleMediaAction(action: String) {
 		Log.d(tag, "handleMediaAction action=$action")
@@ -887,6 +894,10 @@ object AtollaGaplessAudioEngine {
 		}
 	}
 
+	fun setEventListener(listener: () -> Unit) {
+		eventListener = listener
+	}
+
 	fun clear() {
 		sourceUrl = ""
 		sourceTrackId = ""
@@ -1103,6 +1114,10 @@ object AtollaGaplessAudioEngine {
 			}
 			eventQueue.addLast(event)
 		}
+
+		val listener = eventListener ?: return
+		Log.d(tag, "notifying JS of event=$event")
+		eventListenerExecutor.execute { listener() }
 	}
 
 	// evaluate the shared "played?" rule for a track being left or ended and, when it counts, append
