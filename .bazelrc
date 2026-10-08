@@ -166,3 +166,10 @@ build:prod --define=build_mode=prod
 
 # Per-machine settings (gitignored) — e.g. a personal remote-cache key
 try-import %workspace%/.bazelrc.user
+
+# Alternating a Valdi test target and a web/npm target trims test-only options
+# differently, so their exec tool configs collide under one output path and
+# recompile thousands of shared tool actions. Opt-in config that the `valdi`
+# CLI passes to its build/test flows so they converge; raw `bazel` keeps the
+# default. Changing test flags (e.g. --test_output) repopulates it once.
+build:stable_exec --notrim_test_configuration
