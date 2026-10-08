@@ -23,3 +23,11 @@ export function atollaAudioCurrentTrackId(): string;
 export function atollaAudioConsumeEvent(): string;
 
 export function atollaAudioClear(): void;
+
+export function atollaAudioProvideClock(bindAddress: string, port: number): boolean;
+
+export function atollaAudioFollowClock(host: string, port: number): boolean;
+
+export function atollaAudioClockSynced(): boolean;
+
+export function atollaAudioClockNowNs(): number;

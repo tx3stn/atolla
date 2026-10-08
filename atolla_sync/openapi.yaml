@@ -264,7 +264,7 @@ paths:
       tags: [control]
       summary: Act on the player's queue or playback.
       description: |
-        Thirteen commands share one route, discriminated on `command`. The name and the shape of
+        Every command shares one route, discriminated on `command`. The name and the shape of
         its members are the wire contract, so `command.zig` refuses an unknown name or a malformed
         member before the request crosses the bridge. The `tracks` array is the exception and
         passes through as opaque bytes: `Track` is a TypeScript interface with one source of truth,
@@ -405,7 +405,9 @@ paths:
                 group: default
                 leader: 4f3c9a1de8b27065
                 members:
-                  - enabled: true
+                  - clock:
+                      synced: true
+                    enabled: true
                     id: 4f3c9a1de8b27065
                     name: Kitchen
                     state: playing
@@ -451,6 +453,57 @@ paths:
           $ref: '#/components/responses/HandlerFailed'
         '503':
           $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/HandlerTimeout'
+
+  /clock:
+    get:
+      operationId: getClock
+      tags: [control]
+      summary: The clock this player serves for others to follow.
+      description: |
+        Every player serves its system clock over UDP on the port named here, for other players to
+        follow. A controller reads this from the player it picked as the clock speaker: `nowNs` to
+        choose a start time ahead of it, and `port` to tell the others where to follow it with
+        `followClock`.
+
+        `nowNs` counts from an arbitrary point of the clock's own, not the epoch, so comparing it
+        with another clock means nothing. Differences against it, and times scheduled on it, do.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: The clock's time as the request was answered, and the port it is served on.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClockReading'
+              example:
+                nowNs: 81234567890123
+                port: 45890
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '500':
+          $ref: '#/components/responses/HandlerFailed'
+        '503':
+          description: |
+            The player serves no clock, because its audio engine did not start or its clock port
+            was already taken. Also answered when the request could not be handed to TypeScript.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                unavailable:
+                  $ref: '#/components/examples/unavailable'
         '504':
           $ref: '#/components/responses/HandlerTimeout'
 
@@ -980,6 +1033,27 @@ components:
             current one.
           examples: [queue]
 
+    CommandFollowClock:
+      type: object
+      description: |
+        Play on the clock of the player a controller picked as the clock speaker, or on this
+        player's own clock again when `host` and `port` are left out. The player starts syncing at
+        once and reports how that is going in its member's `clock`, so a controller waits for
+        `synced` before scheduling a start. Following the clock it already follows changes nothing.
+      required: [command]
+      dependentRequired:
+        host: [port]
+        port: [host]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: followClock
+        host:
+          $ref: '#/components/schemas/ClockHost'
+        port:
+          $ref: '#/components/schemas/ClockPort'
+
     CommandTrackId:
       type: string
       minLength: 1
@@ -1011,10 +1085,12 @@ components:
         - $ref: '#/components/schemas/CommandRemoveAt'
         - $ref: '#/components/schemas/CommandMove'
         - $ref: '#/components/schemas/CommandSetLoopMode'
+        - $ref: '#/components/schemas/CommandFollowClock'
       discriminator:
         propertyName: command
         mapping:
           addToQueue: '#/components/schemas/CommandAddToQueue'
+          followClock: '#/components/schemas/CommandFollowClock'
           jumpToIndex: '#/components/schemas/CommandJumpToIndex'
           move: '#/components/schemas/CommandMove'
           next: '#/components/schemas/CommandBare'
@@ -1165,14 +1241,71 @@ components:
         holding a queue it has paused.
       examples: [playing]
 
+    ClockHost:
+      type: string
+      minLength: 1
+      maxLength: 253
+      pattern: '^[!-~]+$'
+      description: The clock speaker's address, as the controller reaches it.
+      examples: ['192.168.1.42']
+
+    ClockPort:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 65535
+      description: The UDP port a player serves its clock on, `clockPort` in its `player.json`.
+      examples: [45890]
+
+    ClockReading:
+      type: object
+      description: The clock a player serves, read as the request was answered.
+      required: [nowNs, port]
+      additionalProperties: false
+      properties:
+        nowNs:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9223372036854775807
+          description: The clock's time, in nanoseconds.
+          examples: [81234567890123]
+        port:
+          $ref: '#/components/schemas/ClockPort'
+
+    MemberClock:
+      type: object
+      description: |
+        The clock a member plays on. `following` is the clock speaker it was told to follow, absent
+        when it plays on its own clock. `synced` says whether it has locked on to that clock yet,
+        and is always true for its own. A member that restarts has forgotten what it followed,
+        which is how a controller knows to send `followClock` again.
+      required: [synced]
+      additionalProperties: true
+      properties:
+        following:
+          type: object
+          required: [host, port]
+          additionalProperties: true
+          properties:
+            host:
+              $ref: '#/components/schemas/ClockHost'
+            port:
+              $ref: '#/components/schemas/ClockPort'
+        synced:
+          type: boolean
+          examples: [true]
+
     Member:
       type: object
       description: |
         A player in the group. Today a daemon is a group of one and reports only itself, so this
         array has a single entry; discovery fills it out at the step that builds the beacon.
-      required: [enabled, id, name, state, tier]
+      required: [clock, enabled, id, name, state, tier]
       additionalProperties: true
       properties:
+        clock:
+          $ref: '#/components/schemas/MemberClock'
         enabled:
           type: boolean
           description: |
@@ -1235,7 +1368,9 @@ components:
           items:
             $ref: '#/components/schemas/Member'
           examples:
-            - - enabled: true
+            - - clock:
+                  synced: true
+                enabled: true
                 id: 4f3c9a1de8b27065
                 name: Kitchen
                 state: playing

@@ -18,6 +18,10 @@ int64_t atolla_audio_position_ms(void);
 void atolla_audio_clear(void);
 size_t atolla_audio_current_track_id(unsigned char *out, size_t len);
 size_t atolla_audio_consume_event(unsigned char *out, size_t len);
+bool atolla_audio_provide_clock(const char *bind_address, uint16_t port);
+bool atolla_audio_follow_clock(const char *host, uint16_t port);
+bool atolla_audio_clock_synced(void);
+uint64_t atolla_audio_clock_now_ns(void);
 
 #ifdef __cplusplus
 }

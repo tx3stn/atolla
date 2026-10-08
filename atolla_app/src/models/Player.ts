@@ -15,6 +15,7 @@ export const PlayerTiers = {
 
 export interface Player {
 	baseUrl: string | null;
+	clock: Member['clock'];
 	enabled: boolean;
 	group: string;
 	icon: string | null;

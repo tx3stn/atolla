@@ -371,6 +371,7 @@ function renderWithLongPress(driver: IComponentTestDriver, onLongPress: () => vo
 function makePlayer(overrides: Partial<Player> = {}): Player {
 	return {
 		baseUrl: 'http://192.168.1.42:45889',
+		clock: { synced: true },
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,

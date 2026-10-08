@@ -12,6 +12,8 @@ pub const parse_bytes = 4 * 1024;
 
 const max_id_bytes = 64;
 
+pub const max_host_bytes = 253;
+
 /// Above what the body cap lets a `setQueue` deliver, so it is a sanity bound rather than a queue
 /// length. Whether the index is inside the queue the player holds is TypeScript's to answer.
 const max_track_index = 100_000;
@@ -24,6 +26,7 @@ const max_position_ms = 86_400_000;
 /// parse error and never reaches the bridge.
 pub const Name = enum {
     addToQueue,
+    followClock,
     jumpToIndex,
     move,
     next,
@@ -46,7 +49,9 @@ pub const LoopMode = enum { none, queue, track };
 pub const Body = struct {
     command: Name,
     fromIndex: ?u32 = null,
+    host: ?[]const u8 = null,
     loopMode: ?LoopMode = null,
+    port: ?u16 = null,
     positionMs: ?u64 = null,
     toIndex: ?u32 = null,
     trackId: ?[]const u8 = null,
@@ -60,7 +65,9 @@ pub const Body = struct {
 const Wire = struct {
     command: []const u8,
     fromIndex: ?u32 = null,
+    host: ?[]const u8 = null,
     loopMode: ?[]const u8 = null,
+    port: ?u16 = null,
     positionMs: ?u64 = null,
     toIndex: ?u32 = null,
     trackId: ?[]const u8 = null,
@@ -85,10 +92,12 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
     const parsed: Body = .{
         .command = std.meta.stringToEnum(Name, wire.command) orelse return error.Malformed,
         .fromIndex = wire.fromIndex,
+        .host = wire.host,
         .loopMode = if (wire.loopMode) |mode|
             std.meta.stringToEnum(LoopMode, mode) orelse return error.Malformed
         else
             null,
+        .port = wire.port,
         .positionMs = wire.positionMs,
         .toIndex = wire.toIndex,
         .trackId = wire.trackId,
@@ -100,6 +109,18 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         if (value) |id| {
             if (id.len == 0 or id.len > max_id_bytes) return error.Malformed;
         }
+    }
+
+    if (parsed.host) |host| {
+        if (host.len == 0 or host.len > max_host_bytes) return error.Malformed;
+
+        for (host) |byte| {
+            if (byte < '!' or byte > '~') return error.Malformed;
+        }
+    }
+
+    if (parsed.port) |port| {
+        if (port == 0) return error.Malformed;
     }
 
     if (parsed.positionMs) |position| {
@@ -117,6 +138,7 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         .jumpToIndex, .removeAt => if (parsed.trackIndex == null) return error.Malformed,
         .move => if (parsed.fromIndex == null or parsed.toIndex == null) return error.Malformed,
         .setLoopMode => if (parsed.loopMode == null) return error.Malformed,
+        .followClock => if ((parsed.host == null) != (parsed.port == null)) return error.Malformed,
     }
 
     return parsed;
@@ -324,6 +346,54 @@ test "command: refuses an account that cannot be a user id" {
     try testing.expectError(error.Malformed, decoded(
         \\{"command":"playNext","userId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
     ));
+}
+
+test "command: reads the clock a speaker is told to follow" {
+    const body = try decoded(
+        \\{"command":"followClock","host":"192.168.1.42","port":45890}
+    );
+
+    try testing.expectEqual(Name.followClock, body.command);
+    try testing.expectEqualStrings("192.168.1.42", body.host.?);
+    try testing.expectEqual(45890, body.port);
+}
+
+test "command: a followClock naming no clock puts the speaker back on its own" {
+    const body = try decoded(
+        \\{"command":"followClock"}
+    );
+
+    try testing.expectEqual(null, body.host);
+    try testing.expectEqual(null, body.port);
+}
+
+test "command: refuses a followClock naming half an address" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"followClock","host":"192.168.1.42"}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"followClock","port":45890}
+    ));
+}
+
+test "command: refuses a clock port UDP does not have" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"followClock","host":"192.168.1.42","port":0}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"followClock","host":"192.168.1.42","port":65536}
+    ));
+}
+
+test "command: refuses a clock host that cannot be an address" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"followClock","host":"","port":45890}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"followClock","host":"kitchen speaker","port":45890}
+    ));
+    try testing.expectError(error.Malformed, decoded("{\"command\":\"followClock\",\"host\":\"" ++
+        "h" ** 254 ++ "\",\"port\":45890}"));
 }
 
 test "command: ignores a member belonging to no command" {

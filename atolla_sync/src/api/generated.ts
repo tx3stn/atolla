@@ -116,7 +116,7 @@ export interface paths {
         put?: never;
         /**
          * Act on the player's queue or playback.
-         * @description Thirteen commands share one route, discriminated on `command`. The name and the shape of
+         * @description Every command shares one route, discriminated on `command`. The name and the shape of
          *     its members are the wire contract, so `command.zig` refuses an unknown name or a malformed
          *     member before the request crosses the bridge. The `tracks` array is the exception and
          *     passes through as opaque bytes: `Track` is a TypeScript interface with one source of truth,
@@ -174,6 +174,32 @@ export interface paths {
          *     `positionAtMs` is for.
          */
         get: operations["getState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The clock this player serves for others to follow.
+         * @description Every player serves its system clock over UDP on the port named here, for other players to
+         *     follow. A controller reads this from the player it picked as the clock speaker: `nowNs` to
+         *     choose a start time ahead of it, and `port` to tell the others where to follow it with
+         *     `followClock`.
+         *
+         *     `nowNs` counts from an arbitrary point of the clock's own, not the epoch, so comparing it
+         *     with another clock means nothing. Differences against it, and times scheduled on it, do.
+         */
+        get: operations["getClock"];
         put?: never;
         post?: never;
         delete?: never;
@@ -581,6 +607,23 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * @description Play on the clock of the player a controller picked as the clock speaker, or on this
+         *     player's own clock again when `host` and `port` are left out. The player starts syncing at
+         *     once and reports how that is going in its member's `clock`, so a controller waits for
+         *     `synced` before scheduling a start. Following the clock it already follows changes nothing.
+         */
+        CommandFollowClock: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "followClock";
+            host?: components["schemas"]["ClockHost"];
+            port?: components["schemas"]["ClockPort"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * @description The track the controller expects to find at the position it named. Optional, and worth
          *     sending: the player drops the command when the id does not match, so a stale mirror cannot
          *     reorder or delete the wrong track. A command that omits it is applied to whatever sits at
@@ -597,7 +640,7 @@ export interface components {
          *     v1 daemon keeps accepting a body that a later controller added a field to. That is why each
          *     variant is open rather than sealed.
          */
-        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"];
+        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"] | components["schemas"]["CommandFollowClock"];
         /**
          * @description The version the command produced. `GET /state?since=` with anything lower returns that
          *     snapshot without blocking, so a controller can read the result of its own command without
@@ -692,10 +735,50 @@ export interface components {
          */
         PlayerState: "idle" | "paused" | "playing";
         /**
+         * @description The clock speaker's address, as the controller reaches it.
+         * @example 192.168.1.42
+         */
+        ClockHost: string;
+        /**
+         * Format: int32
+         * @description The UDP port a player serves its clock on, `clockPort` in its `player.json`.
+         * @example 45890
+         */
+        ClockPort: number;
+        /** @description The clock a player serves, read as the request was answered. */
+        ClockReading: {
+            /**
+             * Format: int64
+             * @description The clock's time, in nanoseconds.
+             * @example 81234567890123
+             */
+            nowNs: number;
+            port: components["schemas"]["ClockPort"];
+        };
+        /**
+         * @description The clock a member plays on. `following` is the clock speaker it was told to follow, absent
+         *     when it plays on its own clock. `synced` says whether it has locked on to that clock yet,
+         *     and is always true for its own. A member that restarts has forgotten what it followed,
+         *     which is how a controller knows to send `followClock` again.
+         */
+        MemberClock: {
+            following?: {
+                host: components["schemas"]["ClockHost"];
+                port: components["schemas"]["ClockPort"];
+            } & {
+                [key: string]: unknown;
+            };
+            /** @example true */
+            synced: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * @description A player in the group. Today a daemon is a group of one and reports only itself, so this
          *     array has a single entry; discovery fills it out at the step that builds the beacon.
          */
         Member: {
+            clock: components["schemas"]["MemberClock"];
             /**
              * @description Whether this member plays. The enabled set is what defines the group, so a player that
              *     is present but not enabled is one the user switched off rather than one that failed.
@@ -746,6 +829,9 @@ export interface components {
             /**
              * @example [
              *       {
+             *         "clock": {
+             *           "synced": true
+             *         },
              *         "enabled": true,
              *         "id": "4f3c9a1de8b27065",
              *         "name": "Kitchen",
@@ -1104,6 +1190,7 @@ export type CommandPlayNext = components['schemas']['CommandPlayNext'];
 export type CommandRemoveAt = components['schemas']['CommandRemoveAt'];
 export type CommandMove = components['schemas']['CommandMove'];
 export type CommandSetLoopMode = components['schemas']['CommandSetLoopMode'];
+export type CommandFollowClock = components['schemas']['CommandFollowClock'];
 export type CommandTrackId = components['schemas']['CommandTrackId'];
 export type Command = components['schemas']['Command'];
 export type CommandAccepted = components['schemas']['CommandAccepted'];
@@ -1111,6 +1198,10 @@ export type MediaServerAccepted = components['schemas']['MediaServerAccepted'];
 export type Track = components['schemas']['Track'];
 export type Album = components['schemas']['Album'];
 export type PlayerState = components['schemas']['PlayerState'];
+export type ClockHost = components['schemas']['ClockHost'];
+export type ClockPort = components['schemas']['ClockPort'];
+export type ClockReading = components['schemas']['ClockReading'];
+export type MemberClock = components['schemas']['MemberClock'];
 export type Member = components['schemas']['Member'];
 export type StateSnapshot = components['schemas']['StateSnapshot'];
 export type ResponseBadRequest = components['responses']['BadRequest'];
@@ -1370,6 +1461,9 @@ export interface operations {
                      *       "leader": "4f3c9a1de8b27065",
                      *       "members": [
                      *         {
+                     *           "clock": {
+                     *             "synced": true
+                     *           },
                      *           "enabled": true,
                      *           "id": "4f3c9a1de8b27065",
                      *           "name": "Kitchen",
@@ -1433,6 +1527,60 @@ export interface operations {
             417: components["responses"]["ExpectationFailed"];
             500: components["responses"]["HandlerFailed"];
             503: components["responses"]["Unavailable"];
+            504: components["responses"]["HandlerTimeout"];
+        };
+    };
+    getClock: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
+                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
+                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
+                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
+                 *     answers any version.
+                 */
+                "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The clock's time as the request was answered, and the port it is served on. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "nowNs": 81234567890123,
+                     *       "port": 45890
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ClockReading"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["InvalidToken"];
+            411: components["responses"]["LengthRequired"];
+            413: components["responses"]["BodyTooLarge"];
+            417: components["responses"]["ExpectationFailed"];
+            500: components["responses"]["HandlerFailed"];
+            /**
+             * @description The player serves no clock, because its audio engine did not start or its clock port
+             *     was already taken. Also answered when the request could not be handed to TypeScript.
+             */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             504: components["responses"]["HandlerTimeout"];
         };
     };

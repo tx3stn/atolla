@@ -479,6 +479,7 @@ export class PlayersStore {
 	private remember(probed: ProbedPlayer, token: string): Player {
 		const player: Player = {
 			baseUrl: probed.baseUrl,
+			clock: { synced: true },
 			enabled: this.players.find((candidate) => candidate.id === probed.id)?.enabled ?? false,
 			group: DEFAULT_PLAYER_GROUP,
 			icon: null,
@@ -502,6 +503,7 @@ export class PlayersStore {
 	private restore(stored: PersistedPlayer): Player {
 		return {
 			baseUrl: stored.baseUrl,
+			clock: { synced: true },
 			enabled: stored.enabled,
 			group: DEFAULT_PLAYER_GROUP,
 			icon: stored.icon,
@@ -518,6 +520,7 @@ export class PlayersStore {
 	private thisDevice(): Player {
 		return {
 			baseUrl: null,
+			clock: { synced: true },
 			enabled: this.thisDeviceEnabled,
 			group: DEFAULT_PLAYER_GROUP,
 			icon: null,

@@ -1,4 +1,5 @@
 const std = @import("std");
+const Clock = @import("clock.zig").Clock;
 const gst = @import("gst.zig");
 const log = @import("log.zig");
 const wav = @import("wav.zig");
@@ -394,10 +395,16 @@ fn io_context() std.Io {
 const Hosted = struct {
     runtime: gst.Gst,
     player: Player,
+    clock: Clock,
     started: bool,
 };
 
-var hosted: Hosted = .{ .runtime = undefined, .player = undefined, .started = false };
+var hosted: Hosted = .{
+    .runtime = undefined,
+    .player = undefined,
+    .clock = undefined,
+    .started = false,
+};
 
 export fn atolla_audio_start(device: [*:0]const u8) bool {
     if (hosted.started) return true;
@@ -411,9 +418,32 @@ export fn atolla_audio_start(device: [*:0]const u8) bool {
         return false;
     };
 
+    hosted.clock = Clock.init(&hosted.runtime) catch {
+        hosted.player.deinit();
+        hosted.runtime.close();
+
+        return false;
+    };
+
     hosted.started = true;
 
     return true;
+}
+
+export fn atolla_audio_provide_clock(bind_address: [*:0]const u8, port: u16) bool {
+    return hosted.started and hosted.clock.provide(std.mem.span(bind_address), port) != null;
+}
+
+export fn atolla_audio_follow_clock(host: [*:0]const u8, port: u16) bool {
+    return hosted.started and hosted.clock.follow(std.mem.span(host), port);
+}
+
+export fn atolla_audio_clock_synced() bool {
+    return hosted.started and hosted.clock.synced();
+}
+
+export fn atolla_audio_clock_now_ns() u64 {
+    return if (hosted.started) hosted.clock.nowNs() else 0;
 }
 
 /// Loads its own runtime rather than the hosted one: listing is a one-shot command in a process

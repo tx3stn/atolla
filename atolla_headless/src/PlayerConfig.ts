@@ -9,6 +9,7 @@ export const DEFAULT_AUDIO_DEVICE = 'default';
 // Decodes and keeps time without an output device, for hardware that has none.
 export const SILENT_AUDIO_DEVICE = 'none';
 export const DEFAULT_BIND_ADDRESS = '0.0.0.0';
+export const DEFAULT_CLOCK_PORT = 45890;
 export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
 export const DEFAULT_DATA_DIR = '/var/lib/atolla';
 export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
@@ -17,6 +18,7 @@ export const DEFAULT_PORT = 45889;
 export interface PlayerConfig {
 	audioDevice: string;
 	bindAddress: string;
+	clockPort: number;
 	dataDir: string;
 	language: LanguageCode;
 	logLevel: LogLevel;
@@ -140,6 +142,7 @@ function parse(raw: string, path: string): PlayerConfig {
 	const value = parsed as {
 		audioDevice?: unknown;
 		bindAddress?: unknown;
+		clockPort?: unknown;
 		dataDir?: unknown;
 		language?: unknown;
 		logLevel?: unknown;
@@ -153,6 +156,7 @@ function parse(raw: string, path: string): PlayerConfig {
 				? value.audioDevice
 				: DEFAULT_AUDIO_DEVICE,
 		bindAddress: isBindAddress(value.bindAddress) ? value.bindAddress : DEFAULT_BIND_ADDRESS,
+		clockPort: isPort(value.clockPort) ? value.clockPort : DEFAULT_CLOCK_PORT,
 		dataDir:
 			typeof value.dataDir === 'string' && value.dataDir !== '' ? value.dataDir : DEFAULT_DATA_DIR,
 		language: isLanguageCode(value.language) ? value.language : DEFAULT_LANGUAGE,

@@ -396,6 +396,7 @@ fn bodyLimit(route: router.Route) usize {
         .command => command.max_body_bytes,
         .state => unrouted_body_bytes,
         .media_server => media_server.max_body_bytes,
+        .clock => unrouted_body_bytes,
     };
 }
 

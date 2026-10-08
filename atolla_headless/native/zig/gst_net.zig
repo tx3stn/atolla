@@ -25,6 +25,7 @@ const Net = struct {
 
 const Clocks = struct {
     gst_clock_get_time: *const fn (*gst.Object) callconv(.c) ClockTime,
+    gst_clock_is_synced: *const fn (*gst.Object) callconv(.c) c_int,
     gst_clock_wait_for_sync: *const fn (*gst.Object, ClockTime) callconv(.c) c_int,
     gst_element_set_base_time: *const fn (*gst.Object, ClockTime) callconv(.c) void,
     gst_element_set_start_time: *const fn (*gst.Object, ClockTime) callconv(.c) void,
@@ -69,8 +70,17 @@ pub const GstNet = struct {
         return self.clocks.gst_clock_get_time(clock);
     }
 
-    pub fn provide(self: *const GstNet, clock: *gst.Object, port: c_int) ?*gst.Object {
-        return self.net.gst_net_time_provider_new(clock, "0.0.0.0", port);
+    pub fn provide(
+        self: *const GstNet,
+        clock: *gst.Object,
+        address: [:0]const u8,
+        port: c_int,
+    ) ?*gst.Object {
+        return self.net.gst_net_time_provider_new(clock, address.ptr, port);
+    }
+
+    pub fn isSynced(self: *const GstNet, clock: *gst.Object) bool {
+        return self.clocks.gst_clock_is_synced(clock) != 0;
     }
 
     pub fn clientClock(self: *const GstNet, address: [:0]const u8, port: c_int) ?*gst.Object {
@@ -145,7 +155,7 @@ test "gst_net: a client clock syncs to a provider over the loopback" {
     const system = sync.systemClock() orelse return error.TestUnexpectedResult;
     defer host.gstreamer.gst_object_unref(system);
 
-    const provider = sync.provide(system, 0) orelse return error.TestUnexpectedResult;
+    const provider = sync.provide(system, "127.0.0.1", 0) orelse return error.TestUnexpectedResult;
     defer host.gstreamer.gst_object_unref(provider);
 
     const port = sync.portOf(provider);

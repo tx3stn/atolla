@@ -1,5 +1,6 @@
 import type {
 	ApiVersion,
+	ClockReading,
 	Command,
 	CommandAccepted,
 	Hello,
@@ -35,6 +36,10 @@ export class PlayerClient {
 		private readonly apiVersion?: ApiVersion,
 	) {
 		this.baseUrl = baseUrl.replace(/\/+$/, '');
+	}
+
+	clock(token: string): PendingRequest<PlayerAnswer<ClockReading | Problem>> {
+		return this.settled(this.transport.get(this.url('/clock'), this.headers(token)));
 	}
 
 	command(token: string, body: Command): PendingRequest<PlayerAnswer<CommandAccepted | Problem>> {

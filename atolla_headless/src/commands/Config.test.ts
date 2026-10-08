@@ -16,6 +16,7 @@ const noHttpClient: MakeHttpClient = () => {
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
 	bindAddress: DEFAULT_BIND_ADDRESS,
+	clockPort: 45990,
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: 'info',
@@ -34,11 +35,15 @@ function context(argv: Array<string>) {
 			audio: {
 				clear: () => {},
 				clearNext: () => {},
+				clockNowNs: () => 0,
+				clockSynced: () => true,
 				configure: () => true,
 				configureNext: () => true,
 				consumeEvent: () => '',
 				currentTrackId: () => '',
+				followClock: () => true,
 				positionMs: () => 0,
+				provideClock: () => true,
 				seekToMs: () => true,
 				setPlaying: () => {},
 				start: () => true,

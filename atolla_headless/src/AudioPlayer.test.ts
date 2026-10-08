@@ -41,6 +41,8 @@ function fakeEngine(): FakeEngine {
 		clearNext: () => {
 			engine.next = null;
 		},
+		clockNowNs: () => 0,
+		clockSynced: () => true,
 		configure: (source: string, trackId: string, authHeader: string) => {
 			engine.configured.push({ authHeader, source, trackId });
 			engine.current = trackId;
@@ -58,11 +60,13 @@ function fakeEngine(): FakeEngine {
 		current: '',
 		currentTrackId: () => engine.current,
 		events: [],
+		followClock: () => true,
 		handedOver: [],
 		next: null,
 		playing: false,
 		position: 0,
 		positionMs: () => engine.position,
+		provideClock: () => true,
 		seeks: [],
 		seekToMs: (positionMs: number) => {
 			engine.seeks.push(positionMs);

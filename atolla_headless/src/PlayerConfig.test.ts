@@ -5,6 +5,7 @@ import {
 	type ConfigFiles,
 	DEFAULT_AUDIO_DEVICE,
 	DEFAULT_BIND_ADDRESS,
+	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
 	DEFAULT_LOG_LEVEL,
 	DEFAULT_PORT,
@@ -19,6 +20,7 @@ const PATH = '/etc/atolla/player.json';
 const CONFIG: PlayerConfig = {
 	audioDevice: DEFAULT_AUDIO_DEVICE,
 	bindAddress: DEFAULT_BIND_ADDRESS,
+	clockPort: DEFAULT_CLOCK_PORT,
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: DEFAULT_LOG_LEVEL,
@@ -66,12 +68,13 @@ describe('makeConfigStore read', () => {
 
 	it('reads the stored daemon fields', () => {
 		const { files } = fakeFiles(
-			'{"audioDevice":"hw:2,0","logLevel":"debug","name":"kitchen","port":45890}',
+			'{"audioDevice":"hw:2,0","clockPort":45990,"logLevel":"debug","name":"kitchen","port":45890}',
 		);
 
 		expect(makeConfigStore(files, PATH).read()).toEqual({
 			...CONFIG,
 			audioDevice: 'hw:2,0',
+			clockPort: 45990,
 			logLevel: 'debug',
 			port: 45890,
 		});
@@ -88,6 +91,14 @@ describe('makeConfigStore read', () => {
 			const { files } = fakeFiles(`{"name":"kitchen","port":${port}}`);
 
 			expect(makeConfigStore(files, PATH).read()?.port).toBe(DEFAULT_PORT);
+		}
+	});
+
+	it('falls back on a clock port that could not be bound', () => {
+		for (const port of ['"45990"', '45990.5', '0', '70000']) {
+			const { files } = fakeFiles(`{"clockPort":${port},"name":"kitchen"}`);
+
+			expect(makeConfigStore(files, PATH).read()?.clockPort).toBe(DEFAULT_CLOCK_PORT);
 		}
 	});
 

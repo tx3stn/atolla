@@ -8,6 +8,7 @@ pub const Route = enum(u32) {
     command = 2,
     state = 3,
     media_server = 4,
+    clock = 5,
 };
 
 pub const Outcome = union(enum) {
@@ -31,6 +32,7 @@ const table = [_]Entry{
     .{ .method = .POST, .path = "/command", .route = .command },
     .{ .method = .GET, .path = "/state", .route = .state },
     .{ .method = .PUT, .path = "/media-server", .route = .media_server },
+    .{ .method = .GET, .path = "/clock", .route = .clock },
 };
 
 pub fn requiresToken(route: Route) bool {
@@ -86,12 +88,14 @@ test "router: resolves every route in the table" {
     try testing.expectEqual(Outcome{ .route = .command }, resolve(.POST, "/command"));
     try testing.expectEqual(Outcome{ .route = .state }, resolve(.GET, "/state?since=4"));
     try testing.expectEqual(Outcome{ .route = .media_server }, resolve(.PUT, "/media-server"));
+    try testing.expectEqual(Outcome{ .route = .clock }, resolve(.GET, "/clock"));
 }
 
 test "router: a route is reachable only by its own method" {
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.GET, "/pair"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/state"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/media-server"));
+    try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/clock"));
 }
 
 test "router: only the discovery and pairing routes are reachable without a token" {
@@ -100,6 +104,7 @@ test "router: only the discovery and pairing routes are reachable without a toke
     try testing.expect(requiresToken(.command));
     try testing.expect(requiresToken(.state));
     try testing.expect(requiresToken(.media_server));
+    try testing.expect(requiresToken(.clock));
 }
 
 test "router: a route defaults to needing a token" {
@@ -116,4 +121,5 @@ test "router: route ids are stable" {
     try testing.expectEqual(2, @intFromEnum(Route.command));
     try testing.expectEqual(3, @intFromEnum(Route.state));
     try testing.expectEqual(4, @intFromEnum(Route.media_server));
+    try testing.expectEqual(5, @intFromEnum(Route.clock));
 }

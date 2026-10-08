@@ -4,6 +4,7 @@ import type { MakeHttpClient } from '../MediaServerTransports';
 import {
 	type ConfigStore,
 	DEFAULT_BIND_ADDRESS,
+	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
 	type PlayerConfig,
 } from '../PlayerConfig';
@@ -21,6 +22,7 @@ const noHttpClient: MakeHttpClient = () => {
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
 	bindAddress: DEFAULT_BIND_ADDRESS,
+	clockPort: DEFAULT_CLOCK_PORT,
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: 'info',
@@ -43,11 +45,15 @@ function harness(
 				audio: {
 					clear: () => {},
 					clearNext: () => {},
+					clockNowNs: () => 0,
+					clockSynced: () => true,
 					configure: () => true,
 					configureNext: () => true,
 					consumeEvent: () => '',
 					currentTrackId: () => '',
+					followClock: () => true,
 					positionMs: () => 0,
+					provideClock: () => true,
 					seekToMs: () => true,
 					setPlaying: () => {},
 					start: () => true,
