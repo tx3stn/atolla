@@ -5,13 +5,12 @@ import { dirname, join } from 'node:path';
 import type { PairAccepted, StateSnapshot, Track } from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Cli, type Daemon, pairingCode } from './cli';
+import { silence } from './silence';
 import { FetchTransport } from './transport';
 
 // away from the 45889 default and from the sibling suites, so neither a daemon left running on
 // this machine nor another spec can make these pass
 const PORT = 45993;
-
-const RATE = 8000;
 
 // `none` decodes and keeps time without an output device, which is what docker and the runners
 // have. Playback still takes its real duration, so the fixtures are short.
@@ -27,27 +26,6 @@ const TRACKS: Array<Track> = [
 const UNHURRIED: Track = { duration: 30, id: 'unhurried', name: 'unhurried' };
 
 const LOOPED: Track = { duration: 3, id: 'looped', name: 'looped' };
-
-function silence(seconds: number): Buffer {
-	const samples = RATE * seconds;
-	const data = samples * 2;
-	const buffer = Buffer.alloc(44 + data);
-
-	buffer.write('RIFF', 0, 'ascii');
-	buffer.writeUInt32LE(36 + data, 4);
-	buffer.write('WAVEfmt ', 8, 'ascii');
-	buffer.writeUInt32LE(16, 16);
-	buffer.writeUInt16LE(1, 20);
-	buffer.writeUInt16LE(1, 22);
-	buffer.writeUInt32LE(RATE, 24);
-	buffer.writeUInt32LE(RATE * 2, 28);
-	buffer.writeUInt16LE(2, 32);
-	buffer.writeUInt16LE(16, 34);
-	buffer.write('data', 36, 'ascii');
-	buffer.writeUInt32LE(data, 40);
-
-	return buffer;
-}
 
 describe('playback', () => {
 	let cli: Cli;

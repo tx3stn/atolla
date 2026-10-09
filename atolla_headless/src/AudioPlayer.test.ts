@@ -17,6 +17,11 @@ interface Handed {
 	trackId: string;
 }
 
+interface Start {
+	atNs: number;
+	positionMs: number;
+}
+
 interface FakeEngine extends AudioEngine {
 	cleared: number;
 	configured: Array<Handed>;
@@ -27,6 +32,7 @@ interface FakeEngine extends AudioEngine {
 	playing: boolean;
 	position: number;
 	seeks: Array<number>;
+	starts: Array<Start>;
 }
 
 function fakeEngine(): FakeEngine {
@@ -77,6 +83,12 @@ function fakeEngine(): FakeEngine {
 			engine.playing = playing;
 		},
 		start: () => true,
+		startAt: (positionMs: number, atNs: number) => {
+			engine.starts.push({ atNs, positionMs });
+			engine.position = positionMs;
+			return true;
+		},
+		starts: [],
 	};
 
 	return engine;
@@ -706,5 +718,132 @@ describe('makeAudioPlayer', () => {
 		playback.playTracks(TRACKS, 0);
 
 		expect(audio.configured).toHaveLength(0);
+	});
+
+	describe('starting at a time on the shared clock', () => {
+		const AT = 81_236_567_890_123;
+
+		it('starts a new queue at the time it was given rather than at once', () => {
+			const { audio, player, playback } = fixture();
+
+			player.startingAt(AT, () => playback.playTracks(TRACKS, 0));
+
+			expect(audio.starts).toEqual([{ atNs: AT, positionMs: 0 }]);
+			expect(audio.playing).toBe(false);
+		});
+
+		it('resumes from where it paused at the time it was given', () => {
+			const { audio, player, playback } = fixture();
+
+			playback.playTracks(TRACKS, 0);
+			playback.setPlaying(false);
+			audio.position = 30_000;
+			player.tick();
+
+			player.startingAt(AT, () => playback.setPlaying(true));
+
+			expect(audio.starts).toEqual([{ atNs: AT, positionMs: 30_000 }]);
+			expect(audio.playing).toBe(false);
+		});
+
+		it('starts a playing track again from where it was sent, at the time it was given', () => {
+			const { audio, player, playback } = fixture();
+
+			playback.playTracks(TRACKS, 0);
+			player.startingAt(AT, () => playback.seekTo(42));
+
+			expect(audio.starts).toEqual([{ atNs: AT, positionMs: 42_000 }]);
+			expect(audio.seeks).toEqual([]);
+		});
+
+		it('only moves a paused track, since a seek while paused starts nothing', () => {
+			const { audio, player, playback } = fixture();
+
+			playback.playTracks(TRACKS, 0);
+			playback.setPlaying(false);
+			player.startingAt(AT, () => playback.seekTo(42));
+
+			expect(audio.seeks).toEqual([42_000]);
+			expect(audio.starts).toEqual([]);
+		});
+
+		it('plays at once on the next command that carries no time', () => {
+			const { audio, player, playback } = fixture();
+
+			player.startingAt(AT, () => playback.playTracks(TRACKS, 0));
+			playback.setPlaying(false);
+			playback.setPlaying(true);
+
+			expect(audio.starts).toHaveLength(1);
+			expect(audio.playing).toBe(true);
+		});
+
+		it('keeps offering the start until the engine is ready to take it', () => {
+			const { audio, player, playback } = fixture();
+			let refusals = 2;
+			audio.startAt = (positionMs: number, atNs: number) => {
+				if (refusals > 0) {
+					refusals--;
+					return false;
+				}
+				audio.starts.push({ atNs, positionMs });
+				return true;
+			};
+
+			player.startingAt(AT, () => playback.playTracks(TRACKS, 0));
+
+			expect(audio.starts).toEqual([]);
+
+			player.tick();
+			player.tick();
+
+			expect(audio.starts).toEqual([{ atNs: AT, positionMs: 0 }]);
+		});
+
+		it('drops a start still waiting on the engine when the queue is paused', () => {
+			const { audio, player, playback } = fixture();
+			const startAt = audio.startAt;
+			audio.startAt = () => false;
+
+			player.startingAt(AT, () => playback.playTracks(TRACKS, 0));
+			playback.setPlaying(false);
+
+			audio.startAt = startAt;
+			player.tick();
+
+			expect(audio.starts).toEqual([]);
+		});
+
+		it('moves a start still waiting on the engine to where a later seek sends it', () => {
+			const { audio, player, playback } = fixture();
+			const startAt = audio.startAt;
+			audio.startAt = () => false;
+
+			player.startingAt(AT, () => playback.playTracks(TRACKS, 0));
+			playback.seekTo(42);
+
+			audio.startAt = startAt;
+			player.tick();
+
+			expect(audio.starts).toEqual([{ atNs: AT, positionMs: 42_000 }]);
+			expect(audio.seeks).toEqual([]);
+		});
+
+		it('holds the position back while a start waits, until the engine has refused for long enough', () => {
+			const { audio, player, playback } = fixture();
+			audio.startAt = () => false;
+
+			player.startingAt(AT, () => playback.playTracks(TRACKS, 0));
+			audio.position = 5_000;
+			player.tick();
+
+			expect(playback.progressSeconds).toBe(0);
+
+			for (let tick = 0; tick < 30; tick++) {
+				player.tick();
+			}
+
+			expect(playback.progressSeconds).toBe(5);
+		});
 	});
 });

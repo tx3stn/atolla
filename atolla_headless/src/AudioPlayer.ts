@@ -37,6 +37,7 @@ export interface AudioPlayer {
 	dispose: () => void;
 	refresh: () => void;
 	start: () => void;
+	startingAt: (atNs: number | undefined, change: () => void) => void;
 	tick: () => void;
 }
 
@@ -52,10 +53,24 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	let lastSeekTarget: number | null = null;
 	let pendingSeekMs: number | null = null;
 	let pendingSeekAttempts = 0;
+	let startingAtNs: number | null = null;
+	let pendingStart: { atNs: number; positionMs: number } | null = null;
+	let pendingStartAttempts = 0;
 
 	const offerSeek = (positionMs: number): void => {
+		if (pendingStart !== null) {
+			pendingStart = { ...pendingStart, positionMs };
+			return;
+		}
+
 		pendingSeekAttempts = 0;
 		pendingSeekMs = audio.seekToMs(positionMs) ? null : positionMs;
+	};
+
+	const offerStart = (positionMs: number, atNs: number): void => {
+		pendingSeekMs = null;
+		pendingStartAttempts = 0;
+		pendingStart = audio.startAt(positionMs, atNs) ? null : { atNs, positionMs };
 	};
 
 	const bindTrack = (): void => {
@@ -69,6 +84,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			handed = null;
 			offeredNextId = null;
 			pendingSeekMs = null;
+			pendingStart = null;
 			return;
 		}
 
@@ -107,6 +123,13 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		offeredNextId = null;
 
 		pendingSeekMs = null;
+		pendingStart = null;
+		if (playback.isPlaying && startingAtNs !== null) {
+			lastPlaying = true;
+			offerStart(Math.floor(playback.progressSeconds * 1000), startingAtNs);
+			return;
+		}
+
 		if (playback.progressSeconds > 0) {
 			offerSeek(Math.floor(playback.progressSeconds * 1000));
 		}
@@ -167,6 +190,12 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		}
 
 		lastPlaying = playback.isPlaying;
+		if (playback.isPlaying && startingAtNs !== null) {
+			offerStart(Math.floor(playback.progressSeconds * 1000), startingAtNs);
+			return;
+		}
+
+		pendingStart = null;
 		audio.setPlaying(playback.isPlaying);
 	};
 
@@ -183,7 +212,14 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		}
 
 		lastSeekTarget = target;
-		offerSeek(Math.max(0, Math.floor(target * 1000)));
+
+		const positionMs = Math.max(0, Math.floor(target * 1000));
+		if (playback.isPlaying && startingAtNs !== null) {
+			offerStart(positionMs, startingAtNs);
+			return;
+		}
+
+		offerSeek(positionMs);
 	};
 
 	// The engine answers 0 until the source has prerolled, so a read taken while a seek is pending
@@ -207,6 +243,27 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			positionMs: pendingSeekMs,
 		});
 		pendingSeekMs = null;
+
+		return false;
+	};
+
+	const startPending = (): boolean => {
+		if (pendingStart === null) {
+			return false;
+		}
+
+		if (audio.startAt(pendingStart.positionMs, pendingStart.atNs)) {
+			pendingStart = null;
+			return false;
+		}
+
+		pendingStartAttempts++;
+		if (pendingStartAttempts < MAX_SEEK_ATTEMPTS) {
+			return true;
+		}
+
+		log.warn('gave up on a scheduled start', pendingStart);
+		pendingStart = null;
 
 		return false;
 	};
@@ -330,12 +387,20 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			unsubscribe = playback.subscribe(apply);
 			apply();
 		},
+		startingAt: (atNs, change) => {
+			startingAtNs = atNs ?? null;
+			try {
+				change();
+			} finally {
+				startingAtNs = null;
+			}
+		},
 		tick: () => {
 			// Batched so several buffered completions settle as one notification, rather than walking
 			// the engine through every intermediate track.
 			playback.runBatched(drain);
 
-			if (seekPending()) {
+			if (seekPending() || startPending()) {
 				return;
 			}
 

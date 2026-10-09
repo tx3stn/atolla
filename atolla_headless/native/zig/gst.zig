@@ -78,6 +78,8 @@ pub const Message = extern struct {
 
 pub const second: u64 = 1_000_000_000;
 
+pub const clock_time_none: u64 = std.math.maxInt(u64);
+
 const Gstreamer = struct {
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
     gst_device_create_element: *const fn (*Object, ?[*:0]const u8) callconv(.c) ?*Object,
@@ -92,6 +94,8 @@ const Gstreamer = struct {
     gst_element_get_bus: *const fn (*Object) callconv(.c) ?*Object,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
     gst_element_seek_simple: *const fn (*Object, Format, c_uint, i64) callconv(.c) c_int,
+    gst_element_set_base_time: *const fn (*Object, u64) callconv(.c) void,
+    gst_element_set_start_time: *const fn (*Object, u64) callconv(.c) void,
     gst_element_set_state: *const fn (*Object, State) callconv(.c) StateChange,
     gst_filename_to_uri: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?[*:0]u8,
     gst_init: *const fn (?*c_int, ?*?[*][*:0]u8) callconv(.c) void,
@@ -99,6 +103,9 @@ const Gstreamer = struct {
     gst_mini_object_unref: *const fn (*Message) callconv(.c) void,
     gst_object_unref: *const fn (*Object) callconv(.c) void,
     gst_parse_launch: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?*Object,
+    gst_pipeline_auto_clock: *const fn (*Object) callconv(.c) void,
+    gst_pipeline_set_latency: *const fn (*Object, u64) callconv(.c) void,
+    gst_pipeline_use_clock: *const fn (*Object, ?*Object) callconv(.c) void,
     gst_util_set_object_arg: *const fn (*Object, [*:0]const u8, [*:0]const u8) callconv(.c) void,
 };
 
@@ -402,6 +409,13 @@ pub const Pipeline = struct {
         return nanoseconds;
     }
 
+    pub fn schedule(self: *const Pipeline, clock: *Object, base_time: u64) void {
+        self.gst.gstreamer.gst_pipeline_use_clock(self.element, clock);
+        self.gst.gstreamer.gst_element_set_start_time(self.element, clock_time_none);
+        self.gst.gstreamer.gst_pipeline_set_latency(self.element, 0);
+        self.gst.gstreamer.gst_element_set_base_time(self.element, base_time);
+    }
+
     pub fn seek(self: *const Pipeline, position_ns: i64) bool {
         const element = self.element;
         const flags = seek_flush_to_keyframe;
@@ -447,6 +461,12 @@ pub const Pipeline = struct {
 
     pub fn setState(self: *const Pipeline, state: State) StateChange {
         return self.gst.gstreamer.gst_element_set_state(self.element, state);
+    }
+
+    pub fn unschedule(self: *const Pipeline) void {
+        self.gst.gstreamer.gst_pipeline_auto_clock(self.element);
+        self.gst.gstreamer.gst_element_set_start_time(self.element, 0);
+        self.gst.gstreamer.gst_pipeline_set_latency(self.element, clock_time_none);
     }
 
     /// `failed` borrows `buffer`, so it stays valid only until the next call. A state change that

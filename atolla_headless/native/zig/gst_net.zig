@@ -5,8 +5,6 @@ const log = @import("log.zig");
 
 pub const ClockTime = u64;
 
-pub const none: ClockTime = std.math.maxInt(u64);
-
 const g_type_int: usize = 6 << 2;
 
 const Net = struct {
@@ -27,10 +25,6 @@ const Clocks = struct {
     gst_clock_get_time: *const fn (*gst.Object) callconv(.c) ClockTime,
     gst_clock_is_synced: *const fn (*gst.Object) callconv(.c) c_int,
     gst_clock_wait_for_sync: *const fn (*gst.Object, ClockTime) callconv(.c) c_int,
-    gst_element_set_base_time: *const fn (*gst.Object, ClockTime) callconv(.c) void,
-    gst_element_set_start_time: *const fn (*gst.Object, ClockTime) callconv(.c) void,
-    gst_pipeline_set_latency: *const fn (*gst.Object, ClockTime) callconv(.c) void,
-    gst_pipeline_use_clock: *const fn (*gst.Object, ?*gst.Object) callconv(.c) void,
     gst_system_clock_obtain: *const fn () callconv(.c) ?*gst.Object,
 };
 
@@ -99,19 +93,6 @@ pub const GstNet = struct {
 
     pub fn waitForSync(self: *const GstNet, clock: *gst.Object, timeout: ClockTime) bool {
         return self.clocks.gst_clock_wait_for_sync(clock, timeout) != 0;
-    }
-
-    pub fn startAt(
-        self: *const GstNet,
-        pipeline: *gst.Object,
-        clock: *gst.Object,
-        base_time: ClockTime,
-        latency: ClockTime,
-    ) void {
-        self.clocks.gst_pipeline_use_clock(pipeline, clock);
-        self.clocks.gst_element_set_start_time(pipeline, none);
-        self.clocks.gst_pipeline_set_latency(pipeline, latency);
-        self.clocks.gst_element_set_base_time(pipeline, base_time);
     }
 };
 

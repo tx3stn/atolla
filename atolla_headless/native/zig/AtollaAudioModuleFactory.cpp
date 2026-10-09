@@ -121,6 +121,22 @@ public:
                                  return Valdi::Value(
                                      atolla_audio_seek_to_ms(static_cast<int64_t>(positionMs)));
                              })))
+            .setMapValue("atollaAudioStartAt",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const double positionMs = callContext.getParameterAsDouble(0);
+                                 const double atNs = callContext.getParameterAsDouble(1);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 if (!(atNs >= 0 && atNs < 9223372036854775807.0)) {
+                                     return Valdi::Value(false);
+                                 }
+
+                                 return Valdi::Value(atolla_audio_start_at(
+                                     static_cast<int64_t>(positionMs), static_cast<uint64_t>(atNs)));
+                             })))
             .setMapValue("atollaAudioPositionMs",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {

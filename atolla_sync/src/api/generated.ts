@@ -449,7 +449,7 @@ export interface components {
         /** @description The commands that carry no members beyond their own name. */
         CommandBare: {
             /**
-             * @description `play` and `pause` act on the current track, `next` and `previous` move between
+             * @description `pause` stops the current track where it is, `next` and `previous` move between
              *     tracks, and `shuffle` reorders what has not played yet.
              *
              *     `previous` follows the button rather than the word: the leader restarts the current
@@ -458,7 +458,18 @@ export interface components {
              *      (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            command: "next" | "pause" | "play" | "previous" | "shuffle";
+            command: "next" | "pause" | "previous" | "shuffle";
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Play the current track from the position the player holds. */
+        CommandPlay: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "play";
+            startAtNs?: components["schemas"]["StartAtNs"];
         } & {
             [key: string]: unknown;
         };
@@ -478,6 +489,7 @@ export interface components {
              * @example 91234
              */
             positionMs: number;
+            startAtNs?: components["schemas"]["StartAtNs"];
         } & {
             [key: string]: unknown;
         };
@@ -519,6 +531,7 @@ export interface components {
              * @enum {string}
              */
             command: "setQueue";
+            startAtNs?: components["schemas"]["StartAtNs"];
             trackIndex?: components["schemas"]["TrackIndex"];
             tracks: components["schemas"]["Tracks"];
             userId?: components["schemas"]["UserId"];
@@ -640,7 +653,7 @@ export interface components {
          *     v1 daemon keeps accepting a body that a later controller added a field to. That is why each
          *     variant is open rather than sealed.
          */
-        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"] | components["schemas"]["CommandFollowClock"];
+        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandPlay"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"] | components["schemas"]["CommandFollowClock"];
         /**
          * @description The version the command produced. `GET /state?since=` with anything lower returns that
          *     snapshot without blocking, so a controller can read the result of its own command without
@@ -755,6 +768,16 @@ export interface components {
             nowNs: number;
             port: components["schemas"]["ClockPort"];
         };
+        /**
+         * Format: int64
+         * @description When the audio this command starts is heard, in nanoseconds on the clock the player plays
+         *     on: the clock speaker's when it follows one, its own otherwise, read as `GET /clock` reads
+         *     it. Players given the same time start together, from the position each holds. Left out,
+         *     the audio starts at once. A command that starts nothing, such as a `seek` while paused,
+         *     ignores it.
+         * @example 81236567890123
+         */
+        StartAtNs: number;
         /**
          * @description The clock a member plays on. `following` is the clock speaker it was told to follow, absent
          *     when it plays on its own clock. `synced` says whether it has locked on to that clock yet,
@@ -1182,6 +1205,7 @@ export type StateVersion = components['schemas']['StateVersion'];
 export type TrackIndex = components['schemas']['TrackIndex'];
 export type Tracks = components['schemas']['Tracks'];
 export type CommandBare = components['schemas']['CommandBare'];
+export type CommandPlay = components['schemas']['CommandPlay'];
 export type CommandSeek = components['schemas']['CommandSeek'];
 export type CommandJumpToIndex = components['schemas']['CommandJumpToIndex'];
 export type CommandSetQueue = components['schemas']['CommandSetQueue'];
@@ -1201,6 +1225,7 @@ export type PlayerState = components['schemas']['PlayerState'];
 export type ClockHost = components['schemas']['ClockHost'];
 export type ClockPort = components['schemas']['ClockPort'];
 export type ClockReading = components['schemas']['ClockReading'];
+export type StartAtNs = components['schemas']['StartAtNs'];
 export type MemberClock = components['schemas']['MemberClock'];
 export type Member = components['schemas']['Member'];
 export type StateSnapshot = components['schemas']['StateSnapshot'];

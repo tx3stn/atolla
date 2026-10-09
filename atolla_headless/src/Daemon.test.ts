@@ -76,6 +76,7 @@ function unavailableAudio(): AudioEngine {
 		seekToMs: () => false,
 		setPlaying: () => {},
 		start: () => false,
+		startAt: () => false,
 	};
 }
 

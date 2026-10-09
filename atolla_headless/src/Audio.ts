@@ -19,4 +19,5 @@ export interface AudioEngine {
 	seekToMs: (positionMs: number) => boolean;
 	setPlaying: (playing: boolean) => void;
 	start: (device: string) => boolean;
+	startAt: (positionMs: number, atNs: number) => boolean;
 }

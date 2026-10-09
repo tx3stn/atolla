@@ -3,12 +3,14 @@ import { isTrack, type Track } from 'atolla_core/src/models/Track';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { LoopModes, type PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { Command } from 'atolla_sync/src/api/generated';
+import type { AudioPlayer } from '../AudioPlayer';
 import type { Clock } from '../Clock';
 import type { Answer } from '../Http';
 import type { QueueOwner } from '../QueueOwner';
 import type { StateVersion } from '../StateVersion';
 
 export interface CommandDeps {
+	audioPlayer: Pick<AudioPlayer, 'startingAt'>;
 	clock: Pick<Clock, 'follow'>;
 	playback: PlaybackStore;
 	queueOwner: QueueOwner;
@@ -48,11 +50,11 @@ export async function handleCommand(deps: CommandDeps, body: string): Promise<An
 // False for a payload the server could not check: the track array is handed across the bridge
 // unparsed, so its shape is settled here.
 function apply(deps: CommandDeps, command: Command): boolean {
-	const { playback } = deps;
+	const { audioPlayer, playback } = deps;
 
 	switch (command.command) {
 		case 'play':
-			playback.setPlaying(true);
+			audioPlayer.startingAt(command.startAtNs, () => playback.setPlaying(true));
 			return true;
 		case 'pause':
 			playback.setPlaying(false);
@@ -67,7 +69,9 @@ function apply(deps: CommandDeps, command: Command): boolean {
 			playback.shuffle();
 			return true;
 		case 'seek':
-			playback.seekTo(command.positionMs / MS_PER_SECOND);
+			audioPlayer.startingAt(command.startAtNs, () =>
+				playback.seekTo(command.positionMs / MS_PER_SECOND),
+			);
 			return true;
 		case 'jumpToIndex':
 			if (holds(playback, command.trackIndex, command.trackId)) {
@@ -100,19 +104,21 @@ function apply(deps: CommandDeps, command: Command): boolean {
 			// owner, so an owner claimed after that notification is claimed too late.
 			let applied = false;
 
-			playback.runBatched(() => {
-				applied = applyQueue(playback, command.tracks, command.trackIndex ?? 0, command.album);
-				if (!applied) {
-					return;
-				}
+			audioPlayer.startingAt(command.startAtNs, () =>
+				playback.runBatched(() => {
+					applied = applyQueue(playback, command.tracks, command.trackIndex ?? 0, command.album);
+					if (!applied) {
+						return;
+					}
 
-				// Replacing a queue resets who owns it: the new owner is whoever is named, or nobody.
-				if (command.userId === undefined || playback.tracks.length === 0) {
-					deps.queueOwner.clear();
-				} else {
-					deps.queueOwner.claim(command.userId);
-				}
-			});
+					// Replacing a queue resets who owns it: the new owner is whoever is named, or nobody.
+					if (command.userId === undefined || playback.tracks.length === 0) {
+						deps.queueOwner.clear();
+					} else {
+						deps.queueOwner.claim(command.userId);
+					}
+				}),
+			);
 
 			return applied;
 		}

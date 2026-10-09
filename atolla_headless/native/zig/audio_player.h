@@ -14,6 +14,7 @@ bool atolla_audio_configure_next(const char *source, const char *track_id, const
 void atolla_audio_clear_next(void);
 void atolla_audio_set_playing(bool playing);
 bool atolla_audio_seek_to_ms(int64_t position_ms);
+bool atolla_audio_start_at(int64_t position_ms, uint64_t at_ns);
 int64_t atolla_audio_position_ms(void);
 void atolla_audio_clear(void);
 size_t atolla_audio_current_track_id(unsigned char *out, size_t len);

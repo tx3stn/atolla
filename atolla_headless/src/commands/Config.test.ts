@@ -47,6 +47,7 @@ function context(argv: Array<string>) {
 				seekToMs: () => true,
 				setPlaying: () => {},
 				start: () => true,
+				startAt: () => true,
 			},
 			audioDevices: () => [],
 			config: {

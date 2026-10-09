@@ -23,6 +23,10 @@ pub const Clock = struct {
         return .{ .gst = runtime, .net = net, .system = system };
     }
 
+    pub fn current(self: *const Clock) *gst.Object {
+        return self.client orelse self.system;
+    }
+
     pub fn follow(self: *Clock, host: []const u8, port: u16) bool {
         if (host.len > max_host_bytes) return false;
 
@@ -149,6 +153,20 @@ test "clock: following nothing puts it back on its own clock" {
     try testing.expect(follower.follow("", 0));
     try testing.expectEqual(null, follower.client);
     try testing.expect(follower.synced());
+}
+
+test "clock: plays on the clock it follows, and on its own once it follows none" {
+    var runtime = try loaded();
+    var served = try started(&runtime);
+    var follower = try started(&runtime);
+
+    const port = served.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
+
+    try testing.expect(follower.follow("127.0.0.1", port));
+    try testing.expectEqual(follower.client.?, follower.current());
+
+    try testing.expect(follower.follow("", 0));
+    try testing.expectEqual(follower.system, follower.current());
 }
 
 test "clock: refuses a host it cannot hold" {

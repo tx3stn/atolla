@@ -867,15 +867,27 @@ components:
       properties:
         command:
           type: string
-          enum: [next, pause, play, previous, shuffle]
+          enum: [next, pause, previous, shuffle]
           description: |
-            `play` and `pause` act on the current track, `next` and `previous` move between
+            `pause` stops the current track where it is, `next` and `previous` move between
             tracks, and `shuffle` reorders what has not played yet.
 
             `previous` follows the button rather than the word: the leader restarts the current
             track when it is more than three seconds in, and steps back otherwise. That is what
             the same button already does when the phone is playing.
           examples: [pause]
+
+    CommandPlay:
+      type: object
+      description: Play the current track from the position the player holds.
+      required: [command]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: play
+        startAtNs:
+          $ref: '#/components/schemas/StartAtNs'
 
     CommandSeek:
       type: object
@@ -897,6 +909,8 @@ components:
             The bound is a day, which no track reaches. Whether the position falls inside the
             track being played is settled after the request crosses the bridge.
           examples: [91234]
+        startAtNs:
+          $ref: '#/components/schemas/StartAtNs'
 
     CommandJumpToIndex:
       type: object
@@ -939,6 +953,8 @@ components:
         command:
           type: string
           const: setQueue
+        startAtNs:
+          $ref: '#/components/schemas/StartAtNs'
         trackIndex:
           $ref: '#/components/schemas/TrackIndex'
         tracks:
@@ -1077,6 +1093,7 @@ components:
         variant is open rather than sealed.
       oneOf:
         - $ref: '#/components/schemas/CommandBare'
+        - $ref: '#/components/schemas/CommandPlay'
         - $ref: '#/components/schemas/CommandSeek'
         - $ref: '#/components/schemas/CommandJumpToIndex'
         - $ref: '#/components/schemas/CommandSetQueue'
@@ -1095,7 +1112,7 @@ components:
           move: '#/components/schemas/CommandMove'
           next: '#/components/schemas/CommandBare'
           pause: '#/components/schemas/CommandBare'
-          play: '#/components/schemas/CommandBare'
+          play: '#/components/schemas/CommandPlay'
           playNext: '#/components/schemas/CommandPlayNext'
           previous: '#/components/schemas/CommandBare'
           removeAt: '#/components/schemas/CommandRemoveAt'
@@ -1272,6 +1289,19 @@ components:
           examples: [81234567890123]
         port:
           $ref: '#/components/schemas/ClockPort'
+
+    StartAtNs:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9223372036854775807
+      description: |
+        When the audio this command starts is heard, in nanoseconds on the clock the player plays
+        on: the clock speaker's when it follows one, its own otherwise, read as `GET /clock` reads
+        it. Players given the same time start together, from the position each holds. Left out,
+        the audio starts at once. A command that starts nothing, such as a `seek` while paused,
+        ignores it.
+      examples: [81236567890123]
 
     MemberClock:
       type: object

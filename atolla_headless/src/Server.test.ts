@@ -27,6 +27,7 @@ function deps(): ServerDeps {
 	return {
 		clock: { clock: { reading: () => null } },
 		command: {
+			audioPlayer: { startingAt: (_atNs, change) => change() },
 			clock: { follow: () => {} },
 			playback: new PlaybackStore(),
 			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),

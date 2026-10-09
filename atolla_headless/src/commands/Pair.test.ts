@@ -57,6 +57,7 @@ function harness(
 					seekToMs: () => true,
 					setPlaying: () => {},
 					start: () => true,
+					startAt: () => true,
 				},
 				audioDevices: () => [],
 				config: { path: PATH, read, write: () => {} },

@@ -53,6 +53,7 @@ pub const Body = struct {
     loopMode: ?LoopMode = null,
     port: ?u16 = null,
     positionMs: ?u64 = null,
+    startAtNs: ?u64 = null,
     toIndex: ?u32 = null,
     trackId: ?[]const u8 = null,
     trackIndex: ?u32 = null,
@@ -69,6 +70,7 @@ const Wire = struct {
     loopMode: ?[]const u8 = null,
     port: ?u16 = null,
     positionMs: ?u64 = null,
+    startAtNs: ?u64 = null,
     toIndex: ?u32 = null,
     trackId: ?[]const u8 = null,
     trackIndex: ?u32 = null,
@@ -99,6 +101,7 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
             null,
         .port = wire.port,
         .positionMs = wire.positionMs,
+        .startAtNs = wire.startAtNs,
         .toIndex = wire.toIndex,
         .trackId = wire.trackId,
         .trackIndex = wire.trackIndex,
@@ -125,6 +128,10 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
 
     if (parsed.positionMs) |position| {
         if (position > max_position_ms) return error.Malformed;
+    }
+
+    if (parsed.startAtNs) |at| {
+        if (at > std.math.maxInt(i64)) return error.Malformed;
     }
 
     for ([_]?u32{ parsed.fromIndex, parsed.toIndex, parsed.trackIndex }) |index| {
@@ -394,6 +401,30 @@ test "command: refuses a clock host that cannot be an address" {
     ));
     try testing.expectError(error.Malformed, decoded("{\"command\":\"followClock\",\"host\":\"" ++
         "h" ** 254 ++ "\",\"port\":45890}"));
+}
+
+test "command: reads when the audio a command starts is to be heard" {
+    try testing.expectEqual(81236567890123, (try decoded(
+        \\{"command":"play","startAtNs":81236567890123}
+    )).startAtNs);
+    try testing.expectEqual(81236567890123, (try decoded(
+        \\{"command":"seek","positionMs":91234,"startAtNs":81236567890123}
+    )).startAtNs);
+    try testing.expectEqual(9223372036854775807, (try decoded(
+        \\{"command":"setQueue","startAtNs":9223372036854775807}
+    )).startAtNs);
+}
+
+test "command: refuses a start time the clock could not reach" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"play","startAtNs":-1}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"play","startAtNs":1.5}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"play","startAtNs":9223372036854775808}
+    ));
 }
 
 test "command: ignores a member belonging to no command" {
