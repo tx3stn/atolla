@@ -37,6 +37,7 @@ zig_static_library(
     srcs = [
         "api_version.zig",
         "audio_player.zig",
+        "audio_stream.zig",
         "bridge.zig",
         "clock.zig",
         "command.zig",

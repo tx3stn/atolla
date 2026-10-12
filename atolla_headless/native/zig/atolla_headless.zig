@@ -4,6 +4,7 @@ const std = @import("std");
 comptime {
     _ = @import("api_version.zig");
     _ = @import("audio_player.zig");
+    _ = @import("audio_stream.zig");
     _ = @import("bridge.zig");
     _ = @import("clock.zig");
     _ = @import("command.zig");

@@ -1,4 +1,5 @@
 const std = @import("std");
+const audio_stream = @import("audio_stream.zig");
 const Clock = @import("clock.zig").Clock;
 const gst = @import("gst.zig");
 const log = @import("log.zig");
@@ -11,6 +12,7 @@ pub const max_events = 32;
 const default_device = "default";
 const silent_device = "none";
 const poll_interval_ns = gst.second / 10;
+const stream_latency_ns = gst.second;
 
 /// Part of the vocabulary `NativeAudioPlaybackEventSync.ts` parses. The fourth member,
 /// `unsupported`, stays with the mobile engines: nothing here can separate a bad container from
@@ -110,6 +112,10 @@ pub const Player = struct {
     gst: *const gst.Gst,
     pipeline: gst.Pipeline,
     source_setup: gst.SourceSetup,
+    member: audio_stream.Member,
+    sender: audio_stream.Sender,
+    clock: *gst.Object,
+    playing: bool = false,
     scheduled: bool = false,
 
     /// Read by the bus thread to tell a network failure from a missing file.
@@ -127,42 +133,52 @@ pub const Player = struct {
     pump: ?std.Thread = null,
     stopping: std.atomic.Value(bool) = .init(false),
 
-    pub fn init(self: *Player, runtime: *const gst.Gst, device: []const u8) Error!void {
-        var description: [128]u8 = undefined;
-        const text = if (sinkFor(device)) |sink|
-            std.fmt.bufPrintZ(&description, "playbin audio-sink=\"{s}\"", .{sink}) catch {
-                return error.LaunchFailed;
-            }
+    pub fn init(
+        self: *Player,
+        runtime: *const gst.Gst,
+        device: []const u8,
+        clock: *gst.Object,
+        latency_ns: u64,
+    ) Error!void {
+        const output: audio_stream.Output = if (sinkFor(device)) |sink|
+            .{ .described = sink }
         else
-            "playbin";
+            .{ .named = device };
+
+        var member = try audio_stream.Member.init(runtime, output, clock);
+        errdefer member.deinit();
+
+        var pipeline = try gst.Pipeline.launch(runtime, "playbin");
+        errdefer pipeline.deinit();
+
+        const decoded = runtime.gstreamer.gst_element_factory_make("appsink", null) orelse {
+            return error.LaunchFailed;
+        };
 
         self.* = .{
             .gst = runtime,
-            .pipeline = try gst.Pipeline.launch(runtime, text),
+            .pipeline = pipeline,
             .source_setup = .{ .gst = runtime },
+            .member = member,
+            .sender = .{
+                .gst = runtime,
+                .pipeline = pipeline.element,
+                .latency_ns = latency_ns,
+                .member = &self.member,
+            },
+            .clock = clock,
         };
 
         // After the assignment, because the handler is handed the field's final address.
         self.pipeline.connectSourceSetup(&self.source_setup);
         self.pipeline.connectAboutToFinish(onAboutToFinish, self);
+        self.sender.attach(decoded);
 
-        if (sinkFor(device) == null) {
-            const sink = runtime.sinkNamed(device) orelse {
-                log.err("audio", "no output named {s}", .{device});
-                self.pipeline.deinit();
+        // The element arrives floating and the property sinks it, so it is not ours to unref.
+        self.pipeline.setElement("audio-sink", decoded);
+        self.pipeline.useClock(clock);
 
-                return error.OutputNotFound;
-            };
-
-            // The element arrives floating and the property sinks it, so it is not ours to unref.
-            self.pipeline.setElement("audio-sink", sink);
-        }
-
-        self.pump = std.Thread.spawn(.{}, drain, .{self}) catch |failure| {
-            self.pipeline.deinit();
-
-            return failure;
-        };
+        self.pump = try std.Thread.spawn(.{}, drain, .{self});
     }
 
     pub fn deinit(self: *Player) void {
@@ -171,10 +187,12 @@ pub const Player = struct {
         if (self.pump) |thread| thread.join();
 
         self.pipeline.deinit();
+        self.member.deinit();
     }
 
     pub fn clear(self: *Player) void {
         _ = self.pipeline.setState(.null);
+        self.playing = false;
 
         const io = io_context();
 
@@ -214,6 +232,7 @@ pub const Player = struct {
             try self.gst.fileUri(&uri_buffer, source);
 
         _ = self.pipeline.setState(.null);
+        self.playing = false;
         self.unschedule();
 
         // Both have to be set before the state change below, which is what builds the source.
@@ -291,10 +310,25 @@ pub const Player = struct {
         return buffer[0..length];
     }
 
-    pub fn positionMs(self: *const Player) i64 {
-        const nanoseconds = self.pipeline.position() orelse return 0;
+    pub fn playOn(self: *Player, clock: *gst.Object) void {
+        if (clock == self.clock) return;
 
-        return @divTrunc(nanoseconds, std.time.ns_per_ms);
+        self.clock = clock;
+        self.pipeline.useClock(clock);
+        self.member.playOn(clock);
+
+        if (self.playing) {
+            _ = self.pipeline.setState(.paused);
+            _ = self.pipeline.setState(.playing);
+        }
+    }
+
+    pub fn positionMs(self: *const Player) i64 {
+        const decoded = self.pipeline.position() orelse return 0;
+        const latency: i64 = @intCast(self.sender.latency_ns);
+        const heard = if (self.playing) decoded - latency else decoded;
+
+        return @divTrunc(@max(heard, 0), std.time.ns_per_ms);
     }
 
     pub fn seekToMs(self: *Player, position_ms: i64) bool {
@@ -312,16 +346,19 @@ pub const Player = struct {
         }
 
         _ = self.pipeline.setState(if (playing) .playing else .paused);
+        self.playing = playing;
     }
 
-    pub fn startAt(self: *Player, clock: *gst.Object, position_ms: i64, at_ns: u64) bool {
+    pub fn startAt(self: *Player, position_ms: i64, at_ns: u64) bool {
         _ = self.pipeline.setState(.paused);
-        self.pipeline.schedule(clock, at_ns);
+        self.playing = false;
+        self.pipeline.schedule(self.clock, at_ns -| self.sender.latency_ns);
         self.scheduled = true;
 
         if (!self.pipeline.seek(position_ms * std.time.ns_per_ms)) return false;
 
         _ = self.pipeline.setState(.playing);
+        self.playing = true;
 
         return true;
     }
@@ -331,6 +368,11 @@ pub const Player = struct {
         var id: [max_track_id_bytes]u8 = undefined;
 
         while (!self.stopping.load(.acquire)) {
+            switch (self.member.pipeline.wait(0, &message)) {
+                .failed => |text| log.err("audio", "the output failed: {s}", .{text}),
+                .ended, .started, .timeout => {},
+            }
+
             switch (self.pipeline.wait(poll_interval_ns, &message)) {
                 .timeout => continue,
                 .ended => self.events.push("completed:{s}", .{self.currentTrackId(&id)}),
@@ -442,14 +484,19 @@ export fn atolla_audio_start(device: [*:0]const u8) bool {
     hosted.runtime = gst.load() catch return false;
     hosted.runtime.initialise();
 
-    hosted.player.init(&hosted.runtime, std.mem.span(device)) catch {
+    hosted.clock = Clock.init(&hosted.runtime) catch {
         hosted.runtime.close();
 
         return false;
     };
 
-    hosted.clock = Clock.init(&hosted.runtime) catch {
-        hosted.player.deinit();
+    hosted.player.init(
+        &hosted.runtime,
+        std.mem.span(device),
+        hosted.clock.current(),
+        stream_latency_ns,
+    ) catch {
+        hosted.clock.net.close();
         hosted.runtime.close();
 
         return false;
@@ -465,7 +512,12 @@ export fn atolla_audio_provide_clock(bind_address: [*:0]const u8, port: u16) boo
 }
 
 export fn atolla_audio_follow_clock(host: [*:0]const u8, port: u16) bool {
-    return hosted.started and hosted.clock.follow(std.mem.span(host), port);
+    if (!hosted.started) return false;
+
+    const followed = hosted.clock.follow(std.mem.span(host), port);
+    hosted.player.playOn(hosted.clock.current());
+
+    return followed;
 }
 
 export fn atolla_audio_clock_synced() bool {
@@ -532,7 +584,7 @@ export fn atolla_audio_seek_to_ms(position_ms: i64) bool {
 }
 
 export fn atolla_audio_start_at(position_ms: i64, at_ns: u64) bool {
-    return hosted.started and hosted.player.startAt(hosted.clock.current(), position_ms, at_ns);
+    return hosted.started and hosted.player.startAt(position_ms, at_ns);
 }
 
 export fn atolla_audio_position_ms() i64 {
@@ -563,8 +615,12 @@ const test_auth_header =
     \\MediaBrowser Client="atolla-headless", Device="Kitchen", DeviceId="atolla-1-2", Version="0.0.0", Token="abc"
 ;
 
-fn silentPlayer(runtime: *const gst.Gst, player: *Player) !void {
-    player.init(runtime, silent_device) catch |failure| switch (failure) {
+const test_latency_ns = 100 * std.time.ns_per_ms;
+
+fn silentPlayer(runtime: *gst.Gst, player: *Player) !void {
+    const clock = try startedClock(runtime);
+
+    player.init(runtime, silent_device, clock.system, test_latency_ns) catch |failure| switch (failure) {
         error.LaunchFailed => return error.SkipZigTest,
         else => return failure,
     };
@@ -605,9 +661,9 @@ fn startedClock(runtime: *gst.Gst) !Clock {
     };
 }
 
-fn startWhenReady(player: *Player, clock: *const Clock, position_ms: i64, at_ns: u64) !void {
+fn startWhenReady(player: *Player, position_ms: i64, at_ns: u64) !void {
     for (0..300) |_| {
-        if (player.startAt(clock.current(), position_ms, at_ns)) return;
+        if (player.startAt(position_ms, at_ns)) return;
 
         io_context().sleep(.fromMilliseconds(50), .awake) catch {};
     }
@@ -633,6 +689,15 @@ fn nextEvent(player: *Player, buffer: []u8) ![]const u8 {
     return error.TestExpectedEvent;
 }
 
+fn pipelineClock(pipeline: *const gst.Pipeline) !*gst.Object {
+    const clock = pipeline.gst.gstreamer.gst_pipeline_get_clock(pipeline.element) orelse {
+        return error.TestExpectedClock;
+    };
+    pipeline.gst.gstreamer.gst_object_unref(clock);
+
+    return clock;
+}
+
 test "audio_player: a machine with no output gets a sink that keeps time" {
     try testing.expectEqualStrings("fakesink sync=true", sinkFor("none").?);
     try testing.expectEqualStrings("autoaudiosink", sinkFor("default").?);
@@ -643,9 +708,13 @@ test "audio_player: refuses to start on an output this machine does not have" {
     var runtime = try loaded();
     defer runtime.close();
 
+    const clock = try startedClock(&runtime);
     var player: Player = undefined;
 
-    try testing.expectError(error.OutputNotFound, player.init(&runtime, "atolla not an output"));
+    try testing.expectError(
+        error.OutputNotFound,
+        player.init(&runtime, "atolla not an output", clock.system, test_latency_ns),
+    );
 }
 
 test "audio_player: starts on an output the machine does list" {
@@ -660,8 +729,9 @@ test "audio_player: starts on an output the machine does list" {
 
     const first = sinks[0..std.mem.indexOfScalar(u8, sinks, '\n').?];
 
+    const clock = try startedClock(&runtime);
     var player: Player = undefined;
-    try player.init(&runtime, first);
+    try player.init(&runtime, first, clock.system, test_latency_ns);
     defer player.deinit();
 
     var buffer: [max_track_id_bytes]u8 = undefined;
@@ -872,13 +942,13 @@ test "audio_player: holds a scheduled start at its position until its time, then
     const path = try writeTone(&tmp, &path_buffer);
 
     var player: Player = undefined;
-    try silentPlayer(&runtime, &player);
+    try player.init(&runtime, silent_device, clock.system, stream_latency_ns);
     defer player.deinit();
 
     try player.configure(path, "track-scheduled", "");
 
     const at = clock.nowNs() + std.time.ns_per_s;
-    try startWhenReady(&player, &clock, 500, at);
+    try startWhenReady(&player, 500, at);
 
     sleepUntil(&clock, at - 300 * std.time.ns_per_ms);
     try testing.expect(player.positionMs() <= 600);
@@ -909,7 +979,7 @@ test "audio_player: a play without a start time after a scheduled start resumes 
     defer player.deinit();
 
     try player.configure(path, "track-resumed", "");
-    try startWhenReady(&player, &clock, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
+    try startWhenReady(&player, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
 
     try until(&player, struct {
         fn started(current: *Player) bool {
@@ -944,7 +1014,7 @@ test "audio_player: a seek without a start time after a scheduled start plays on
     defer player.deinit();
 
     try player.configure(path, "track-sought", "");
-    try startWhenReady(&player, &clock, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
+    try startWhenReady(&player, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
 
     try until(&player, struct {
         fn played(current: *Player) bool {
@@ -975,7 +1045,7 @@ test "audio_player: a track configured after a scheduled start plays on its own 
     defer player.deinit();
 
     try player.configure(path, "track-a", "");
-    try startWhenReady(&player, &clock, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
+    try startWhenReady(&player, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
 
     try until(&player, struct {
         fn played(current: *Player) bool {
@@ -990,6 +1060,24 @@ test "audio_player: a track configured after a scheduled start plays on its own 
     const position = player.positionMs();
     try testing.expect(position > 0);
     try testing.expect(position < 800);
+}
+
+test "audio_player: decodes and plays out on the clock it is told to play on" {
+    var runtime = try loaded();
+    var served = try startedClock(&runtime);
+    var follower = try startedClock(&runtime);
+
+    const port = served.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
+    try testing.expect(follower.follow("127.0.0.1", port));
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    player.playOn(follower.current());
+
+    try testing.expectEqual(follower.current(), try pipelineClock(&player.pipeline));
+    try testing.expectEqual(follower.current(), try pipelineClock(&player.member.pipeline));
 }
 
 test "audio_player: only an http source counts as remote" {

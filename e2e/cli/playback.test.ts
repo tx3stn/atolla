@@ -17,15 +17,15 @@ const PORT = 45993;
 const SILENT = 'none';
 
 const TRACKS: Array<Track> = [
-	{ duration: 1, id: 'tone1', name: 'tone one' },
-	{ duration: 1, id: 'tone2', name: 'tone two' },
+	{ duration: 2, id: 'tone1', name: 'tone one' },
+	{ duration: 2, id: 'tone2', name: 'tone two' },
 ];
 
 // Longer than any window a test watches, so a track ending cannot be mistaken for the state moving
 // on its own.
 const UNHURRIED: Track = { duration: 30, id: 'unhurried', name: 'unhurried' };
 
-const LOOPED: Track = { duration: 3, id: 'looped', name: 'looped' };
+const LOOPED: Track = { duration: 4, id: 'looped', name: 'looped' };
 
 describe('playback', () => {
 	let cli: Cli;

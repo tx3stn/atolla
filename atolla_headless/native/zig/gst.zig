@@ -9,6 +9,10 @@ pub const Error = error{ LibraryNotFound, SymbolNotFound };
 
 pub const Object = opaque {};
 
+pub const Sample = opaque {};
+
+pub const Segment = opaque {};
+
 pub const State = enum(c_uint) {
     void_pending = 0,
     null = 1,
@@ -76,11 +80,41 @@ pub const Message = extern struct {
     seqnum: u32,
 };
 
+pub const Buffer = extern struct {
+    mini_object: MiniObject,
+    pool: ?*anyopaque,
+    pts: u64,
+    dts: u64,
+    duration: u64,
+    offset: u64,
+    offset_end: u64,
+};
+
+pub const MapInfo = extern struct {
+    memory: ?*anyopaque = null,
+    flags: c_uint = 0,
+    data: ?[*]u8 = null,
+    size: usize = 0,
+    maxsize: usize = 0,
+    user_data: [4]?*anyopaque = @splat(null),
+    reserved: [4]?*anyopaque = @splat(null),
+};
+
+pub const map_read: c_uint = 1;
+
+pub const flow_ok: c_int = 0;
+
 pub const second: u64 = 1_000_000_000;
 
 pub const clock_time_none: u64 = std.math.maxInt(u64);
 
 const Gstreamer = struct {
+    gst_bin_add: *const fn (*Object, *Object) callconv(.c) c_int,
+    gst_bin_get_by_name: *const fn (*Object, [*:0]const u8) callconv(.c) ?*Object,
+    gst_buffer_fill: *const fn (*Buffer, usize, *const anyopaque, usize) callconv(.c) usize,
+    gst_buffer_map: *const fn (*Buffer, *MapInfo, c_uint) callconv(.c) c_int,
+    gst_buffer_new_allocate: *const fn (?*anyopaque, usize, ?*anyopaque) callconv(.c) ?*Buffer,
+    gst_buffer_unmap: *const fn (*Buffer, *MapInfo) callconv(.c) void,
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
     gst_device_create_element: *const fn (*Object, ?[*:0]const u8) callconv(.c) ?*Object,
     gst_device_get_display_name: *const fn (*Object) callconv(.c) ?[*:0]u8,
@@ -90,8 +124,11 @@ const Gstreamer = struct {
     gst_device_monitor_start: *const fn (*Object) callconv(.c) c_int,
     gst_device_monitor_stop: *const fn (*Object) callconv(.c) void,
     gst_element_factory_find: *const fn ([*:0]const u8) callconv(.c) ?*Object,
+    gst_element_factory_make: *const fn ([*:0]const u8, ?[*:0]const u8) callconv(.c) ?*Object,
+    gst_element_get_base_time: *const fn (*Object) callconv(.c) u64,
     gst_element_get_type: *const fn () callconv(.c) usize,
     gst_element_get_bus: *const fn (*Object) callconv(.c) ?*Object,
+    gst_element_link: *const fn (*Object, *Object) callconv(.c) c_int,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
     gst_element_seek_simple: *const fn (*Object, Format, c_uint, i64) callconv(.c) c_int,
     gst_element_set_base_time: *const fn (*Object, u64) callconv(.c) void,
@@ -100,13 +137,21 @@ const Gstreamer = struct {
     gst_filename_to_uri: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?[*:0]u8,
     gst_init: *const fn (?*c_int, ?*?[*][*:0]u8) callconv(.c) void,
     gst_message_parse_error: *const fn (*Message, *?*GError, *?[*:0]u8) callconv(.c) void,
-    gst_mini_object_unref: *const fn (*Message) callconv(.c) void,
+    gst_mini_object_unref: *const fn (*anyopaque) callconv(.c) void,
     gst_object_unref: *const fn (*Object) callconv(.c) void,
     gst_parse_launch: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?*Object,
-    gst_pipeline_auto_clock: *const fn (*Object) callconv(.c) void,
+    gst_pipeline_get_clock: *const fn (*Object) callconv(.c) ?*Object,
     gst_pipeline_set_latency: *const fn (*Object, u64) callconv(.c) void,
     gst_pipeline_use_clock: *const fn (*Object, ?*Object) callconv(.c) void,
+    gst_sample_get_buffer: *const fn (*Sample) callconv(.c) ?*Buffer,
+    gst_sample_get_segment: *const fn (*Sample) callconv(.c) ?*Segment,
+    gst_segment_to_running_time: *const fn (*const Segment, Format, u64) callconv(.c) u64,
     gst_util_set_object_arg: *const fn (*Object, [*:0]const u8, [*:0]const u8) callconv(.c) void,
+};
+
+const App = struct {
+    gst_app_sink_pull_sample: *const fn (*Object) callconv(.c) ?*Sample,
+    gst_app_src_push_buffer: *const fn (*Object, *Buffer) callconv(.c) c_int,
 };
 
 const Glib = struct {
@@ -153,6 +198,17 @@ const gobject_candidates = switch (builtin.os.tag) {
     },
 };
 
+const app_candidates = switch (builtin.os.tag) {
+    .macos => &[_][]const u8{
+        "/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/libgstapp-1.0.0.dylib",
+        "libgstapp-1.0.0.dylib",
+    },
+    else => &[_][]const u8{
+        "libgstapp-1.0.so.0",
+        "libgstapp-1.0.so",
+    },
+};
+
 const glib_candidates = switch (builtin.os.tag) {
     .macos => &[_][]const u8{
         "/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/libglib-2.0.0.dylib",
@@ -178,12 +234,15 @@ pub const Gst = struct {
     gstreamer_library: std.DynLib,
     glib_library: std.DynLib,
     gobject_library: std.DynLib,
+    app_library: std.DynLib,
 
     gstreamer: Gstreamer,
     glib: Glib,
     gobject: GObject,
+    app: App,
 
     pub fn close(self: *Gst) void {
+        self.app_library.close();
         self.gstreamer_library.close();
         self.glib_library.close();
         self.gobject_library.close();
@@ -398,6 +457,10 @@ pub const Pipeline = struct {
         self.gst.gstreamer.gst_object_unref(self.element);
     }
 
+    pub fn child(self: *const Pipeline, name: [:0]const u8) ?*Object {
+        return self.gst.gstreamer.gst_bin_get_by_name(self.element, name.ptr);
+    }
+
     /// Null when the pipeline has not prerolled far enough to know.
     pub fn position(self: *const Pipeline) ?i64 {
         var nanoseconds: i64 = 0;
@@ -410,7 +473,7 @@ pub const Pipeline = struct {
     }
 
     pub fn schedule(self: *const Pipeline, clock: *Object, base_time: u64) void {
-        self.gst.gstreamer.gst_pipeline_use_clock(self.element, clock);
+        self.useClock(clock);
         self.gst.gstreamer.gst_element_set_start_time(self.element, clock_time_none);
         self.gst.gstreamer.gst_pipeline_set_latency(self.element, 0);
         self.gst.gstreamer.gst_element_set_base_time(self.element, base_time);
@@ -464,9 +527,12 @@ pub const Pipeline = struct {
     }
 
     pub fn unschedule(self: *const Pipeline) void {
-        self.gst.gstreamer.gst_pipeline_auto_clock(self.element);
         self.gst.gstreamer.gst_element_set_start_time(self.element, 0);
         self.gst.gstreamer.gst_pipeline_set_latency(self.element, clock_time_none);
+    }
+
+    pub fn useClock(self: *const Pipeline, clock: *Object) void {
+        self.gst.gstreamer.gst_pipeline_use_clock(self.element, clock);
     }
 
     /// `failed` borrows `buffer`, so it stays valid only until the next call. A state change that
@@ -523,13 +589,22 @@ pub fn load() Error!Gst {
     };
     errdefer gobject_library.close();
 
+    var app_library = open(app_candidates) catch |failure| {
+        log.err("audio", "gstreamer's app library is not installed: tried {s}", .{names(app_candidates)});
+
+        return failure;
+    };
+    errdefer app_library.close();
+
     return .{
         .gstreamer_library = gstreamer_library,
         .glib_library = glib_library,
         .gobject_library = gobject_library,
+        .app_library = app_library,
         .gobject = try resolve(GObject, &gobject_library),
         .gstreamer = try resolve(Gstreamer, &gstreamer_library),
         .glib = try resolve(Glib, &glib_library),
+        .app = try resolve(App, &app_library),
     };
 }
 
@@ -621,6 +696,10 @@ test "gst: the plugin registry resolves the elements the daemon builds pipelines
     try testing.expect(gst.hasElement("fakesink"));
     try testing.expect(gst.hasElement("playbin"));
     try testing.expect(gst.hasElement("autoaudiosink"));
+    try testing.expect(gst.hasElement("appsink"));
+    try testing.expect(gst.hasElement("appsrc"));
+    try testing.expect(gst.hasElement("audioconvert"));
+    try testing.expect(gst.hasElement("audioresample"));
     try testing.expect(!gst.hasElement("atolla_not_an_element"));
 }
 
@@ -900,4 +979,25 @@ test "gst: turns a path into a uri it can play" {
 
     try testing.expectEqualStrings("file:///tmp/a%20b.wav", try gst.fileUri(&buffer, "/tmp/a b.wav"));
     try testing.expectError(error.UriTooLong, gst.fileUri(buffer[0..4], "/tmp/a.wav"));
+}
+
+test "gst: reads back through a map the bytes a buffer was filled with" {
+    var gst = try loaded();
+    defer gst.close();
+
+    gst.initialise();
+
+    const bytes = "atolla audio";
+    const buffer = gst.gstreamer.gst_buffer_new_allocate(null, bytes.len, null) orelse {
+        return error.TestUnexpectedResult;
+    };
+    defer gst.gstreamer.gst_mini_object_unref(buffer);
+
+    try testing.expectEqual(bytes.len, gst.gstreamer.gst_buffer_fill(buffer, 0, bytes.ptr, bytes.len));
+
+    var map: MapInfo = .{};
+    try testing.expect(gst.gstreamer.gst_buffer_map(buffer, &map, map_read) != 0);
+    defer gst.gstreamer.gst_buffer_unmap(buffer, &map);
+
+    try testing.expectEqualStrings(bytes, map.data.?[0..map.size]);
 }
