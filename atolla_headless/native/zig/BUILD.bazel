@@ -38,6 +38,7 @@ zig_static_library(
         "api_version.zig",
         "audio_player.zig",
         "audio_stream.zig",
+        "audio_wire.zig",
         "bridge.zig",
         "clock.zig",
         "command.zig",

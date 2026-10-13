@@ -2,6 +2,7 @@ const std = @import("std");
 const audio_stream = @import("audio_stream.zig");
 const Clock = @import("clock.zig").Clock;
 const gst = @import("gst.zig");
+const gst_net = @import("gst_net.zig");
 const log = @import("log.zig");
 const wav = @import("wav.zig");
 
@@ -114,6 +115,8 @@ pub const Player = struct {
     source_setup: gst.SourceSetup,
     member: audio_stream.Member,
     sender: audio_stream.Sender,
+    listener: ?audio_stream.Listener = null,
+    receiver: audio_stream.Receiver,
     clock: *gst.Object,
     playing: bool = false,
     scheduled: bool = false,
@@ -138,6 +141,7 @@ pub const Player = struct {
         runtime: *const gst.Gst,
         device: []const u8,
         clock: *gst.Object,
+        sync: gst_net.GstNet,
         latency_ns: u64,
     ) Error!void {
         const output: audio_stream.Output = if (sinkFor(device)) |sink|
@@ -166,6 +170,12 @@ pub const Player = struct {
                 .latency_ns = latency_ns,
                 .member = &self.member,
             },
+            .receiver = .{
+                .io = io_context(),
+                .sync = sync,
+                .member = &self.member,
+                .latency_ns = latency_ns,
+            },
             .clock = clock,
         };
 
@@ -187,6 +197,8 @@ pub const Player = struct {
         if (self.pump) |thread| thread.join();
 
         self.pipeline.deinit();
+        self.leave();
+        if (self.listener) |*listener| listener.deinit();
         self.member.deinit();
     }
 
@@ -310,12 +322,29 @@ pub const Player = struct {
         return buffer[0..length];
     }
 
+    pub fn join(self: *Player, host: []const u8, port: u16) !void {
+        self.leave();
+        self.setPlaying(false);
+        self.sender.joined.store(true, .release);
+        errdefer self.leave();
+
+        try self.receiver.start(host, port);
+    }
+
+    pub fn leave(self: *Player) void {
+        if (!self.sender.joined.load(.acquire)) return;
+
+        self.receiver.stop();
+        self.member.playOn(self.clock);
+        self.sender.joined.store(false, .release);
+    }
+
     pub fn playOn(self: *Player, clock: *gst.Object) void {
         if (clock == self.clock) return;
 
         self.clock = clock;
         self.pipeline.useClock(clock);
-        self.member.playOn(clock);
+        if (!self.sender.joined.load(.acquire)) self.member.playOn(clock);
 
         if (self.playing) {
             _ = self.pipeline.setState(.paused);
@@ -331,10 +360,26 @@ pub const Player = struct {
         return @divTrunc(@max(heard, 0), std.time.ns_per_ms);
     }
 
+    pub fn receiving(self: *const Player) bool {
+        return self.receiver.receiving();
+    }
+
     pub fn seekToMs(self: *Player, position_ms: i64) bool {
         self.unschedule();
 
         return self.pipeline.seek(position_ms * std.time.ns_per_ms);
+    }
+
+    pub fn serve(self: *Player, address: *const std.Io.net.IpAddress, clock_port: u16) !u16 {
+        if (self.listener != null) return error.AlreadyServing;
+
+        self.listener = @as(audio_stream.Listener, undefined);
+        errdefer self.listener = null;
+
+        try self.listener.?.init(address, clock_port, self.sender.latency_ns);
+        self.sender.listener.store(&self.listener.?, .release);
+
+        return self.listener.?.port();
     }
 
     pub fn setPlaying(self: *Player, playing: bool) void {
@@ -494,6 +539,7 @@ export fn atolla_audio_start(device: [*:0]const u8) bool {
         &hosted.runtime,
         std.mem.span(device),
         hosted.clock.current(),
+        hosted.clock.net,
         stream_latency_ns,
     ) catch {
         hosted.clock.net.close();
@@ -620,7 +666,7 @@ const test_latency_ns = 100 * std.time.ns_per_ms;
 fn silentPlayer(runtime: *gst.Gst, player: *Player) !void {
     const clock = try startedClock(runtime);
 
-    player.init(runtime, silent_device, clock.system, test_latency_ns) catch |failure| switch (failure) {
+    player.init(runtime, silent_device, clock.system, clock.net, test_latency_ns) catch |failure| switch (failure) {
         error.LaunchFailed => return error.SkipZigTest,
         else => return failure,
     };
@@ -713,7 +759,7 @@ test "audio_player: refuses to start on an output this machine does not have" {
 
     try testing.expectError(
         error.OutputNotFound,
-        player.init(&runtime, "atolla not an output", clock.system, test_latency_ns),
+        player.init(&runtime, "atolla not an output", clock.system, clock.net, test_latency_ns),
     );
 }
 
@@ -731,7 +777,7 @@ test "audio_player: starts on an output the machine does list" {
 
     const clock = try startedClock(&runtime);
     var player: Player = undefined;
-    try player.init(&runtime, first, clock.system, test_latency_ns);
+    try player.init(&runtime, first, clock.system, clock.net, test_latency_ns);
     defer player.deinit();
 
     var buffer: [max_track_id_bytes]u8 = undefined;
@@ -942,7 +988,7 @@ test "audio_player: holds a scheduled start at its position until its time, then
     const path = try writeTone(&tmp, &path_buffer);
 
     var player: Player = undefined;
-    try player.init(&runtime, silent_device, clock.system, stream_latency_ns);
+    try player.init(&runtime, silent_device, clock.system, clock.net, stream_latency_ns);
     defer player.deinit();
 
     try player.configure(path, "track-scheduled", "");
@@ -1078,6 +1124,82 @@ test "audio_player: decodes and plays out on the clock it is told to play on" {
 
     try testing.expectEqual(follower.current(), try pipelineClock(&player.pipeline));
     try testing.expectEqual(follower.current(), try pipelineClock(&player.member.pipeline));
+}
+
+fn servingSource(runtime: *gst.Gst, source: *Player) !u16 {
+    var clock = try startedClock(runtime);
+    const clock_port = clock.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
+
+    try source.init(runtime, silent_device, clock.system, clock.net, test_latency_ns);
+
+    const loopback: std.Io.net.IpAddress = .{ .ip4 = .loopback(0) };
+
+    return source.serve(&loopback, clock_port);
+}
+
+fn untilFollowing(player: *const Player) !void {
+    for (0..100) |_| {
+        if (player.receiver.clockFollowed() != null) return;
+
+        io_context().sleep(.fromMilliseconds(50), .awake) catch {};
+    }
+
+    return error.TestExpectedClock;
+}
+
+test "audio_player: a speaker that joins a source stops its own playback" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source);
+    defer source.deinit();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-own", "");
+    player.setPlaying(true);
+
+    try until(&player, struct {
+        fn started(current: *Player) bool {
+            return current.positionMs() > 200;
+        }
+    }.started);
+
+    try player.join("127.0.0.1", port);
+
+    const joined_at = player.positionMs();
+    io_context().sleep(.fromMilliseconds(300), .awake) catch {};
+
+    try testing.expectEqual(joined_at, player.positionMs());
+}
+
+test "audio_player: a joined speaker plays out on its source's clock, and on its own once it leaves" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source);
+    defer source.deinit();
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.join("127.0.0.1", port);
+    try untilFollowing(&player);
+
+    try testing.expectEqual(player.receiver.clockFollowed().?, try pipelineClock(&player.member.pipeline));
+
+    player.leave();
+
+    try testing.expectEqual(player.clock, try pipelineClock(&player.member.pipeline));
 }
 
 test "audio_player: only an http source counts as remote" {

@@ -286,7 +286,7 @@ pub const Server = struct {
         const key = limiterKey(stream.socket.address);
 
         while (self.running.load(.acquire)) {
-            if (!waitReadable(stream, head_wait_ms)) return;
+            if (!socket_reader.waitReadable(stream.socket.handle, head_wait_ms)) return;
 
             var request = http.receiveHead() catch |err| return oversizeReply(&http, err);
 
@@ -548,18 +548,6 @@ fn setTimeout(stream: net.Stream, comptime direction: enum { receive, send }, mi
         option,
         std.mem.asBytes(&timeout),
     );
-}
-
-fn waitReadable(stream: net.Stream, timeout_ms: i32) bool {
-    var fds = [_]std.posix.pollfd{.{
-        .fd = stream.socket.handle,
-        .events = std.posix.POLL.IN,
-        .revents = 0,
-    }};
-
-    const ready = std.posix.poll(&fds, timeout_ms) catch return false;
-
-    return ready != 0;
 }
 
 const testing = std.testing;

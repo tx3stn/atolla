@@ -14,6 +14,18 @@ const posix = std.posix;
 
 const max_vectors = 8;
 
+pub fn waitReadable(handle: posix.fd_t, timeout_ms: i32) bool {
+    var fds = [_]posix.pollfd{.{
+        .fd = handle,
+        .events = posix.POLL.IN,
+        .revents = 0,
+    }};
+
+    const ready = posix.poll(&fds, timeout_ms) catch return false;
+
+    return ready != 0;
+}
+
 pub const Error = error{
     ConnectionResetByPeer,
     NetworkDown,
