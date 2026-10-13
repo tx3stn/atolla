@@ -574,6 +574,44 @@ export fn atolla_audio_clock_now_ns() u64 {
     return if (hosted.started) hosted.clock.nowNs() else 0;
 }
 
+export fn atolla_audio_serve_stream(bind_address: [*:0]const u8, port: u16) bool {
+    if (!hosted.started) return false;
+
+    const provider = hosted.clock.provider orelse return false;
+    const address = std.Io.net.IpAddress.parse(std.mem.span(bind_address), port) catch return false;
+
+    _ = hosted.player.serve(&address, @intCast(hosted.clock.net.portOf(provider))) catch |err| {
+        log.warn("audio", "could not serve the stream: {s}", .{@errorName(err)});
+
+        return false;
+    };
+
+    return true;
+}
+
+export fn atolla_audio_join_source(host: [*:0]const u8, port: u16) bool {
+    if (!hosted.started) return false;
+
+    const named = std.mem.span(host);
+    if (named.len == 0) {
+        hosted.player.leave();
+
+        return true;
+    }
+
+    hosted.player.join(named, port) catch |err| {
+        log.warn("audio", "could not join the source: {s}", .{@errorName(err)});
+
+        return false;
+    };
+
+    return true;
+}
+
+export fn atolla_audio_receiving() bool {
+    return hosted.started and hosted.player.receiving();
+}
+
 /// Loads its own runtime rather than the hosted one: listing is a one-shot command in a process
 /// that is not the daemon, and dlopen refcounts so a running engine is unaffected.
 export fn atolla_audio_devices(out: [*]u8, len: usize) usize {

@@ -27,6 +27,7 @@ const max_position_ms = 86_400_000;
 pub const Name = enum {
     addToQueue,
     followClock,
+    joinSource,
     jumpToIndex,
     move,
     next,
@@ -145,7 +146,7 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         .jumpToIndex, .removeAt => if (parsed.trackIndex == null) return error.Malformed,
         .move => if (parsed.fromIndex == null or parsed.toIndex == null) return error.Malformed,
         .setLoopMode => if (parsed.loopMode == null) return error.Malformed,
-        .followClock => if ((parsed.host == null) != (parsed.port == null)) return error.Malformed,
+        .followClock, .joinSource => if ((parsed.host == null) != (parsed.port == null)) return error.Malformed,
     }
 
     return parsed;
@@ -401,6 +402,33 @@ test "command: refuses a clock host that cannot be an address" {
     ));
     try testing.expectError(error.Malformed, decoded("{\"command\":\"followClock\",\"host\":\"" ++
         "h" ** 254 ++ "\",\"port\":45890}"));
+}
+
+test "command: reads the source a speaker is told to join, or none to leave it" {
+    const joined = try decoded(
+        \\{"command":"joinSource","host":"kitchen.local","port":45891}
+    );
+
+    try testing.expectEqual(Name.joinSource, joined.command);
+    try testing.expectEqualStrings("kitchen.local", joined.host.?);
+    try testing.expectEqual(45891, joined.port);
+
+    const left = try decoded(
+        \\{"command":"joinSource"}
+    );
+
+    try testing.expectEqual(Name.joinSource, left.command);
+    try testing.expectEqual(null, left.host);
+    try testing.expectEqual(null, left.port);
+}
+
+test "command: refuses a joinSource naming half an address" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen.local"}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","port":45891}
+    ));
 }
 
 test "command: reads when the audio a command starts is to be heard" {

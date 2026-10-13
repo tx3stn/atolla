@@ -8,6 +8,7 @@ import {
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
+import { makeAudioStream } from './AudioStream';
 import { makeClock } from './Clock';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
@@ -76,6 +77,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	});
 
 	const clock = makeClock({ audio: deps.audio, version });
+	const stream = makeAudioStream({ audio: deps.audio, version });
 
 	if (deps.audio.start(deps.config.audioDevice)) {
 		audioPlayer.start();
@@ -90,6 +92,13 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			log.info('serving the clock', { port: deps.config.clockPort });
 		} else {
 			log.warn('clock unavailable', { port: deps.config.clockPort });
+		}
+
+		setInterval(stream.tick, POLL_INTERVAL_MS);
+		if (stream.serve(deps.config.bindAddress, deps.config.audioPort)) {
+			log.info('streaming audio', { port: deps.config.audioPort });
+		} else {
+			log.warn('audio stream unavailable', { port: deps.config.audioPort });
 		}
 	} else {
 		log.warn('audio unavailable', { device: deps.config.audioDevice });
@@ -129,7 +138,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	// Before the queue is restored, so a bad port fails fast and the server answers while a large
 	// queue is still being read.
 	deps.httpServer.setLogLevel(deps.logLevel);
-	deps.httpServer.setHelloBody(helloBody(deps.identity));
+	deps.httpServer.setHelloBody(helloBody(deps.identity, stream.served()));
 	deps.httpServer.setControllersPath(secrets.pathFor(CONTROLLERS_KEY));
 	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
 	attachServer(deps.httpServer, {
@@ -140,6 +149,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			playback,
 			queueOwner,
 			restored,
+			stream,
 			version,
 		},
 		mediaServer: {
@@ -161,6 +171,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			playback,
 			queueOwner,
 			restored,
+			stream,
 			version,
 		},
 	});

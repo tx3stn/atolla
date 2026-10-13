@@ -3,6 +3,7 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
+import type { SourceTarget } from '../AudioStream';
 import type { ClockTarget } from '../Clock';
 import { makeQueueOwner } from '../QueueOwner';
 import { makeStateVersion } from '../StateVersion';
@@ -23,11 +24,13 @@ const TRACKS = [track('t1'), track('t2'), track('t3')];
 
 function fixture(): CommandDeps & {
 	followed: Array<ClockTarget | null>;
+	joined: Array<SourceTarget | null>;
 	startedAt: Array<number | undefined>;
 } {
 	const playback = new PlaybackStore();
 	const version = makeStateVersion();
 	const followed: Array<ClockTarget | null> = [];
+	const joined: Array<SourceTarget | null> = [];
 	const startedAt: Array<number | undefined> = [];
 
 	playback.subscribe(() => version.bump());
@@ -41,10 +44,12 @@ function fixture(): CommandDeps & {
 		},
 		clock: { follow: (target) => followed.push(target) },
 		followed,
+		joined,
 		playback,
 		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 		restored: Promise.resolve(),
 		startedAt,
+		stream: { join: (target) => joined.push(target) },
 		version,
 	};
 }
@@ -185,6 +190,25 @@ describe('handleCommand', () => {
 		expect(deps.followed).toEqual([{ host: '192.168.1.43', port: 45890 }, null]);
 	});
 
+	it('joins the source it names, or leaves it when it names none', async () => {
+		const deps = fixture();
+
+		await send(deps, { command: 'joinSource', host: '192.168.1.42', port: 45891 });
+		await send(deps, { command: 'joinSource' });
+
+		expect(deps.joined).toEqual([{ host: '192.168.1.42', port: 45891 }, null]);
+	});
+
+	it('pauses its own queue when it joins a source', async () => {
+		const deps = fixture();
+		await queued(deps);
+		await send(deps, { command: 'play' });
+
+		await send(deps, { command: 'joinSource', host: '192.168.1.42', port: 45891 });
+
+		expect(deps.playback.isPlaying).toBe(false);
+	});
+
 	it('hands the audio a play, a seek and a new queue with the time each is to be heard', async () => {
 		const deps = fixture();
 
@@ -253,6 +277,7 @@ describe('handleCommand', () => {
 				playback,
 				queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 				restored,
+				stream: { join: () => {} },
 				version,
 			},
 			'{"command":"play"}',

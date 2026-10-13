@@ -38,6 +38,7 @@ export const CmdConfig = {
 
 		const updated = {
 			audioDevice: audioDevice ?? current.audioDevice,
+			audioPort: current.audioPort,
 			bindAddress: current.bindAddress,
 			clockPort: current.clockPort,
 			dataDir: current.dataDir,

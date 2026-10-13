@@ -55,6 +55,7 @@ function fixture(): StateDeps {
 		playback,
 		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 		restored: Promise.resolve(),
+		stream: { source: () => undefined },
 		version,
 	};
 }
@@ -90,6 +91,13 @@ describe('handleState', () => {
 				tier: 'tight',
 			},
 		]);
+	});
+
+	it('reports the source a member joined, and whether audio is arriving from it', async () => {
+		const joined = { host: '192.168.1.42', port: 45891, receiving: true };
+		const deps = { ...fixture(), stream: { source: () => joined } };
+
+		expect((await read(deps)).snapshot?.members[0]?.source).toEqual(joined);
 	});
 
 	it('is idle with nothing queued, and paused holding a queue it is not playing', async () => {

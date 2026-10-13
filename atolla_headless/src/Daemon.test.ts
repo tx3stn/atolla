@@ -16,6 +16,7 @@ import type { PlayerIdentity } from './PlayerIdentity';
 
 const CONFIG = {
 	audioDevice: 'default',
+	audioPort: 45891,
 	bindAddress: '0.0.0.0',
 	clockPort: 45890,
 	dataDir: '/var/lib/atolla',
@@ -71,9 +72,12 @@ function unavailableAudio(): AudioEngine {
 		consumeEvent: () => '',
 		currentTrackId: () => '',
 		followClock: () => false,
+		joinSource: () => false,
 		positionMs: () => 0,
 		provideClock: () => false,
+		receiving: () => false,
 		seekToMs: () => false,
+		serveStream: () => false,
 		setPlaying: () => {},
 		start: () => false,
 		startAt: () => false,

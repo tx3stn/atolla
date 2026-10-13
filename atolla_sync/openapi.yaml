@@ -658,6 +658,13 @@ components:
           description: Every version of this contract the daemon speaks.
           examples:
             - [1]
+        audioPort:
+          $ref: '#/components/schemas/AudioPort'
+          description: |
+            Where this player streams its audio for others to join, absent when it streams none
+            (the port was taken, or the player predates streaming), so it cannot be a group's
+            source. The host is the one the controller reached this player at.
+          examples: [45891]
         id:
           type: string
           pattern: '^[0-9a-f]{16}$'
@@ -1066,9 +1073,30 @@ components:
           type: string
           const: followClock
         host:
-          $ref: '#/components/schemas/ClockHost'
+          $ref: '#/components/schemas/PlayerHost'
         port:
           $ref: '#/components/schemas/ClockPort'
+
+    CommandJoinSource:
+      type: object
+      description: |
+        Play the audio another player streams, the source a controller picked for the group, or
+        leave it when `host` and `port` are left out. Joining pauses this player's own queue, and
+        the player connects at once and reports how that is going in its member's `source`, so an
+        unreachable source still answers 202. Joining the source it already joined changes nothing.
+      required: [command]
+      dependentRequired:
+        host: [port]
+        port: [host]
+      additionalProperties: true
+      properties:
+        command:
+          type: string
+          const: joinSource
+        host:
+          $ref: '#/components/schemas/PlayerHost'
+        port:
+          $ref: '#/components/schemas/AudioPort'
 
     CommandTrackId:
       type: string
@@ -1103,11 +1131,13 @@ components:
         - $ref: '#/components/schemas/CommandMove'
         - $ref: '#/components/schemas/CommandSetLoopMode'
         - $ref: '#/components/schemas/CommandFollowClock'
+        - $ref: '#/components/schemas/CommandJoinSource'
       discriminator:
         propertyName: command
         mapping:
           addToQueue: '#/components/schemas/CommandAddToQueue'
           followClock: '#/components/schemas/CommandFollowClock'
+          joinSource: '#/components/schemas/CommandJoinSource'
           jumpToIndex: '#/components/schemas/CommandJumpToIndex'
           move: '#/components/schemas/CommandMove'
           next: '#/components/schemas/CommandBare'
@@ -1258,13 +1288,21 @@ components:
         holding a queue it has paused.
       examples: [playing]
 
-    ClockHost:
+    PlayerHost:
       type: string
       minLength: 1
       maxLength: 253
       pattern: '^[!-~]+$'
-      description: The clock speaker's address, as the controller reaches it.
+      description: Another player's address, an IP or a host name, as the controller reaches it.
       examples: ['192.168.1.42']
+
+    AudioPort:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 65535
+      description: The TCP port a player streams its audio on, `audioPort` in its `player.json`.
+      examples: [45891]
 
     ClockPort:
       type: integer
@@ -1319,10 +1357,29 @@ components:
           additionalProperties: true
           properties:
             host:
-              $ref: '#/components/schemas/ClockHost'
+              $ref: '#/components/schemas/PlayerHost'
             port:
               $ref: '#/components/schemas/ClockPort'
         synced:
+          type: boolean
+          examples: [true]
+
+    MemberSource:
+      type: object
+      description: |
+        The source a member was told to join with `joinSource`, absent while it plays its own
+        queue. `receiving` says whether it holds audio from that source still to play, so it is
+        false until the source is reached and its clock synced, and turns false again once the
+        source stops sending. A member that restarts has forgotten what it joined, which is how a
+        controller knows to send `joinSource` again.
+      required: [host, port, receiving]
+      additionalProperties: true
+      properties:
+        host:
+          $ref: '#/components/schemas/PlayerHost'
+        port:
+          $ref: '#/components/schemas/AudioPort'
+        receiving:
           type: boolean
           examples: [true]
 
@@ -1361,6 +1418,8 @@ components:
           maxLength: 256
           pattern: '^[^\r\n]*$'
           examples: [Kitchen]
+        source:
+          $ref: '#/components/schemas/MemberSource'
         state:
           $ref: '#/components/schemas/PlayerState'
         tier:

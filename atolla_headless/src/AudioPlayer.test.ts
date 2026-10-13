@@ -68,17 +68,20 @@ function fakeEngine(): FakeEngine {
 		events: [],
 		followClock: () => true,
 		handedOver: [],
+		joinSource: () => true,
 		next: null,
 		playing: false,
 		position: 0,
 		positionMs: () => engine.position,
 		provideClock: () => true,
+		receiving: () => false,
 		seeks: [],
 		seekToMs: (positionMs: number) => {
 			engine.seeks.push(positionMs);
 			engine.position = positionMs;
 			return true;
 		},
+		serveStream: () => true,
 		setPlaying: (playing: boolean) => {
 			engine.playing = playing;
 		},

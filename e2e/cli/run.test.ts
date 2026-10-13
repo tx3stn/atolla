@@ -6,6 +6,7 @@ import { Cli, type Daemon } from './cli';
 
 // away from the 45889 default, so a daemon left running on this machine cannot make these pass
 const PORT = 45991;
+const AUDIO_PORT = 45990;
 
 describe('atolla run', () => {
 	let cli: Cli;
@@ -20,6 +21,8 @@ describe('atolla run', () => {
 		writeFileSync(
 			configPath,
 			JSON.stringify({
+				audioDevice: 'none',
+				audioPort: AUDIO_PORT,
 				bindAddress: '127.0.0.1',
 				dataDir: join(dir, 'data'),
 				language: 'en',
@@ -64,6 +67,7 @@ describe('atolla run', () => {
 		expect(response.headers.get('content-type')).toBe('application/json');
 		expect(await response.json()).toEqual({
 			apiVersions: [1],
+			audioPort: AUDIO_PORT,
 			id: expect.stringMatching(/^[0-9a-f]{16}$/),
 			name: 'Kitchen',
 			tier: 'tight',

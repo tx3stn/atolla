@@ -4,6 +4,7 @@ import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import type { MakeHttpClient } from '../MediaServerTransports';
 import {
 	type ConfigStore,
+	DEFAULT_AUDIO_PORT,
 	DEFAULT_BIND_ADDRESS,
 	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
@@ -22,6 +23,7 @@ const noHttpClient: MakeHttpClient = () => {
 
 const CONFIG: PlayerConfig = {
 	audioDevice: 'default',
+	audioPort: DEFAULT_AUDIO_PORT,
 	bindAddress: DEFAULT_BIND_ADDRESS,
 	clockPort: DEFAULT_CLOCK_PORT,
 	dataDir: DEFAULT_DATA_DIR,
@@ -51,9 +53,12 @@ function context(
 			consumeEvent: () => '',
 			currentTrackId: () => '',
 			followClock: () => true,
+			joinSource: () => true,
 			positionMs: () => 0,
 			provideClock: () => true,
+			receiving: () => false,
 			seekToMs: () => true,
+			serveStream: () => true,
 			setPlaying: () => {},
 			start: () => true,
 			startAt: () => true,

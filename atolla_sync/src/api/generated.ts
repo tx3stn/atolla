@@ -287,6 +287,13 @@ export interface components {
              */
             apiVersions: components["schemas"]["ApiVersion"][];
             /**
+             * @description Where this player streams its audio for others to join, absent when it streams none
+             *     (the port was taken, or the player predates streaming), so it cannot be a group's
+             *     source. The host is the one the controller reached this player at.
+             * @example 45891
+             */
+            audioPort?: components["schemas"]["AudioPort"];
+            /**
              * @description The player's stable identifier, minted once and kept in its data directory.
              * @example 4f3c9a1de8b27065
              */
@@ -631,8 +638,25 @@ export interface components {
              * @enum {string}
              */
             command: "followClock";
-            host?: components["schemas"]["ClockHost"];
+            host?: components["schemas"]["PlayerHost"];
             port?: components["schemas"]["ClockPort"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description Play the audio another player streams, the source a controller picked for the group, or
+         *     leave it when `host` and `port` are left out. Joining pauses this player's own queue, and
+         *     the player connects at once and reports how that is going in its member's `source`, so an
+         *     unreachable source still answers 202. Joining the source it already joined changes nothing.
+         */
+        CommandJoinSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            command: "joinSource";
+            host?: components["schemas"]["PlayerHost"];
+            port?: components["schemas"]["AudioPort"];
         } & {
             [key: string]: unknown;
         };
@@ -653,7 +677,7 @@ export interface components {
          *     v1 daemon keeps accepting a body that a later controller added a field to. That is why each
          *     variant is open rather than sealed.
          */
-        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandPlay"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"] | components["schemas"]["CommandFollowClock"];
+        Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandPlay"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"] | components["schemas"]["CommandFollowClock"] | components["schemas"]["CommandJoinSource"];
         /**
          * @description The version the command produced. `GET /state?since=` with anything lower returns that
          *     snapshot without blocking, so a controller can read the result of its own command without
@@ -748,10 +772,16 @@ export interface components {
          */
         PlayerState: "idle" | "paused" | "playing";
         /**
-         * @description The clock speaker's address, as the controller reaches it.
+         * @description Another player's address, an IP or a host name, as the controller reaches it.
          * @example 192.168.1.42
          */
-        ClockHost: string;
+        PlayerHost: string;
+        /**
+         * Format: int32
+         * @description The TCP port a player streams its audio on, `audioPort` in its `player.json`.
+         * @example 45891
+         */
+        AudioPort: number;
         /**
          * Format: int32
          * @description The UDP port a player serves its clock on, `clockPort` in its `player.json`.
@@ -786,13 +816,28 @@ export interface components {
          */
         MemberClock: {
             following?: {
-                host: components["schemas"]["ClockHost"];
+                host: components["schemas"]["PlayerHost"];
                 port: components["schemas"]["ClockPort"];
             } & {
                 [key: string]: unknown;
             };
             /** @example true */
             synced: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description The source a member was told to join with `joinSource`, absent while it plays its own
+         *     queue. `receiving` says whether it holds audio from that source still to play, so it is
+         *     false until the source is reached and its clock synced, and turns false again once the
+         *     source stops sending. A member that restarts has forgotten what it joined, which is how a
+         *     controller knows to send `joinSource` again.
+         */
+        MemberSource: {
+            host: components["schemas"]["PlayerHost"];
+            port: components["schemas"]["AudioPort"];
+            /** @example true */
+            receiving: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -822,6 +867,7 @@ export interface components {
             lastError?: string;
             /** @example Kitchen */
             name: string;
+            source?: components["schemas"]["MemberSource"];
             state: components["schemas"]["PlayerState"];
             /**
              * @description How tightly this member can synchronise, as `GET /hello` reports it.
@@ -1215,6 +1261,7 @@ export type CommandRemoveAt = components['schemas']['CommandRemoveAt'];
 export type CommandMove = components['schemas']['CommandMove'];
 export type CommandSetLoopMode = components['schemas']['CommandSetLoopMode'];
 export type CommandFollowClock = components['schemas']['CommandFollowClock'];
+export type CommandJoinSource = components['schemas']['CommandJoinSource'];
 export type CommandTrackId = components['schemas']['CommandTrackId'];
 export type Command = components['schemas']['Command'];
 export type CommandAccepted = components['schemas']['CommandAccepted'];
@@ -1222,11 +1269,13 @@ export type MediaServerAccepted = components['schemas']['MediaServerAccepted'];
 export type Track = components['schemas']['Track'];
 export type Album = components['schemas']['Album'];
 export type PlayerState = components['schemas']['PlayerState'];
-export type ClockHost = components['schemas']['ClockHost'];
+export type PlayerHost = components['schemas']['PlayerHost'];
+export type AudioPort = components['schemas']['AudioPort'];
 export type ClockPort = components['schemas']['ClockPort'];
 export type ClockReading = components['schemas']['ClockReading'];
 export type StartAtNs = components['schemas']['StartAtNs'];
 export type MemberClock = components['schemas']['MemberClock'];
+export type MemberSource = components['schemas']['MemberSource'];
 export type Member = components['schemas']['Member'];
 export type StateSnapshot = components['schemas']['StateSnapshot'];
 export type ResponseBadRequest = components['responses']['BadRequest'];

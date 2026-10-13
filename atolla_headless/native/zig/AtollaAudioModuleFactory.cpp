@@ -212,6 +212,48 @@ public:
                              [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {
                                  return Valdi::Value(
                                      static_cast<double>(atolla_audio_clock_now_ns()));
+                             })))
+            .setMapValue("atollaAudioServeStream",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const Valdi::StringBox bindAddress =
+                                     callContext.getParameterAsString(0);
+                                 const double port = callContext.getParameterAsDouble(1);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 if (port < 0 || port > 65535) {
+                                     return Valdi::Value(false);
+                                 }
+
+                                 const std::string copied(bindAddress.toStringView());
+
+                                 return Valdi::Value(atolla_audio_serve_stream(
+                                     copied.c_str(), static_cast<uint16_t>(port)));
+                             })))
+            .setMapValue("atollaAudioJoinSource",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const Valdi::StringBox host = callContext.getParameterAsString(0);
+                                 const double port = callContext.getParameterAsDouble(1);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 if (port < 0 || port > 65535) {
+                                     return Valdi::Value(false);
+                                 }
+
+                                 const std::string copied(host.toStringView());
+
+                                 return Valdi::Value(atolla_audio_join_source(
+                                     copied.c_str(), static_cast<uint16_t>(port)));
+                             })))
+            .setMapValue("atollaAudioReceiving",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext&) -> Valdi::Value {
+                                 return Valdi::Value(atolla_audio_receiving());
                              })));
     }
 };

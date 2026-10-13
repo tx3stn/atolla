@@ -1,6 +1,7 @@
 import Strings from 'atolla_headless/src/Strings';
 import {
 	DEFAULT_AUDIO_DEVICE,
+	DEFAULT_AUDIO_PORT,
 	DEFAULT_BIND_ADDRESS,
 	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
@@ -26,6 +27,7 @@ export const CmdInit = {
 
 		const written = {
 			audioDevice: DEFAULT_AUDIO_DEVICE,
+			audioPort: DEFAULT_AUDIO_PORT,
 			bindAddress: DEFAULT_BIND_ADDRESS,
 			clockPort: DEFAULT_CLOCK_PORT,
 			dataDir: DEFAULT_DATA_DIR,

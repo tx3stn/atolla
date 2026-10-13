@@ -4,6 +4,7 @@ import { CLI_ERROR } from './commands/Errors';
 import {
 	type ConfigFiles,
 	DEFAULT_AUDIO_DEVICE,
+	DEFAULT_AUDIO_PORT,
 	DEFAULT_BIND_ADDRESS,
 	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
@@ -19,6 +20,7 @@ const PATH = '/etc/atolla/player.json';
 
 const CONFIG: PlayerConfig = {
 	audioDevice: DEFAULT_AUDIO_DEVICE,
+	audioPort: DEFAULT_AUDIO_PORT,
 	bindAddress: DEFAULT_BIND_ADDRESS,
 	clockPort: DEFAULT_CLOCK_PORT,
 	dataDir: DEFAULT_DATA_DIR,
@@ -68,12 +70,13 @@ describe('makeConfigStore read', () => {
 
 	it('reads the stored daemon fields', () => {
 		const { files } = fakeFiles(
-			'{"audioDevice":"hw:2,0","clockPort":45990,"logLevel":"debug","name":"kitchen","port":45890}',
+			'{"audioDevice":"hw:2,0","audioPort":45991,"clockPort":45990,"logLevel":"debug","name":"kitchen","port":45890}',
 		);
 
 		expect(makeConfigStore(files, PATH).read()).toEqual({
 			...CONFIG,
 			audioDevice: 'hw:2,0',
+			audioPort: 45991,
 			clockPort: 45990,
 			logLevel: 'debug',
 			port: 45890,
@@ -99,6 +102,14 @@ describe('makeConfigStore read', () => {
 			const { files } = fakeFiles(`{"clockPort":${port},"name":"kitchen"}`);
 
 			expect(makeConfigStore(files, PATH).read()?.clockPort).toBe(DEFAULT_CLOCK_PORT);
+		}
+	});
+
+	it('falls back on an audio port that could not be bound', () => {
+		for (const port of ['"45991"', '45991.5', '0', '70000']) {
+			const { files } = fakeFiles(`{"audioPort":${port},"name":"kitchen"}`);
+
+			expect(makeConfigStore(files, PATH).read()?.audioPort).toBe(DEFAULT_AUDIO_PORT);
 		}
 	});
 

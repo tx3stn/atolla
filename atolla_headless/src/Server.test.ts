@@ -32,6 +32,7 @@ function deps(): ServerDeps {
 			playback: new PlaybackStore(),
 			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 			restored: Promise.resolve(),
+			stream: { join: () => {} },
 			version: makeStateVersion(),
 		},
 		mediaServer: { credentials, transports: verifyingTransports, version: makeStateVersion() },
@@ -49,6 +50,7 @@ function deps(): ServerDeps {
 			playback: new PlaybackStore(),
 			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 			restored: Promise.resolve(),
+			stream: { source: () => undefined },
 			version: makeStateVersion(),
 		},
 	};

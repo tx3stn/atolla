@@ -14,9 +14,12 @@ export interface AudioEngine {
 	consumeEvent: () => string;
 	currentTrackId: () => string;
 	followClock: (host: string, port: number) => boolean;
+	joinSource: (host: string, port: number) => boolean;
 	positionMs: () => number;
 	provideClock: (bindAddress: string, port: number) => boolean;
+	receiving: () => boolean;
 	seekToMs: (positionMs: number) => boolean;
+	serveStream: (bindAddress: string, port: number) => boolean;
 	setPlaying: (playing: boolean) => void;
 	start: (device: string) => boolean;
 	startAt: (positionMs: number, atNs: number) => boolean;

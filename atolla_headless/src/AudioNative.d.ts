@@ -33,3 +33,9 @@ export function atollaAudioFollowClock(host: string, port: number): boolean;
 export function atollaAudioClockSynced(): boolean;
 
 export function atollaAudioClockNowNs(): number;
+
+export function atollaAudioServeStream(bindAddress: string, port: number): boolean;
+
+export function atollaAudioJoinSource(host: string, port: number): boolean;
+
+export function atollaAudioReceiving(): boolean;

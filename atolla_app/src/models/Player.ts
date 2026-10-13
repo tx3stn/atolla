@@ -1,4 +1,4 @@
-import type { Member, PlayerState } from 'atolla_sync/src/api/generated';
+import type { Member, MemberSource, PlayerState } from 'atolla_sync/src/api/generated';
 
 export const DEFAULT_PLAYER_GROUP = 'default';
 
@@ -24,6 +24,7 @@ export interface Player {
 	lastError: string | null;
 	name: string;
 	reachable: boolean;
+	source: MemberSource | null;
 	state: PlayerState;
 	tier: Member['tier'];
 }

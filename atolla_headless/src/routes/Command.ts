@@ -4,6 +4,7 @@ import { getLogger } from 'atolla_core/src/services/Logger';
 import { LoopModes, type PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { Command } from 'atolla_sync/src/api/generated';
 import type { AudioPlayer } from '../AudioPlayer';
+import type { AudioStream } from '../AudioStream';
 import type { Clock } from '../Clock';
 import type { Answer } from '../Http';
 import type { QueueOwner } from '../QueueOwner';
@@ -17,6 +18,7 @@ export interface CommandDeps {
 	// The server answers before the queue is on disk, so a command arriving during the restore
 	// waits for it rather than acting on an empty queue the restore then overwrites.
 	restored: Promise<void>;
+	stream: Pick<AudioStream, 'join'>;
 	version: StateVersion;
 }
 
@@ -97,6 +99,15 @@ function apply(deps: CommandDeps, command: Command): boolean {
 					? null
 					: { host: command.host, port: command.port },
 			);
+			return true;
+		case 'joinSource':
+			if (command.host === undefined || command.port === undefined) {
+				deps.stream.join(null);
+				return true;
+			}
+
+			playback.setPlaying(false);
+			deps.stream.join({ host: command.host, port: command.port });
 			return true;
 		case 'setQueue': {
 			// Batched so the queue and its owner are announced together. A subscriber resolves the

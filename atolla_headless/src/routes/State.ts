@@ -1,5 +1,6 @@
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { PlayerState, StateSnapshot } from 'atolla_sync/src/api/generated';
+import type { AudioStream } from '../AudioStream';
 import type { Clock } from '../Clock';
 import type { Answer } from '../Http';
 import type { MediaServerCredentials } from '../MediaServerCredentials';
@@ -15,6 +16,7 @@ export interface StateDeps {
 	playback: PlaybackStore;
 	queueOwner: QueueOwner;
 	restored: Promise<void>;
+	stream: Pick<AudioStream, 'source'>;
 	version: StateVersion;
 }
 
@@ -73,6 +75,7 @@ function sinceOf(target: string): number | undefined {
 function snapshot(deps: StateDeps): StateSnapshot {
 	const { identity, playback } = deps;
 	const owner = deps.queueOwner.get();
+	const source = deps.stream.source();
 
 	return {
 		group: GROUP,
@@ -83,6 +86,7 @@ function snapshot(deps: StateDeps): StateSnapshot {
 				enabled: true,
 				id: identity.id,
 				name: identity.name,
+				...(source === undefined ? {} : { source }),
 				state: playerState(playback),
 				tier: identity.tier,
 			},

@@ -23,6 +23,9 @@ bool atolla_audio_provide_clock(const char *bind_address, uint16_t port);
 bool atolla_audio_follow_clock(const char *host, uint16_t port);
 bool atolla_audio_clock_synced(void);
 uint64_t atolla_audio_clock_now_ns(void);
+bool atolla_audio_serve_stream(const char *bind_address, uint16_t port);
+bool atolla_audio_join_source(const char *host, uint16_t port);
+bool atolla_audio_receiving(void);
 
 #ifdef __cplusplus
 }

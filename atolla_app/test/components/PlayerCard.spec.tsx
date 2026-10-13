@@ -380,6 +380,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
 		lastError: null,
 		name: 'Kitchen',
 		reachable: true,
+		source: null,
 		state: PlayerStates.idle,
 		tier: PlayerTiers.tight,
 		...overrides,

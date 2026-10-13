@@ -488,6 +488,7 @@ export class PlayersStore {
 			lastError: null,
 			name: probed.name,
 			reachable: true,
+			source: null,
 			state: PlayerStates.idle,
 			tier: PlayerTiers.tight,
 		};
@@ -512,6 +513,7 @@ export class PlayersStore {
 			lastError: null,
 			name: stored.name,
 			reachable: true,
+			source: null,
 			state: PlayerStates.idle,
 			tier: PlayerTiers.tight,
 		};
@@ -529,6 +531,7 @@ export class PlayersStore {
 			lastError: null,
 			name: this.deviceName(),
 			reachable: true,
+			source: null,
 			state: PlayerStates.idle,
 			tier: PlayerTiers.loose,
 		};
