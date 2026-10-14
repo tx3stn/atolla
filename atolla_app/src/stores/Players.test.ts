@@ -380,6 +380,16 @@ describe('PlayersStore reorder', () => {
 		expect(notifications).toBe(0);
 	});
 
+	it('lists the enabled speakers in the order the tab shows them', () => {
+		const store = new PlayersStore({
+			seed: [makePlayer('a'), makePlayer('b', { enabled: false }), makePlayer('c')],
+		});
+
+		store.reorder(3, 1);
+
+		expect(store.enabledSpeakers().map((player) => player.id)).toEqual(['c', 'a']);
+	});
+
 	it.each([
 		['a source past the end', 5, 1],
 		['a negative source', -1, 1],

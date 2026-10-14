@@ -3,7 +3,7 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
-import type { Command, CommandAccepted, Problem } from 'atolla_sync/src/api/generated';
+import type { Command, CommandAccepted, Hello, Problem } from 'atolla_sync/src/api/generated';
 import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
 import type { PendingRequest } from 'atolla_sync/src/api/Transport';
 import { PLAYERS_KEY, PlayersStore } from '../stores/Players';
@@ -38,6 +38,17 @@ const LOUNGE = {
 	token: 'l'.repeat(64),
 };
 
+const BEDROOM = {
+	baseUrl: 'http://192.168.1.44:45889',
+	enabled: false,
+	icon: null,
+	id: 'den',
+	name: 'Den',
+	token: 'd'.repeat(64),
+};
+
+const AUDIO_PORT = 45891;
+
 interface Sent {
 	baseUrl: string;
 	body: Command;
@@ -46,7 +57,9 @@ interface Sent {
 
 interface Options {
 	refusing?: boolean;
+	silent?: boolean;
 	speakers?: Array<typeof KITCHEN>;
+	streamsAudio?: boolean;
 	userId?: string;
 }
 
@@ -55,6 +68,26 @@ function answer(refusing: boolean): PendingRequest<PlayerAnswer<CommandAccepted 
 		? Promise.reject(new Error('unreachable'))
 		: Promise.resolve({ headers: {}, json: {} as CommandAccepted, status: 202 });
 	return Object.assign(settled, { cancel: () => {} });
+}
+
+function greeting(options: Options): PendingRequest<PlayerAnswer<Hello | Problem>> {
+	if (options.silent === true) {
+		return Object.assign(Promise.reject(new Error('unreachable')), { cancel: () => {} });
+	}
+
+	const streamsAudio = options.streamsAudio ?? true;
+	const hello: Hello = {
+		apiVersions: [1],
+		...(streamsAudio ? { audioPort: AUDIO_PORT } : {}),
+		id: 'c2be50c9b97e1c53',
+		name: 'Speaker',
+		tier: 'tight',
+		v: 1,
+		version: '0.0.0',
+	};
+	return Object.assign(Promise.resolve({ headers: {}, json: hello, status: 200 }), {
+		cancel: () => {},
+	});
 }
 
 async function harness(options: Options = {}) {
@@ -76,6 +109,7 @@ async function harness(options: Options = {}) {
 				sent.push({ baseUrl, body, token });
 				return answer(options.refusing === true);
 			},
+			hello: () => greeting(options),
 		}),
 		playbackStore,
 		playersStore,
@@ -85,11 +119,24 @@ async function harness(options: Options = {}) {
 	await settle();
 
 	const commands = (): Array<Command> => sent.map((entry) => entry.body);
+	const commandsTo = (speaker: typeof KITCHEN): Array<Command> =>
+		sent.filter((entry) => entry.baseUrl === speaker.baseUrl).map((entry) => entry.body);
 	const clear = (): void => {
 		sent.length = 0;
 	};
 
-	return { clear, commands, output, playbackStore, playersStore, sent };
+	return { clear, commands, commandsTo, output, playbackStore, playersStore, sent };
+}
+
+async function grouped(speakers: Array<typeof KITCHEN>) {
+	const setup = await harness({ speakers });
+	setup.playbackStore.play([track1, track2, track3], album, 0);
+	for (const speaker of speakers) {
+		setup.playersStore.setEnabled(speaker.id, true);
+	}
+	await settle();
+	setup.clear();
+	return setup;
 }
 
 async function playingThroughKitchen(options: Options = {}) {
@@ -288,18 +335,6 @@ describe('SpeakerOutput', () => {
 		expect(commands()).toEqual([{ command: 'addToQueue', tracks: [track2], userId: 'user-1' }]);
 	});
 
-	it('drives every enabled speaker', async () => {
-		const { playbackStore, playersStore, sent } = await harness({ speakers: [KITCHEN, LOUNGE] });
-		playbackStore.play([track1, track2], album, 0);
-
-		playersStore.setEnabled(KITCHEN.id, true);
-		playersStore.setEnabled(LOUNGE.id, true);
-		await settle();
-
-		const reached = new Set(sent.map((entry) => entry.baseUrl));
-		expect(reached).toEqual(new Set([KITCHEN.baseUrl, LOUNGE.baseUrl]));
-	});
-
 	it('keeps sending after a command fails', async () => {
 		const { commands, playbackStore } = await playingThroughKitchen({ refusing: true });
 
@@ -318,5 +353,124 @@ describe('SpeakerOutput', () => {
 		await settle();
 
 		expect(commands()).toEqual([]);
+	});
+
+	describe('a group of speakers', () => {
+		it('drives the first speaker in the tab and has the others join it', async () => {
+			const { commandsTo, playbackStore, playersStore } = await harness({
+				speakers: [KITCHEN, LOUNGE],
+			});
+			playbackStore.play([track1, track2], album, 0);
+
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(KITCHEN)).toEqual([
+				{ album, command: 'setQueue', trackIndex: 0, tracks: [track1, track2], userId: 'user-1' },
+				{ command: 'setLoopMode', loopMode: LoopModes.none },
+			]);
+			expect(commandsTo(LOUNGE)).toEqual([
+				{ command: 'joinSource', host: '192.168.1.42', port: AUDIO_PORT },
+			]);
+		});
+
+		it('sends playback changes to the source alone', async () => {
+			const { commandsTo, playbackStore } = await grouped([KITCHEN, LOUNGE]);
+
+			playbackStore.playPause();
+			playbackStore.seekTo(95.5);
+			await settle();
+
+			expect(commandsTo(KITCHEN)).toEqual([
+				{ command: 'pause' },
+				{ command: 'seek', positionMs: 95500 },
+			]);
+			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
+
+		it('lets a member leave its source when it is switched off', async () => {
+			const { commandsTo, playersStore } = await grouped([KITCHEN, LOUNGE]);
+
+			playersStore.setEnabled(LOUNGE.id, false);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([{ command: 'joinSource' }]);
+			expect(commandsTo(KITCHEN)).toEqual([]);
+		});
+
+		it('hands the group to the next speaker when the source is switched off', async () => {
+			const { commandsTo, playersStore } = await grouped([KITCHEN, LOUNGE, BEDROOM]);
+
+			playersStore.setEnabled(KITCHEN.id, false);
+			await settle();
+
+			expect(commandsTo(KITCHEN)).toEqual([{ command: 'pause' }]);
+			expect(commandsTo(LOUNGE)).toEqual([
+				{ command: 'joinSource' },
+				{
+					album,
+					command: 'setQueue',
+					trackIndex: 0,
+					tracks: [track1, track2],
+					userId: 'user-1',
+				},
+				{ command: 'setLoopMode', loopMode: LoopModes.none },
+			]);
+			expect(commandsTo(BEDROOM)).toEqual([
+				{ command: 'joinSource', host: '192.168.1.43', port: AUDIO_PORT },
+			]);
+		});
+
+		it('swaps the source when another speaker is moved to the top of the tab', async () => {
+			const { commandsTo, playersStore } = await grouped([KITCHEN, LOUNGE]);
+
+			playersStore.reorder(2, 1);
+			await settle();
+
+			expect(commandsTo(KITCHEN)).toEqual([
+				{ command: 'pause' },
+				{ command: 'joinSource', host: '192.168.1.43', port: AUDIO_PORT },
+			]);
+			expect(commandsTo(LOUNGE)).toEqual([
+				{ command: 'joinSource' },
+				{
+					album,
+					command: 'setQueue',
+					trackIndex: 0,
+					tracks: [track1, track2],
+					userId: 'user-1',
+				},
+				{ command: 'setLoopMode', loopMode: LoopModes.none },
+			]);
+		});
+
+		it('leaves the others unjoined when the source streams no audio', async () => {
+			const { commandsTo, playbackStore, playersStore } = await harness({
+				speakers: [KITCHEN, LOUNGE],
+				streamsAudio: false,
+			});
+			playbackStore.play([track1, track2], album, 0);
+
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
+
+		it('leaves the others unjoined when the source does not answer its greeting', async () => {
+			const { commandsTo, playbackStore, playersStore } = await harness({
+				silent: true,
+				speakers: [KITCHEN, LOUNGE],
+			});
+			playbackStore.play([track1, track2], album, 0);
+
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
 	});
 });

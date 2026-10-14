@@ -130,7 +130,7 @@ export class PlayersStore {
 	}
 
 	enabledSpeakers(): Array<Player> {
-		return this.players.filter((player) => player.enabled);
+		return this.orderedPlayers().filter((player) => !player.isThisDevice && player.enabled);
 	}
 
 	ensureLoaded(): Promise<void> {
