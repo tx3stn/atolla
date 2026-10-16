@@ -487,6 +487,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		if (recentlyPlayedTracks !== this.cachedRecentlyPlayedTracksRef) {
 			this.cachedRecentlyPlayedTracksRef = recentlyPlayedTracks;
 			this.cachedRecentlyPlayedEntries = recentlyPlayedTracks.slice(0, 5).map((track, index) => ({
+				artworkId: track.albumId ?? null,
 				artworkSource: track.albumImageUrl ?? null,
 				id: track.id,
 				leadingLabel: String(index + 1),

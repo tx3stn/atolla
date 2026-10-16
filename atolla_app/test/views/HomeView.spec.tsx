@@ -215,6 +215,33 @@ describe('HomeView', () => {
 		expect(onThisDay.calls.ensureLoaded).toBe(1);
 	});
 
+	valdiIt('addresses recently played artwork by album id', async (driver) => {
+		const track = {
+			albumId: 'album-1',
+			albumImageUrl: 'https://album.png',
+			duration: 180,
+			id: 't1',
+			name: 'Song',
+		};
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel(makeBaseDeps(), undefined, undefined, [track]),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		const sources = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src'));
+
+		expect(
+			sources.some(
+				(src) => typeof src === 'string' && src.includes('c=album_art_thumb&id=album-1'),
+			),
+		).toBe(true);
+	});
+
 	// the context menu toasts through the service this view hands it, so a queue action taken from
 	// home surfaces the same confirmation the library grids do
 	valdiIt('surfaces the add-to-queue toast from a recently-added card', async (driver) => {

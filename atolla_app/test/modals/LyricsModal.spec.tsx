@@ -51,6 +51,29 @@ describe('LyricsModal', () => {
 		).toBeDefined();
 	});
 
+	valdiIt('addresses the track artwork by album id', async (driver) => {
+		const component = driver.renderComponent(
+			LyricsModal,
+			{
+				lyricsService: lyricsService(),
+				onDismiss: () => {},
+				track: { ...track, albumId: 'album-1' },
+			},
+			undefined,
+		);
+
+		const sources = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src'));
+
+		expect(
+			sources.some(
+				(src) => typeof src === 'string' && src.includes('c=album_art_thumb&id=album-1'),
+			),
+		).toBe(true);
+	});
+
 	valdiIt('paints resident lyrics without waiting on a load', async (driver) => {
 		let loads = 0;
 		const service = lyricsService({

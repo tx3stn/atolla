@@ -792,6 +792,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.cachedQueueAlbumImageUrl = albumImageUrl;
 
 		const toEntry = (t: Track): TrackListEntry => ({
+			artworkId: t.albumId ?? null,
 			artworkSource: t.albumImageUrl ?? albumImageUrl,
 			id: t.id,
 			meta: t.artistName ?? '',

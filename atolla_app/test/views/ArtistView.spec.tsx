@@ -163,6 +163,49 @@ describe('ArtistView', () => {
 		expect(component.state.hydratedArtist).toBeNull();
 	});
 
+	valdiIt('addresses top track artwork by album id', async (driver) => {
+		const artist = {
+			id: 'artist-1',
+			imageUrl: 'https://a.png',
+			logoUrl: 'https://l.png',
+			name: 'Artist One',
+		};
+		const topTrack = {
+			albumId: 'album-1',
+			albumImageUrl: 'https://album.png',
+			duration: 180,
+			id: 'track-1',
+			name: 'Top Track',
+		};
+		const transport = { ...baseTransport(), getArtistTopTracks: async () => [topTrack] };
+
+		const component = driver.renderComponent(
+			ArtistView,
+			{
+				artist,
+				downloadService,
+				networkStatus,
+				playbackStore,
+				preferences,
+				transport,
+				viewCache: makeTestViewCache(),
+			},
+			{ navigator: mockNavigator },
+		);
+		await flushAsyncWork();
+
+		const sources = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src'));
+
+		expect(
+			sources.some(
+				(src) => typeof src === 'string' && src.includes('c=album_art_thumb&id=album-1'),
+			),
+		).toBe(true);
+	});
+
 	describe('connection mode changes', () => {
 		const artist = {
 			id: 'artist-1',

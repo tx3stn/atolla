@@ -1253,6 +1253,32 @@ describe('NowPlayingSurface', () => {
 		expect(backToRows).not.toContain('track-row-back-to-track-40-30');
 	});
 
+	valdiIt('addresses queue row artwork by album id', async () => {
+		const queued = {
+			...track,
+			albumId: 'album-2',
+			albumImageUrl: 'https://example.com/other.jpg',
+			id: 'track-2',
+		};
+		const instrumented = createNowPlayingComponent({}, album, { tracks: [track, queued] });
+		const component = instrumented.getComponent();
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		const sources = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src'));
+
+		expect(
+			sources.some(
+				(src) => typeof src === 'string' && src.includes('c=album_art_thumb&id=album-2'),
+			),
+		).toBe(true);
+	});
+
 	valdiIt('handles collapse signal update while expanded', async () => {
 		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();

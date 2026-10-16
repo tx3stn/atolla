@@ -360,6 +360,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		if (tracks !== this.cachedTrackEntriesSource) {
 			this.cachedTrackEntriesSource = tracks;
 			this.cachedTrackEntries = tracks.map((track) => ({
+				artworkId: track.albumId ?? null,
 				artworkSource: track.albumImageUrl ?? null,
 				id: track.id,
 				meta: track.artistName ?? track.albumName ?? '',

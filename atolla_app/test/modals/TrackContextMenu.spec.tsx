@@ -321,6 +321,22 @@ describe('TrackContextMenu', () => {
 		expect(logoFetches).toBe(0);
 	});
 
+	valdiIt('addresses the preview artwork by album id', async (driver) => {
+		const { viewModel } = createViewModel({ track: { ...track, albumId: 'album-1' } });
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const sources = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src'));
+
+		expect(
+			sources.some(
+				(src) => typeof src === 'string' && src.includes('c=album_art_thumb&id=album-1'),
+			),
+		).toBe(true);
+	});
+
 	valdiIt('holds the artist name back until the logo lookup settles', async (driver) => {
 		let resolveLogo!: (logoUrl: string | null) => void;
 		const { viewModel } = createViewModel({

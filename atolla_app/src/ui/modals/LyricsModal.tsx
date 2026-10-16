@@ -82,6 +82,7 @@ export class LyricsModal extends StatefulComponent<LyricsModalViewModel, LyricsM
 			this.cachedPreviewEntrySource = track;
 			this.cachedPreviewEntry = [
 				{
+					artworkId: track.albumId ?? null,
 					artworkSource: track.albumImageUrl ?? null,
 					id: track.id,
 					meta: track.artistName ?? track.albumName ?? '',

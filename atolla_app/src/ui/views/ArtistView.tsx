@@ -308,6 +308,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		if (topTracks !== this.cachedTopTrackEntriesSource) {
 			this.cachedTopTrackEntriesSource = topTracks;
 			this.cachedTopTrackEntries = topTracks.slice(0, 5).map((track) => ({
+				artworkId: track.albumId ?? null,
 				artworkSource: track.albumImageUrl ?? null,
 				id: track.id,
 				meta: track.albumName ?? '',

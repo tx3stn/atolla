@@ -480,6 +480,48 @@ describe('SearchView', () => {
 		expect(playbackStore.isPlaying).toBe(true);
 	});
 
+	valdiIt('addresses track result artwork by album id', async (driver) => {
+		const viewModel = {
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				getArtistLogoUrl: () => Promise.resolve(null),
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		component.setState({
+			results: {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [
+					{
+						albumId: 'album-1',
+						albumImageUrl: 'https://album.png',
+						duration: 111,
+						id: 'track-1',
+						name: 'First',
+					},
+				],
+			},
+			status: 'success',
+		});
+
+		const sources = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		).map((image) => image.getAttribute('src'));
+
+		expect(
+			sources.some(
+				(src) => typeof src === 'string' && src.includes('c=album_art_thumb&id=album-1'),
+			),
+		).toBe(true);
+	});
+
 	// all four tabs mount at first authed paint, so onCreate must not focus the (off-screen)
 	// search field unless the search tab is the active one — otherwise launch pops the keyboard.
 	// focus instead follows tab activation, which onViewModelUpdate drives on a false->true flip.
