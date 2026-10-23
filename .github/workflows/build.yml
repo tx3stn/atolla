@@ -47,7 +47,7 @@ jobs:
       # res/*.png is gitignored, so the icons don't exist in a fresh checkout and
       # this has to run before bazel reads res/.
       - run: bun run icons:generate --android
-      - uses: ./.github/actions/install-libtinfo5
+      - uses: ./.github/actions/install-libxml2
       - name: install zlib headers
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zlib1g-dev
       - name: Make room for the bazel build
@@ -127,7 +127,6 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - run: bun install --frozen-lockfile
       - uses: ./.github/actions/free-disk-space
-      - uses: ./.github/actions/install-libtinfo5
       - name: install zlib headers
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zlib1g-dev
       - name: configure bazel caching
@@ -146,7 +145,8 @@ jobs:
   # The headless player for a Pi. Cross-built from an amd64 runner, not natively: Valdi's prebuilt
   # valdi_compiler and pngquant select on darwin / linux_x86_64 with no arm64 build, so a native
   # arm64 build cannot finish analysis, while a cross build keeps them in the exec configuration.
-  # The only extra it needs over the amd64 job is the arm64 sysroot.
+  # The extras it needs over the amd64 job are the arm64 sysroot and libtinfo5 for the LLVM 16
+  # cross toolchain.
   cli-linux-arm64:
     if: ${{ !inputs.release }}
     runs-on: ubuntu-22.04

@@ -1,7 +1,8 @@
 name: Install libtinfo5
 description: >-
-  Valdi's hermetic llvm_toolchain clang links libtinfo.so.5, which is gone from
-  ubuntu 24.04. Ubuntu's archive pool keeps only the newest point release of a
+  llvm_toolchain_arm64 (LLVM 16.0.0, the --config=linux-arm64 cross toolchain)
+  is the ubuntu-18.04 build, whose clang, lld and llvm-ar link libtinfo.so.5,
+  which is gone from ubuntu 24.04. Ubuntu's archive pool keeps only the newest point release of a
   package, so a hardcoded filename 404s the moment a security update lands.
   Discover the current filename from the pool instead so this self-heals across 
   future point releases. amd64 and arm64 are served from different hosts — arm64 

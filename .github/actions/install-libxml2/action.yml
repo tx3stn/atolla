@@ -1,0 +1,42 @@
+name: Install libxml2.so.2
+description: >-
+  Valdi's hermetic llvm_toolchain ld.lld links libxml2.so.2, which is gone from
+  ubuntu 26.04 (it only ships libxml2.so.16). Install noble's build and the
+  libicu74 it depends on. Ubuntu's archive pool keeps only the newest point
+  release of a package, so discover the current filename from the pool instead
+  of hardcoding it. The pool also holds other series' builds of libxml2, so
+  match on noble's version prefix rather than taking the newest file.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        if ldconfig -p | grep -q 'libxml2\.so\.2 '; then
+          echo "libxml2.so.2 already installed"
+          exit 0
+        fi
+
+        arch=$(dpkg --print-architecture)
+        if [ "$arch" != amd64 ]; then
+          echo "unsupported architecture $arch" >&2
+          exit 1
+        fi
+        base=http://archive.ubuntu.com/ubuntu/pool/main
+
+        download_latest_deb() {
+          local dir=$1 prefix=$2 deb
+          deb=$(curl -fsSL --retry 3 --retry-delay 2 "$base/$dir/" \
+            | grep -oE "${prefix}[^\"<> ]*_${arch}\.deb" | sort -u -t_ -k2,2V | tail -n1)
+          if [ -z "$deb" ]; then
+            echo "no ${prefix} $arch package found in $base/$dir" >&2
+            exit 1
+          fi
+          curl -fsSL --retry 3 --retry-delay 2 -O "$base/$dir/$deb"
+          echo "$deb"
+        }
+
+        icu=$(download_latest_deb i/icu 'libicu74_74\.2-1ubuntu3')
+        xml=$(download_latest_deb libx/libxml2 'libxml2_2\.9\.14\+dfsg-1\.3ubuntu3')
+        echo "installing $icu $xml"
+        sudo dpkg -i "$icu" "$xml"
