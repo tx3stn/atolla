@@ -38,5 +38,6 @@ export const config = {
 	runner: 'local',
 	services: ['appium'],
 	specs: ['./tests/**/*.test.ts'],
+	strictSelectors: false,
 	waitforTimeout: 10_000,
 };

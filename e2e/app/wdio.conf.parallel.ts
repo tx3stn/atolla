@@ -1,13 +1,5 @@
 import { getAndroidCapabilities, getIOSCapabilities } from './utils/device';
-import {
-	afterHookHook,
-	afterTestHook,
-	beforeHook,
-	beforeSuiteHook,
-	beforeTestHook,
-	onCompleteHook,
-} from './utils/hooks';
-import { startMockServer, stopMockServer } from './utils/mockServer';
+import { config as base } from './wdio.conf';
 
 type Capabilities = Record<string, unknown>;
 
@@ -41,30 +33,13 @@ const pools: Record<string, ReturnType<typeof createDevicePool>> = {
 };
 
 export const config = {
-	afterHook: afterHookHook,
-	afterTest: afterTestHook,
-	before: beforeHook,
-	beforeSuite: beforeSuiteHook,
-	beforeTest: beforeTestHook,
+	...base,
 	capabilities: [
 		{ ...androidDevices[0], 'wdio:maxInstances': androidDevices.length },
 		{ ...iosDevices[0], 'wdio:maxInstances': iosDevices.length },
 	],
-	connectionRetryCount: 3,
-	connectionRetryTimeout: 300_000,
-	exclude: [],
-	framework: 'mocha',
-	logLevel: 'warn',
 	maxInstances: androidDevices.length + iosDevices.length,
-	mochaOpts: {
-		bail: 0,
-		timeout: 120_000,
-	},
-	onComplete() {
-		onCompleteHook();
-		stopMockServer();
-	},
-	onPrepare: startMockServer,
+	mochaOpts: { ...base.mochaOpts, bail: 0 },
 	onWorkerEnd(cid: string) {
 		for (const pool of Object.values(pools)) pool.release(cid);
 	},
@@ -72,9 +47,4 @@ export const config = {
 		const pool = pools[caps.platformName as string];
 		if (pool) Object.assign(caps, pool.claim(cid));
 	},
-	reporters: ['spec'],
-	runner: 'local',
-	services: ['appium'],
-	specs: ['./tests/**/*.test.ts'],
-	waitforTimeout: 10_000,
 };
