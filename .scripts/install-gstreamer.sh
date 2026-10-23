@@ -12,7 +12,6 @@ DYLIB="/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/libgstreamer-1.0
 # TLS backend an https media server needs arrives with it: libsoup2.4-1 depends on glib-networking.
 PACKAGES=(
 	gstreamer1.0-alsa
-	gstreamer1.0-plugins-bad
 	gstreamer1.0-plugins-base
 	gstreamer1.0-plugins-good
 	libgstreamer1.0-0
