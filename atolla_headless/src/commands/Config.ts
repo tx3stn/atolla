@@ -46,6 +46,7 @@ export const CmdConfig = {
 			logLevel: current.logLevel,
 			name: name ?? current.name,
 			port: port === undefined ? current.port : readPort(port),
+			streamLatencyMs: current.streamLatencyMs,
 		};
 
 		// the language the operator just chose, so this invocation's own output honours it

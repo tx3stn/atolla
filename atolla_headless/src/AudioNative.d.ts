@@ -1,4 +1,4 @@
-export function atollaAudioStart(device: string): boolean;
+export function atollaAudioStart(device: string, streamLatencyMs: number): boolean;
 
 export function atollaAudioDevices(): string;
 

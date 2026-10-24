@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
 export const DEFAULT_DATA_DIR = '/var/lib/atolla';
 export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
 export const DEFAULT_PORT = 45889;
+export const DEFAULT_STREAM_LATENCY_MS = 125;
 
 export interface PlayerConfig {
 	audioDevice: string;
@@ -26,6 +27,7 @@ export interface PlayerConfig {
 	logLevel: LogLevel;
 	name: string;
 	port: number;
+	streamLatencyMs: number;
 }
 
 // the subset of valdi's file_system this needs, so the store can be tested without the native module
@@ -131,6 +133,10 @@ function isPort(value: unknown): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 65535;
 }
 
+function isStreamLatency(value: unknown): value is number {
+	return typeof value === 'number' && Number.isInteger(value) && value >= 1;
+}
+
 // a file that exists but cannot be parsed is an error worth reporting; individual fields fall back,
 // so hand-editing one value badly does not lock the operator out of the whole config
 function parse(raw: string, path: string): PlayerConfig {
@@ -151,6 +157,7 @@ function parse(raw: string, path: string): PlayerConfig {
 		logLevel?: unknown;
 		name?: unknown;
 		port?: unknown;
+		streamLatencyMs?: unknown;
 	};
 
 	return {
@@ -167,5 +174,8 @@ function parse(raw: string, path: string): PlayerConfig {
 		logLevel: isLogLevel(value.logLevel) ? value.logLevel : DEFAULT_LOG_LEVEL,
 		name: typeof value.name === 'string' ? value.name : '',
 		port: isPort(value.port) ? value.port : DEFAULT_PORT,
+		streamLatencyMs: isStreamLatency(value.streamLatencyMs)
+			? value.streamLatencyMs
+			: DEFAULT_STREAM_LATENCY_MS,
 	};
 }

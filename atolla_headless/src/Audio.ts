@@ -21,6 +21,6 @@ export interface AudioEngine {
 	seekToMs: (positionMs: number) => boolean;
 	serveStream: (bindAddress: string, port: number) => boolean;
 	setPlaying: (playing: boolean) => void;
-	start: (device: string) => boolean;
+	start: (device: string, streamLatencyMs: number) => boolean;
 	startAt: (positionMs: number, atNs: number) => boolean;
 }

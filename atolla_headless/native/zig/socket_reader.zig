@@ -39,6 +39,7 @@ pub const Reader = struct {
     err: ?Error = null,
     handle: posix.fd_t,
     interface: std.Io.Reader,
+    stop: ?*const std.atomic.Value(bool) = null,
     timeout_ms: i32,
 
     pub fn init(handle: posix.fd_t, buffer: []u8, timeout_ms: i32) Reader {
@@ -52,6 +53,13 @@ pub const Reader = struct {
             },
             .timeout_ms = timeout_ms,
         };
+    }
+
+    pub fn initUntilStopped(handle: posix.fd_t, buffer: []u8, poll_ms: i32, stop: *const std.atomic.Value(bool)) Reader {
+        var reader: Reader = .init(handle, buffer, poll_ms);
+        reader.stop = stop;
+
+        return reader;
     }
 
     fn stream(
@@ -97,7 +105,12 @@ pub const Reader = struct {
 
     fn receive(self: *Reader, vectors: []posix.iovec) Error!usize {
         while (true) {
-            if (!try self.ready()) return error.Timeout;
+            if (!try self.ready()) {
+                const stop = self.stop orelse return error.Timeout;
+                if (stop.load(.acquire)) return error.Timeout;
+
+                continue;
+            }
 
             const result = posix.system.readv(self.handle, vectors.ptr, @intCast(vectors.len));
 
@@ -228,6 +241,31 @@ test "socket_reader: reports a closed peer as the end of the stream" {
     var reader: Reader = .init(pair.accepted.socket.handle, &buffer, 1_000);
 
     try testing.expectError(error.EndOfStream, reader.interface.take(1));
+}
+
+fn sendLater(pair: *Pair, bytes: []const u8) void {
+    std.Io.Threaded.global_single_threaded.io().sleep(.fromMilliseconds(150), .awake) catch {};
+    pair.send(bytes) catch {};
+}
+
+test "socket_reader: told when to stop, waits through a quiet spell and gives up only once stopped" {
+    var pair = try Pair.open();
+    defer pair.close();
+
+    var stop: std.atomic.Value(bool) = .init(false);
+    var buffer: [64]u8 = undefined;
+    var reader: Reader = .initUntilStopped(pair.accepted.socket.handle, &buffer, 20, &stop);
+
+    try pair.send("GET /hel");
+    const late = try std.Thread.spawn(.{}, sendLater, .{ &pair, "lo world" });
+    defer late.join();
+
+    try testing.expectEqualStrings("GET /hello world", try reader.interface.take(16));
+
+    stop.store(true, .release);
+
+    try testing.expectError(error.ReadFailed, reader.interface.take(1));
+    try testing.expectEqual(Error.Timeout, reader.err.?);
 }
 
 test "socket_reader: keeps the surplus a short read left behind" {

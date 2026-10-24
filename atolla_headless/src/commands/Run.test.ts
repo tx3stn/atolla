@@ -8,6 +8,7 @@ import {
 	DEFAULT_BIND_ADDRESS,
 	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
+	DEFAULT_STREAM_LATENCY_MS,
 	type PlayerConfig,
 } from '../PlayerConfig';
 import { makeTerminal } from '../terminal/Terminal';
@@ -31,6 +32,7 @@ const CONFIG: PlayerConfig = {
 	logLevel: 'info',
 	name: 'Kitchen',
 	port: 45889,
+	streamLatencyMs: DEFAULT_STREAM_LATENCY_MS,
 };
 
 function context(

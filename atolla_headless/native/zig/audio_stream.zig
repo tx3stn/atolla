@@ -22,6 +22,10 @@ const max_chunk_bytes = bytes_per_second;
 
 const poll_interval_ms = 100;
 
+const no_lead = std.math.maxInt(u64);
+
+const tally_interval_ns = 60 * std.time.ns_per_s;
+
 const member_head = "appsrc name=source format=time caps=\"" ++ caps ++
     "\" ! audioconvert ! audioresample name=resample";
 
@@ -76,7 +80,7 @@ pub const Member = struct {
 
         _ = runtime.gstreamer.gst_buffer_fill(buffer, 0, bytes.ptr, bytes.len);
         buffer.pts = play_at_ns;
-        buffer.duration = @as(u64, bytes.len) * std.time.ns_per_s / bytes_per_second;
+        buffer.duration = durationNs(bytes.len);
 
         return runtime.app.gst_app_src_push_buffer(self.source, buffer) == gst.flow_ok;
     }
@@ -87,6 +91,10 @@ pub const Member = struct {
         _ = self.pipeline.setState(.playing);
     }
 };
+
+fn durationNs(bytes_len: usize) u64 {
+    return @as(u64, bytes_len) * std.time.ns_per_s / bytes_per_second;
+}
 
 fn attachNamed(pipeline: *const gst.Pipeline, name: []const u8) Error!void {
     const runtime = pipeline.gst;
@@ -176,6 +184,10 @@ pub const Listener = struct {
 
     pub fn init(self: *Listener, address: *const net.IpAddress, clock_port: u16, latency_ns: u64) !void {
         const io = io_context();
+        const backlog_bytes = bytes_per_second * latency_ns / std.time.ns_per_s;
+        const send_buffer_bytes = std.math.cast(c_int, audio_wire.chunk_header_bytes + max_chunk_bytes + backlog_bytes) orelse {
+            return error.LatencyTooLong;
+        };
 
         self.* = .{
             .io = io,
@@ -187,7 +199,7 @@ pub const Listener = struct {
                 .channels = channels,
                 .bits = bits,
             },
-            .send_buffer_bytes = @intCast(bytes_per_second * latency_ns / std.time.ns_per_s),
+            .send_buffer_bytes = send_buffer_bytes,
         };
         errdefer self.server.deinit(io);
 
@@ -323,13 +335,15 @@ pub const Receiver = struct {
     io: std.Io,
     sync: gst_net.GstNet,
     member: *const Member,
-    latency_ns: u64,
     host: [max_host_bytes + 1]u8 = undefined,
     host_len: usize = 0,
     port: u16 = 0,
     stopping: std.atomic.Value(bool) = .init(false),
     clock: std.atomic.Value(?*gst.Object) = .init(null),
-    last_play_at_ns: std.atomic.Value(u64) = .init(0),
+    play_until_ns: std.atomic.Value(u64) = .init(0),
+    received: std.atomic.Value(u32) = .init(0),
+    late: std.atomic.Value(u32) = .init(0),
+    smallest_lead_ns: std.atomic.Value(u64) = .init(no_lead),
     thread: ?std.Thread = null,
 
     pub fn start(self: *Receiver, host: []const u8, port: u16) !void {
@@ -341,7 +355,10 @@ pub const Receiver = struct {
         self.port = port;
 
         self.stopping.store(false, .release);
-        self.last_play_at_ns.store(0, .release);
+        self.play_until_ns.store(0, .release);
+        self.received.store(0, .release);
+        self.late.store(0, .release);
+        self.smallest_lead_ns.store(no_lead, .release);
 
         self.thread = try std.Thread.spawn(.{}, run, .{self});
     }
@@ -363,12 +380,45 @@ pub const Receiver = struct {
     pub fn receiving(self: *const Receiver) bool {
         const clock = self.clock.load(.acquire) orelse return false;
 
-        return self.last_play_at_ns.load(.acquire) > self.sync.now(clock);
+        return self.play_until_ns.load(.acquire) > self.sync.now(clock);
+    }
+
+    fn hear(self: *Receiver, now_ns: u64, piece: audio_wire.Chunk) void {
+        _ = self.received.fetchAdd(1, .acq_rel);
+
+        if (piece.play_at_ns <= now_ns) {
+            _ = self.late.fetchAdd(1, .acq_rel);
+
+            return;
+        }
+
+        _ = self.smallest_lead_ns.fetchMin(piece.play_at_ns - now_ns, .acq_rel);
+        _ = self.member.play(piece.play_at_ns, piece.bytes);
+        self.play_until_ns.store(piece.play_at_ns + durationNs(piece.bytes.len), .release);
+    }
+
+    fn report(self: *Receiver) void {
+        const received = self.received.swap(0, .acq_rel);
+        const late = self.late.swap(0, .acq_rel);
+        const smallest_lead_ns = self.smallest_lead_ns.swap(no_lead, .acq_rel);
+
+        if (smallest_lead_ns == no_lead) {
+            log.warn("audio", "in the last minute {d} chunks arrived, all of them late", .{received});
+        } else if (late > 0) {
+            log.warn("audio", "in the last minute {d} chunks arrived, {d} of them late; the closest on time had {d}ms to spare", .{
+                received,
+                late,
+                smallest_lead_ns / std.time.ns_per_ms,
+            });
+        } else {
+            log.debug("audio", "in the last minute {d} chunks arrived, none late; the closest had {d}ms to spare", .{
+                received,
+                smallest_lead_ns / std.time.ns_per_ms,
+            });
+        }
     }
 
     fn run(self: *Receiver) void {
-        const timeout_ms: i32 = @intCast(self.latency_ns / std.time.ns_per_ms);
-
         const connected = connect(self.io, self.host[0..self.host_len], self.port) catch |err| {
             log.warn("audio", "could not reach the source: {s}", .{@errorName(err)});
 
@@ -378,7 +428,7 @@ pub const Receiver = struct {
         defer stream.close(self.io);
 
         var read_buffer: [4 * 1024]u8 = undefined;
-        var reader: socket_reader.Reader = .init(stream.socket.handle, &read_buffer, timeout_ms);
+        var reader: socket_reader.Reader = .initUntilStopped(stream.socket.handle, &read_buffer, poll_interval_ms, &self.stopping);
         var chunk_buffer: [max_chunk_bytes]u8 = undefined;
 
         const hello = switch (audio_wire.read(&reader.interface, &chunk_buffer) catch return) {
@@ -402,10 +452,9 @@ pub const Receiver = struct {
         self.clock.store(clock, .release);
         self.member.playOn(clock);
 
-        while (!self.stopping.load(.acquire)) {
-            if (reader.interface.bufferedLen() == 0 and
-                !socket_reader.waitReadable(stream.socket.handle, poll_interval_ms)) continue;
+        var tally_started_ns: ?u64 = null;
 
+        while (!self.stopping.load(.acquire)) {
             const frame = audio_wire.read(&reader.interface, &chunk_buffer) catch return;
 
             switch (frame) {
@@ -413,8 +462,14 @@ pub const Receiver = struct {
                 .chunk => |piece| {
                     if (!self.sync.isSynced(clock)) continue;
 
-                    _ = self.member.play(piece.play_at_ns, piece.bytes);
-                    self.last_play_at_ns.store(piece.play_at_ns, .release);
+                    const now_ns = self.sync.now(clock);
+                    self.hear(now_ns, piece);
+
+                    if (tally_started_ns == null) tally_started_ns = now_ns;
+                    if (now_ns -| tally_started_ns.? >= tally_interval_ns) {
+                        self.report();
+                        tally_started_ns = now_ns;
+                    }
                 },
             }
         }
@@ -520,6 +575,13 @@ fn sleep(milliseconds: i64) void {
     io_context().sleep(.fromMilliseconds(milliseconds), .awake) catch {};
 }
 
+fn sleepUntil(clock: *const Clock, at_ns: u64) void {
+    const now = clock.nowNs();
+    if (at_ns <= now) return;
+
+    io_context().sleep(.fromNanoseconds(at_ns - now), .awake) catch {};
+}
+
 fn untilRendered(rendered: *const Rendered) !void {
     for (0..100) |_| {
         if (rendered.at_ns.load(.acquire) != 0) return;
@@ -546,7 +608,7 @@ const TestSource = struct {
         var description: [128]u8 = undefined;
         self.pipeline = try gst.Pipeline.launch(runtime, try std.fmt.bufPrintZ(
             &description,
-            "audiotestsrc num-buffers={d} ! appsink name=decoded",
+            "audiotestsrc name=tone num-buffers={d} ! appsink name=decoded",
             .{buffers},
         ));
 
@@ -582,6 +644,74 @@ const TestSource = struct {
         _ = self.pipeline.setState(.playing);
     }
 };
+
+const TestWireSource = struct {
+    clock: Clock,
+    clock_port: u16,
+    server: net.Server,
+    stream: ?net.Stream,
+
+    fn open(self: *TestWireSource, runtime: *gst.Gst) !void {
+        self.clock = try startedClock(runtime);
+        self.clock_port = self.clock.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
+
+        const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+        self.server = try net.IpAddress.listen(&loopback, io_context(), .{ .mode = .stream });
+        self.stream = null;
+    }
+
+    fn close(self: *TestWireSource) void {
+        if (self.stream) |stream| stream.close(io_context());
+        self.server.deinit(io_context());
+    }
+
+    fn port(self: *const TestWireSource) u16 {
+        return self.server.socket.address.getPort();
+    }
+
+    fn accept(self: *TestWireSource) !void {
+        self.stream = try self.server.accept(io_context());
+
+        var buffer: [64]u8 = undefined;
+        var writer = self.stream.?.writer(io_context(), &buffer);
+
+        try audio_wire.writeHello(&writer.interface, .{
+            .version = audio_wire.version,
+            .clock_port = self.clock_port,
+            .rate = rate,
+            .channels = channels,
+            .bits = bits,
+        });
+        try writer.interface.flush();
+    }
+
+    fn write(self: *TestWireSource, bytes: []const u8) !void {
+        var buffer: [256]u8 = undefined;
+        var writer = self.stream.?.writer(io_context(), &buffer);
+
+        try writer.interface.writeAll(bytes);
+        try writer.interface.flush();
+    }
+
+    fn writeChunk(self: *TestWireSource, play_at_ns: u64, bytes: []const u8) !void {
+        var header: [audio_wire.chunk_header_bytes]u8 = undefined;
+
+        try self.write(audio_wire.chunkHeader(&header, play_at_ns, bytes.len));
+        try self.write(bytes);
+    }
+};
+
+fn untilSynced(receiver: *const Receiver) !void {
+    for (0..100) |_| {
+        const clock = receiver.clockFollowed();
+
+        if (clock != null and receiver.sync.isSynced(clock.?)) return;
+
+        sleep(50);
+    }
+
+    return error.TestExpectedSync;
+}
 
 fn untilJoined(source: *TestSource, receiver: *const Receiver) !void {
     for (0..100) |_| {
@@ -666,7 +796,7 @@ test "audio_stream: a member that joined a source hears its audio at the time it
     var rendered: Rendered = .{ .clock = &source.clock };
     try watch(&member, &rendered);
 
-    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member, .latency_ns = latency };
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
     try receiver.start("127.0.0.1", source.listener.port());
     defer receiver.stop();
 
@@ -694,7 +824,7 @@ test "audio_stream: a member is receiving while its source plays, and not once t
     var rendered: Rendered = .{ .clock = &source.clock };
     try watch(&member, &rendered);
 
-    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member, .latency_ns = latency };
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
     try receiver.start("localhost", source.listener.port());
     defer receiver.stop();
 
@@ -712,6 +842,142 @@ test "audio_stream: a member is receiving while its source plays, and not once t
     }
 
     return error.TestExpectedSilence;
+}
+
+test "audio_stream: a listener refuses a latency too long for a send buffer to hold" {
+    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+    var listener: Listener = undefined;
+
+    try testing.expectError(error.LatencyTooLong, listener.init(&loopback, 45890, 12_000 * std.time.ns_per_s));
+}
+
+test "audio_stream: a member stays joined through a chunk that stalls part-way on the network" {
+    var runtime = try loaded();
+
+    var source: TestWireSource = undefined;
+    try source.open(&runtime);
+    defer source.close();
+
+    var member = try Member.init(&runtime, watched_output, source.clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &source.clock };
+    try watch(&member, &rendered);
+
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
+    try receiver.start("127.0.0.1", source.port());
+    defer receiver.stop();
+
+    try source.accept();
+    try untilSynced(&receiver);
+
+    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const at = source.clock.nowNs() + 800 * std.time.ns_per_ms;
+    var header: [audio_wire.chunk_header_bytes]u8 = undefined;
+
+    try source.write(audio_wire.chunkHeader(&header, at, silence.len));
+    try source.write(silence[0 .. silence.len / 2]);
+    sleep(300);
+    try source.write(silence[silence.len / 2 ..]);
+
+    try untilRendered(&rendered);
+
+    try testing.expectEqual(at, rendered.pts.load(.acquire));
+}
+
+test "audio_stream: a member drops a chunk that arrives after its play time, and keeps the smallest lead" {
+    var runtime = try loaded();
+
+    var source: TestWireSource = undefined;
+    try source.open(&runtime);
+    defer source.close();
+
+    var member = try Member.init(&runtime, watched_output, source.clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &source.clock };
+    try watch(&member, &rendered);
+
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
+    try receiver.start("127.0.0.1", source.port());
+    defer receiver.stop();
+
+    try source.accept();
+    try untilSynced(&receiver);
+
+    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const lead = 300 * std.time.ns_per_ms;
+    const now = source.clock.nowNs();
+    const on_time = now + lead;
+
+    try source.writeChunk(now - 100 * std.time.ns_per_ms, &silence);
+    try source.writeChunk(on_time, &silence);
+    try untilRendered(&rendered);
+
+    const smallest = receiver.smallest_lead_ns.load(.acquire);
+
+    try testing.expectEqual(on_time, rendered.pts.load(.acquire));
+    try testing.expectEqual(2, receiver.received.load(.acquire));
+    try testing.expectEqual(1, receiver.late.load(.acquire));
+    try testing.expect(smallest > 0 and smallest <= lead);
+}
+
+test "audio_stream: a member keeping up stays joined when one chunk holds more audio than the latency" {
+    var runtime = try loaded();
+    const latency = 100 * std.time.ns_per_ms;
+
+    var source: TestSource = undefined;
+    try source.init(&runtime, 8, latency);
+    defer source.deinit();
+
+    const tone = source.pipeline.child("tone") orelse return error.TestUnexpectedResult;
+    defer runtime.gstreamer.gst_object_unref(tone);
+    runtime.gstreamer.gst_util_set_object_arg(tone, "samplesperbuffer", "12000");
+
+    var member = try Member.init(&runtime, watched_output, source.clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &source.clock };
+    try watch(&member, &rendered);
+
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
+    try receiver.start("127.0.0.1", source.listener.port());
+    defer receiver.stop();
+
+    try untilJoined(&source, &receiver);
+    source.play();
+    try untilRendered(&rendered);
+
+    try testing.expectEqual(1, source.listener.memberCount());
+}
+
+test "audio_stream: a member is receiving until the end of the audio it holds, not just its start" {
+    var runtime = try loaded();
+
+    var source: TestWireSource = undefined;
+    try source.open(&runtime);
+    defer source.close();
+
+    var member = try Member.init(&runtime, watched_output, source.clock.system);
+    defer member.deinit();
+
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
+    try receiver.start("127.0.0.1", source.port());
+    defer receiver.stop();
+
+    try source.accept();
+    try untilSynced(&receiver);
+
+    const long: [bytes_per_second / 2]u8 = @splat(0);
+    const at = source.clock.nowNs() + 100 * std.time.ns_per_ms;
+
+    try source.writeChunk(at, &long);
+
+    sleepUntil(&source.clock, at + 200 * std.time.ns_per_ms);
+    try testing.expect(receiver.receiving());
+
+    sleepUntil(&source.clock, at + 600 * std.time.ns_per_ms);
+    try testing.expect(!receiver.receiving());
 }
 
 test "audio_stream: a member that stops reading is dropped without holding up the source" {

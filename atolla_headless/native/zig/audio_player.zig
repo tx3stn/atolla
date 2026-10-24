@@ -13,7 +13,6 @@ pub const max_events = 32;
 const default_device = "default";
 const silent_device = "none";
 const poll_interval_ns = gst.second / 10;
-const stream_latency_ns = gst.second;
 
 /// Part of the vocabulary `NativeAudioPlaybackEventSync.ts` parses. The fourth member,
 /// `unsupported`, stays with the mobile engines: nothing here can separate a bad container from
@@ -174,7 +173,6 @@ pub const Player = struct {
                 .io = io_context(),
                 .sync = sync,
                 .member = &self.member,
-                .latency_ns = latency_ns,
             },
             .clock = clock,
         };
@@ -523,7 +521,7 @@ var hosted: Hosted = .{
     .started = false,
 };
 
-export fn atolla_audio_start(device: [*:0]const u8) bool {
+export fn atolla_audio_start(device: [*:0]const u8, latency_ms: u32) bool {
     if (hosted.started) return true;
 
     hosted.runtime = gst.load() catch return false;
@@ -540,7 +538,7 @@ export fn atolla_audio_start(device: [*:0]const u8) bool {
         std.mem.span(device),
         hosted.clock.current(),
         hosted.clock.net,
-        stream_latency_ns,
+        @as(u64, latency_ms) * std.time.ns_per_ms,
     ) catch {
         hosted.clock.net.close();
         hosted.runtime.close();
@@ -700,6 +698,8 @@ const test_auth_header =
 ;
 
 const test_latency_ns = 100 * std.time.ns_per_ms;
+
+const scheduled_latency_ns = gst.second;
 
 fn silentPlayer(runtime: *gst.Gst, player: *Player) !void {
     const clock = try startedClock(runtime);
@@ -1026,7 +1026,7 @@ test "audio_player: holds a scheduled start at its position until its time, then
     const path = try writeTone(&tmp, &path_buffer);
 
     var player: Player = undefined;
-    try player.init(&runtime, silent_device, clock.system, clock.net, stream_latency_ns);
+    try player.init(&runtime, silent_device, clock.system, clock.net, scheduled_latency_ns);
     defer player.deinit();
 
     try player.configure(path, "track-scheduled", "");

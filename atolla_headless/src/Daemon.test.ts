@@ -24,6 +24,7 @@ const CONFIG = {
 	logLevel: 'info',
 	name: 'Kitchen',
 	port: 45889,
+	streamLatencyMs: 1000,
 } as const;
 
 const IDENTITY: PlayerIdentity = {
@@ -195,6 +196,32 @@ describe('startDaemon', () => {
 		});
 
 		expect(started).toEqual(['127.0.0.1:45890']);
+	});
+
+	it('starts the audio on the configured device with the configured stream latency', async () => {
+		const { log } = capture();
+		const started: Array<[string, number]> = [];
+
+		void startDaemon({
+			audio: {
+				...unavailableAudio(),
+				start: (device, streamLatencyMs) => {
+					started.push([device, streamLatencyMs]);
+					return false;
+				},
+			},
+			config: { ...CONFIG, audioDevice: 'hw:2,0', streamLatencyMs: 250 },
+			files: fakeFiles(),
+			httpServer: fakeHttpServer(),
+			identity: IDENTITY,
+			log,
+			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
+			now: () => 1758000000000,
+			randomBytes: () => new Uint8Array(0),
+		});
+
+		expect(started).toEqual([['hw:2,0', 250]]);
 	});
 
 	it('points the native side at the file the secrets store keeps the code in', async () => {

@@ -23,6 +23,7 @@ const CONFIG: PlayerConfig = {
 	logLevel: 'info',
 	name: 'Kitchen',
 	port: 45889,
+	streamLatencyMs: 250,
 };
 
 function context(argv: Array<string>) {

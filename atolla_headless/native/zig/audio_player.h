@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-bool atolla_audio_start(const char *device);
+bool atolla_audio_start(const char *device, uint32_t latency_ms);
 size_t atolla_audio_devices(unsigned char *out, size_t len);
 bool atolla_audio_configure(const char *source, const char *track_id, const char *auth_header);
 bool atolla_audio_configure_next(const char *source, const char *track_id, const char *auth_header);

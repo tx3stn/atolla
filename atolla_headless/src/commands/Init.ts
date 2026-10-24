@@ -7,6 +7,7 @@ import {
 	DEFAULT_DATA_DIR,
 	DEFAULT_LOG_LEVEL,
 	DEFAULT_PORT,
+	DEFAULT_STREAM_LATENCY_MS,
 	readLanguage,
 } from '../PlayerConfig';
 import type { Cmd, CommandContext } from './Command';
@@ -35,6 +36,7 @@ export const CmdInit = {
 			logLevel: DEFAULT_LOG_LEVEL,
 			name: args.value(FLAG_NAME) ?? '',
 			port: DEFAULT_PORT,
+			streamLatencyMs: DEFAULT_STREAM_LATENCY_MS,
 		};
 
 		// the language the operator just chose, so this invocation's own output honours it; without

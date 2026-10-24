@@ -41,13 +41,19 @@ public:
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
                                  const Valdi::StringBox device = callContext.getParameterAsString(0);
+                                 const double latencyMs = callContext.getParameterAsDouble(1);
                                  if (!callContext.getExceptionTracker()) {
                                      return Valdi::Value::undefined();
                                  }
 
+                                 if (latencyMs < 1 || latencyMs > UINT32_MAX) {
+                                     return Valdi::Value(false);
+                                 }
+
                                  const std::string copied(device.toStringView());
 
-                                 return Valdi::Value(atolla_audio_start(copied.c_str()));
+                                 return Valdi::Value(atolla_audio_start(
+                                     copied.c_str(), static_cast<uint32_t>(latencyMs)));
                              })))
             .setMapValue("atollaAudioConfigure",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(

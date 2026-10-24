@@ -79,7 +79,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const clock = makeClock({ audio: deps.audio, version });
 	const stream = makeAudioStream({ audio: deps.audio, version });
 
-	if (deps.audio.start(deps.config.audioDevice)) {
+	if (deps.audio.start(deps.config.audioDevice, deps.config.streamLatencyMs)) {
 		audioPlayer.start();
 		// A queue restored before its owner's credential arrives is holding its track, and the push is
 		// the only thing that can tell it to look again.

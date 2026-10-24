@@ -10,6 +10,7 @@ import {
 	DEFAULT_DATA_DIR,
 	DEFAULT_LOG_LEVEL,
 	DEFAULT_PORT,
+	DEFAULT_STREAM_LATENCY_MS,
 	makeConfigStore,
 	type PlayerConfig,
 	readLogLevel,
@@ -28,6 +29,7 @@ const CONFIG: PlayerConfig = {
 	logLevel: DEFAULT_LOG_LEVEL,
 	name: 'kitchen',
 	port: DEFAULT_PORT,
+	streamLatencyMs: DEFAULT_STREAM_LATENCY_MS,
 };
 
 function fakeFiles(initial?: string) {
@@ -70,7 +72,7 @@ describe('makeConfigStore read', () => {
 
 	it('reads the stored daemon fields', () => {
 		const { files } = fakeFiles(
-			'{"audioDevice":"hw:2,0","audioPort":45991,"clockPort":45990,"logLevel":"debug","name":"kitchen","port":45890}',
+			'{"audioDevice":"hw:2,0","audioPort":45991,"clockPort":45990,"logLevel":"debug","name":"kitchen","port":45890,"streamLatencyMs":250}',
 		);
 
 		expect(makeConfigStore(files, PATH).read()).toEqual({
@@ -80,6 +82,7 @@ describe('makeConfigStore read', () => {
 			clockPort: 45990,
 			logLevel: 'debug',
 			port: 45890,
+			streamLatencyMs: 250,
 		});
 	});
 
@@ -110,6 +113,14 @@ describe('makeConfigStore read', () => {
 			const { files } = fakeFiles(`{"audioPort":${port},"name":"kitchen"}`);
 
 			expect(makeConfigStore(files, PATH).read()?.audioPort).toBe(DEFAULT_AUDIO_PORT);
+		}
+	});
+
+	it('falls back on a stream latency that is not a whole number of milliseconds above zero', () => {
+		for (const latency of ['"250"', '250.5', '0', '-250']) {
+			const { files } = fakeFiles(`{"name":"kitchen","streamLatencyMs":${latency}}`);
+
+			expect(makeConfigStore(files, PATH).read()?.streamLatencyMs).toBe(DEFAULT_STREAM_LATENCY_MS);
 		}
 	});
 
