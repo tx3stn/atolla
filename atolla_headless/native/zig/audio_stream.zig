@@ -72,6 +72,20 @@ pub const Member = struct {
         runtime.gstreamer.gst_object_unref(self.source);
     }
 
+    pub fn flush(self: *const Member) void {
+        const runtime = self.pipeline.gst;
+
+        if (runtime.gstreamer.gst_event_new_flush_start()) |event| {
+            _ = runtime.gstreamer.gst_element_send_event(self.source, event);
+        }
+
+        if (runtime.gstreamer.gst_event_new_flush_stop(0)) |event| {
+            _ = runtime.gstreamer.gst_element_send_event(self.source, event);
+        }
+
+        _ = self.pipeline.setState(.playing);
+    }
+
     pub fn play(self: *const Member, play_at_ns: u64, bytes: []const u8) bool {
         const runtime = self.pipeline.gst;
         const buffer = runtime.gstreamer.gst_buffer_new_allocate(null, bytes.len, null) orelse {
@@ -86,6 +100,7 @@ pub const Member = struct {
     }
 
     pub fn playOn(self: *const Member, clock: *gst.Object) void {
+        self.flush();
         _ = self.pipeline.setState(.paused);
         self.pipeline.schedule(clock, 0);
         _ = self.pipeline.setState(.playing);
@@ -128,6 +143,13 @@ pub const Sender = struct {
         runtime.gstreamer.gst_util_set_object_arg(sink, "emit-signals", "true");
 
         _ = runtime.gobject.g_signal_connect_data(sink, "new-sample", @ptrCast(&onNewSample), self, null, 0);
+    }
+
+    pub fn flush(self: *const Sender) void {
+        if (self.joined.load(.acquire)) return;
+
+        self.member.flush();
+        if (self.listener.load(.acquire)) |members| members.flush();
     }
 
     fn send(self: *const Sender, sink: *gst.Object) void {
@@ -220,6 +242,12 @@ pub const Listener = struct {
         self.server.deinit(self.io);
     }
 
+    pub fn flush(self: *Listener) void {
+        var header_buffer: [audio_wire.header_bytes]u8 = undefined;
+
+        self.broadcast(audio_wire.flushHeader(&header_buffer), &.{});
+    }
+
     pub fn memberCount(self: *Listener) usize {
         self.mutex.lockUncancelable(self.io);
         defer self.mutex.unlock(self.io);
@@ -233,24 +261,8 @@ pub const Listener = struct {
 
     pub fn send(self: *Listener, play_at_ns: u64, bytes: []const u8) void {
         var header_buffer: [audio_wire.chunk_header_bytes]u8 = undefined;
-        const header = audio_wire.chunkHeader(&header_buffer, play_at_ns, bytes.len);
 
-        self.mutex.lockUncancelable(self.io);
-        defer self.mutex.unlock(self.io);
-
-        var index: usize = 0;
-        while (index < self.members.items.len) {
-            const member = self.members.items[index];
-
-            if (sendWhole(member.socket.handle, header, bytes)) {
-                index += 1;
-                continue;
-            }
-
-            log.warn("audio", "dropped a member that fell behind", .{});
-            member.close(self.io);
-            _ = self.members.swapRemove(index);
-        }
+        self.broadcast(audio_wire.chunkHeader(&header_buffer, play_at_ns, bytes.len), bytes);
     }
 
     fn admit(self: *Listener, stream: net.Stream) !void {
@@ -275,6 +287,25 @@ pub const Listener = struct {
         defer self.mutex.unlock(self.io);
 
         try self.members.append(std.heap.c_allocator, stream);
+    }
+
+    fn broadcast(self: *Listener, header: []const u8, bytes: []const u8) void {
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
+
+        var index: usize = 0;
+        while (index < self.members.items.len) {
+            const member = self.members.items[index];
+
+            if (sendWhole(member.socket.handle, header, bytes)) {
+                index += 1;
+                continue;
+            }
+
+            log.warn("audio", "dropped a member that fell behind", .{});
+            member.close(self.io);
+            _ = self.members.swapRemove(index);
+        }
     }
 
     fn run(self: *Listener) void {
@@ -433,7 +464,7 @@ pub const Receiver = struct {
 
         const hello = switch (audio_wire.read(&reader.interface, &chunk_buffer) catch return) {
             .hello => |given| given,
-            .chunk => return,
+            .chunk, .flush => return,
         };
 
         if (hello.version != audio_wire.version or
@@ -470,6 +501,10 @@ pub const Receiver = struct {
                         self.report();
                         tally_started_ns = now_ns;
                     }
+                },
+                .flush => {
+                    self.member.flush();
+                    self.play_until_ns.store(0, .release);
                 },
             }
         }
@@ -746,6 +781,31 @@ test "audio_stream: a member holds a chunk until the time it is stamped with" {
     try testing.expect(rendered.at_ns.load(.acquire) < at + 200 * std.time.ns_per_ms);
 }
 
+test "audio_stream: a member moved to another clock drops what it held for the old one" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &clock };
+    try watch(&member, &rendered);
+
+    const silence: [bytes_per_second / 10]u8 = @splat(0);
+
+    try testing.expect(member.play(clock.nowNs() + 60 * std.time.ns_per_s, &silence));
+    sleep(100);
+
+    member.playOn(clock.system);
+
+    const at = clock.nowNs() + 200 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(at, &silence));
+    try untilRendered(&rendered);
+
+    try testing.expectEqual(at, rendered.pts.load(.acquire));
+}
+
 test "audio_stream: the sender stamps each chunk to be heard the latency after it is decoded" {
     var runtime = try loaded();
     const clock = try startedClock(&runtime);
@@ -949,6 +1009,78 @@ test "audio_stream: a member keeping up stays joined when one chunk holds more a
     try untilRendered(&rendered);
 
     try testing.expectEqual(1, source.listener.memberCount());
+}
+
+test "audio_stream: a member drops what it holds when its source flushes" {
+    var runtime = try loaded();
+
+    var source: TestWireSource = undefined;
+    try source.open(&runtime);
+    defer source.close();
+
+    var member = try Member.init(&runtime, watched_output, source.clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &source.clock };
+    try watch(&member, &rendered);
+
+    var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
+    try receiver.start("127.0.0.1", source.port());
+    defer receiver.stop();
+
+    try source.accept();
+    try untilSynced(&receiver);
+
+    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    var header: [audio_wire.header_bytes]u8 = undefined;
+
+    try source.writeChunk(source.clock.nowNs() + 500 * std.time.ns_per_ms, &silence);
+    try source.write(audio_wire.flushHeader(&header));
+
+    for (0..20) |_| {
+        if (!receiver.receiving()) break;
+
+        sleep(10);
+    }
+
+    try testing.expect(!receiver.receiving());
+
+    const at = source.clock.nowNs() + 300 * std.time.ns_per_ms;
+
+    try source.writeChunk(at, &silence);
+    try untilRendered(&rendered);
+
+    try testing.expectEqual(at, rendered.pts.load(.acquire));
+}
+
+test "audio_stream: a source's flush reaches its members" {
+    var runtime = try loaded();
+
+    var source: TestSource = undefined;
+    try source.init(&runtime, 20, 300 * std.time.ns_per_ms);
+    defer source.deinit();
+
+    const address: net.IpAddress = .{ .ip4 = .loopback(source.listener.port()) };
+    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    defer stream.close(io_context());
+
+    var read_buffer: [64]u8 = undefined;
+    var reader = stream.reader(io_context(), &read_buffer);
+    var chunk_buffer: [16]u8 = undefined;
+
+    const hello = try audio_wire.read(&reader.interface, &chunk_buffer);
+
+    try testing.expectEqual(audio_wire.Kind.hello, std.meta.activeTag(hello));
+
+    for (0..100) |_| {
+        if (source.listener.memberCount() == 1) break;
+
+        sleep(50);
+    }
+
+    source.sender.flush();
+
+    try testing.expectEqual(audio_wire.Frame.flush, try audio_wire.read(&reader.interface, &chunk_buffer));
 }
 
 test "audio_stream: a member is receiving until the end of the audio it holds, not just its start" {

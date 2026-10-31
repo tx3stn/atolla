@@ -7,6 +7,8 @@ const wav = @import("wav.zig");
 
 pub const Error = error{ LibraryNotFound, SymbolNotFound };
 
+pub const Event = opaque {};
+
 pub const Object = opaque {};
 
 pub const Sample = opaque {};
@@ -131,9 +133,12 @@ const Gstreamer = struct {
     gst_element_link: *const fn (*Object, *Object) callconv(.c) c_int,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
     gst_element_seek_simple: *const fn (*Object, Format, c_uint, i64) callconv(.c) c_int,
+    gst_element_send_event: *const fn (*Object, *Event) callconv(.c) c_int,
     gst_element_set_base_time: *const fn (*Object, u64) callconv(.c) void,
     gst_element_set_start_time: *const fn (*Object, u64) callconv(.c) void,
     gst_element_set_state: *const fn (*Object, State) callconv(.c) StateChange,
+    gst_event_new_flush_start: *const fn () callconv(.c) ?*Event,
+    gst_event_new_flush_stop: *const fn (c_int) callconv(.c) ?*Event,
     gst_filename_to_uri: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?[*:0]u8,
     gst_init: *const fn (?*c_int, ?*?[*][*:0]u8) callconv(.c) void,
     gst_message_parse_error: *const fn (*Message, *?*GError, *?[*:0]u8) callconv(.c) void,

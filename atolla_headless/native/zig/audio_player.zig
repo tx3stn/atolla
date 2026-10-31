@@ -119,6 +119,8 @@ pub const Player = struct {
     clock: *gst.Object,
     playing: bool = false,
     scheduled: bool = false,
+    ended: std.atomic.Value(bool) = .init(false),
+    held_position_ns: ?i64 = null,
 
     /// Read by the bus thread to tell a network failure from a missing file.
     remote: std.atomic.Value(bool) = .init(false),
@@ -203,6 +205,9 @@ pub const Player = struct {
     pub fn clear(self: *Player) void {
         _ = self.pipeline.setState(.null);
         self.playing = false;
+        self.ended.store(false, .release);
+        self.held_position_ns = null;
+        self.sender.flush();
 
         const io = io_context();
 
@@ -243,7 +248,10 @@ pub const Player = struct {
 
         _ = self.pipeline.setState(.null);
         self.playing = false;
+        self.ended.store(false, .release);
+        self.held_position_ns = null;
         self.unschedule();
+        self.sender.flush();
 
         // Both have to be set before the state change below, which is what builds the source.
         self.source_setup.setHeader(if (remote) auth_header else "");
@@ -351,7 +359,7 @@ pub const Player = struct {
     }
 
     pub fn positionMs(self: *const Player) i64 {
-        const decoded = self.pipeline.position() orelse return 0;
+        const decoded = self.pipeline.position() orelse self.held_position_ns orelse return 0;
         const latency: i64 = @intCast(self.sender.latency_ns);
         const heard = if (self.playing) decoded - latency else decoded;
 
@@ -364,8 +372,16 @@ pub const Player = struct {
 
     pub fn seekToMs(self: *Player, position_ms: i64) bool {
         self.unschedule();
+        self.ended.store(false, .release);
+        self.held_position_ns = null;
 
-        return self.pipeline.seek(position_ms * std.time.ns_per_ms);
+        if (self.playing) _ = self.pipeline.setState(.paused);
+        const sought = self.pipeline.seek(position_ms * std.time.ns_per_ms);
+        self.sender.flush();
+
+        if (self.playing) _ = self.pipeline.setState(.playing);
+
+        return sought;
     }
 
     pub fn serve(self: *Player, address: *const std.Io.net.IpAddress, clock_port: u16) !u16 {
@@ -388,17 +404,23 @@ pub const Player = struct {
             if (self.pipeline.position()) |position| _ = self.pipeline.seek(position);
         }
 
+        if (!playing and self.playing and !self.ended.load(.acquire)) return self.pauseWhereHeard();
+
         _ = self.pipeline.setState(if (playing) .playing else .paused);
         self.playing = playing;
+        if (playing) self.held_position_ns = null;
     }
 
     pub fn startAt(self: *Player, position_ms: i64, at_ns: u64) bool {
         _ = self.pipeline.setState(.paused);
         self.playing = false;
+        self.ended.store(false, .release);
+        self.held_position_ns = null;
         self.pipeline.schedule(self.clock, at_ns -| self.sender.latency_ns);
         self.scheduled = true;
 
         if (!self.pipeline.seek(position_ms * std.time.ns_per_ms)) return false;
+        self.sender.flush();
 
         _ = self.pipeline.setState(.playing);
         self.playing = true;
@@ -418,7 +440,10 @@ pub const Player = struct {
 
             switch (self.pipeline.wait(poll_interval_ns, &message)) {
                 .timeout => continue,
-                .ended => self.events.push("completed:{s}", .{self.currentTrackId(&id)}),
+                .ended => {
+                    self.ended.store(true, .release);
+                    self.events.push("completed:{s}", .{self.currentTrackId(&id)});
+                },
                 .failed => |text| self.events.push("error:{s}:{s}:{s}", .{
                     @tagName(self.kind()),
                     self.failedTrackId(&id),
@@ -452,6 +477,23 @@ pub const Player = struct {
     /// exception: that one keeps its domain and its code.
     fn kind(self: *const Player) Kind {
         return if (self.remote.load(.acquire)) .network else .unknown;
+    }
+
+    fn pauseWhereHeard(self: *Player) void {
+        const decoded = self.pipeline.position();
+
+        _ = self.pipeline.setState(.paused);
+        self.playing = false;
+
+        if (decoded) |position| {
+            const latency: i64 = @intCast(self.sender.latency_ns);
+            const heard = @max(position - latency, 0);
+
+            _ = self.pipeline.seek(heard);
+            self.held_position_ns = heard;
+        }
+
+        self.sender.flush();
     }
 
     fn startPending(self: *Player) void {
@@ -700,6 +742,8 @@ const test_auth_header =
 const test_latency_ns = 100 * std.time.ns_per_ms;
 
 const scheduled_latency_ns = gst.second;
+
+const long_latency_ns = gst.second;
 
 fn silentPlayer(runtime: *gst.Gst, player: *Player) !void {
     const clock = try startedClock(runtime);
@@ -1164,11 +1208,11 @@ test "audio_player: decodes and plays out on the clock it is told to play on" {
     try testing.expectEqual(follower.current(), try pipelineClock(&player.member.pipeline));
 }
 
-fn servingSource(runtime: *gst.Gst, source: *Player) !u16 {
+fn servingSource(runtime: *gst.Gst, source: *Player, latency_ns: u64) !u16 {
     var clock = try startedClock(runtime);
     const clock_port = clock.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
 
-    try source.init(runtime, silent_device, clock.system, clock.net, test_latency_ns);
+    try source.init(runtime, silent_device, clock.system, clock.net, latency_ns);
 
     const loopback: std.Io.net.IpAddress = .{ .ip4 = .loopback(0) };
 
@@ -1189,7 +1233,7 @@ test "audio_player: a speaker that joins a source stops its own playback" {
     var runtime = try loaded();
 
     var source: Player = undefined;
-    const port = try servingSource(&runtime, &source);
+    const port = try servingSource(&runtime, &source, test_latency_ns);
     defer source.deinit();
 
     var tmp = testing.tmpDir(.{});
@@ -1223,7 +1267,7 @@ test "audio_player: a joined speaker plays out on its source's clock, and on its
     var runtime = try loaded();
 
     var source: Player = undefined;
-    const port = try servingSource(&runtime, &source);
+    const port = try servingSource(&runtime, &source, test_latency_ns);
     defer source.deinit();
 
     var player: Player = undefined;
@@ -1238,6 +1282,106 @@ test "audio_player: a joined speaker plays out on its source's clock, and on its
     player.leave();
 
     try testing.expectEqual(player.clock, try pipelineClock(&player.member.pipeline));
+}
+
+fn untilReceiving(player: *Player) !void {
+    try until(player, struct {
+        fn receiving(current: *Player) bool {
+            return current.receiving();
+        }
+    }.receiving);
+}
+
+test "audio_player: a pause keeps the position that was heard" {
+    var runtime = try loaded();
+    defer runtime.close();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-paused", "");
+    player.setPlaying(true);
+
+    try until(&player, struct {
+        fn started(current: *Player) bool {
+            return current.positionMs() > 500;
+        }
+    }.started);
+
+    const heard = player.positionMs();
+    player.setPlaying(false);
+
+    try testing.expect(@abs(player.positionMs() - heard) < 50);
+}
+
+test "audio_player: a pause stops its members at once" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source, long_latency_ns);
+    defer source.deinit();
+
+    var member: Player = undefined;
+    try silentPlayer(&runtime, &member);
+    defer member.deinit();
+
+    try member.join("127.0.0.1", port);
+    try untilFollowing(&member);
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    try source.configure(path, "track-paused", "");
+    source.setPlaying(true);
+    try untilReceiving(&member);
+
+    source.setPlaying(false);
+    io_context().sleep(.fromMilliseconds(200), .awake) catch {};
+
+    try testing.expect(!member.receiving());
+}
+
+test "audio_player: a source that reached its end lets its members play out what they hold" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source, long_latency_ns);
+    defer source.deinit();
+
+    var member: Player = undefined;
+    try silentPlayer(&runtime, &member);
+    defer member.deinit();
+
+    try member.join("127.0.0.1", port);
+    try untilFollowing(&member);
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    try source.configure(path, "track-last", "");
+    source.setPlaying(true);
+    try untilReceiving(&member);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    try testing.expectEqualStrings("completed:track-last", try nextEvent(&source, &buffer));
+
+    source.setPlaying(false);
+    io_context().sleep(.fromMilliseconds(200), .awake) catch {};
+
+    try testing.expect(member.receiving());
 }
 
 test "audio_player: only an http source counts as remote" {

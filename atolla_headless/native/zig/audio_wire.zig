@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const version: u16 = 1;
+pub const version: u16 = 2;
 
 pub const header_bytes = 1 + 4;
 
@@ -11,6 +11,7 @@ const hello_payload_bytes = 2 + 2 + 4 + 2 + 2;
 pub const Kind = enum(u8) {
     hello = 1,
     chunk = 2,
+    flush = 3,
 };
 
 pub const Hello = struct {
@@ -29,6 +30,7 @@ pub const Chunk = struct {
 pub const Frame = union(Kind) {
     hello: Hello,
     chunk: Chunk,
+    flush: void,
 };
 
 pub const ReadError = std.Io.Reader.Error || error{Malformed};
@@ -37,6 +39,13 @@ pub fn chunkHeader(buffer: *[chunk_header_bytes]u8, play_at_ns: u64, bytes_len: 
     buffer[0] = @intFromEnum(Kind.chunk);
     std.mem.writeInt(u32, buffer[1..5], @intCast(8 + bytes_len), .big);
     std.mem.writeInt(u64, buffer[5..13], play_at_ns, .big);
+
+    return buffer;
+}
+
+pub fn flushHeader(buffer: *[header_bytes]u8) []const u8 {
+    buffer[0] = @intFromEnum(Kind.flush);
+    std.mem.writeInt(u32, buffer[1..5], 0, .big);
 
     return buffer;
 }
@@ -76,6 +85,11 @@ pub fn read(reader: *std.Io.Reader, buffer: []u8) ReadError!Frame {
             try reader.readSliceAll(bytes);
 
             return .{ .chunk = .{ .play_at_ns = play_at_ns, .bytes = bytes } };
+        },
+        .flush => {
+            if (length != 0) return error.Malformed;
+
+            return .flush;
         },
     }
 }
@@ -132,6 +146,21 @@ test "audio_wire: reads frames one after another" {
     try testing.expectEqual(Kind.hello, std.meta.activeTag(try read(&reader, &buffer)));
     try testing.expectEqualStrings("ab", (try read(&reader, &buffer)).chunk.bytes);
     try testing.expectEqualStrings("cd", (try read(&reader, &buffer)).chunk.bytes);
+}
+
+test "audio_wire: a flush reads back as a flush" {
+    var header: [header_bytes]u8 = undefined;
+    var reader = std.Io.Reader.fixed(flushHeader(&header));
+    var buffer: [16]u8 = undefined;
+
+    try testing.expectEqual(Frame.flush, try read(&reader, &buffer));
+}
+
+test "audio_wire: refuses a flush that carries a payload" {
+    var reader = std.Io.Reader.fixed(&.{ 3, 0, 0, 0, 1, 0 });
+    var buffer: [16]u8 = undefined;
+
+    try testing.expectError(error.Malformed, read(&reader, &buffer));
 }
 
 test "audio_wire: refuses a chunk longer than the buffer it would be read into" {

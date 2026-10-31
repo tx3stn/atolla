@@ -11,7 +11,11 @@ import { FetchTransport } from './transport';
 const KITCHEN = { audioPort: 45973, clockPort: 45972, name: 'Kitchen', port: 45971 };
 const LOUNGE = { audioPort: 45976, clockPort: 45975, name: 'Lounge', port: 45974 };
 
-const TRACKS: Array<Track> = [{ duration: 3, id: 'first', name: 'first' }];
+const FIRST: Track = { duration: 3, id: 'first', name: 'first' };
+const LONG: Track = { duration: 10, id: 'long', name: 'long' };
+const TRACKS: Array<Track> = [FIRST, LONG];
+
+const STREAM_LATENCY_MS = 3000;
 
 interface Speaker {
 	client: PlayerClient;
@@ -46,6 +50,7 @@ describe('joining a source', () => {
 				language: 'en',
 				name: speaker.name,
 				port: speaker.port,
+				streamLatencyMs: STREAM_LATENCY_MS,
 			}),
 		);
 
@@ -103,19 +108,21 @@ describe('joining a source', () => {
 		rmSync(dir, { force: true, recursive: true });
 	});
 
-	it('receives audio while its source plays, and stops once the source has played its queue', async () => {
+	it('receives audio while its source plays, and plays out what it holds once the source has played its queue', async () => {
 		await joinKitchen();
 
-		await kitchen.client.command(kitchen.token, { command: 'setQueue', tracks: TRACKS });
+		await kitchen.client.command(kitchen.token, { command: 'setQueue', tracks: [FIRST] });
 
 		await until(lounge, (state) => state.members[0].source?.receiving === true, 'audio to arrive');
 		await until(kitchen, (state) => !state.playback.isPlaying, 'the kitchen to finish');
+		const finished = await snapshot(lounge);
 		const after = await until(
 			lounge,
 			(state) => state.members[0].source?.receiving === false,
 			'the audio to run out',
 		);
 
+		expect(finished.members[0].source?.receiving).toBe(true);
 		expect(after.members[0].source).toEqual({
 			host: '127.0.0.1',
 			port: KITCHEN.audioPort,
@@ -123,8 +130,24 @@ describe('joining a source', () => {
 		});
 	});
 
+	it('stops receiving at once when its source pauses', async () => {
+		await joinKitchen();
+		await kitchen.client.command(kitchen.token, { command: 'setQueue', tracks: [LONG] });
+		await until(lounge, (state) => state.members[0].source?.receiving === true, 'audio to arrive');
+
+		const pausedAt = Date.now();
+		await kitchen.client.command(kitchen.token, { command: 'pause' });
+		await until(
+			lounge,
+			(state) => state.members[0].source?.receiving === false,
+			'the audio to stop',
+		);
+
+		expect(Date.now() - pausedAt).toBeLessThan(STREAM_LATENCY_MS / 2);
+	});
+
 	it('stops playing its own queue when it joins a source', async () => {
-		await lounge.client.command(lounge.token, { command: 'setQueue', tracks: TRACKS });
+		await lounge.client.command(lounge.token, { command: 'setQueue', tracks: [FIRST] });
 		await until(lounge, (state) => state.playback.isPlaying, 'the lounge to play');
 
 		await joinKitchen();
