@@ -1,6 +1,6 @@
 # Must track MODULE.bazel's VALDI_REV — a stale registry against a different tree gives confusing
 # module-resolution errors rather than an obvious mismatch.
-common --registry=https://raw.githubusercontent.com/tx3stn/Valdi/56cd737a08664a72e3bd9bcf8054ead80a10c282/registry
+common --registry=https://raw.githubusercontent.com/Snapchat/Valdi/4aa98f01a46e65ead03a8fc8cc1c21e04f2a465d/registry
 common --registry=https://bcr.bazel.build
 
 common --enable_platform_specific_config

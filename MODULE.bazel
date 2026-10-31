@@ -4,33 +4,20 @@ module(
 )
 
 # -- Valdi framework (https://github.com/Snapchat/Valdi) ---------------------
-# Pinned to the branch of https://github.com/Snapchat/Valdi/pull/179, which adds the HTTP request
-# manager a valdi_cli_application needs (the headless player cannot reach Jellyfin without it).
-# The branch is rebased onto upstream main, so this tree is upstream plus those commits. When the PR
-# merges this goes back to Snapchat/Valdi at the merge SHA, here and in .bazelrc's registry URL.
-VALDI_REV = "56cd737a08664a72e3bd9bcf8054ead80a10c282"
+VALDI_REV = "4aa98f01a46e65ead03a8fc8cc1c21e04f2a465d"
 
-VALDI_URL = "https://github.com/tx3stn/Valdi/archive/" + VALDI_REV + ".tar.gz"
+VALDI_URL = "https://github.com/Snapchat/Valdi/archive/" + VALDI_REV + ".tar.gz"
 
 VALDI_PREFIX = "Valdi-" + VALDI_REV
 
 # Every Valdi module below is a slice of the same release tarball, so they all
 # share one integrity hash. Pinning it makes the download reproducible.
-VALDI_INTEGRITY = "sha256-iSUvgmyhHe+yIf4tZ+WbvU1VO8eO3FNsx+ITgey7t9w="
+VALDI_INTEGRITY = "sha256-A71uE5IikiOd8/9NGFv4jW3GkI8H5e9cx7HqY2Ua74E="
 
 bazel_dep(name = "valdi", version = "0.1")
 archive_override(
     module_name = "valdi",
     integrity = VALDI_INTEGRITY,
-    # Both are the upstream fix verbatim, so each goes when its PR lands.
-    patches = [
-        # Snapchat/Valdi#186: DataView.buffer widened to ArrayBufferLike in TypeScript 5.7, and
-        # Valdi typechecks itself at 5.3.3, so only a consumer on a newer TypeScript sees it.
-        "//patches/valdi:buffer_arraybuffer.patch",
-        # Snapchat/Valdi#187: createDirectorySync reports success without creating the directory
-        # wherever a failed stat() leaves st_mode dirty, as docker's amd64 emulation does.
-        "//patches/valdi:filestat_ignores_invalid_stat.patch",
-    ],
     strip_prefix = VALDI_PREFIX,
     urls = [VALDI_URL],
 )
