@@ -335,6 +335,31 @@ describe('SpeakerOutput', () => {
 		expect(commands()).toEqual([{ command: 'addToQueue', tracks: [track2], userId: 'user-1' }]);
 	});
 
+	it('leaves the speaker to finish the queue by itself', async () => {
+		const { clear, commands, playbackStore } = await playingThroughKitchen();
+		playbackStore.jumpToIndex(2);
+		await settle();
+		clear();
+
+		playbackStore.advancePastTrackId(track3.id, PlayheadMoves.finished);
+		await settle();
+
+		expect(commands()).toEqual([]);
+	});
+
+	it('still pauses when the user pauses on the last track', async () => {
+		const { clear, commands, playbackStore } = await playingThroughKitchen();
+		playbackStore.jumpToIndex(2);
+		playbackStore.updateProgress(30);
+		await settle();
+		clear();
+
+		playbackStore.playPause();
+		await settle();
+
+		expect(commands()).toEqual([{ command: 'pause' }]);
+	});
+
 	it('keeps sending after a command fails', async () => {
 		const { commands, playbackStore } = await playingThroughKitchen({ refusing: true });
 

@@ -133,7 +133,9 @@ export class SpeakerOutput {
 		}
 
 		if (store.isPlaying !== speaker.isPlaying) {
-			this.send(speaker, { command: store.isPlaying ? 'play' : 'pause' });
+			if (store.isPlaying || !this.queueRanOut()) {
+				this.send(speaker, { command: store.isPlaying ? 'play' : 'pause' });
+			}
 			speaker.isPlaying = store.isPlaying;
 		}
 
@@ -175,6 +177,13 @@ export class SpeakerOutput {
 	private owner(): { userId?: string } {
 		const userId = this.options.userId();
 		return userId === '' ? {} : { userId };
+	}
+
+	private queueRanOut(): boolean {
+		const store = this.options.playbackStore;
+		const track = store.track;
+
+		return store.nextTrack === null && track !== null && store.progressSeconds >= track.duration;
 	}
 
 	private release(speaker: Speaker): void {
