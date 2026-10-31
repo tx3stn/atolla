@@ -2,6 +2,7 @@ ignore-paths:
   - bazel-out
   - bazel-atolla
   - bazel-bin
+  - build/wda
   - generated
   - node_modules
   - ".git"

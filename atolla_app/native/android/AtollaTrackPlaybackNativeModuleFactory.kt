@@ -2193,7 +2193,7 @@ object AtollaTrackPlaybackMediaSession {
 						context,
 						10,
 						launchIntent,
-						pendingIntentFlags(),
+						PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
 					)
 				}
 
@@ -2298,7 +2298,12 @@ object AtollaTrackPlaybackMediaSession {
 
 	private fun actionPendingIntent(context: Context, action: String, requestCode: Int): PendingIntent {
 		val intent = Intent(context, AtollaTrackPlaybackActionReceiver::class.java).setAction(action)
-		return PendingIntent.getBroadcast(context, requestCode, intent, pendingIntentFlags())
+		return PendingIntent.getBroadcast(
+			context,
+			requestCode,
+			intent,
+			PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+		)
 	}
 
 	private fun buildNotificationBuilder(context: Context): Notification.Builder {
@@ -2326,11 +2331,6 @@ object AtollaTrackPlaybackMediaSession {
 
 		@Suppress("DEPRECATION")
 		return Notification.Action.Builder(iconResource, title, pendingIntent).build()
-	}
-
-	private fun pendingIntentFlags(): Int {
-		val mutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-		return PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag
 	}
 
 	private fun cancelNotification() {
