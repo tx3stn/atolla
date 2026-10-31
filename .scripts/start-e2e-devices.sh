@@ -227,7 +227,7 @@ download_wda() {
 	local zip
 	zip=$(mktemp)
 	curl -fsSL -o "$zip" \
-		"https://github.com/appium/WebDriverAgent/releases/download/v${WDA_VERSION}/WebDriverAgentRunner-Build-Sim-$(uname -m).zip"
+		"https://github.com/appium/appium-ios/releases/download/appium-webdriveragent@${WDA_VERSION}/WebDriverAgentRunner-Build-Sim-$(uname -m).zip"
 	mkdir -p "$WDA_DIR"
 	unzip -q "$zip" -d "$WDA_DIR"
 	rm -f "$zip"
