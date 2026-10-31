@@ -17,6 +17,9 @@
 		"ignoreUnknown": true,
 		"includes": [
 			"**",
+			"!**/*.md",
+			"!**/*.yaml",
+			"!**/*.yml",
 			"!**/assets",
 			"!atolla_sync/src/api/generated.ts",
 			"!tools/mock-server/spec",
