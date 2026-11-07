@@ -25,30 +25,21 @@ const TRACKS = [track('t1'), track('t2'), track('t3')];
 function fixture(): CommandDeps & {
 	followed: Array<ClockTarget | null>;
 	joined: Array<SourceTarget | null>;
-	startedAt: Array<number | undefined>;
 } {
 	const playback = new PlaybackStore();
 	const version = makeStateVersion();
 	const followed: Array<ClockTarget | null> = [];
 	const joined: Array<SourceTarget | null> = [];
-	const startedAt: Array<number | undefined> = [];
 
 	playback.subscribe(() => version.bump());
 
 	return {
-		audioPlayer: {
-			startingAt: (atNs, change) => {
-				startedAt.push(atNs);
-				change();
-			},
-		},
 		clock: { follow: (target) => followed.push(target) },
 		followed,
 		joined,
 		playback,
 		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 		restored: Promise.resolve(),
-		startedAt,
 		stream: { join: (target) => joined.push(target) },
 		version,
 	};
@@ -209,21 +200,6 @@ describe('handleCommand', () => {
 		expect(deps.playback.isPlaying).toBe(false);
 	});
 
-	it('hands the audio a play, a seek and a new queue with the time each is to be heard', async () => {
-		const deps = fixture();
-
-		await send(deps, { command: 'setQueue', startAtNs: 1_000, tracks: TRACKS });
-		await send(deps, { command: 'pause' });
-		await send(deps, { command: 'play', startAtNs: 2_000 });
-		await send(deps, { command: 'seek', positionMs: 91234, startAtNs: 3_000 });
-		await send(deps, { command: 'play' });
-
-		expect(deps.startedAt).toEqual([1_000, 2_000, 3_000, undefined]);
-		expect(deps.playback.tracks).toHaveLength(3);
-		expect(deps.playback.isPlaying).toBe(true);
-		expect(deps.playback.progressSeconds).toBeCloseTo(91.234, 3);
-	});
-
 	it('applies a queue command whose guard still matches', async () => {
 		const deps = fixture();
 		await queued(deps);
@@ -272,7 +248,6 @@ describe('handleCommand', () => {
 
 		const answered = handleCommand(
 			{
-				audioPlayer: { startingAt: (_atNs, change) => change() },
 				clock: { follow: () => {} },
 				playback,
 				queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),

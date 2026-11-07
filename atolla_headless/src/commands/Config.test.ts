@@ -52,7 +52,6 @@ function context(argv: Array<string>) {
 				serveStream: () => true,
 				setPlaying: () => {},
 				start: () => true,
-				startAt: () => true,
 			},
 			audioDevices: () => [],
 			config: {

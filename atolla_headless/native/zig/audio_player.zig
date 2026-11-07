@@ -120,7 +120,6 @@ pub const Player = struct {
     receiver: audio_stream.Receiver,
     clock: *gst.Object,
     playing: bool = false,
-    scheduled: bool = false,
     ended: std.atomic.Value(bool) = .init(false),
     held_position_ns: ?i64 = null,
 
@@ -252,7 +251,6 @@ pub const Player = struct {
         self.playing = false;
         self.ended.store(false, .release);
         self.held_position_ns = null;
-        self.unschedule();
         self.sender.flush();
 
         // Both have to be set before the state change below, which is what builds the source.
@@ -373,7 +371,6 @@ pub const Player = struct {
     }
 
     pub fn seekToMs(self: *Player, position_ms: i64) bool {
-        self.unschedule();
         self.ended.store(false, .release);
         self.held_position_ns = null;
 
@@ -399,35 +396,11 @@ pub const Player = struct {
     }
 
     pub fn setPlaying(self: *Player, playing: bool) void {
-        if (playing and self.scheduled) {
-            _ = self.pipeline.setState(.paused);
-            self.unschedule();
-
-            if (self.pipeline.position()) |position| _ = self.pipeline.seek(position);
-        }
-
         if (!playing and self.playing and !self.ended.load(.acquire)) return self.pauseWhereHeard();
 
         _ = self.pipeline.setState(if (playing) .playing else .paused);
         self.playing = playing;
         if (playing) self.held_position_ns = null;
-    }
-
-    pub fn startAt(self: *Player, position_ms: i64, at_ns: u64) bool {
-        _ = self.pipeline.setState(.paused);
-        self.playing = false;
-        self.ended.store(false, .release);
-        self.held_position_ns = null;
-        self.pipeline.schedule(self.clock, at_ns -| self.sender.latency_ns);
-        self.scheduled = true;
-
-        if (!self.pipeline.seek(position_ms * std.time.ns_per_ms)) return false;
-        self.sender.flush();
-
-        _ = self.pipeline.setState(.playing);
-        self.playing = true;
-
-        return true;
     }
 
     fn drain(self: *Player) void {
@@ -535,13 +508,6 @@ pub const Player = struct {
 
         self.pending = next.*;
         self.next = null;
-    }
-
-    fn unschedule(self: *Player) void {
-        if (!self.scheduled) return;
-
-        self.pipeline.unschedule();
-        self.scheduled = false;
     }
 };
 
@@ -709,10 +675,6 @@ export fn atolla_audio_seek_to_ms(position_ms: i64) bool {
     return hosted.started and hosted.player.seekToMs(position_ms);
 }
 
-export fn atolla_audio_start_at(position_ms: i64, at_ns: u64) bool {
-    return hosted.started and hosted.player.startAt(position_ms, at_ns);
-}
-
 export fn atolla_audio_position_ms() i64 {
     return if (hosted.started) hosted.player.positionMs() else 0;
 }
@@ -742,8 +704,6 @@ const test_auth_header =
 ;
 
 const test_latency_ns = 100 * std.time.ns_per_ms;
-
-const scheduled_latency_ns = gst.second;
 
 const long_latency_ns = gst.second;
 
@@ -789,23 +749,6 @@ fn startedClock(runtime: *gst.Gst) !Clock {
         error.LibraryNotFound => error.SkipZigTest,
         else => failure,
     };
-}
-
-fn startWhenReady(player: *Player, position_ms: i64, at_ns: u64) !void {
-    for (0..300) |_| {
-        if (player.startAt(position_ms, at_ns)) return;
-
-        io_context().sleep(.fromMilliseconds(50), .awake) catch {};
-    }
-
-    return error.TestExpectedStart;
-}
-
-fn sleepUntil(clock: *const Clock, at_ns: u64) void {
-    const now = clock.nowNs();
-    if (at_ns <= now) return;
-
-    io_context().sleep(.fromNanoseconds(at_ns - now), .awake) catch {};
 }
 
 fn nextEvent(player: *Player, buffer: []u8) ![]const u8 {
@@ -1059,137 +1002,6 @@ test "audio_player: refuses a seek until the source it was given is ready" {
             return current.seekToMs(1_200);
         }
     }.ready);
-}
-
-test "audio_player: holds a scheduled start at its position until its time, then plays from there" {
-    var runtime = try loaded();
-    const clock = try startedClock(&runtime);
-
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-
-    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const path = try writeTone(&tmp, &path_buffer);
-
-    var player: Player = undefined;
-    try player.init(&runtime, silent_device, clock.system, clock.net, scheduled_latency_ns);
-    defer player.deinit();
-
-    try player.configure(path, "track-scheduled", "");
-
-    const at = clock.nowNs() + std.time.ns_per_s;
-    try startWhenReady(&player, 500, at);
-
-    sleepUntil(&clock, at - 300 * std.time.ns_per_ms);
-    try testing.expect(player.positionMs() <= 600);
-
-    try until(&player, struct {
-        fn moving(current: *Player) bool {
-            return current.positionMs() > 800;
-        }
-    }.moving);
-
-    const moved = clock.nowNs();
-    try testing.expect(moved >= at);
-    try testing.expect(moved < at + 600 * std.time.ns_per_ms);
-}
-
-test "audio_player: a play without a start time after a scheduled start resumes on its own time" {
-    var runtime = try loaded();
-    const clock = try startedClock(&runtime);
-
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-
-    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const path = try writeTone(&tmp, &path_buffer);
-
-    var player: Player = undefined;
-    try silentPlayer(&runtime, &player);
-    defer player.deinit();
-
-    try player.configure(path, "track-resumed", "");
-    try startWhenReady(&player, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
-
-    try until(&player, struct {
-        fn started(current: *Player) bool {
-            return current.positionMs() > 300;
-        }
-    }.started);
-
-    player.setPlaying(false);
-    io_context().sleep(.fromMilliseconds(1_000), .awake) catch {};
-
-    const paused_at = player.positionMs();
-    player.setPlaying(true);
-    io_context().sleep(.fromMilliseconds(300), .awake) catch {};
-
-    const resumed = player.positionMs();
-    try testing.expect(resumed > paused_at);
-    try testing.expect(resumed < paused_at + 700);
-}
-
-test "audio_player: a seek without a start time after a scheduled start plays on from there" {
-    var runtime = try loaded();
-    const clock = try startedClock(&runtime);
-
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-
-    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const path = try writeTone(&tmp, &path_buffer);
-
-    var player: Player = undefined;
-    try silentPlayer(&runtime, &player);
-    defer player.deinit();
-
-    try player.configure(path, "track-sought", "");
-    try startWhenReady(&player, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
-
-    try until(&player, struct {
-        fn played(current: *Player) bool {
-            return current.positionMs() > 900;
-        }
-    }.played);
-
-    try testing.expect(player.seekToMs(200));
-    io_context().sleep(.fromMilliseconds(300), .awake) catch {};
-
-    const position = player.positionMs();
-    try testing.expect(position > 200);
-    try testing.expect(position < 900);
-}
-
-test "audio_player: a track configured after a scheduled start plays on its own time" {
-    var runtime = try loaded();
-    const clock = try startedClock(&runtime);
-
-    var tmp = testing.tmpDir(.{});
-    defer tmp.cleanup();
-
-    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const path = try writeTone(&tmp, &path_buffer);
-
-    var player: Player = undefined;
-    try silentPlayer(&runtime, &player);
-    defer player.deinit();
-
-    try player.configure(path, "track-a", "");
-    try startWhenReady(&player, 0, clock.nowNs() + 200 * std.time.ns_per_ms);
-
-    try until(&player, struct {
-        fn played(current: *Player) bool {
-            return current.positionMs() > 900;
-        }
-    }.played);
-
-    try player.configure(path, "track-b", "");
-    player.setPlaying(true);
-    io_context().sleep(.fromMilliseconds(300), .awake) catch {};
-
-    const position = player.positionMs();
-    try testing.expect(position > 0);
-    try testing.expect(position < 800);
 }
 
 test "audio_player: decodes and plays out on the clock it is told to play on" {

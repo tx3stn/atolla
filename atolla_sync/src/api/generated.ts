@@ -125,9 +125,9 @@ export interface paths {
          *
          *     A `202` says the command was accepted, not that it has happened. The leader applies it to
          *     the queue it owns and answers with the state version that reflects it. What the speakers
-         *     then do is visible only through `GET /state`: a member can miss the readiness barrier, and
-         *     a `previous` can restart the current track instead of stepping back. A controller that
-         *     reads this response as the outcome will show something the players are not doing.
+         *     then do is visible only through `GET /state`: a `previous` can restart the current track
+         *     instead of stepping back. A controller that reads this response as the outcome will show
+         *     something the players are not doing.
          *
          *     Commands naming a queue position may also carry the `trackId` expected there. A controller
          *     acts on a mirror that can be a long poll behind, and with several controllers paired the
@@ -476,7 +476,6 @@ export interface components {
              * @enum {string}
              */
             command: "play";
-            startAtNs?: components["schemas"]["StartAtNs"];
         } & {
             [key: string]: unknown;
         };
@@ -496,7 +495,6 @@ export interface components {
              * @example 91234
              */
             positionMs: number;
-            startAtNs?: components["schemas"]["StartAtNs"];
         } & {
             [key: string]: unknown;
         };
@@ -538,7 +536,6 @@ export interface components {
              * @enum {string}
              */
             command: "setQueue";
-            startAtNs?: components["schemas"]["StartAtNs"];
             trackIndex?: components["schemas"]["TrackIndex"];
             tracks: components["schemas"]["Tracks"];
             userId?: components["schemas"]["UserId"];
@@ -799,16 +796,6 @@ export interface components {
             port: components["schemas"]["ClockPort"];
         };
         /**
-         * Format: int64
-         * @description When the audio this command starts is heard, in nanoseconds on the clock the player plays
-         *     on: the clock speaker's when it follows one, its own otherwise, read as `GET /clock` reads
-         *     it. Players given the same time start together, from the position each holds. Left out,
-         *     the audio starts at once. A command that starts nothing, such as a `seek` while paused,
-         *     ignores it.
-         * @example 81236567890123
-         */
-        StartAtNs: number;
-        /**
          * @description The clock a member plays on. `following` is the clock speaker it was told to follow, absent
          *     when it plays on its own clock. `synced` says whether it has locked on to that clock yet,
          *     and is always true for its own. A member that restarts has forgotten what it followed,
@@ -890,8 +877,8 @@ export interface components {
              */
             group: string;
             /**
-             * @description The player that owns the queue and schedules playback. A daemon on its own leads,
-             *     so this is its own id until a group has more than one member in it.
+             * @description The player that owns the queue. A daemon on its own leads, so this is its own id until
+             *     a group has more than one member in it.
              * @example 4f3c9a1de8b27065
              */
             leader: string;
@@ -1273,7 +1260,6 @@ export type PlayerHost = components['schemas']['PlayerHost'];
 export type AudioPort = components['schemas']['AudioPort'];
 export type ClockPort = components['schemas']['ClockPort'];
 export type ClockReading = components['schemas']['ClockReading'];
-export type StartAtNs = components['schemas']['StartAtNs'];
 export type MemberClock = components['schemas']['MemberClock'];
 export type MemberSource = components['schemas']['MemberSource'];
 export type Member = components['schemas']['Member'];

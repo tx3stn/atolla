@@ -144,7 +144,6 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	attachServer(deps.httpServer, {
 		clock: { clock },
 		command: {
-			audioPlayer,
 			clock,
 			playback,
 			queueOwner,

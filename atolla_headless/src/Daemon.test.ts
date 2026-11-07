@@ -81,7 +81,6 @@ function unavailableAudio(): AudioEngine {
 		serveStream: () => false,
 		setPlaying: () => {},
 		start: () => false,
-		startAt: () => false,
 	};
 }
 

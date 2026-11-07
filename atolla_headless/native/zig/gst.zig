@@ -542,11 +542,6 @@ pub const Pipeline = struct {
         return self.gst.gstreamer.gst_element_set_state(self.element, state);
     }
 
-    pub fn unschedule(self: *const Pipeline) void {
-        self.gst.gstreamer.gst_element_set_start_time(self.element, 0);
-        self.gst.gstreamer.gst_pipeline_set_latency(self.element, clock_time_none);
-    }
-
     pub fn useClock(self: *const Pipeline, clock: *Object) void {
         self.gst.gstreamer.gst_pipeline_use_clock(self.element, clock);
     }

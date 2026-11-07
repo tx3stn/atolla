@@ -22,7 +22,6 @@ import {
 	atollaAudioServeStream,
 	atollaAudioSetPlaying,
 	atollaAudioStart,
-	atollaAudioStartAt,
 } from 'atolla_headless/src/AudioNative';
 import {
 	atollaHttpLocalAddress,
@@ -93,7 +92,6 @@ const audio: AudioEngine = {
 	serveStream: atollaAudioServeStream,
 	setPlaying: atollaAudioSetPlaying,
 	start: atollaAudioStart,
-	startAt: atollaAudioStartAt,
 };
 
 // The run command would be the obvious home, but valdi_http ships HTTPTypes and NativeHTTPClient as

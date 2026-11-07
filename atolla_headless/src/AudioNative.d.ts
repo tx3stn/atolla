@@ -16,8 +16,6 @@ export function atollaAudioSetPlaying(playing: boolean): void;
 
 export function atollaAudioSeekToMs(positionMs: number): boolean;
 
-export function atollaAudioStartAt(positionMs: number, atNs: number): boolean;
-
 export function atollaAudioPositionMs(): number;
 
 export function atollaAudioCurrentTrackId(): string;
