@@ -26,7 +26,6 @@ const max_position_ms = 86_400_000;
 /// parse error and never reaches the bridge.
 pub const Name = enum {
     addToQueue,
-    followClock,
     joinSource,
     jumpToIndex,
     move,
@@ -139,7 +138,7 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         .jumpToIndex, .removeAt => if (parsed.trackIndex == null) return error.Malformed,
         .move => if (parsed.fromIndex == null or parsed.toIndex == null) return error.Malformed,
         .setLoopMode => if (parsed.loopMode == null) return error.Malformed,
-        .followClock, .joinSource => if ((parsed.host == null) != (parsed.port == null)) return error.Malformed,
+        .joinSource => if ((parsed.host == null) != (parsed.port == null)) return error.Malformed,
     }
 
     return parsed;
@@ -349,54 +348,6 @@ test "command: refuses an account that cannot be a user id" {
     ));
 }
 
-test "command: reads the clock a speaker is told to follow" {
-    const body = try decoded(
-        \\{"command":"followClock","host":"192.168.1.42","port":45890}
-    );
-
-    try testing.expectEqual(Name.followClock, body.command);
-    try testing.expectEqualStrings("192.168.1.42", body.host.?);
-    try testing.expectEqual(45890, body.port);
-}
-
-test "command: a followClock naming no clock puts the speaker back on its own" {
-    const body = try decoded(
-        \\{"command":"followClock"}
-    );
-
-    try testing.expectEqual(null, body.host);
-    try testing.expectEqual(null, body.port);
-}
-
-test "command: refuses a followClock naming half an address" {
-    try testing.expectError(error.Malformed, decoded(
-        \\{"command":"followClock","host":"192.168.1.42"}
-    ));
-    try testing.expectError(error.Malformed, decoded(
-        \\{"command":"followClock","port":45890}
-    ));
-}
-
-test "command: refuses a clock port UDP does not have" {
-    try testing.expectError(error.Malformed, decoded(
-        \\{"command":"followClock","host":"192.168.1.42","port":0}
-    ));
-    try testing.expectError(error.Malformed, decoded(
-        \\{"command":"followClock","host":"192.168.1.42","port":65536}
-    ));
-}
-
-test "command: refuses a clock host that cannot be an address" {
-    try testing.expectError(error.Malformed, decoded(
-        \\{"command":"followClock","host":"","port":45890}
-    ));
-    try testing.expectError(error.Malformed, decoded(
-        \\{"command":"followClock","host":"kitchen speaker","port":45890}
-    ));
-    try testing.expectError(error.Malformed, decoded("{\"command\":\"followClock\",\"host\":\"" ++
-        "h" ** 254 ++ "\",\"port\":45890}"));
-}
-
 test "command: reads the source a speaker is told to join, or none to leave it" {
     const joined = try decoded(
         \\{"command":"joinSource","host":"kitchen.local","port":45891}
@@ -422,6 +373,26 @@ test "command: refuses a joinSource naming half an address" {
     try testing.expectError(error.Malformed, decoded(
         \\{"command":"joinSource","port":45891}
     ));
+}
+
+test "command: refuses a source port TCP does not have" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen.local","port":0}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen.local","port":65536}
+    ));
+}
+
+test "command: refuses a source host that cannot be an address" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"","port":45891}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen speaker","port":45891}
+    ));
+    try testing.expectError(error.Malformed, decoded("{\"command\":\"joinSource\",\"host\":\"" ++
+        "h" ** 254 ++ "\",\"port\":45891}"));
 }
 
 test "command: ignores a member belonging to no command" {

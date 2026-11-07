@@ -25,9 +25,7 @@ function deps(): ServerDeps {
 	const credentials = makeMediaServerCredentials(makeStateVersion());
 
 	return {
-		clock: { clock: { reading: () => null } },
 		command: {
-			clock: { follow: () => {} },
 			playback: new PlaybackStore(),
 			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 			restored: Promise.resolve(),
@@ -42,7 +40,6 @@ function deps(): ServerDeps {
 			transports: verifyingTransports,
 		},
 		state: {
-			clock: { member: () => ({ synced: true }) },
 			credentials,
 			identity: { id: 'c2be50c9b97e1c53', name: 'Kitchen', tier: 'tight', version: '0.0.0' },
 			now: () => 1758000000000,

@@ -684,7 +684,7 @@ fn onHandoff(_: *gst.Object, buffer: *gst.Buffer, pad: *gst.Object, user_data: ?
     if (rendered.at_ns.load(.acquire) != 0) return;
 
     rendered.pts.store(buffer.pts, .release);
-    rendered.at_ns.store(rendered.clock.nowNs(), .release);
+    rendered.at_ns.store(rendered.clock.net.now(rendered.clock.system), .release);
 }
 
 fn loaded() !gst.Gst {
@@ -718,7 +718,7 @@ fn sleep(milliseconds: i64) void {
 }
 
 fn sleepUntil(clock: *const Clock, at_ns: u64) void {
-    const now = clock.nowNs();
+    const now = clock.net.now(clock.system);
     if (at_ns <= now) return;
 
     io_context().sleep(.fromNanoseconds(at_ns - now), .awake) catch {};
@@ -872,7 +872,7 @@ test "audio_stream: a member holds a chunk until the time it is stamped with" {
     try watch(&member, &rendered);
 
     const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
-    const at = clock.nowNs() + 500 * std.time.ns_per_ms;
+    const at = clock.net.now(clock.system) + 500 * std.time.ns_per_ms;
 
     try testing.expect(member.play(at, test_format, &silence));
     try untilRendered(&rendered);
@@ -894,12 +894,12 @@ test "audio_stream: a member moved to another clock drops what it held for the o
 
     const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
 
-    try testing.expect(member.play(clock.nowNs() + 60 * std.time.ns_per_s, test_format, &silence));
+    try testing.expect(member.play(clock.net.now(clock.system) + 60 * std.time.ns_per_s, test_format, &silence));
     sleep(100);
 
     member.playOn(clock.system);
 
-    const at = clock.nowNs() + 200 * std.time.ns_per_ms;
+    const at = clock.net.now(clock.system) + 200 * std.time.ns_per_ms;
 
     try testing.expect(member.play(at, test_format, &silence));
     try untilRendered(&rendered);
@@ -1032,7 +1032,7 @@ test "audio_stream: a member stays joined through a chunk that stalls part-way o
     try untilSynced(&receiver);
 
     const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
-    const at = source.clock.nowNs() + 800 * std.time.ns_per_ms;
+    const at = source.clock.net.now(source.clock.system) + 800 * std.time.ns_per_ms;
     var header: [audio_wire.chunk_header_bytes]u8 = undefined;
 
     try source.write(audio_wire.chunkHeader(&header, at, test_format, silence.len));
@@ -1067,7 +1067,7 @@ test "audio_stream: a member drops a chunk that arrives after its play time, and
 
     const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     const lead = 300 * std.time.ns_per_ms;
-    const now = source.clock.nowNs();
+    const now = source.clock.net.now(source.clock.system);
     const on_time = now + lead;
 
     try source.writeChunk(now - 100 * std.time.ns_per_ms, &silence);
@@ -1134,7 +1134,7 @@ test "audio_stream: a member drops what it holds when its source flushes" {
     const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     var header: [audio_wire.header_bytes]u8 = undefined;
 
-    try source.writeChunk(source.clock.nowNs() + 500 * std.time.ns_per_ms, &silence);
+    try source.writeChunk(source.clock.net.now(source.clock.system) + 500 * std.time.ns_per_ms, &silence);
     try source.write(audio_wire.flushHeader(&header));
 
     for (0..20) |_| {
@@ -1145,7 +1145,7 @@ test "audio_stream: a member drops what it holds when its source flushes" {
 
     try testing.expect(!receiver.receiving());
 
-    const at = source.clock.nowNs() + 300 * std.time.ns_per_ms;
+    const at = source.clock.net.now(source.clock.system) + 300 * std.time.ns_per_ms;
 
     try source.writeChunk(at, &silence);
     try untilRendered(&rendered);
@@ -1201,7 +1201,7 @@ test "audio_stream: a member is receiving until the end of the audio it holds, n
     try untilSynced(&receiver);
 
     const long: [test_format.bytesPerSecond() / 2]u8 = @splat(0);
-    const at = source.clock.nowNs() + 100 * std.time.ns_per_ms;
+    const at = source.clock.net.now(source.clock.system) + 100 * std.time.ns_per_ms;
 
     try source.writeChunk(at, &long);
 
@@ -1267,7 +1267,7 @@ test "audio_stream: a member plays each chunk in the format it came with" {
     const hi_res: Format = .{ .rate = 96000, .channels = 2, .sample = .s24, .channel_mask = 0 };
     const first: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     const second: [hi_res.bytesPerSecond() / 10]u8 = @splat(0);
-    const at = clock.nowNs() + 300 * std.time.ns_per_ms;
+    const at = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
 
     try testing.expect(member.play(at, test_format, &first));
     try testing.expect(member.play(at + 100 * std.time.ns_per_ms, hi_res, &second));

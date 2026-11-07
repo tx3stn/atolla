@@ -48,7 +48,6 @@ function fixture(): StateDeps {
 	playback.subscribe(() => version.bump());
 
 	return {
-		clock: { member: () => ({ following: { host: '192.168.1.43', port: 45890 }, synced: true }) },
 		credentials: makeMediaServerCredentials(version),
 		identity: IDENTITY,
 		now: () => NOW,
@@ -83,7 +82,6 @@ describe('handleState', () => {
 
 		expect(snapshot?.members).toEqual([
 			{
-				clock: { following: { host: '192.168.1.43', port: 45890 }, synced: true },
 				enabled: true,
 				id: IDENTITY.id,
 				name: 'Kitchen',

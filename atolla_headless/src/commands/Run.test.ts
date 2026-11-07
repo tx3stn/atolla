@@ -48,13 +48,10 @@ function context(
 		audio: {
 			clear: () => {},
 			clearNext: () => {},
-			clockNowNs: () => 0,
-			clockSynced: () => true,
 			configure: () => true,
 			configureNext: () => true,
 			consumeEvent: () => '',
 			currentTrackId: () => '',
-			followClock: () => true,
 			joinSource: () => true,
 			positionMs: () => 0,
 			provideClock: () => true,

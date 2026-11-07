@@ -345,19 +345,6 @@ pub const Player = struct {
         self.sender.joined.store(false, .release);
     }
 
-    pub fn playOn(self: *Player, clock: *gst.Object) void {
-        if (clock == self.clock) return;
-
-        self.clock = clock;
-        self.pipeline.useClock(clock);
-        if (!self.sender.joined.load(.acquire)) self.member.playOn(clock);
-
-        if (self.playing) {
-            _ = self.pipeline.setState(.paused);
-            _ = self.pipeline.setState(.playing);
-        }
-    }
-
     pub fn positionMs(self: *const Player) i64 {
         const decoded = self.pipeline.position() orelse self.held_position_ns orelse return 0;
         const latency: i64 = @intCast(self.sender.latency_ns);
@@ -546,7 +533,7 @@ export fn atolla_audio_start(device: [*:0]const u8, latency_ms: u32) bool {
     hosted.player.init(
         &hosted.runtime,
         std.mem.span(device),
-        hosted.clock.current(),
+        hosted.clock.system,
         hosted.clock.net,
         @as(u64, latency_ms) * std.time.ns_per_ms,
     ) catch {
@@ -563,23 +550,6 @@ export fn atolla_audio_start(device: [*:0]const u8, latency_ms: u32) bool {
 
 export fn atolla_audio_provide_clock(bind_address: [*:0]const u8, port: u16) bool {
     return hosted.started and hosted.clock.provide(std.mem.span(bind_address), port) != null;
-}
-
-export fn atolla_audio_follow_clock(host: [*:0]const u8, port: u16) bool {
-    if (!hosted.started) return false;
-
-    const followed = hosted.clock.follow(std.mem.span(host), port);
-    hosted.player.playOn(hosted.clock.current());
-
-    return followed;
-}
-
-export fn atolla_audio_clock_synced() bool {
-    return hosted.started and hosted.clock.synced();
-}
-
-export fn atolla_audio_clock_now_ns() u64 {
-    return if (hosted.started) hosted.clock.nowNs() else 0;
 }
 
 export fn atolla_audio_serve_stream(bind_address: [*:0]const u8, port: u16) bool {
@@ -1002,24 +972,6 @@ test "audio_player: refuses a seek until the source it was given is ready" {
             return current.seekToMs(1_200);
         }
     }.ready);
-}
-
-test "audio_player: decodes and plays out on the clock it is told to play on" {
-    var runtime = try loaded();
-    var served = try startedClock(&runtime);
-    var follower = try startedClock(&runtime);
-
-    const port = served.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
-    try testing.expect(follower.follow("127.0.0.1", port));
-
-    var player: Player = undefined;
-    try silentPlayer(&runtime, &player);
-    defer player.deinit();
-
-    player.playOn(follower.current());
-
-    try testing.expectEqual(follower.current(), try pipelineClock(&player.pipeline));
-    try testing.expectEqual(follower.current(), try pipelineClock(&player.member.pipeline));
 }
 
 fn servingSource(runtime: *gst.Gst, source: *Player, latency_ns: u64) !u16 {

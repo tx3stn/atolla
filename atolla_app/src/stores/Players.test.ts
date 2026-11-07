@@ -913,7 +913,6 @@ describe('PlayersStore status', () => {
 			leader: SPEAKER.id,
 			members: [
 				{
-					clock: { synced: true },
 					enabled: true,
 					id: SPEAKER.id,
 					name: SPEAKER.name,
@@ -1002,7 +1001,6 @@ function ids(store: PlayersStore): Array<string> {
 function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 	return {
 		baseUrl: 'http://192.168.1.42:45889',
-		clock: { synced: true },
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,

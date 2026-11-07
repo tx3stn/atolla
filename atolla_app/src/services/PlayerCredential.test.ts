@@ -7,7 +7,6 @@ import { type DeviceTokenMinter, mintPlayerCredential } from './PlayerCredential
 
 const kitchen: Player = {
 	baseUrl: 'http://192.168.1.42:45889',
-	clock: { synced: true },
 	enabled: true,
 	group: DEFAULT_PLAYER_GROUP,
 	icon: null,

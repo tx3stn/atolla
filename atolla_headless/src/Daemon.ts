@@ -9,7 +9,6 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
 import { makeAudioStream } from './AudioStream';
-import { makeClock } from './Clock';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
@@ -76,7 +75,6 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 		}),
 	});
 
-	const clock = makeClock({ audio: deps.audio, version });
 	const stream = makeAudioStream({ audio: deps.audio, version });
 
 	if (deps.audio.start(deps.config.audioDevice, deps.config.streamLatencyMs)) {
@@ -87,8 +85,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 		setInterval(audioPlayer.tick, POLL_INTERVAL_MS);
 		log.info('audio ready', { device: deps.config.audioDevice });
 
-		setInterval(clock.tick, POLL_INTERVAL_MS);
-		if (clock.provide(deps.config.bindAddress, deps.config.clockPort)) {
+		if (deps.audio.provideClock(deps.config.bindAddress, deps.config.clockPort)) {
 			log.info('serving the clock', { port: deps.config.clockPort });
 		} else {
 			log.warn('clock unavailable', { port: deps.config.clockPort });
@@ -142,9 +139,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	deps.httpServer.setControllersPath(secrets.pathFor(CONTROLLERS_KEY));
 	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
 	attachServer(deps.httpServer, {
-		clock: { clock },
 		command: {
-			clock,
 			playback,
 			queueOwner,
 			restored,
@@ -163,7 +158,6 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			transports,
 		},
 		state: {
-			clock,
 			credentials,
 			identity: deps.identity,
 			now: deps.now,

@@ -66,13 +66,10 @@ function unavailableAudio(): AudioEngine {
 	return {
 		clear: () => {},
 		clearNext: () => {},
-		clockNowNs: () => 0,
-		clockSynced: () => true,
 		configure: () => false,
 		configureNext: () => false,
 		consumeEvent: () => '',
 		currentTrackId: () => '',
-		followClock: () => false,
 		joinSource: () => false,
 		positionMs: () => 0,
 		provideClock: () => false,

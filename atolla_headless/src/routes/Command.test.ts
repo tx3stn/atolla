@@ -4,7 +4,6 @@ import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { SourceTarget } from '../AudioStream';
-import type { ClockTarget } from '../Clock';
 import { makeQueueOwner } from '../QueueOwner';
 import { makeStateVersion } from '../StateVersion';
 import { type CommandDeps, handleCommand } from './Command';
@@ -23,19 +22,15 @@ function track(id: string, name = `track ${id}`): Track {
 const TRACKS = [track('t1'), track('t2'), track('t3')];
 
 function fixture(): CommandDeps & {
-	followed: Array<ClockTarget | null>;
 	joined: Array<SourceTarget | null>;
 } {
 	const playback = new PlaybackStore();
 	const version = makeStateVersion();
-	const followed: Array<ClockTarget | null> = [];
 	const joined: Array<SourceTarget | null> = [];
 
 	playback.subscribe(() => version.bump());
 
 	return {
-		clock: { follow: (target) => followed.push(target) },
-		followed,
 		joined,
 		playback,
 		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
@@ -172,15 +167,6 @@ describe('handleCommand', () => {
 		expect(deps.playback.loopMode).toBe(LoopModes.track);
 	});
 
-	it('points the speaker at the clock it names, or back at its own when it names none', async () => {
-		const deps = fixture();
-
-		await send(deps, { command: 'followClock', host: '192.168.1.43', port: 45890 });
-		await send(deps, { command: 'followClock' });
-
-		expect(deps.followed).toEqual([{ host: '192.168.1.43', port: 45890 }, null]);
-	});
-
 	it('joins the source it names, or leaves it when it names none', async () => {
 		const deps = fixture();
 
@@ -248,7 +234,6 @@ describe('handleCommand', () => {
 
 		const answered = handleCommand(
 			{
-				clock: { follow: () => {} },
 				playback,
 				queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 				restored,

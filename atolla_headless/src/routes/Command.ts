@@ -4,13 +4,11 @@ import { getLogger } from 'atolla_core/src/services/Logger';
 import { LoopModes, type PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { Command } from 'atolla_sync/src/api/generated';
 import type { AudioStream } from '../AudioStream';
-import type { Clock } from '../Clock';
 import type { Answer } from '../Http';
 import type { QueueOwner } from '../QueueOwner';
 import type { StateVersion } from '../StateVersion';
 
 export interface CommandDeps {
-	clock: Pick<Clock, 'follow'>;
 	playback: PlaybackStore;
 	queueOwner: QueueOwner;
 	// The server answers before the queue is on disk, so a command arriving during the restore
@@ -88,13 +86,6 @@ function apply(deps: CommandDeps, command: Command): boolean {
 			return true;
 		case 'setLoopMode':
 			playback.setLoopMode(LoopModes[command.loopMode]);
-			return true;
-		case 'followClock':
-			deps.clock.follow(
-				command.host === undefined || command.port === undefined
-					? null
-					: { host: command.host, port: command.port },
-			);
 			return true;
 		case 'joinSource':
 			if (command.host === undefined || command.port === undefined) {

@@ -1,13 +1,11 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Answer, HttpServer } from './Http';
-import { type ClockRouteDeps, handleClock } from './routes/Clock';
 import { type CommandDeps, handleCommand } from './routes/Command';
 import { handleMediaServer, type MediaServerDeps } from './routes/MediaServer';
 import { handlePair, type PairDeps } from './routes/Pair';
 import { handleState, type StateDeps } from './routes/State';
 
 export const ROUTE = {
-	clock: 5,
 	command: 2,
 	hello: 0,
 	mediaServer: 4,
@@ -16,7 +14,6 @@ export const ROUTE = {
 } as const;
 
 export interface ServerDeps {
-	clock: ClockRouteDeps;
 	command: CommandDeps;
 	mediaServer: MediaServerDeps;
 	pair: PairDeps;
@@ -30,10 +27,6 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 		let answer: Promise<Answer>;
 
 		switch (route) {
-			case ROUTE.clock:
-				answer = handleClock(deps.clock);
-				break;
-
 			case ROUTE.command:
 				answer = handleCommand(deps.command, body);
 				break;
