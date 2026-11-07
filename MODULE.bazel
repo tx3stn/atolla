@@ -18,6 +18,7 @@ bazel_dep(name = "valdi", version = "0.1")
 archive_override(
     module_name = "valdi",
     integrity = VALDI_INTEGRITY,
+    patches = ["//patches/valdi:attach_thread_on_first_jni_use.patch"],
     strip_prefix = VALDI_PREFIX,
     urls = [VALDI_URL],
 )
