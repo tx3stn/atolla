@@ -15,6 +15,9 @@ const FIRST: Track = { duration: 3, id: 'first', name: 'first' };
 const LONG: Track = { duration: 10, id: 'long', name: 'long' };
 const TRACKS: Array<Track> = [FIRST, LONG];
 
+const CD: Track = { duration: 3, id: 'cd', name: 'cd' };
+const HI_RES: Track = { duration: 6, id: 'hi-res', name: 'hi-res' };
+
 const STREAM_LATENCY_MS = 3000;
 
 interface Speaker {
@@ -38,6 +41,12 @@ describe('joining a source', () => {
 		for (const track of TRACKS) {
 			writeFileSync(join(dataDir, 'media', track.id), silence(track.duration));
 		}
+
+		writeFileSync(join(dataDir, 'media', CD.id), silence(CD.duration, { bits: 16, rate: 44100 }));
+		writeFileSync(
+			join(dataDir, 'media', HI_RES.id),
+			silence(HI_RES.duration, { bits: 24, rate: 96000 }),
+		);
 
 		writeFileSync(
 			configPath,
@@ -167,5 +176,19 @@ describe('joining a source', () => {
 
 		expect(joined.members[0].source?.port).toBe(KITCHEN.audioPort);
 		expect(left.members[0].source).toBeUndefined();
+	});
+
+	it('keeps receiving across a gapless change of sample rate', async () => {
+		await joinKitchen();
+		await kitchen.client.command(kitchen.token, { command: 'setQueue', tracks: [CD, HI_RES] });
+
+		await until(
+			kitchen,
+			(state) => state.queue.trackIndex === 1 && state.playback.positionMs > 1_000,
+			'the kitchen to play into the hi-res track',
+		);
+		const receiving = await snapshot(lounge);
+
+		expect(receiving.members[0].source?.receiving).toBe(true);
 	});
 });

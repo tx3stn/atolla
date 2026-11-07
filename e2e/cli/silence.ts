@@ -1,8 +1,13 @@
-const RATE = 8000;
+export interface SilenceFormat {
+	bits: number;
+	rate: number;
+}
 
-export function silence(seconds: number): Buffer {
-	const samples = RATE * seconds;
-	const data = samples * 2;
+const LOW_RATE: SilenceFormat = { bits: 16, rate: 8000 };
+
+export function silence(seconds: number, format: SilenceFormat = LOW_RATE): Buffer {
+	const blockAlign = format.bits / 8;
+	const data = format.rate * seconds * blockAlign;
 	const buffer = Buffer.alloc(44 + data);
 
 	buffer.write('RIFF', 0, 'ascii');
@@ -11,10 +16,10 @@ export function silence(seconds: number): Buffer {
 	buffer.writeUInt32LE(16, 16);
 	buffer.writeUInt16LE(1, 20);
 	buffer.writeUInt16LE(1, 22);
-	buffer.writeUInt32LE(RATE, 24);
-	buffer.writeUInt32LE(RATE * 2, 28);
-	buffer.writeUInt16LE(2, 32);
-	buffer.writeUInt16LE(16, 34);
+	buffer.writeUInt32LE(format.rate, 24);
+	buffer.writeUInt32LE(format.rate * blockAlign, 28);
+	buffer.writeUInt16LE(blockAlign, 32);
+	buffer.writeUInt16LE(format.bits, 34);
 	buffer.write('data', 36, 'ascii');
 	buffer.writeUInt32LE(data, 40);
 
