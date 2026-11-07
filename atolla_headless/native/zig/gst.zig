@@ -7,6 +7,8 @@ const wav = @import("wav.zig");
 
 pub const Error = error{ LibraryNotFound, SymbolNotFound };
 
+pub const Caps = opaque {};
+
 pub const Event = opaque {};
 
 pub const Object = opaque {};
@@ -14,6 +16,8 @@ pub const Object = opaque {};
 pub const Sample = opaque {};
 
 pub const Segment = opaque {};
+
+pub const Structure = opaque {};
 
 pub const State = enum(c_uint) {
     void_pending = 0,
@@ -118,6 +122,7 @@ const Gstreamer = struct {
     gst_buffer_new_allocate: *const fn (?*anyopaque, usize, ?*anyopaque) callconv(.c) ?*Buffer,
     gst_buffer_unmap: *const fn (*Buffer, *MapInfo) callconv(.c) void,
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
+    gst_caps_get_structure: *const fn (*const Caps, c_uint) callconv(.c) ?*const Structure,
     gst_device_create_element: *const fn (*Object, ?[*:0]const u8) callconv(.c) ?*Object,
     gst_device_get_display_name: *const fn (*Object) callconv(.c) ?[*:0]u8,
     gst_device_monitor_add_filter: *const fn (*Object, [*:0]const u8, ?*Object) callconv(.c) c_uint,
@@ -144,14 +149,20 @@ const Gstreamer = struct {
     gst_message_parse_error: *const fn (*Message, *?*GError, *?[*:0]u8) callconv(.c) void,
     gst_mini_object_unref: *const fn (*anyopaque) callconv(.c) void,
     gst_object_unref: *const fn (*Object) callconv(.c) void,
+    gst_pad_get_current_caps: *const fn (*Object) callconv(.c) ?*Caps,
     gst_parse_launch: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?*Object,
     gst_pipeline_get_clock: *const fn (*Object) callconv(.c) ?*Object,
     gst_pipeline_set_latency: *const fn (*Object, u64) callconv(.c) void,
     gst_pipeline_use_clock: *const fn (*Object, ?*Object) callconv(.c) void,
     gst_sample_get_buffer: *const fn (*Sample) callconv(.c) ?*Buffer,
+    gst_sample_get_caps: *const fn (*Sample) callconv(.c) ?*const Caps,
     gst_sample_get_segment: *const fn (*Sample) callconv(.c) ?*Segment,
     gst_segment_to_running_time: *const fn (*const Segment, Format, u64) callconv(.c) u64,
+    gst_structure_get_int: *const fn (*const Structure, [*:0]const u8, *c_int) callconv(.c) c_int,
+    gst_structure_get_string: *const fn (*const Structure, [*:0]const u8) callconv(.c) ?[*:0]const u8,
+    gst_structure_get_value: *const fn (*const Structure, [*:0]const u8) callconv(.c) ?*const Value,
     gst_util_set_object_arg: *const fn (*Object, [*:0]const u8, [*:0]const u8) callconv(.c) void,
+    gst_value_get_bitmask: *const fn (*const Value) callconv(.c) u64,
 };
 
 const App = struct {

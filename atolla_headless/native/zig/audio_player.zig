@@ -1,9 +1,11 @@
 const std = @import("std");
 const audio_stream = @import("audio_stream.zig");
+const audio_wire = @import("audio_wire.zig");
 const Clock = @import("clock.zig").Clock;
 const gst = @import("gst.zig");
 const gst_net = @import("gst_net.zig");
 const log = @import("log.zig");
+const socket_reader = @import("socket_reader.zig");
 const wav = @import("wav.zig");
 
 pub const max_track_id_bytes = 128;
@@ -1382,6 +1384,222 @@ test "audio_player: a source that reached its end lets its members play out what
     io_context().sleep(.fromMilliseconds(200), .awake) catch {};
 
     try testing.expect(member.receiving());
+}
+
+fn writeNoise(tmp: *const testing.TmpDir, name: []const u8, pcm: wav.Pcm, path_buffer: []u8) ![:0]const u8 {
+    const bytes = try testing.allocator.alloc(u8, pcm.fileBytes());
+    defer testing.allocator.free(bytes);
+
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = name, .data = wav.noise(bytes, pcm) });
+
+    return std.fmt.bufPrintZ(path_buffer, ".zig-cache/tmp/{s}/{s}", .{ tmp.sub_path, name });
+}
+
+fn transcodeToFlac(runtime: *gst.Gst, from: [:0]const u8, to: [:0]const u8) !void {
+    var description: [2 * std.Io.Dir.max_path_bytes]u8 = undefined;
+    var pipeline = try gst.Pipeline.launch(runtime, try std.fmt.bufPrintZ(
+        &description,
+        "filesrc location={s} ! wavparse ! flacenc ! filesink location={s}",
+        .{ from, to },
+    ));
+    defer pipeline.deinit();
+
+    _ = pipeline.setState(.playing);
+
+    var buffer: [256]u8 = undefined;
+    for (0..100) |_| {
+        switch (pipeline.wait(gst.second / 10, &buffer)) {
+            .ended => return,
+            .failed => return error.TestUnexpectedResult,
+            .started, .timeout => {},
+        }
+    }
+
+    return error.TestExpectedEnd;
+}
+
+fn expectStreamedUntouched(runtime: *gst.Gst, path: [:0]const u8, data: []const u8, format: audio_wire.Format) !void {
+    var source: Player = undefined;
+    const port = try servingSource(runtime, &source, test_latency_ns);
+    defer source.deinit();
+
+    const address: std.Io.net.IpAddress = .{ .ip4 = .loopback(port) };
+    const stream = try std.Io.net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    defer stream.close(io_context());
+
+    var read_buffer: [4 * 1024]u8 = undefined;
+    var reader: socket_reader.Reader = .init(stream.socket.handle, &read_buffer, 5000);
+    const chunk_buffer = try testing.allocator.alloc(u8, audio_stream.max_chunk_bytes);
+    defer testing.allocator.free(chunk_buffer);
+
+    _ = try audio_wire.read(&reader.interface, chunk_buffer);
+
+    for (0..100) |_| {
+        if (source.listener.?.memberCount() == 1) break;
+
+        io_context().sleep(.fromMilliseconds(50), .awake) catch {};
+    }
+
+    try source.configure(path, "track-noise", "");
+    source.setPlaying(true);
+
+    var streamed: std.ArrayList(u8) = .empty;
+    defer streamed.deinit(testing.allocator);
+
+    while (streamed.items.len < data.len) {
+        const chunk = switch (try audio_wire.read(&reader.interface, chunk_buffer)) {
+            .chunk => |given| given,
+            .flush => continue,
+            .hello => return error.TestUnexpectedResult,
+        };
+
+        try testing.expectEqual(format.rate, chunk.format.rate);
+        try testing.expectEqual(format.channels, chunk.format.channels);
+        try testing.expectEqual(format.sample, chunk.format.sample);
+        if (format.channel_mask != 0) try testing.expectEqual(format.channel_mask, chunk.format.channel_mask);
+
+        try streamed.appendSlice(testing.allocator, chunk.bytes);
+    }
+
+    try testing.expectEqualSlices(u8, data, streamed.items);
+}
+
+test "audio_player: a 44.1k/16 track reaches the wire untouched" {
+    var runtime = try loaded();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const pcm: wav.Pcm = .{ .rate = 44100, .bits = 16, .channels = 2, .frames = 44100 / 4 };
+    const file = try testing.allocator.alloc(u8, pcm.fileBytes());
+    defer testing.allocator.free(file);
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeNoise(&tmp, "cd.wav", pcm, &path_buffer);
+
+    try expectStreamedUntouched(&runtime, path, wav.noise(file, pcm)[wav.header_bytes..], .{
+        .rate = 44100,
+        .channels = 2,
+        .sample = .s16,
+        .channel_mask = 0,
+    });
+}
+
+test "audio_player: a 96k/24 track reaches the wire untouched" {
+    var runtime = try loaded();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const pcm: wav.Pcm = .{ .rate = 96000, .bits = 24, .channels = 2, .frames = 96000 / 4 };
+    const file = try testing.allocator.alloc(u8, pcm.fileBytes());
+    defer testing.allocator.free(file);
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeNoise(&tmp, "hi-res.wav", pcm, &path_buffer);
+
+    try expectStreamedUntouched(&runtime, path, wav.noise(file, pcm)[wav.header_bytes..], .{
+        .rate = 96000,
+        .channels = 2,
+        .sample = .s24,
+        .channel_mask = 0,
+    });
+}
+
+test "audio_player: a 96k/24 FLAC reaches the wire as the samples it was made from" {
+    var runtime = try loaded();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const pcm: wav.Pcm = .{ .rate = 96000, .bits = 24, .channels = 2, .frames = 96000 / 4 };
+    const file = try testing.allocator.alloc(u8, pcm.fileBytes());
+    defer testing.allocator.free(file);
+
+    var wav_path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const wav_path = try writeNoise(&tmp, "hi-res.wav", pcm, &wav_path_buffer);
+
+    var flac_path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const flac_path = try std.fmt.bufPrintZ(&flac_path_buffer, ".zig-cache/tmp/{s}/hi-res.flac", .{tmp.sub_path});
+
+    try transcodeToFlac(&runtime, wav_path, flac_path);
+
+    try expectStreamedUntouched(&runtime, flac_path, wav.noise(file, pcm)[wav.header_bytes..], .{
+        .rate = 96000,
+        .channels = 2,
+        .sample = .s24,
+        .channel_mask = 0,
+    });
+}
+
+test "audio_player: a 5.1 track reaches the wire with its channel layout" {
+    var runtime = try loaded();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const pcm: wav.Pcm = .{ .rate = 48000, .bits = 24, .channels = 6, .frames = 48000 / 4 };
+    const file = try testing.allocator.alloc(u8, pcm.fileBytes());
+    defer testing.allocator.free(file);
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeNoise(&tmp, "surround.wav", pcm, &path_buffer);
+
+    try expectStreamedUntouched(&runtime, path, wav.noise(file, pcm)[wav.header_bytes..], .{
+        .rate = 48000,
+        .channels = 6,
+        .sample = .s24,
+        .channel_mask = 0x3f,
+    });
+}
+
+fn playsRate(player: *const Player, rate: u32) bool {
+    const format = player.member.format orelse return false;
+
+    return format.rate == rate;
+}
+
+test "audio_player: a gapless queue across two rates hands its member each rate in turn" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source, test_latency_ns);
+    defer source.deinit();
+
+    var member: Player = undefined;
+    try silentPlayer(&runtime, &member);
+    defer member.deinit();
+
+    try member.join("127.0.0.1", port);
+    try untilFollowing(&member);
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var cd_path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const cd = try writeNoise(&tmp, "cd.wav", .{ .rate = 44100, .bits = 16, .channels = 2, .frames = 44100 }, &cd_path_buffer);
+
+    var hi_res_path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const hi_res = try writeNoise(&tmp, "hi-res.wav", .{ .rate = 96000, .bits = 24, .channels = 2, .frames = 96000 }, &hi_res_path_buffer);
+
+    try source.configure(cd, "track-cd", "");
+    try source.configureNext(hi_res, "track-hi-res", "");
+    source.setPlaying(true);
+
+    try until(&member, struct {
+        fn playsCd(current: *Player) bool {
+            return playsRate(current, 44100);
+        }
+    }.playsCd);
+
+    var buffer: [max_event_bytes]u8 = undefined;
+    try testing.expectEqualStrings("completed:track-cd", try nextEvent(&source, &buffer));
+
+    try until(&member, struct {
+        fn playsHiRes(current: *Player) bool {
+            return playsRate(current, 96000);
+        }
+    }.playsHiRes);
 }
 
 test "audio_player: only an http source counts as remote" {

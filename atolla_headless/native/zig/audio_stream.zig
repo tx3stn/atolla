@@ -10,15 +10,11 @@ const socket_reader = @import("socket_reader.zig");
 const net = std.Io.net;
 const posix = std.posix;
 
-const rate = 48000;
-const channels = 2;
-const bits = 16;
+const Format = audio_wire.Format;
 
-pub const caps = "audio/x-raw,format=S16LE,layout=interleaved,rate=48000,channels=2";
+const decoded_caps = "audio/x-raw,layout=interleaved,format={S16LE,S24LE,S32LE,F32LE}";
 
-const bytes_per_second = rate * channels * bits / 8;
-
-const max_chunk_bytes = bytes_per_second;
+pub const max_chunk_bytes = 192_000;
 
 const poll_interval_ms = 100;
 
@@ -26,8 +22,7 @@ const no_lead = std.math.maxInt(u64);
 
 const tally_interval_ns = 60 * std.time.ns_per_s;
 
-const member_head = "appsrc name=source format=time caps=\"" ++ caps ++
-    "\" ! audioconvert ! audioresample name=resample";
+const member_head = "appsrc name=source format=time ! audioconvert ! audioresample name=resample";
 
 pub const Error = gst.PipelineError || error{OutputNotFound};
 
@@ -39,6 +34,7 @@ pub const Output = union(enum) {
 pub const Member = struct {
     pipeline: gst.Pipeline,
     source: *gst.Object,
+    format: ?Format = null,
 
     pub fn init(runtime: *const gst.Gst, output: Output, clock: *gst.Object) Error!Member {
         var description: [512]u8 = undefined;
@@ -86,15 +82,18 @@ pub const Member = struct {
         _ = self.pipeline.setState(.playing);
     }
 
-    pub fn play(self: *const Member, play_at_ns: u64, bytes: []const u8) bool {
+    pub fn play(self: *Member, play_at_ns: u64, format: Format, bytes: []const u8) bool {
         const runtime = self.pipeline.gst;
+
+        self.setFormat(format);
+
         const buffer = runtime.gstreamer.gst_buffer_new_allocate(null, bytes.len, null) orelse {
             return false;
         };
 
         _ = runtime.gstreamer.gst_buffer_fill(buffer, 0, bytes.ptr, bytes.len);
         buffer.pts = play_at_ns;
-        buffer.duration = durationNs(bytes.len);
+        buffer.duration = durationNs(format, bytes.len);
 
         return runtime.app.gst_app_src_push_buffer(self.source, buffer) == gst.flow_ok;
     }
@@ -105,10 +104,84 @@ pub const Member = struct {
         self.pipeline.schedule(clock, 0);
         _ = self.pipeline.setState(.playing);
     }
+
+    fn setFormat(self: *Member, format: Format) void {
+        if (self.format) |current| {
+            if (std.meta.eql(current, format)) return;
+        }
+
+        var text: [160]u8 = undefined;
+
+        self.pipeline.gst.gstreamer.gst_util_set_object_arg(self.source, "caps", capsOf(&text, format).ptr);
+        self.format = format;
+
+        log.info("audio", "playing {d}Hz {s} with {d} channels", .{
+            format.rate,
+            @tagName(format.sample),
+            format.channels,
+        });
+    }
 };
 
-fn durationNs(bytes_len: usize) u64 {
-    return @as(u64, bytes_len) * std.time.ns_per_s / bytes_per_second;
+fn capsOf(buffer: *[160]u8, format: Format) [:0]const u8 {
+    const head = "audio/x-raw,layout=interleaved,format={s},rate={d},channels={d}";
+    const name = sampleName(format.sample);
+
+    if (format.channel_mask == 0 and format.channels <= 2) {
+        return std.fmt.bufPrintZ(buffer, head, .{ name, format.rate, format.channels }) catch unreachable;
+    }
+
+    return std.fmt.bufPrintZ(buffer, head ++ ",channel-mask=(bitmask)0x{x}", .{
+        name,
+        format.rate,
+        format.channels,
+        format.channel_mask,
+    }) catch unreachable;
+}
+
+fn durationNs(format: Format, bytes_len: usize) u64 {
+    return @as(u64, bytes_len) * std.time.ns_per_s / format.bytesPerSecond();
+}
+
+fn formatOf(runtime: *const gst.Gst, caps: *const gst.Caps) ?Format {
+    const structure = runtime.gstreamer.gst_caps_get_structure(caps, 0) orelse return null;
+    const name = runtime.gstreamer.gst_structure_get_string(structure, "format") orelse return null;
+    const sample = sampleNamed(std.mem.span(name)) orelse return null;
+
+    var rate: c_int = 0;
+    var channels: c_int = 0;
+
+    if (runtime.gstreamer.gst_structure_get_int(structure, "rate", &rate) == 0) return null;
+    if (runtime.gstreamer.gst_structure_get_int(structure, "channels", &channels) == 0) return null;
+
+    const channel_mask = if (runtime.gstreamer.gst_structure_get_value(structure, "channel-mask")) |value|
+        runtime.gstreamer.gst_value_get_bitmask(value)
+    else
+        0;
+
+    return .{
+        .rate = std.math.cast(u32, rate) orelse return null,
+        .channels = std.math.cast(u16, channels) orelse return null,
+        .sample = sample,
+        .channel_mask = channel_mask,
+    };
+}
+
+fn sampleName(sample: audio_wire.Sample) []const u8 {
+    return switch (sample) {
+        .s16 => "S16LE",
+        .s24 => "S24LE",
+        .s32 => "S32LE",
+        .f32 => "F32LE",
+    };
+}
+
+fn sampleNamed(name: []const u8) ?audio_wire.Sample {
+    for (std.enums.values(audio_wire.Sample)) |sample| {
+        if (std.mem.eql(u8, sampleName(sample), name)) return sample;
+    }
+
+    return null;
 }
 
 fn attachNamed(pipeline: *const gst.Pipeline, name: []const u8) Error!void {
@@ -131,14 +204,14 @@ pub const Sender = struct {
     gst: *const gst.Gst,
     pipeline: *gst.Object,
     latency_ns: u64,
-    member: *const Member,
+    member: *Member,
     listener: std.atomic.Value(?*Listener) = .init(null),
     joined: std.atomic.Value(bool) = .init(false),
 
     pub fn attach(self: *Sender, sink: *gst.Object) void {
         const runtime = self.gst;
 
-        runtime.gstreamer.gst_util_set_object_arg(sink, "caps", caps);
+        runtime.gstreamer.gst_util_set_object_arg(sink, "caps", decoded_caps);
         runtime.gstreamer.gst_util_set_object_arg(sink, "sync", "true");
         runtime.gstreamer.gst_util_set_object_arg(sink, "emit-signals", "true");
 
@@ -161,6 +234,8 @@ pub const Sender = struct {
 
         const buffer = runtime.gstreamer.gst_sample_get_buffer(sample) orelse return;
         const segment = runtime.gstreamer.gst_sample_get_segment(sample) orelse return;
+        const caps = runtime.gstreamer.gst_sample_get_caps(sample) orelse return;
+        const format = formatOf(runtime, caps) orelse return;
 
         const running = runtime.gstreamer.gst_segment_to_running_time(segment, .time, buffer.pts);
         if (running == gst.clock_time_none) return;
@@ -172,14 +247,15 @@ pub const Sender = struct {
         const data = (map.data orelse return)[0..map.size];
         const heard_at = runtime.gstreamer.gst_element_get_base_time(self.pipeline) + running + self.latency_ns;
         const listener = self.listener.load(.acquire);
+        const piece_bytes = max_chunk_bytes - max_chunk_bytes % format.bytesPerFrame();
 
         var offset: usize = 0;
         while (offset < data.len) {
-            const piece = data[offset..@min(data.len, offset + max_chunk_bytes)];
-            const play_at_ns = heard_at + @as(u64, offset) * std.time.ns_per_s / bytes_per_second;
+            const piece = data[offset..@min(data.len, offset + piece_bytes)];
+            const play_at_ns = heard_at + durationNs(format, offset);
 
-            _ = self.member.play(play_at_ns, piece);
-            if (listener) |members| members.send(play_at_ns, piece);
+            _ = self.member.play(play_at_ns, format, piece);
+            if (listener) |members| members.send(play_at_ns, format, piece);
 
             offset += piece.len;
         }
@@ -198,7 +274,8 @@ pub const Listener = struct {
     io: std.Io,
     server: net.Server,
     hello: audio_wire.Hello,
-    send_buffer_bytes: c_int,
+    latency_ns: u64,
+    format: ?Format = null,
     running: std.atomic.Value(bool) = .init(true),
     mutex: std.Io.Mutex = .init,
     members: std.ArrayList(net.Stream) = .empty,
@@ -206,22 +283,12 @@ pub const Listener = struct {
 
     pub fn init(self: *Listener, address: *const net.IpAddress, clock_port: u16, latency_ns: u64) !void {
         const io = io_context();
-        const backlog_bytes = bytes_per_second * latency_ns / std.time.ns_per_s;
-        const send_buffer_bytes = std.math.cast(c_int, audio_wire.chunk_header_bytes + max_chunk_bytes + backlog_bytes) orelse {
-            return error.LatencyTooLong;
-        };
 
         self.* = .{
             .io = io,
             .server = try net.IpAddress.listen(address, io, .{ .mode = .stream, .reuse_address = true }),
-            .hello = .{
-                .version = audio_wire.version,
-                .clock_port = clock_port,
-                .rate = rate,
-                .channels = channels,
-                .bits = bits,
-            },
-            .send_buffer_bytes = send_buffer_bytes,
+            .hello = .{ .version = audio_wire.version, .clock_port = clock_port },
+            .latency_ns = latency_ns,
         };
         errdefer self.server.deinit(io);
 
@@ -259,22 +326,17 @@ pub const Listener = struct {
         return self.server.socket.address.getPort();
     }
 
-    pub fn send(self: *Listener, play_at_ns: u64, bytes: []const u8) void {
+    pub fn send(self: *Listener, play_at_ns: u64, format: Format, bytes: []const u8) void {
         var header_buffer: [audio_wire.chunk_header_bytes]u8 = undefined;
 
-        self.broadcast(audio_wire.chunkHeader(&header_buffer, play_at_ns, bytes.len), bytes);
+        self.useFormat(format);
+        self.broadcast(audio_wire.chunkHeader(&header_buffer, play_at_ns, format, bytes.len), bytes);
     }
 
     fn admit(self: *Listener, stream: net.Stream) !void {
         const no_delay: c_int = 1;
 
         try posix.setsockopt(stream.socket.handle, posix.IPPROTO.TCP, posix.TCP.NODELAY, std.mem.asBytes(&no_delay));
-        try posix.setsockopt(
-            stream.socket.handle,
-            posix.SOL.SOCKET,
-            posix.SO.SNDBUF,
-            std.mem.asBytes(&self.send_buffer_bytes),
-        );
 
         var buffer: [64]u8 = undefined;
         var writer = stream.writer(self.io, &buffer);
@@ -286,6 +348,7 @@ pub const Listener = struct {
         self.mutex.lockUncancelable(self.io);
         defer self.mutex.unlock(self.io);
 
+        if (self.format) |format| try self.sizeSendBuffer(stream, format);
         try self.members.append(std.heap.c_allocator, stream);
     }
 
@@ -326,7 +389,36 @@ pub const Listener = struct {
             };
         }
     }
+
+    fn sizeSendBuffer(self: *const Listener, stream: net.Stream, format: Format) !void {
+        const bytes = sendBufferBytes(format, self.latency_ns);
+
+        try posix.setsockopt(stream.socket.handle, posix.SOL.SOCKET, posix.SO.SNDBUF, std.mem.asBytes(&bytes));
+    }
+
+    fn useFormat(self: *Listener, format: Format) void {
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
+
+        if (self.format) |current| {
+            if (std.meta.eql(current, format)) return;
+        }
+
+        self.format = format;
+
+        for (self.members.items) |member| {
+            self.sizeSendBuffer(member, format) catch log.warn("audio", "could not size a member's send buffer", .{});
+        }
+    }
 };
+
+fn sendBufferBytes(format: Format, latency_ns: u64) c_int {
+    const backlog_bytes = format.bytesPerSecond() *| latency_ns / std.time.ns_per_s;
+
+    const bytes = audio_wire.chunk_header_bytes + max_chunk_bytes +| backlog_bytes;
+
+    return std.math.cast(c_int, bytes) orelse std.math.maxInt(c_int);
+}
 
 fn nonBlocking(handle: posix.socket_t) !void {
     const flags = posix.system.fcntl(handle, posix.F.GETFL);
@@ -365,7 +457,7 @@ fn sendWhole(handle: posix.socket_t, header: []const u8, bytes: []const u8) bool
 pub const Receiver = struct {
     io: std.Io,
     sync: gst_net.GstNet,
-    member: *const Member,
+    member: *Member,
     host: [max_host_bytes + 1]u8 = undefined,
     host_len: usize = 0,
     port: u16 = 0,
@@ -424,8 +516,8 @@ pub const Receiver = struct {
         }
 
         _ = self.smallest_lead_ns.fetchMin(piece.play_at_ns - now_ns, .acq_rel);
-        _ = self.member.play(piece.play_at_ns, piece.bytes);
-        self.play_until_ns.store(piece.play_at_ns + durationNs(piece.bytes.len), .release);
+        _ = self.member.play(piece.play_at_ns, piece.format, piece.bytes);
+        self.play_until_ns.store(piece.play_at_ns + durationNs(piece.format, piece.bytes.len), .release);
     }
 
     fn report(self: *Receiver) void {
@@ -467,12 +559,11 @@ pub const Receiver = struct {
             .chunk, .flush => return,
         };
 
-        if (hello.version != audio_wire.version or
-            hello.rate != rate or
-            hello.channels != channels or
-            hello.bits != bits)
-        {
-            log.warn("audio", "the source streams a version or format this speaker does not play", .{});
+        if (hello.version != audio_wire.version) {
+            log.warn("audio", "the source speaks wire version {d} and this speaker speaks {d}", .{
+                hello.version,
+                audio_wire.version,
+            });
 
             return;
         }
@@ -560,6 +651,10 @@ fn io_context() std.Io {
 
 const testing = std.testing;
 
+const test_format: Format = .{ .rate = 48000, .channels = 2, .sample = .s16, .channel_mask = 0 };
+
+const test_caps = "audio/x-raw,rate=48000,channels=2";
+
 const watched_output: Output = .{ .described = "fakesink name=output sync=true signal-handoffs=true" };
 
 const Rendered = struct {
@@ -567,12 +662,24 @@ const Rendered = struct {
     at_ns: std.atomic.Value(u64) = .init(0),
     pts: std.atomic.Value(u64) = .init(0),
     count: std.atomic.Value(u32) = .init(0),
+    last_pts: std.atomic.Value(u64) = .init(0),
+    last_duration_ns: std.atomic.Value(u64) = .init(0),
+    last_rate: std.atomic.Value(u32) = .init(0),
 };
 
-fn onHandoff(_: *gst.Object, buffer: *gst.Buffer, _: *gst.Object, user_data: ?*anyopaque) callconv(.c) void {
+fn onHandoff(_: *gst.Object, buffer: *gst.Buffer, pad: *gst.Object, user_data: ?*anyopaque) callconv(.c) void {
     const rendered: *Rendered = @ptrCast(@alignCast(user_data orelse return));
+    const runtime = rendered.clock.gst;
 
     _ = rendered.count.fetchAdd(1, .acq_rel);
+    rendered.last_pts.store(buffer.pts, .release);
+    rendered.last_duration_ns.store(buffer.duration, .release);
+
+    if (runtime.gstreamer.gst_pad_get_current_caps(pad)) |caps| {
+        defer runtime.gstreamer.gst_mini_object_unref(caps);
+
+        if (formatOf(runtime, caps)) |format| rendered.last_rate.store(format.rate, .release);
+    }
 
     if (rendered.at_ns.load(.acquire) != 0) return;
 
@@ -634,17 +741,17 @@ const TestSource = struct {
     listener: Listener,
     pipeline: gst.Pipeline,
 
-    fn init(self: *TestSource, runtime: *gst.Gst, buffers: u32, latency_ns: u64) !void {
+    fn init(self: *TestSource, runtime: *gst.Gst, caps: []const u8, buffers: u32, latency_ns: u64) !void {
         self.clock = try startedClock(runtime);
         const clock_port = self.clock.provide("127.0.0.1", 0) orelse return error.TestUnexpectedResult;
 
         self.member = try Member.init(runtime, watched_output, self.clock.system);
 
-        var description: [128]u8 = undefined;
+        var description: [256]u8 = undefined;
         self.pipeline = try gst.Pipeline.launch(runtime, try std.fmt.bufPrintZ(
             &description,
-            "audiotestsrc name=tone num-buffers={d} ! appsink name=decoded",
-            .{buffers},
+            "audiotestsrc name=tone num-buffers={d} ! {s} ! appsink name=decoded",
+            .{ buffers, caps },
         ));
 
         const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
@@ -710,13 +817,7 @@ const TestWireSource = struct {
         var buffer: [64]u8 = undefined;
         var writer = self.stream.?.writer(io_context(), &buffer);
 
-        try audio_wire.writeHello(&writer.interface, .{
-            .version = audio_wire.version,
-            .clock_port = self.clock_port,
-            .rate = rate,
-            .channels = channels,
-            .bits = bits,
-        });
+        try audio_wire.writeHello(&writer.interface, .{ .version = audio_wire.version, .clock_port = self.clock_port });
         try writer.interface.flush();
     }
 
@@ -731,7 +832,7 @@ const TestWireSource = struct {
     fn writeChunk(self: *TestWireSource, play_at_ns: u64, bytes: []const u8) !void {
         var header: [audio_wire.chunk_header_bytes]u8 = undefined;
 
-        try self.write(audio_wire.chunkHeader(&header, play_at_ns, bytes.len));
+        try self.write(audio_wire.chunkHeader(&header, play_at_ns, test_format, bytes.len));
         try self.write(bytes);
     }
 };
@@ -770,10 +871,10 @@ test "audio_stream: a member holds a chunk until the time it is stamped with" {
     var rendered: Rendered = .{ .clock = &clock };
     try watch(&member, &rendered);
 
-    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     const at = clock.nowNs() + 500 * std.time.ns_per_ms;
 
-    try testing.expect(member.play(at, &silence));
+    try testing.expect(member.play(at, test_format, &silence));
     try untilRendered(&rendered);
 
     try testing.expectEqual(at, rendered.pts.load(.acquire));
@@ -791,16 +892,16 @@ test "audio_stream: a member moved to another clock drops what it held for the o
     var rendered: Rendered = .{ .clock = &clock };
     try watch(&member, &rendered);
 
-    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
 
-    try testing.expect(member.play(clock.nowNs() + 60 * std.time.ns_per_s, &silence));
+    try testing.expect(member.play(clock.nowNs() + 60 * std.time.ns_per_s, test_format, &silence));
     sleep(100);
 
     member.playOn(clock.system);
 
     const at = clock.nowNs() + 200 * std.time.ns_per_ms;
 
-    try testing.expect(member.play(at, &silence));
+    try testing.expect(member.play(at, test_format, &silence));
     try untilRendered(&rendered);
 
     try testing.expectEqual(at, rendered.pts.load(.acquire));
@@ -847,7 +948,7 @@ test "audio_stream: a member that joined a source hears its audio at the time it
     const latency = 300 * std.time.ns_per_ms;
 
     var source: TestSource = undefined;
-    try source.init(&runtime, 20, latency);
+    try source.init(&runtime, test_caps, 20, latency);
     defer source.deinit();
 
     var member = try Member.init(&runtime, watched_output, source.clock.system);
@@ -875,7 +976,7 @@ test "audio_stream: a member is receiving while its source plays, and not once t
     const latency = 300 * std.time.ns_per_ms;
 
     var source: TestSource = undefined;
-    try source.init(&runtime, 40, latency);
+    try source.init(&runtime, test_caps, 40, latency);
     defer source.deinit();
 
     var member = try Member.init(&runtime, watched_output, source.clock.system);
@@ -904,11 +1005,10 @@ test "audio_stream: a member is receiving while its source plays, and not once t
     return error.TestExpectedSilence;
 }
 
-test "audio_stream: a listener refuses a latency too long for a send buffer to hold" {
-    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
-    var listener: Listener = undefined;
+test "audio_stream: a backlog too big for a socket asks for the largest send buffer there is" {
+    const hi_res: Format = .{ .rate = 192000, .channels = 2, .sample = .s24, .channel_mask = 0 };
 
-    try testing.expectError(error.LatencyTooLong, listener.init(&loopback, 45890, 12_000 * std.time.ns_per_s));
+    try testing.expectEqual(std.math.maxInt(c_int), sendBufferBytes(hi_res, 12_000 * std.time.ns_per_s));
 }
 
 test "audio_stream: a member stays joined through a chunk that stalls part-way on the network" {
@@ -931,11 +1031,11 @@ test "audio_stream: a member stays joined through a chunk that stalls part-way o
     try source.accept();
     try untilSynced(&receiver);
 
-    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     const at = source.clock.nowNs() + 800 * std.time.ns_per_ms;
     var header: [audio_wire.chunk_header_bytes]u8 = undefined;
 
-    try source.write(audio_wire.chunkHeader(&header, at, silence.len));
+    try source.write(audio_wire.chunkHeader(&header, at, test_format, silence.len));
     try source.write(silence[0 .. silence.len / 2]);
     sleep(300);
     try source.write(silence[silence.len / 2 ..]);
@@ -965,7 +1065,7 @@ test "audio_stream: a member drops a chunk that arrives after its play time, and
     try source.accept();
     try untilSynced(&receiver);
 
-    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     const lead = 300 * std.time.ns_per_ms;
     const now = source.clock.nowNs();
     const on_time = now + lead;
@@ -987,7 +1087,7 @@ test "audio_stream: a member keeping up stays joined when one chunk holds more a
     const latency = 100 * std.time.ns_per_ms;
 
     var source: TestSource = undefined;
-    try source.init(&runtime, 8, latency);
+    try source.init(&runtime, test_caps, 8, latency);
     defer source.deinit();
 
     const tone = source.pipeline.child("tone") orelse return error.TestUnexpectedResult;
@@ -1031,7 +1131,7 @@ test "audio_stream: a member drops what it holds when its source flushes" {
     try source.accept();
     try untilSynced(&receiver);
 
-    const silence: [bytes_per_second / 10]u8 = @splat(0);
+    const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
     var header: [audio_wire.header_bytes]u8 = undefined;
 
     try source.writeChunk(source.clock.nowNs() + 500 * std.time.ns_per_ms, &silence);
@@ -1057,7 +1157,7 @@ test "audio_stream: a source's flush reaches its members" {
     var runtime = try loaded();
 
     var source: TestSource = undefined;
-    try source.init(&runtime, 20, 300 * std.time.ns_per_ms);
+    try source.init(&runtime, test_caps, 20, 300 * std.time.ns_per_ms);
     defer source.deinit();
 
     const address: net.IpAddress = .{ .ip4 = .loopback(source.listener.port()) };
@@ -1100,7 +1200,7 @@ test "audio_stream: a member is receiving until the end of the audio it holds, n
     try source.accept();
     try untilSynced(&receiver);
 
-    const long: [bytes_per_second / 2]u8 = @splat(0);
+    const long: [test_format.bytesPerSecond() / 2]u8 = @splat(0);
     const at = source.clock.nowNs() + 100 * std.time.ns_per_ms;
 
     try source.writeChunk(at, &long);
@@ -1117,7 +1217,7 @@ test "audio_stream: a member that stops reading is dropped without holding up th
     const latency = 100 * std.time.ns_per_ms;
 
     var source: TestSource = undefined;
-    try source.init(&runtime, 400, latency);
+    try source.init(&runtime, test_caps, 400, latency);
     defer source.deinit();
 
     var played: Rendered = .{ .clock = &source.clock };
@@ -1152,4 +1252,120 @@ test "audio_stream: a member that stops reading is dropped without holding up th
     sleep(300);
 
     try testing.expect(played.count.load(.acquire) > dropped_at);
+}
+
+test "audio_stream: a member plays each chunk in the format it came with" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &clock };
+    try watch(&member, &rendered);
+
+    const hi_res: Format = .{ .rate = 96000, .channels = 2, .sample = .s24, .channel_mask = 0 };
+    const first: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const second: [hi_res.bytesPerSecond() / 10]u8 = @splat(0);
+    const at = clock.nowNs() + 300 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(at, test_format, &first));
+    try testing.expect(member.play(at + 100 * std.time.ns_per_ms, hi_res, &second));
+
+    for (0..100) |_| {
+        if (rendered.count.load(.acquire) == 2) break;
+
+        sleep(50);
+    }
+
+    try testing.expectEqual(2, rendered.count.load(.acquire));
+    try testing.expectEqual(at + 100 * std.time.ns_per_ms, rendered.last_pts.load(.acquire));
+    try testing.expectEqual(100 * std.time.ns_per_ms, rendered.last_duration_ns.load(.acquire));
+    try testing.expectEqual(96000, rendered.last_rate.load(.acquire));
+}
+
+test "audio_stream: a source splits a long buffer on whole frames and keeps its channel layout" {
+    var runtime = try loaded();
+
+    var source: TestSource = undefined;
+    try source.init(&runtime, "audio/x-raw,format=S24LE,rate=48000,channels=6", 4, 300 * std.time.ns_per_ms);
+    defer source.deinit();
+
+    const tone = source.pipeline.child("tone") orelse return error.TestUnexpectedResult;
+    defer runtime.gstreamer.gst_object_unref(tone);
+    runtime.gstreamer.gst_util_set_object_arg(tone, "samplesperbuffer", "12000");
+
+    const address: net.IpAddress = .{ .ip4 = .loopback(source.listener.port()) };
+    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    defer stream.close(io_context());
+
+    var read_buffer: [4 * 1024]u8 = undefined;
+    var reader: socket_reader.Reader = .init(stream.socket.handle, &read_buffer, 5000);
+    const chunk_buffer = try testing.allocator.alloc(u8, max_chunk_bytes);
+    defer testing.allocator.free(chunk_buffer);
+
+    try testing.expectEqual(audio_wire.Kind.hello, std.meta.activeTag(try audio_wire.read(&reader.interface, chunk_buffer)));
+
+    for (0..100) |_| {
+        if (source.listener.memberCount() == 1) break;
+
+        sleep(50);
+    }
+
+    source.play();
+
+    const surround: Format = .{ .rate = 48000, .channels = 6, .sample = .s24, .channel_mask = 0x3f };
+    var received: usize = 0;
+
+    while (received < 48000 * surround.bytesPerFrame()) {
+        const chunk = (try audio_wire.read(&reader.interface, chunk_buffer)).chunk;
+
+        try testing.expectEqual(surround, chunk.format);
+        try testing.expectEqual(0, chunk.bytes.len % surround.bytesPerFrame());
+
+        received += chunk.bytes.len;
+    }
+
+    try testing.expectEqual(48000 * surround.bytesPerFrame(), received);
+}
+
+fn sendBufferOf(handle: posix.socket_t) !c_int {
+    var bytes: c_int = 0;
+    var length: posix.socklen_t = @sizeOf(c_int);
+
+    if (posix.system.getsockopt(handle, posix.SOL.SOCKET, posix.SO.SNDBUF, &bytes, &length) != 0) {
+        return error.TestUnexpectedResult;
+    }
+
+    return bytes;
+}
+
+test "audio_stream: a listener grows its members' send buffers when the format grows" {
+    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+    var listener: Listener = undefined;
+
+    try listener.init(&loopback, 45890, 100 * std.time.ns_per_ms);
+    defer listener.deinit();
+
+    const address: net.IpAddress = .{ .ip4 = .loopback(listener.port()) };
+    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    defer stream.close(io_context());
+
+    for (0..100) |_| {
+        if (listener.memberCount() == 1) break;
+
+        sleep(50);
+    }
+
+    const narrow: Format = .{ .rate = 8000, .channels = 1, .sample = .s16, .channel_mask = 0 };
+    const hi_res: Format = .{ .rate = 192000, .channels = 2, .sample = .s24, .channel_mask = 0 };
+    const chunk: [12]u8 = @splat(0);
+    const member = listener.members.items[0].socket.handle;
+
+    listener.send(1, narrow, &chunk);
+    const narrow_bytes = try sendBufferOf(member);
+
+    listener.send(2, hi_res, &chunk);
+
+    try testing.expect(try sendBufferOf(member) > narrow_bytes);
 }
