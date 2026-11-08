@@ -134,6 +134,7 @@ export class PlayersView extends StatefulComponent<PlayersViewModel, PlayersView
 														this.viewModel.playersStore.setEnabled(player.id, enabled);
 													})}
 													player={player}
+													sourceName={sourceNameOf(player, this.viewModel.playersStore)}
 												/>
 											</layout>;
 										},
@@ -306,6 +307,14 @@ function provisionMessage(error: unknown, name: string): string | null {
 
 function reorderable(players: Array<Player>): Array<Player> {
 	return players.filter((player) => !player.isThisDevice);
+}
+
+function sourceNameOf(player: Player, playersStore: PlayersStore): string | undefined {
+	if (player.source === null) {
+		return undefined;
+	}
+
+	return playersStore.nameAtHost(player.source.host) ?? undefined;
 }
 
 const styles = {

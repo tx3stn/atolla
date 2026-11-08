@@ -13,6 +13,7 @@ import type {
 	StreamKeyAnswer,
 } from 'atolla_sync/src/api/generated';
 import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
+import { hostOf } from '../models/Player';
 import type { PlayersStore } from '../stores/Players';
 
 const log = getLogger('speaker-output');
@@ -31,8 +32,9 @@ interface Speaker {
 	currentTrackId: string | null;
 	driving: boolean;
 	host: string;
+	id: string;
 	isPlaying: boolean;
-	joined: SourceTarget | null;
+	joinedTo: Speaker | null;
 	loopMode: LoopMode;
 	nextTrackId: string | null;
 	playheadRevision: number;
@@ -41,19 +43,8 @@ interface Speaker {
 	token: string;
 }
 
-interface SourceTarget {
-	host: string;
-	key: string;
-	port: number;
-}
-
-interface Source {
-	speaker: Speaker;
-	target: SourceTarget | null;
-}
-
 export class SpeakerOutput {
-	private source: Source | null = null;
+	private source: Speaker | null = null;
 	private readonly speakers = new Map<string, Speaker>();
 	private unsubscribes: Array<() => void> = [];
 
@@ -73,42 +64,6 @@ export class SpeakerOutput {
 			this.options.playersStore.subscribe(this.sync),
 		];
 		void this.options.playersStore.ensureLoaded().then(this.sync);
-	}
-
-	private async findTarget(source: Source): Promise<void> {
-		const answer = await Promise.resolve(source.speaker.client.hello()).catch(() => null);
-		if (this.source !== source) {
-			return;
-		}
-
-		if (answer === null || answer.status !== 200) {
-			log.warn('could not greet the source, so nothing joins it', { host: source.speaker.host });
-			return;
-		}
-
-		const { audioPort } = answer.json as Hello;
-		if (audioPort === undefined) {
-			log.warn('the source streams no audio, so nothing joins it', { host: source.speaker.host });
-			return;
-		}
-
-		const keyed = await Promise.resolve(
-			source.speaker.client.streamKey(source.speaker.token),
-		).catch(() => null);
-		if (this.source !== source) {
-			return;
-		}
-
-		if (keyed === null || keyed.status !== 200) {
-			log.warn('could not get the stream key from the source, so nothing joins it', {
-				host: source.speaker.host,
-			});
-			return;
-		}
-
-		const { key } = keyed.json as StreamKeyAnswer;
-		source.target = { host: source.speaker.host, key, port: audioPort };
-		this.sync();
 	}
 
 	private follow(speaker: Speaker): void {
@@ -166,18 +121,51 @@ export class SpeakerOutput {
 		}
 	}
 
-	private join(speaker: Speaker, target: SourceTarget | null): void {
-		if (speaker.driving) {
-			this.send(speaker, { command: 'pause' });
-			speaker.driving = false;
+	private join(member: Speaker, source: Speaker): void {
+		if (member.driving) {
+			this.send(member, { command: 'pause' });
+			member.driving = false;
 		}
 
-		if (target === null || target === speaker.joined) {
+		if (member.joinedTo === source) {
 			return;
 		}
 
-		this.send(speaker, { command: 'joinSource', ...target });
-		speaker.joined = target;
+		member.joinedTo = source;
+		void this.joinSource(member, source);
+	}
+
+	private async joinSource(member: Speaker, source: Speaker): Promise<void> {
+		const greeted = await Promise.resolve(source.client.hello()).catch(() => null);
+		if (!this.stillJoining(member, source)) {
+			return;
+		}
+
+		if (greeted === null || greeted.status !== 200) {
+			log.warn('could not greet the source, so the speaker cannot join it', { host: source.host });
+			return;
+		}
+
+		const { audioPort } = greeted.json as Hello;
+		if (audioPort === undefined) {
+			log.warn('the source streams no audio, so the speaker cannot join it', { host: source.host });
+			return;
+		}
+
+		const keyed = await Promise.resolve(source.client.streamKey(source.token)).catch(() => null);
+		if (!this.stillJoining(member, source)) {
+			return;
+		}
+
+		if (keyed === null || keyed.status !== 200) {
+			log.warn('could not get the stream key from the source, so the speaker cannot join it', {
+				host: source.host,
+			});
+			return;
+		}
+
+		const { key } = keyed.json as StreamKeyAnswer;
+		this.send(member, { command: 'joinSource', host: source.host, key, port: audioPort });
 	}
 
 	private lead(speaker: Speaker): void {
@@ -186,9 +174,9 @@ export class SpeakerOutput {
 			return;
 		}
 
-		if (speaker.joined !== null) {
+		if (speaker.joinedTo !== null) {
 			this.send(speaker, { command: 'joinSource' });
-			speaker.joined = null;
+			speaker.joinedTo = null;
 		}
 
 		speaker.driving = true;
@@ -210,7 +198,7 @@ export class SpeakerOutput {
 	private release(speaker: Speaker): void {
 		if (speaker.driving) {
 			this.send(speaker, { command: 'pause' });
-		} else if (speaker.joined !== null) {
+		} else if (speaker.joinedTo !== null) {
 			this.send(speaker, { command: 'joinSource' });
 		}
 	}
@@ -269,6 +257,14 @@ export class SpeakerOutput {
 		};
 	}
 
+	private stillJoining(member: Speaker, source: Speaker): boolean {
+		return (
+			this.speakers.get(member.id) === member &&
+			member.joinedTo === source &&
+			this.source === source
+		);
+	}
+
 	private sync = (): void => {
 		const playersStore = this.options.playersStore;
 		const enabled = playersStore.enabledSpeakers();
@@ -291,9 +287,10 @@ export class SpeakerOutput {
 				client: this.options.createClient(player.baseUrl),
 				currentTrackId: null,
 				driving: false,
-				host: player.baseUrl.slice('http://'.length, player.baseUrl.lastIndexOf(':')),
+				host: hostOf(player.baseUrl),
+				id: player.id,
 				isPlaying: false,
-				joined: null,
+				joinedTo: null,
 				loopMode: LoopModes.none,
 				nextTrackId: null,
 				playheadRevision: -1,
@@ -309,14 +306,10 @@ export class SpeakerOutput {
 			return;
 		}
 
-		if (this.source?.speaker !== first) {
-			this.source = { speaker: first, target: null };
-			void this.findTarget(this.source);
-		}
-
+		this.source = first;
 		this.lead(first);
 		for (const member of members) {
-			this.join(member, this.source.target);
+			this.join(member, first);
 		}
 	};
 }

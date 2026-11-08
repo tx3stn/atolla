@@ -28,6 +28,10 @@ export interface Player {
 	tier: Member['tier'];
 }
 
+export function hostOf(baseUrl: string): string {
+	return baseUrl.slice('http://'.length, baseUrl.lastIndexOf(':'));
+}
+
 export interface PlayerSection {
 	group: string;
 	players: Array<Player>;

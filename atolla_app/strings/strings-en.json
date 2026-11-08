@@ -321,11 +321,19 @@
 	"players_status_connected": {
 		"defaultMessage": "connected"
 	},
+	"players_status_following": {
+		"defaultMessage": "following {name%s}",
+		"example": "following kitchen"
+	},
 	"players_status_paused": {
 		"defaultMessage": "paused"
 	},
 	"players_status_playing": {
 		"defaultMessage": "playing"
+	},
+	"players_status_playing_from": {
+		"defaultMessage": "playing from {name%s}",
+		"example": "playing from kitchen"
 	},
 	"players_status_unreachable": {
 		"defaultMessage": "unreachable"

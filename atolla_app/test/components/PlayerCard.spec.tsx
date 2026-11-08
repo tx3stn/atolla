@@ -19,6 +19,8 @@ import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import type { TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import { styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
 
+const KITCHEN_SOURCE = { host: '192.168.1.42', port: 45891, receiving: true };
+
 describe('PlayerCard', () => {
 	valdiIt('shows the error when the player reports one', async (driver) => {
 		const component = driver.renderComponent(
@@ -80,6 +82,54 @@ describe('PlayerCard', () => {
 		);
 
 		expect(labelValues(component)).toContain(Strings.playersStatusPaused());
+	});
+
+	valdiIt('shows the source a member plays from while its audio arrives', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{
+				onToggle: () => {},
+				player: makePlayer({ source: KITCHEN_SOURCE, state: PlayerStates.paused }),
+				sourceName: 'Kitchen',
+			},
+			undefined,
+		);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusPlayingFrom('Kitchen'));
+		expect(labelValues(component)).not.toContain(Strings.playersStatusPaused());
+	});
+
+	valdiIt('shows the source a member follows while nothing arrives', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{
+				onToggle: () => {},
+				player: makePlayer({
+					source: { ...KITCHEN_SOURCE, receiving: false },
+					state: PlayerStates.paused,
+				}),
+				sourceName: 'Kitchen',
+			},
+			undefined,
+		);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusFollowing('Kitchen'));
+		expect(labelValues(component)).not.toContain(Strings.playersStatusPaused());
+	});
+
+	valdiIt('prefers unreachable over the source a member last reported', async (driver) => {
+		const component = driver.renderComponent(
+			PlayerCard,
+			{
+				onToggle: () => {},
+				player: makePlayer({ reachable: false, source: KITCHEN_SOURCE }),
+				sourceName: 'Kitchen',
+			},
+			undefined,
+		);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusUnreachable());
+		expect(labelValues(component)).not.toContain(Strings.playersStatusPlayingFrom('Kitchen'));
 	});
 
 	valdiIt('prefers unreachable over the last state it reported', async (driver) => {

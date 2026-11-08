@@ -67,8 +67,12 @@ interface Sent {
 	token: string;
 }
 
+const RESTARTED_KITCHEN_KEY = 'e'.repeat(64);
+
 interface Options {
 	keyRequestFails?: boolean;
+	keys?: Record<string, string>;
+	keysHeld?: Promise<void>;
 	refusing?: boolean;
 	silent?: boolean;
 	speakers?: Array<typeof KITCHEN>;
@@ -111,12 +115,14 @@ function keyAnswer(
 		return Object.assign(Promise.reject(new Error('unreachable')), { cancel: () => {} });
 	}
 
-	return Object.assign(
-		Promise.resolve({ headers: {}, json: { key: STREAM_KEYS[baseUrl] }, status: 200 }),
-		{
-			cancel: () => {},
-		},
-	);
+	const key = options.keys?.[baseUrl] ?? STREAM_KEYS[baseUrl];
+	const answered = (options.keysHeld ?? Promise.resolve()).then(() => ({
+		headers: {},
+		json: { key },
+		status: 200,
+	}));
+
+	return Object.assign(answered, { cancel: () => {} });
 }
 
 async function harness(options: Options = {}) {
@@ -532,6 +538,86 @@ describe('SpeakerOutput', () => {
 			await settle();
 
 			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
+
+		it('sends a member switched back on the key its source has now', async () => {
+			const options: Options = { speakers: [KITCHEN, LOUNGE] };
+			const { clear, commandsTo, playbackStore, playersStore } = await harness(options);
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+			clear();
+
+			options.keys = { [KITCHEN.baseUrl]: RESTARTED_KITCHEN_KEY };
+			playersStore.setEnabled(LOUNGE.id, false);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([
+				{ command: 'joinSource' },
+				{
+					command: 'joinSource',
+					host: '192.168.1.42',
+					key: RESTARTED_KITCHEN_KEY,
+					port: AUDIO_PORT,
+				},
+			]);
+		});
+
+		it('joins a member switched back on to a source that did not answer before', async () => {
+			const options: Options = { silent: true, speakers: [KITCHEN, LOUNGE] };
+			const { commandsTo, playbackStore, playersStore } = await harness(options);
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			options.silent = false;
+			playersStore.setEnabled(LOUNGE.id, false);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			const lounge = commandsTo(LOUNGE);
+			expect(lounge[lounge.length - 1]).toEqual({
+				command: 'joinSource',
+				host: '192.168.1.42',
+				key: STREAM_KEYS[KITCHEN.baseUrl],
+				port: AUDIO_PORT,
+			});
+		});
+
+		it('sends a member nothing for a source that stopped being the source while its key was on the way', async () => {
+			let releaseKeys = (): void => {};
+			const options: Options = {
+				keysHeld: new Promise((resolve) => {
+					releaseKeys = resolve;
+				}),
+				speakers: [KITCHEN, LOUNGE],
+			};
+			const { commandsTo, playbackStore, playersStore } = await harness(options);
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			playersStore.reorder(2, 1);
+			releaseKeys();
+			await settle();
+
+			expect(commandsTo(LOUNGE)).not.toContainEqual({
+				command: 'joinSource',
+				host: '192.168.1.42',
+				key: STREAM_KEYS[KITCHEN.baseUrl],
+				port: AUDIO_PORT,
+			});
+			const kitchen = commandsTo(KITCHEN);
+			expect(kitchen[kitchen.length - 1]).toEqual({
+				command: 'joinSource',
+				host: '192.168.1.43',
+				key: STREAM_KEYS[LOUNGE.baseUrl],
+				port: AUDIO_PORT,
+			});
 		});
 
 		it('leaves the others unjoined when the source does not give its stream key', async () => {

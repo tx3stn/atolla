@@ -368,6 +368,39 @@ describe('PlayersView', () => {
 		expect(accessibilityIds(component)).toContain('player-card-b-drag');
 	});
 
+	valdiIt("names a member's source by the paired speaker at its host", async (driver) => {
+		const store = new PlayersStore({
+			seed: [
+				makePlayer('a', { baseUrl: KITCHEN.baseUrl, name: KITCHEN.name }),
+				makePlayer('b', {
+					baseUrl: STUDY.baseUrl,
+					name: STUDY.name,
+					source: { host: '192.168.1.42', port: 45891, receiving: true },
+				}),
+			],
+		});
+
+		const component = render(driver, store);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusPlayingFrom(KITCHEN.name));
+	});
+
+	valdiIt("names a member's source by its host when no paired speaker is there", async (driver) => {
+		const store = new PlayersStore({
+			seed: [
+				makePlayer('b', {
+					baseUrl: STUDY.baseUrl,
+					name: STUDY.name,
+					source: { host: '192.168.1.99', port: 45891, receiving: true },
+				}),
+			],
+		});
+
+		const component = render(driver, store);
+
+		expect(labelValues(component)).toContain(Strings.playersStatusPlayingFrom('192.168.1.99'));
+	});
+
 	valdiIt('redraws the card once the store reports the change', async (driver) => {
 		const store = new PlayersStore({ seed: [makePlayer('a', { enabled: false })] });
 		const component = render(driver, store);

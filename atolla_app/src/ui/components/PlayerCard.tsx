@@ -16,6 +16,7 @@ export interface PlayerCardViewModel {
 	onLongPress?: () => void;
 	onToggle: (enabled: boolean) => void;
 	player: Player;
+	sourceName?: string;
 }
 
 const TILE_SIZE = 72;
@@ -60,7 +61,11 @@ export class PlayerCard extends Component<PlayerCardViewModel> {
 						/>
 					)}
 					{player.enabled && (
-						<label numberOfLines={2} style={statusStyleFor(player)} value={statusText(player)} />
+						<label
+							numberOfLines={2}
+							style={statusStyleFor(player)}
+							value={statusText(player, this.viewModel.sourceName)}
+						/>
 					)}
 				</layout>
 				<label style={styles.meta} value={metaText(player)} />
@@ -181,12 +186,18 @@ function statusStyleFor(player: Player): Style<Label> {
 	return isUnhealthy(player) ? styles.statusBad : styles.status;
 }
 
-function statusText(player: Player): string {
+function statusText(player: Player, sourceName: string | undefined): string {
 	if (player.lastError != null) {
 		return player.lastError;
 	}
 	if (!player.reachable) {
 		return Strings.playersStatusUnreachable();
+	}
+	if (player.source !== null) {
+		const name = sourceName ?? player.source.host;
+		return player.source.receiving
+			? Strings.playersStatusPlayingFrom(name)
+			: Strings.playersStatusFollowing(name);
 	}
 	if (player.state === PlayerStates.playing) {
 		return Strings.playersStatusPlaying();

@@ -4,6 +4,7 @@ import { InternalError } from 'atolla_core/src/utils/Errors';
 import type {
 	Hello,
 	MediaServer,
+	MemberSource,
 	PairAccepted,
 	Problem,
 	StateSnapshot,
@@ -11,6 +12,7 @@ import type {
 import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import {
 	DEFAULT_PLAYER_GROUP,
+	hostOf,
 	type Player,
 	type PlayerSection,
 	PlayerStates,
@@ -55,7 +57,7 @@ export type CreatePlayerClient = (baseUrl: string) => PlayerClientPort;
 
 export type CreateStatusClient = (baseUrl: string) => Pick<PlayerClient, 'state'>;
 
-type PlayerStatus = Pick<Player, 'lastError' | 'reachable' | 'state'>;
+type PlayerStatus = Pick<Player, 'lastError' | 'reachable' | 'source' | 'state'>;
 
 interface StatusWatch {
 	requests: Set<{ cancel?: () => void }>;
@@ -98,6 +100,18 @@ function refusal(problem: Partial<Problem>): InternalError<string> {
 	return seconds === undefined
 		? new InternalError(code)
 		: new InternalError(code).withDetail(String(seconds));
+}
+
+function sameSource(held: MemberSource | null, reported: MemberSource | null): boolean {
+	if (held === null || reported === null) {
+		return held === reported;
+	}
+
+	return (
+		held.host === reported.host &&
+		held.port === reported.port &&
+		held.receiving === reported.receiving
+	);
 }
 
 export class PlayersStore {
@@ -156,6 +170,14 @@ export class PlayersStore {
 
 	isThisDeviceEnabled(): boolean {
 		return this.thisDeviceEnabled;
+	}
+
+	nameAtHost(host: string): string | null {
+		const player = this.players.find(
+			(candidate) => candidate.baseUrl !== null && hostOf(candidate.baseUrl) === host,
+		);
+
+		return player?.name ?? null;
 	}
 
 	pair(player: ProbedPlayer, code: string): Promise<Player> {
@@ -347,9 +369,13 @@ export class PlayersStore {
 
 	private applyStatus(id: string, snapshot: StateSnapshot): void {
 		const member = snapshot.members.find((candidate) => candidate.id === id);
+		const held = this.players.find((candidate) => candidate.id === id)?.source ?? null;
+		const reported = member?.source ?? null;
+
 		this.updateStatus(id, {
 			lastError: member?.lastError ?? null,
 			reachable: true,
+			source: sameSource(held, reported) ? held : reported,
 			state: member?.state ?? PlayerStates.idle,
 		});
 	}

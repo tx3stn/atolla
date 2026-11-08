@@ -315,6 +315,25 @@ describe('PlayersStore', () => {
 
 		expect(ids(store)).toEqual(['this-device', 'a']);
 	});
+
+	it('names the paired speaker at a host', () => {
+		const store = new PlayersStore({
+			seed: [
+				makePlayer('a', { baseUrl: 'http://192.168.1.42:45889', name: 'Kitchen' }),
+				makePlayer('b', { baseUrl: 'http://192.168.1.43:45889', name: 'Lounge' }),
+			],
+		});
+
+		expect(store.nameAtHost('192.168.1.43')).toBe('Lounge');
+	});
+
+	it('names nothing at a host no paired speaker is at', () => {
+		const store = new PlayersStore({
+			seed: [makePlayer('a', { baseUrl: 'http://192.168.1.42:45889' })],
+		});
+
+		expect(store.nameAtHost('192.168.1.99')).toBeNull();
+	});
 });
 
 describe('PlayersStore reorder', () => {
@@ -852,6 +871,8 @@ describe('PlayersStore status', () => {
 		token: 'k'.repeat(64),
 	};
 
+	const LOUNGE_SOURCE = { host: '192.168.1.43', port: 45891, receiving: true };
+
 	type StatusAnswer = () => PendingRequest<PlayerAnswer<StateSnapshot | Problem | undefined>>;
 
 	function answered(status: number, json?: StateSnapshot | Problem): StatusAnswer {
@@ -960,6 +981,40 @@ describe('PlayersStore status', () => {
 		expect(asked.length).toBe(1);
 		expect(speaker().reachable).toBe(true);
 		expect(speaker().lastError).toBeNull();
+	});
+
+	it('shows the source a member is joined to', async () => {
+		const { speaker } = await watching([answered(200, snapshot({ source: LOUNGE_SOURCE }))]);
+
+		expect(speaker().source).toEqual(LOUNGE_SOURCE);
+	});
+
+	it('shows no source once the member leaves it', async () => {
+		const { speaker } = await watching([
+			answered(200, snapshot({ source: LOUNGE_SOURCE }, 3)),
+			answered(200, snapshot({}, 4)),
+		]);
+
+		expect(speaker().source).toBeNull();
+	});
+
+	it('does not tell subscribers again for the same source', async () => {
+		const { notifications } = await watching([
+			answered(200, snapshot({ source: LOUNGE_SOURCE }, 3)),
+			answered(200, snapshot({ source: { ...LOUNGE_SOURCE } }, 4)),
+		]);
+
+		expect(notifications()).toBe(1);
+	});
+
+	it('tells subscribers when audio from the source starts arriving', async () => {
+		const { notifications, speaker } = await watching([
+			answered(200, snapshot({ source: { ...LOUNGE_SOURCE, receiving: false } }, 3)),
+			answered(200, snapshot({ source: LOUNGE_SOURCE }, 4)),
+		]);
+
+		expect(notifications()).toBe(2);
+		expect(speaker().source?.receiving).toBe(true);
 	});
 
 	it('only tells subscribers when the status changed', async () => {
