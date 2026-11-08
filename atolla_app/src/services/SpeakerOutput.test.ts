@@ -3,7 +3,13 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
-import type { Command, CommandAccepted, Hello, Problem } from 'atolla_sync/src/api/generated';
+import type {
+	Command,
+	CommandAccepted,
+	Hello,
+	Problem,
+	StreamKeyAnswer,
+} from 'atolla_sync/src/api/generated';
 import type { PlayerAnswer } from 'atolla_sync/src/api/PlayerClient';
 import type { PendingRequest } from 'atolla_sync/src/api/Transport';
 import { PLAYERS_KEY, PlayersStore } from '../stores/Players';
@@ -49,6 +55,12 @@ const BEDROOM = {
 
 const AUDIO_PORT = 45891;
 
+const STREAM_KEYS: Record<string, string> = {
+	[BEDROOM.baseUrl]: 'c'.repeat(64),
+	[KITCHEN.baseUrl]: 'a'.repeat(64),
+	[LOUNGE.baseUrl]: 'b'.repeat(64),
+};
+
 interface Sent {
 	baseUrl: string;
 	body: Command;
@@ -56,6 +68,7 @@ interface Sent {
 }
 
 interface Options {
+	keyRequestFails?: boolean;
 	refusing?: boolean;
 	silent?: boolean;
 	speakers?: Array<typeof KITCHEN>;
@@ -90,6 +103,22 @@ function greeting(options: Options): PendingRequest<PlayerAnswer<Hello | Problem
 	});
 }
 
+function keyAnswer(
+	baseUrl: string,
+	options: Options,
+): PendingRequest<PlayerAnswer<StreamKeyAnswer | Problem>> {
+	if (options.keyRequestFails === true) {
+		return Object.assign(Promise.reject(new Error('unreachable')), { cancel: () => {} });
+	}
+
+	return Object.assign(
+		Promise.resolve({ headers: {}, json: { key: STREAM_KEYS[baseUrl] }, status: 200 }),
+		{
+			cancel: () => {},
+		},
+	);
+}
+
 async function harness(options: Options = {}) {
 	const keyValueStore = new InMemoryKeyValueStore();
 	await keyValueStore.storeString(
@@ -103,6 +132,7 @@ async function harness(options: Options = {}) {
 	const playersStore = new PlayersStore({ store: keyValueStore });
 	const playbackStore = new PlaybackStore();
 	const sent: Array<Sent> = [];
+	const keyRequests: Array<{ baseUrl: string; token: string }> = [];
 	const output = new SpeakerOutput({
 		createClient: (baseUrl) => ({
 			command: (token, body) => {
@@ -110,6 +140,10 @@ async function harness(options: Options = {}) {
 				return answer(options.refusing === true);
 			},
 			hello: () => greeting(options),
+			streamKey: (token) => {
+				keyRequests.push({ baseUrl, token });
+				return keyAnswer(baseUrl, options);
+			},
 		}),
 		playbackStore,
 		playersStore,
@@ -125,7 +159,7 @@ async function harness(options: Options = {}) {
 		sent.length = 0;
 	};
 
-	return { clear, commands, commandsTo, output, playbackStore, playersStore, sent };
+	return { clear, commands, commandsTo, keyRequests, output, playbackStore, playersStore, sent };
 }
 
 async function grouped(speakers: Array<typeof KITCHEN>) {
@@ -381,8 +415,8 @@ describe('SpeakerOutput', () => {
 	});
 
 	describe('a group of speakers', () => {
-		it('drives the first speaker in the tab and has the others join it', async () => {
-			const { commandsTo, playbackStore, playersStore } = await harness({
+		it('drives the first speaker in the tab and has the others join it with its stream key', async () => {
+			const { commandsTo, keyRequests, playbackStore, playersStore } = await harness({
 				speakers: [KITCHEN, LOUNGE],
 			});
 			playbackStore.play([track1, track2], album, 0);
@@ -395,8 +429,14 @@ describe('SpeakerOutput', () => {
 				{ album, command: 'setQueue', trackIndex: 0, tracks: [track1, track2], userId: 'user-1' },
 				{ command: 'setLoopMode', loopMode: LoopModes.none },
 			]);
+			expect(keyRequests).toEqual([{ baseUrl: KITCHEN.baseUrl, token: KITCHEN.token }]);
 			expect(commandsTo(LOUNGE)).toEqual([
-				{ command: 'joinSource', host: '192.168.1.42', port: AUDIO_PORT },
+				{
+					command: 'joinSource',
+					host: '192.168.1.42',
+					key: STREAM_KEYS[KITCHEN.baseUrl],
+					port: AUDIO_PORT,
+				},
 			]);
 		});
 
@@ -443,7 +483,12 @@ describe('SpeakerOutput', () => {
 				{ command: 'setLoopMode', loopMode: LoopModes.none },
 			]);
 			expect(commandsTo(BEDROOM)).toEqual([
-				{ command: 'joinSource', host: '192.168.1.43', port: AUDIO_PORT },
+				{
+					command: 'joinSource',
+					host: '192.168.1.43',
+					key: STREAM_KEYS[LOUNGE.baseUrl],
+					port: AUDIO_PORT,
+				},
 			]);
 		});
 
@@ -455,7 +500,12 @@ describe('SpeakerOutput', () => {
 
 			expect(commandsTo(KITCHEN)).toEqual([
 				{ command: 'pause' },
-				{ command: 'joinSource', host: '192.168.1.43', port: AUDIO_PORT },
+				{
+					command: 'joinSource',
+					host: '192.168.1.43',
+					key: STREAM_KEYS[LOUNGE.baseUrl],
+					port: AUDIO_PORT,
+				},
 			]);
 			expect(commandsTo(LOUNGE)).toEqual([
 				{ command: 'joinSource' },
@@ -474,6 +524,20 @@ describe('SpeakerOutput', () => {
 			const { commandsTo, playbackStore, playersStore } = await harness({
 				speakers: [KITCHEN, LOUNGE],
 				streamsAudio: false,
+			});
+			playbackStore.play([track1, track2], album, 0);
+
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
+
+		it('leaves the others unjoined when the source does not give its stream key', async () => {
+			const { commandsTo, playbackStore, playersStore } = await harness({
+				keyRequestFails: true,
+				speakers: [KITCHEN, LOUNGE],
 			});
 			playbackStore.play([track1, track2], album, 0);
 

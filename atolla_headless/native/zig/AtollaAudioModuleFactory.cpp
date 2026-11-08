@@ -180,6 +180,7 @@ public:
                                  const Valdi::StringBox bindAddress =
                                      callContext.getParameterAsString(0);
                                  const double port = callContext.getParameterAsDouble(1);
+                                 const Valdi::StringBox key = callContext.getParameterAsString(2);
                                  if (!callContext.getExceptionTracker()) {
                                      return Valdi::Value::undefined();
                                  }
@@ -189,15 +190,17 @@ public:
                                  }
 
                                  const std::string copied(bindAddress.toStringView());
+                                 const std::string copiedKey(key.toStringView());
 
                                  return Valdi::Value(atolla_audio_serve_stream(
-                                     copied.c_str(), static_cast<uint16_t>(port)));
+                                     copied.c_str(), static_cast<uint16_t>(port), copiedKey.c_str()));
                              })))
             .setMapValue("atollaAudioJoinSource",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
                                  const Valdi::StringBox host = callContext.getParameterAsString(0);
                                  const double port = callContext.getParameterAsDouble(1);
+                                 const Valdi::StringBox key = callContext.getParameterAsString(2);
                                  if (!callContext.getExceptionTracker()) {
                                      return Valdi::Value::undefined();
                                  }
@@ -207,9 +210,10 @@ public:
                                  }
 
                                  const std::string copied(host.toStringView());
+                                 const std::string copiedKey(key.toStringView());
 
                                  return Valdi::Value(atolla_audio_join_source(
-                                     copied.c_str(), static_cast<uint16_t>(port)));
+                                     copied.c_str(), static_cast<uint16_t>(port), copiedKey.c_str()));
                              })))
             .setMapValue("atollaAudioReceiving",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(

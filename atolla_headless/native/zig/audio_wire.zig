@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const version: u16 = 3;
+pub const version: u16 = 4;
 
 pub const header_bytes = 1 + 4;
 
@@ -12,10 +12,15 @@ pub const chunk_header_bytes = header_bytes + chunk_fields_bytes;
 
 const hello_payload_bytes = 2 + 2;
 
+pub const key_bytes = 64;
+
+pub const Key = [key_bytes]u8;
+
 pub const Kind = enum(u8) {
     hello = 1,
     chunk = 2,
     flush = 3,
+    key = 4,
 };
 
 pub const Sample = enum(u8) {
@@ -63,6 +68,7 @@ pub const Frame = union(Kind) {
     hello: Hello,
     chunk: Chunk,
     flush: void,
+    key: Key,
 };
 
 pub const ReadError = std.Io.Reader.Error || error{Malformed};
@@ -91,6 +97,12 @@ pub fn writeHello(writer: *std.Io.Writer, hello: Hello) std.Io.Writer.Error!void
     try writer.writeInt(u32, hello_payload_bytes, .big);
     try writer.writeInt(u16, hello.version, .big);
     try writer.writeInt(u16, hello.clock_port, .big);
+}
+
+pub fn writeKey(writer: *std.Io.Writer, key: Key) std.Io.Writer.Error!void {
+    try writer.writeByte(@intFromEnum(Kind.key));
+    try writer.writeInt(u32, key_bytes, .big);
+    try writer.writeAll(&key);
 }
 
 pub fn read(reader: *std.Io.Reader, buffer: []u8) ReadError!Frame {
@@ -128,6 +140,14 @@ pub fn read(reader: *std.Io.Reader, buffer: []u8) ReadError!Frame {
             if (length != 0) return error.Malformed;
 
             return .flush;
+        },
+        .key => {
+            if (length != key_bytes) return error.Malformed;
+
+            var key: Key = undefined;
+            try reader.readSliceAll(&key);
+
+            return .{ .key = key };
         },
     }
 }
@@ -275,7 +295,28 @@ test "audio_wire: refuses a frame of a kind it does not know" {
 }
 
 test "audio_wire: refuses a hello whose length is not a hello's" {
-    var reader = std.Io.Reader.fixed(&.{ 1, 0, 0, 0, 3, 0, 3, 0xb3 });
+    var reader = std.Io.Reader.fixed(&.{ 1, 0, 0, 0, 3, 0, 4, 0xb3 });
+    var buffer: [16]u8 = undefined;
+
+    try testing.expectError(error.Malformed, read(&reader, &buffer));
+}
+
+test "audio_wire: a key reads back as it was written" {
+    const key: Key = ("0123456789abcdef" ** 4).*;
+
+    var bytes: [128]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&bytes);
+
+    try writeKey(&writer, key);
+
+    var reader = std.Io.Reader.fixed(writer.buffered());
+    var buffer: [16]u8 = undefined;
+
+    try testing.expectEqualDeep(Frame{ .key = key }, try read(&reader, &buffer));
+}
+
+test "audio_wire: refuses a key whose length is not a key's" {
+    var reader = std.Io.Reader.fixed(&.{ 4, 0, 0, 0, 2, 'a', 'b' });
     var buffer: [16]u8 = undefined;
 
     try testing.expectError(error.Malformed, read(&reader, &buffer));

@@ -9,6 +9,7 @@ import type {
 	PairRequest,
 	Problem,
 	StateSnapshot,
+	StreamKeyAnswer,
 } from './generated';
 import type { HttpHeaders, HttpResponse, HttpTransport, PendingRequest } from './Transport';
 
@@ -79,6 +80,10 @@ export class PlayerClient {
 		const path = since === undefined ? '/state' : `/state?since=${since}`;
 
 		return this.settled(this.transport.get(this.url(path), this.headers(token)));
+	}
+
+	streamKey(token: string): PendingRequest<PlayerAnswer<StreamKeyAnswer | Problem>> {
+		return this.settled(this.transport.get(this.url('/stream-key'), this.headers(token)));
 	}
 
 	private headers(token?: string): HttpHeaders {

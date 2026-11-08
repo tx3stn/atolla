@@ -454,6 +454,42 @@ paths:
         '504':
           $ref: '#/components/responses/HandlerTimeout'
 
+  /stream-key:
+    get:
+      operationId: getStreamKey
+      tags: [control]
+      summary: The key a member presents to join this player's audio stream.
+      description: |
+        A controller fetches it from the player it picked as a group's source and hands it to each
+        member in `joinSource`. The source streams only to a member that presents it, so a device
+        that merely reaches the audio port hears nothing. The player makes a new one each time it
+        starts, so a controller fetches it again after a restart.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: The key this player's audio stream admits members with.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamKeyAnswer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '500':
+          $ref: '#/components/responses/HandlerFailed'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/HandlerTimeout'
+
 components:
   securitySchemes:
     controllerToken:
@@ -761,6 +797,26 @@ components:
           examples:
             - 7c1e5a9b3d8f204617ca0be9352d8f7461a0c3d95e28b7f4016cad3928bf5e7d
 
+    StreamKey:
+      type: string
+      minLength: 64
+      maxLength: 64
+      pattern: '^[0-9a-f]{64}$'
+      description: |
+        256 bits of entropy, hex encoded, that a source's audio stream admits members with. The
+        player holds it in memory only and makes a new one each time it starts.
+      examples:
+        - 3e9d1f7a5c0b8246e1d3f5a7c9b0e2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7
+
+    StreamKeyAnswer:
+      type: object
+      description: The key a controller passes to each member it sends to join this player.
+      required: [key]
+      additionalProperties: false
+      properties:
+        key:
+          $ref: '#/components/schemas/StreamKey'
+
     StateVersion:
       type: integer
       format: int32
@@ -1001,13 +1057,15 @@ components:
       type: object
       description: |
         Play the audio another player streams, the source a controller picked for the group, or
-        leave it when `host` and `port` are left out. Joining pauses this player's own queue, and
-        the player connects at once and reports how that is going in its member's `source`, so an
-        unreachable source still answers 202. Joining the source it already joined changes nothing.
+        leave it when `host`, `port` and `key` are left out. Joining pauses this player's own
+        queue, and the player connects at once and reports how that is going in its member's
+        `source`, so an unreachable source, or one that refuses the key, still answers 202. Joining
+        the source it already joined with the same key changes nothing.
       required: [command]
       dependentRequired:
-        host: [port]
-        port: [host]
+        host: [port, key]
+        port: [host, key]
+        key: [host, port]
       additionalProperties: true
       properties:
         command:
@@ -1015,6 +1073,9 @@ components:
           const: joinSource
         host:
           $ref: '#/components/schemas/PlayerHost'
+        key:
+          $ref: '#/components/schemas/StreamKey'
+          description: The source's `GET /stream-key`, which the source admits this player with.
         port:
           $ref: '#/components/schemas/AudioPort'
 

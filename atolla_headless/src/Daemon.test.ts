@@ -8,11 +8,12 @@ import {
 import type { AudioEngine } from './Audio';
 import { filterLogWriter, startDaemon } from './Daemon';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
-import type { HttpServer } from './Http';
+import type { HttpServer, RequestHandler } from './Http';
 import type { MakeHttpClient } from './MediaServerTransports';
 import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { secretsDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
+import { ROUTE } from './Server';
 
 const CONFIG = {
 	audioDevice: 'default',
@@ -138,7 +139,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		getLogger('PlaybackStore').warn('queue restore failed');
 
@@ -167,7 +168,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -188,7 +189,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 
 		expect(started).toEqual(['127.0.0.1:45890']);
@@ -214,7 +215,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 
 		expect(started).toEqual([['hw:2,0', 250]]);
@@ -240,7 +241,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		await makeFileKeyValueStore(fakeFiles(contents), secretsDir(CONFIG)).storeString(
 			PAIRING_KEY,
@@ -270,7 +271,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		await makeFileKeyValueStore(fakeFiles(contents), secretsDir(CONFIG)).storeString(
 			CONTROLLERS_KEY,
@@ -315,7 +316,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		await Promise.resolve();
 
@@ -346,7 +347,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -354,6 +355,45 @@ describe('startDaemon', () => {
 		expect(reads.indexOf('/var/lib/atolla/state/queue_owner')).toBeLessThan(
 			reads.indexOf('/var/lib/atolla/state/queue'),
 		);
+	});
+
+	it('answers /stream-key with a key made fresh from its random source', async () => {
+		const { log } = capture();
+		const answers: Array<{ body: string; status: number }> = [];
+		let handler: RequestHandler | undefined;
+
+		void startDaemon({
+			audio: unavailableAudio(),
+			config: { ...CONFIG },
+			files: fakeFiles(),
+			httpServer: {
+				...fakeHttpServer(),
+				respond: (_requestId, status, body) => {
+					answers.push({ body, status });
+					return true;
+				},
+				setHandler: (given) => {
+					handler = given;
+				},
+			},
+			identity: IDENTITY,
+			log,
+			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
+			now: () => 1758000000000,
+			randomBytes: (count) => Uint8Array.from({ length: count }, (_, index) => index),
+		});
+		handler?.(1, ROUTE.streamKey, '/stream-key', '');
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(answers).toEqual([
+			{
+				body: JSON.stringify({
+					key: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+				}),
+				status: 200,
+			},
+		]);
 	});
 
 	it('returns a promise that does not settle', async () => {
@@ -369,7 +409,7 @@ describe('startDaemon', () => {
 			logLevel: 'info',
 			makeHttpClient: unusedHttpClient,
 			now: () => 1758000000000,
-			randomBytes: () => new Uint8Array(0),
+			randomBytes: (count) => new Uint8Array(count),
 		});
 		const settled = await Promise.race([daemon, Promise.resolve('pending')]);
 

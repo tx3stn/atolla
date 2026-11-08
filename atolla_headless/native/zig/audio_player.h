@@ -19,8 +19,8 @@ void atolla_audio_clear(void);
 size_t atolla_audio_current_track_id(unsigned char *out, size_t len);
 size_t atolla_audio_consume_event(unsigned char *out, size_t len);
 bool atolla_audio_provide_clock(const char *bind_address, uint16_t port);
-bool atolla_audio_serve_stream(const char *bind_address, uint16_t port);
-bool atolla_audio_join_source(const char *host, uint16_t port);
+bool atolla_audio_serve_stream(const char *bind_address, uint16_t port, const char *key);
+bool atolla_audio_join_source(const char *host, uint16_t port, const char *key);
 bool atolla_audio_receiving(void);
 
 #ifdef __cplusplus

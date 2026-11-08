@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Hello, PairAccepted, StateSnapshot, Track } from 'atolla_sync/src/api/generated';
+import type {
+	Hello,
+	PairAccepted,
+	StateSnapshot,
+	StreamKeyAnswer,
+	Track,
+} from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Cli, type Daemon, pairingCode } from './cli';
 import { silence } from './silence';
@@ -97,10 +103,12 @@ describe('joining a source', () => {
 
 	async function joinKitchen(): Promise<void> {
 		const hello = (await kitchen.client.hello()).json as Hello;
+		const { key } = (await kitchen.client.streamKey(kitchen.token)).json as StreamKeyAnswer;
 
 		await lounge.client.command(lounge.token, {
 			command: 'joinSource',
 			host: '127.0.0.1',
+			key,
 			port: hello.audioPort,
 		});
 	}

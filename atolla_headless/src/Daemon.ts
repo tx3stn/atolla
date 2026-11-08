@@ -18,10 +18,12 @@ import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
 import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 import { makeQueueOwner } from './QueueOwner';
-import type { RandomBytes } from './Random';
+import { type RandomBytes, randomHex } from './Random';
 import { attachServer } from './Server';
 import { makeSourceResolver } from './SourceResolver';
 import { makeStateVersion, playbackSignature } from './StateVersion';
+
+const STREAM_KEY_BYTES = 32;
 
 export interface DaemonDeps {
 	audio: AudioEngine;
@@ -76,6 +78,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	});
 
 	const stream = makeAudioStream({ audio: deps.audio, version });
+	const streamKey = randomHex(deps.randomBytes, STREAM_KEY_BYTES);
 
 	if (deps.audio.start(deps.config.audioDevice, deps.config.streamLatencyMs)) {
 		audioPlayer.start();
@@ -92,7 +95,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 		}
 
 		setInterval(stream.tick, POLL_INTERVAL_MS);
-		if (stream.serve(deps.config.bindAddress, deps.config.audioPort)) {
+		if (stream.serve(deps.config.bindAddress, deps.config.audioPort, streamKey)) {
 			log.info('streaming audio', { port: deps.config.audioPort });
 		} else {
 			log.warn('audio stream unavailable', { port: deps.config.audioPort });
@@ -167,6 +170,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			stream,
 			version,
 		},
+		streamKey,
 	});
 	log.info('listening', {
 		host: deps.config.bindAddress,

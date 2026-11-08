@@ -88,13 +88,13 @@ function apply(deps: CommandDeps, command: Command): boolean {
 			playback.setLoopMode(LoopModes[command.loopMode]);
 			return true;
 		case 'joinSource':
-			if (command.host === undefined || command.port === undefined) {
+			if (command.host === undefined || command.port === undefined || command.key === undefined) {
 				deps.stream.join(null);
 				return true;
 			}
 
 			playback.setPlaying(false);
-			deps.stream.join({ host: command.host, port: command.port });
+			deps.stream.join({ host: command.host, key: command.key, port: command.port });
 			return true;
 		case 'setQueue': {
 			// Batched so the queue and its owner are announced together. A subscriber resolves the

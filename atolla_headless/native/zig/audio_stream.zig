@@ -22,6 +22,8 @@ const no_lead = std.math.maxInt(u64);
 
 const tally_interval_ns = 60 * std.time.ns_per_s;
 
+pub const key_timeout_ms = 5_000;
+
 const member_head = "appsrc name=source format=time ! audioconvert ! audioresample name=resample";
 
 pub const Error = gst.PipelineError || error{OutputNotFound};
@@ -274,6 +276,8 @@ pub const Listener = struct {
     io: std.Io,
     server: net.Server,
     hello: audio_wire.Hello,
+    key: audio_wire.Key,
+    key_timeout_ms: i32,
     latency_ns: u64,
     format: ?Format = null,
     running: std.atomic.Value(bool) = .init(true),
@@ -281,13 +285,22 @@ pub const Listener = struct {
     members: std.ArrayList(net.Stream) = .empty,
     thread: ?std.Thread = null,
 
-    pub fn init(self: *Listener, address: *const net.IpAddress, clock_port: u16, latency_ns: u64) !void {
+    pub fn init(
+        self: *Listener,
+        address: *const net.IpAddress,
+        clock_port: u16,
+        latency_ns: u64,
+        key: audio_wire.Key,
+        timeout_ms: i32,
+    ) !void {
         const io = io_context();
 
         self.* = .{
             .io = io,
             .server = try net.IpAddress.listen(address, io, .{ .mode = .stream, .reuse_address = true }),
             .hello = .{ .version = audio_wire.version, .clock_port = clock_port },
+            .key = key,
+            .key_timeout_ms = timeout_ms,
             .latency_ns = latency_ns,
         };
         errdefer self.server.deinit(io);
@@ -343,6 +356,9 @@ pub const Listener = struct {
 
         try audio_wire.writeHello(&writer.interface, self.hello);
         try writer.interface.flush();
+
+        if (!self.presentsKey(stream)) return error.Refused;
+
         try nonBlocking(stream.socket.handle);
 
         self.mutex.lockUncancelable(self.io);
@@ -371,6 +387,17 @@ pub const Listener = struct {
         }
     }
 
+    fn presentsKey(self: *const Listener, stream: net.Stream) bool {
+        var read_buffer: [audio_wire.header_bytes + audio_wire.key_bytes]u8 = undefined;
+        var reader: socket_reader.Reader = .init(stream.socket.handle, &read_buffer, self.key_timeout_ms);
+        var no_chunk: [0]u8 = undefined;
+
+        return switch (audio_wire.read(&reader.interface, &no_chunk) catch return false) {
+            .key => |given| std.crypto.timing_safe.eql(audio_wire.Key, given, self.key),
+            .hello, .chunk, .flush => false,
+        };
+    }
+
     fn run(self: *Listener) void {
         while (true) {
             const stream = self.server.accept(self.io) catch |err| switch (err) {
@@ -383,8 +410,15 @@ pub const Listener = struct {
                 return;
             }
 
-            self.admit(stream) catch {
-                log.warn("audio", "could not admit a member", .{});
+            self.admit(stream) catch |err| {
+                var host_buffer: [64]u8 = undefined;
+                const host = hostOf(&host_buffer, stream.socket.address) catch "an unknown address";
+
+                switch (err) {
+                    error.Refused => log.warn("audio", "refused a member at {s} without the stream key", .{host}),
+                    else => log.warn("audio", "could not admit a member at {s}", .{host}),
+                }
+
                 stream.close(self.io);
             };
         }
@@ -461,6 +495,7 @@ pub const Receiver = struct {
     host: [max_host_bytes + 1]u8 = undefined,
     host_len: usize = 0,
     port: u16 = 0,
+    key: audio_wire.Key = undefined,
     stopping: std.atomic.Value(bool) = .init(false),
     clock: std.atomic.Value(?*gst.Object) = .init(null),
     play_until_ns: std.atomic.Value(u64) = .init(0),
@@ -469,13 +504,14 @@ pub const Receiver = struct {
     smallest_lead_ns: std.atomic.Value(u64) = .init(no_lead),
     thread: ?std.Thread = null,
 
-    pub fn start(self: *Receiver, host: []const u8, port: u16) !void {
+    pub fn start(self: *Receiver, host: []const u8, port: u16, key: audio_wire.Key) !void {
         if (host.len > max_host_bytes) return error.HostTooLong;
 
         @memcpy(self.host[0..host.len], host);
         self.host[host.len] = 0;
         self.host_len = host.len;
         self.port = port;
+        self.key = key;
 
         self.stopping.store(false, .release);
         self.play_until_ns.store(0, .release);
@@ -556,7 +592,7 @@ pub const Receiver = struct {
 
         const hello = switch (audio_wire.read(&reader.interface, &chunk_buffer) catch return) {
             .hello => |given| given,
-            .chunk, .flush => return,
+            .chunk, .flush, .key => return,
         };
 
         if (hello.version != audio_wire.version) {
@@ -568,6 +604,12 @@ pub const Receiver = struct {
             return;
         }
 
+        var write_buffer: [audio_wire.header_bytes + audio_wire.key_bytes]u8 = undefined;
+        var writer = stream.writer(self.io, &write_buffer);
+
+        audio_wire.writeKey(&writer.interface, self.key) catch return;
+        writer.interface.flush() catch return;
+
         var clock_host_buffer: [64]u8 = undefined;
         const clock_host = hostOf(&clock_host_buffer, connected.address) catch return;
         const clock = self.sync.clientClock(clock_host, hello.clock_port) orelse return;
@@ -577,10 +619,14 @@ pub const Receiver = struct {
         var tally_started_ns: ?u64 = null;
 
         while (!self.stopping.load(.acquire)) {
-            const frame = audio_wire.read(&reader.interface, &chunk_buffer) catch return;
+            const frame = audio_wire.read(&reader.interface, &chunk_buffer) catch {
+                if (!self.stopping.load(.acquire)) log.warn("audio", "the source closed the stream", .{});
+
+                return;
+            };
 
             switch (frame) {
-                .hello => return,
+                .hello, .key => return,
                 .chunk => |piece| {
                     if (!self.sync.isSynced(clock)) continue;
 
@@ -656,6 +702,10 @@ const test_format: Format = .{ .rate = 48000, .channels = 2, .sample = .s16, .ch
 const test_caps = "audio/x-raw,rate=48000,channels=2";
 
 const watched_output: Output = .{ .described = "fakesink name=output sync=true signal-handoffs=true" };
+
+const test_key: audio_wire.Key = ("0123456789abcdef" ** 4).*;
+
+const other_key: audio_wire.Key = ("fedcba9876543210" ** 4).*;
 
 const Rendered = struct {
     clock: *const Clock,
@@ -755,7 +805,7 @@ const TestSource = struct {
         ));
 
         const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
-        try self.listener.init(&loopback, clock_port, latency_ns);
+        try self.listener.init(&loopback, clock_port, latency_ns, test_key, key_timeout_ms);
 
         self.sender = .{
             .gst = runtime,
@@ -836,6 +886,20 @@ const TestWireSource = struct {
         try self.write(bytes);
     }
 };
+
+fn connectWithKey(port: u16, key: audio_wire.Key) !net.Stream {
+    const address: net.IpAddress = .{ .ip4 = .loopback(port) };
+    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    errdefer stream.close(io_context());
+
+    var buffer: [audio_wire.header_bytes + audio_wire.key_bytes]u8 = undefined;
+    var writer = stream.writer(io_context(), &buffer);
+
+    try audio_wire.writeKey(&writer.interface, key);
+    try writer.interface.flush();
+
+    return stream;
+}
 
 fn untilSynced(receiver: *const Receiver) !void {
     for (0..100) |_| {
@@ -958,7 +1022,7 @@ test "audio_stream: a member that joined a source hears its audio at the time it
     try watch(&member, &rendered);
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("127.0.0.1", source.listener.port());
+    try receiver.start("127.0.0.1", source.listener.port(), test_key);
     defer receiver.stop();
 
     try untilJoined(&source, &receiver);
@@ -986,7 +1050,7 @@ test "audio_stream: a member is receiving while its source plays, and not once t
     try watch(&member, &rendered);
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("localhost", source.listener.port());
+    try receiver.start("localhost", source.listener.port(), test_key);
     defer receiver.stop();
 
     try untilJoined(&source, &receiver);
@@ -1025,7 +1089,7 @@ test "audio_stream: a member stays joined through a chunk that stalls part-way o
     try watch(&member, &rendered);
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("127.0.0.1", source.port());
+    try receiver.start("127.0.0.1", source.port(), test_key);
     defer receiver.stop();
 
     try source.accept();
@@ -1059,7 +1123,7 @@ test "audio_stream: a member drops a chunk that arrives after its play time, and
     try watch(&member, &rendered);
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("127.0.0.1", source.port());
+    try receiver.start("127.0.0.1", source.port(), test_key);
     defer receiver.stop();
 
     try source.accept();
@@ -1101,7 +1165,7 @@ test "audio_stream: a member keeping up stays joined when one chunk holds more a
     try watch(&member, &rendered);
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("127.0.0.1", source.listener.port());
+    try receiver.start("127.0.0.1", source.listener.port(), test_key);
     defer receiver.stop();
 
     try untilJoined(&source, &receiver);
@@ -1125,7 +1189,7 @@ test "audio_stream: a member drops what it holds when its source flushes" {
     try watch(&member, &rendered);
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("127.0.0.1", source.port());
+    try receiver.start("127.0.0.1", source.port(), test_key);
     defer receiver.stop();
 
     try source.accept();
@@ -1160,8 +1224,7 @@ test "audio_stream: a source's flush reaches its members" {
     try source.init(&runtime, test_caps, 20, 300 * std.time.ns_per_ms);
     defer source.deinit();
 
-    const address: net.IpAddress = .{ .ip4 = .loopback(source.listener.port()) };
-    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    const stream = try connectWithKey(source.listener.port(), test_key);
     defer stream.close(io_context());
 
     var read_buffer: [64]u8 = undefined;
@@ -1194,7 +1257,7 @@ test "audio_stream: a member is receiving until the end of the audio it holds, n
     defer member.deinit();
 
     var receiver: Receiver = .{ .io = io_context(), .sync = source.clock.net, .member = &member };
-    try receiver.start("127.0.0.1", source.port());
+    try receiver.start("127.0.0.1", source.port(), test_key);
     defer receiver.stop();
 
     try source.accept();
@@ -1223,8 +1286,7 @@ test "audio_stream: a member that stops reading is dropped without holding up th
     var played: Rendered = .{ .clock = &source.clock };
     try watch(&source.member, &played);
 
-    const address: net.IpAddress = .{ .ip4 = .loopback(source.listener.port()) };
-    const stalled = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    const stalled = try connectWithKey(source.listener.port(), test_key);
     defer stalled.close(io_context());
 
     const small: c_int = 1024;
@@ -1295,8 +1357,7 @@ test "audio_stream: a source splits a long buffer on whole frames and keeps its 
     defer runtime.gstreamer.gst_object_unref(tone);
     runtime.gstreamer.gst_util_set_object_arg(tone, "samplesperbuffer", "12000");
 
-    const address: net.IpAddress = .{ .ip4 = .loopback(source.listener.port()) };
-    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    const stream = try connectWithKey(source.listener.port(), test_key);
     defer stream.close(io_context());
 
     var read_buffer: [4 * 1024]u8 = undefined;
@@ -1344,11 +1405,10 @@ test "audio_stream: a listener grows its members' send buffers when the format g
     const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
     var listener: Listener = undefined;
 
-    try listener.init(&loopback, 45890, 100 * std.time.ns_per_ms);
+    try listener.init(&loopback, 45890, 100 * std.time.ns_per_ms, test_key, key_timeout_ms);
     defer listener.deinit();
 
-    const address: net.IpAddress = .{ .ip4 = .loopback(listener.port()) };
-    const stream = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    const stream = try connectWithKey(listener.port(), test_key);
     defer stream.close(io_context());
 
     for (0..100) |_| {
@@ -1368,4 +1428,53 @@ test "audio_stream: a listener grows its members' send buffers when the format g
     listener.send(2, hi_res, &chunk);
 
     try testing.expect(try sendBufferOf(member) > narrow_bytes);
+}
+
+test "audio_stream: a source refuses a member that presents another key" {
+    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+    var listener: Listener = undefined;
+
+    try listener.init(&loopback, 45890, 100 * std.time.ns_per_ms, test_key, key_timeout_ms);
+    defer listener.deinit();
+
+    const stream = try connectWithKey(listener.port(), other_key);
+    defer stream.close(io_context());
+
+    var read_buffer: [64]u8 = undefined;
+    var reader: socket_reader.Reader = .init(stream.socket.handle, &read_buffer, 5000);
+    var chunk_buffer: [16]u8 = undefined;
+
+    try testing.expectEqual(audio_wire.Kind.hello, std.meta.activeTag(try audio_wire.read(&reader.interface, &chunk_buffer)));
+    try testing.expectError(error.EndOfStream, audio_wire.read(&reader.interface, &chunk_buffer));
+    try testing.expectEqual(0, listener.memberCount());
+}
+
+test "audio_stream: a source refuses a member that presents no key in time, then admits the next" {
+    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+    var listener: Listener = undefined;
+
+    try listener.init(&loopback, 45890, 100 * std.time.ns_per_ms, test_key, 100);
+    defer listener.deinit();
+
+    const address: net.IpAddress = .{ .ip4 = .loopback(listener.port()) };
+    const silent = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    defer silent.close(io_context());
+
+    const keyed = try connectWithKey(listener.port(), test_key);
+    defer keyed.close(io_context());
+
+    var read_buffer: [64]u8 = undefined;
+    var reader: socket_reader.Reader = .init(silent.socket.handle, &read_buffer, 5000);
+    var chunk_buffer: [16]u8 = undefined;
+
+    try testing.expectEqual(audio_wire.Kind.hello, std.meta.activeTag(try audio_wire.read(&reader.interface, &chunk_buffer)));
+    try testing.expectError(error.EndOfStream, audio_wire.read(&reader.interface, &chunk_buffer));
+
+    for (0..100) |_| {
+        if (listener.memberCount() == 1) break;
+
+        sleep(50);
+    }
+
+    try testing.expectEqual(1, listener.memberCount());
 }

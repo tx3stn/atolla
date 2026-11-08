@@ -21,6 +21,8 @@ function track(id: string, name = `track ${id}`): Track {
 
 const TRACKS = [track('t1'), track('t2'), track('t3')];
 
+const STREAM_KEY = '3e9d1f7a5c0b8246e1d3f5a7c9b0e2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7';
+
 function fixture(): CommandDeps & {
 	joined: Array<SourceTarget | null>;
 } {
@@ -167,13 +169,13 @@ describe('handleCommand', () => {
 		expect(deps.playback.loopMode).toBe(LoopModes.track);
 	});
 
-	it('joins the source it names, or leaves it when it names none', async () => {
+	it('joins the source it names with the key the source admits it by, or leaves it when it names none', async () => {
 		const deps = fixture();
 
-		await send(deps, { command: 'joinSource', host: '192.168.1.42', port: 45891 });
+		await send(deps, { command: 'joinSource', host: '192.168.1.42', key: STREAM_KEY, port: 45891 });
 		await send(deps, { command: 'joinSource' });
 
-		expect(deps.joined).toEqual([{ host: '192.168.1.42', port: 45891 }, null]);
+		expect(deps.joined).toEqual([{ host: '192.168.1.42', key: STREAM_KEY, port: 45891 }, null]);
 	});
 
 	it('pauses its own queue when it joins a source', async () => {
@@ -181,7 +183,7 @@ describe('handleCommand', () => {
 		await queued(deps);
 		await send(deps, { command: 'play' });
 
-		await send(deps, { command: 'joinSource', host: '192.168.1.42', port: 45891 });
+		await send(deps, { command: 'joinSource', host: '192.168.1.42', key: STREAM_KEY, port: 45891 });
 
 		expect(deps.playback.isPlaying).toBe(false);
 	});

@@ -182,6 +182,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stream-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The key a member presents to join this player's audio stream.
+         * @description A controller fetches it from the player it picked as a group's source and hands it to each
+         *     member in `joinSource`. The source streams only to a member that presents it, so a device
+         *     that merely reaches the audio port hears nothing. The player makes a new one each time it
+         *     starts, so a controller fetches it again after a restart.
+         */
+        get: operations["getStreamKey"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -381,6 +404,16 @@ export interface components {
              * @example 7c1e5a9b3d8f204617ca0be9352d8f7461a0c3d95e28b7f4016cad3928bf5e7d
              */
             token: string;
+        };
+        /**
+         * @description 256 bits of entropy, hex encoded, that a source's audio stream admits members with. The
+         *     player holds it in memory only and makes a new one each time it starts.
+         * @example 3e9d1f7a5c0b8246e1d3f5a7c9b0e2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7
+         */
+        StreamKey: string;
+        /** @description The key a controller passes to each member it sends to join this player. */
+        StreamKeyAnswer: {
+            key: components["schemas"]["StreamKey"];
         };
         /**
          * Format: int32
@@ -599,9 +632,10 @@ export interface components {
         };
         /**
          * @description Play the audio another player streams, the source a controller picked for the group, or
-         *     leave it when `host` and `port` are left out. Joining pauses this player's own queue, and
-         *     the player connects at once and reports how that is going in its member's `source`, so an
-         *     unreachable source still answers 202. Joining the source it already joined changes nothing.
+         *     leave it when `host`, `port` and `key` are left out. Joining pauses this player's own
+         *     queue, and the player connects at once and reports how that is going in its member's
+         *     `source`, so an unreachable source, or one that refuses the key, still answers 202. Joining
+         *     the source it already joined with the same key changes nothing.
          */
         CommandJoinSource: {
             /**
@@ -610,6 +644,8 @@ export interface components {
              */
             command: "joinSource";
             host?: components["schemas"]["PlayerHost"];
+            /** @description The source's `GET /stream-key`, which the source admits this player with. */
+            key?: components["schemas"]["StreamKey"];
             port?: components["schemas"]["AudioPort"];
         } & {
             [key: string]: unknown;
@@ -1153,6 +1189,8 @@ export type UserId = components['schemas']['UserId'];
 export type MediaServer = components['schemas']['MediaServer'];
 export type PairRequest = components['schemas']['PairRequest'];
 export type PairAccepted = components['schemas']['PairAccepted'];
+export type StreamKey = components['schemas']['StreamKey'];
+export type StreamKeyAnswer = components['schemas']['StreamKeyAnswer'];
 export type StateVersion = components['schemas']['StateVersion'];
 export type TrackIndex = components['schemas']['TrackIndex'];
 export type Tracks = components['schemas']['Tracks'];
@@ -1491,6 +1529,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["InvalidToken"];
+            411: components["responses"]["LengthRequired"];
+            413: components["responses"]["BodyTooLarge"];
+            417: components["responses"]["ExpectationFailed"];
+            500: components["responses"]["HandlerFailed"];
+            503: components["responses"]["Unavailable"];
+            504: components["responses"]["HandlerTimeout"];
+        };
+    };
+    getStreamKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
+                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
+                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
+                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
+                 *     answers any version.
+                 */
+                "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The key this player's audio stream admits members with. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamKeyAnswer"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["InvalidToken"];

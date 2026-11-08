@@ -11,6 +11,8 @@ import { makeStateVersion } from './StateVersion';
 
 const PAIR_BODY = JSON.stringify({ controllerId: 'c1', controllerName: 'Phone' });
 
+const STREAM_KEY = '3e9d1f7a5c0b8246e1d3f5a7c9b0e2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7';
+
 function counting(): RandomBytes {
 	let next = 0;
 	return (count) => Uint8Array.from({ length: count }, () => next++ & 0xff);
@@ -49,6 +51,7 @@ function deps(): ServerDeps {
 			stream: { source: () => undefined },
 			version: makeStateVersion(),
 		},
+		streamKey: STREAM_KEY,
 	};
 }
 
@@ -99,6 +102,19 @@ describe('attachServer', () => {
 		expect(answers).toHaveLength(1);
 		expect(answers[0].requestId).toBe(7);
 		expect(answers[0].status).toBe(200);
+	});
+
+	it('answers the key its audio stream admits members with', async () => {
+		const answers: Array<{ body: string; requestId: number; status: number }> = [];
+		const { dispatch, httpServer } = fakeHttpServer(answers);
+
+		attachServer(httpServer, deps());
+		dispatch(11, ROUTE.streamKey, '/stream-key', '');
+		await settled();
+
+		expect(answers).toEqual([
+			{ body: JSON.stringify({ key: STREAM_KEY }), requestId: 11, status: 200 },
+		]);
 	});
 
 	it('still answers when a handler rejects, so the connection is not left waiting', async () => {

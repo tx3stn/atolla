@@ -1,4 +1,5 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
+import type { StreamKeyAnswer } from 'atolla_sync/src/api/generated';
 import type { Answer, HttpServer } from './Http';
 import { type CommandDeps, handleCommand } from './routes/Command';
 import { handleMediaServer, type MediaServerDeps } from './routes/MediaServer';
@@ -11,6 +12,7 @@ export const ROUTE = {
 	mediaServer: 4,
 	pair: 1,
 	state: 3,
+	streamKey: 6,
 } as const;
 
 export interface ServerDeps {
@@ -18,6 +20,7 @@ export interface ServerDeps {
 	mediaServer: MediaServerDeps;
 	pair: PairDeps;
 	state: StateDeps;
+	streamKey: string;
 }
 
 const log = getLogger('server-js');
@@ -41,6 +44,13 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 
 			case ROUTE.state:
 				answer = handleState(deps.state, target);
+				break;
+
+			case ROUTE.streamKey:
+				answer = Promise.resolve({
+					body: JSON.stringify({ key: deps.streamKey } satisfies StreamKeyAnswer),
+					status: 200,
+				});
 				break;
 
 			default:

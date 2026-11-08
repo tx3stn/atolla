@@ -1,6 +1,7 @@
 // POST /command
 
 const std = @import("std");
+const credentials = @import("credentials.zig");
 
 /// The whole queue travels in a `setQueue`, so this is the one route that takes the global cap.
 pub const max_body_bytes = 1024 * 1024;
@@ -50,6 +51,7 @@ pub const Body = struct {
     command: Name,
     fromIndex: ?u32 = null,
     host: ?[]const u8 = null,
+    key: ?[]const u8 = null,
     loopMode: ?LoopMode = null,
     port: ?u16 = null,
     positionMs: ?u64 = null,
@@ -66,6 +68,7 @@ const Wire = struct {
     command: []const u8,
     fromIndex: ?u32 = null,
     host: ?[]const u8 = null,
+    key: ?[]const u8 = null,
     loopMode: ?[]const u8 = null,
     port: ?u16 = null,
     positionMs: ?u64 = null,
@@ -93,6 +96,7 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         .command = std.meta.stringToEnum(Name, wire.command) orelse return error.Malformed,
         .fromIndex = wire.fromIndex,
         .host = wire.host,
+        .key = wire.key,
         .loopMode = if (wire.loopMode) |mode|
             std.meta.stringToEnum(LoopMode, mode) orelse return error.Malformed
         else
@@ -123,6 +127,10 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         if (port == 0) return error.Malformed;
     }
 
+    if (parsed.key) |key| {
+        if (credentials.parseToken(key) == null) return error.Malformed;
+    }
+
     if (parsed.positionMs) |position| {
         if (position > max_position_ms) return error.Malformed;
     }
@@ -138,7 +146,11 @@ pub fn parse(scratch: []u8, body: []const u8) ParseError!Body {
         .jumpToIndex, .removeAt => if (parsed.trackIndex == null) return error.Malformed,
         .move => if (parsed.fromIndex == null or parsed.toIndex == null) return error.Malformed,
         .setLoopMode => if (parsed.loopMode == null) return error.Malformed,
-        .joinSource => if ((parsed.host == null) != (parsed.port == null)) return error.Malformed,
+        .joinSource => {
+            const named = parsed.host != null;
+
+            if ((parsed.port != null) != named or (parsed.key != null) != named) return error.Malformed;
+        },
     }
 
     return parsed;
@@ -348,14 +360,19 @@ test "command: refuses an account that cannot be a user id" {
     ));
 }
 
+const test_key = "0123456789abcdef" ** 4;
+
 test "command: reads the source a speaker is told to join, or none to leave it" {
     const joined = try decoded(
-        \\{"command":"joinSource","host":"kitchen.local","port":45891}
+        \\{"command":"joinSource","host":"kitchen.local","port":45891,"key":"
+    ++ test_key ++
+        \\"}
     );
 
     try testing.expectEqual(Name.joinSource, joined.command);
     try testing.expectEqualStrings("kitchen.local", joined.host.?);
     try testing.expectEqual(45891, joined.port);
+    try testing.expectEqualStrings(test_key, joined.key.?);
 
     const left = try decoded(
         \\{"command":"joinSource"}
@@ -364,35 +381,67 @@ test "command: reads the source a speaker is told to join, or none to leave it" 
     try testing.expectEqual(Name.joinSource, left.command);
     try testing.expectEqual(null, left.host);
     try testing.expectEqual(null, left.port);
+    try testing.expectEqual(null, left.key);
 }
 
-test "command: refuses a joinSource naming half an address" {
+test "command: refuses a joinSource naming only part of its source" {
     try testing.expectError(error.Malformed, decoded(
-        \\{"command":"joinSource","host":"kitchen.local"}
+        \\{"command":"joinSource","host":"kitchen.local","key":"
+    ++ test_key ++
+        \\"}
     ));
     try testing.expectError(error.Malformed, decoded(
-        \\{"command":"joinSource","port":45891}
+        \\{"command":"joinSource","port":45891,"key":"
+    ++ test_key ++
+        \\"}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen.local","port":45891}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","key":"
+    ++ test_key ++
+        \\"}
     ));
 }
 
 test "command: refuses a source port TCP does not have" {
     try testing.expectError(error.Malformed, decoded(
-        \\{"command":"joinSource","host":"kitchen.local","port":0}
+        \\{"command":"joinSource","host":"kitchen.local","port":0,"key":"
+    ++ test_key ++
+        \\"}
     ));
     try testing.expectError(error.Malformed, decoded(
-        \\{"command":"joinSource","host":"kitchen.local","port":65536}
+        \\{"command":"joinSource","host":"kitchen.local","port":65536,"key":"
+    ++ test_key ++
+        \\"}
     ));
 }
 
 test "command: refuses a source host that cannot be an address" {
     try testing.expectError(error.Malformed, decoded(
-        \\{"command":"joinSource","host":"","port":45891}
+        \\{"command":"joinSource","host":"","port":45891,"key":"
+    ++ test_key ++
+        \\"}
     ));
     try testing.expectError(error.Malformed, decoded(
-        \\{"command":"joinSource","host":"kitchen speaker","port":45891}
+        \\{"command":"joinSource","host":"kitchen speaker","port":45891,"key":"
+    ++ test_key ++
+        \\"}
     ));
     try testing.expectError(error.Malformed, decoded("{\"command\":\"joinSource\",\"host\":\"" ++
-        "h" ** 254 ++ "\",\"port\":45891}"));
+        "h" ** 254 ++ "\",\"port\":45891,\"key\":\"" ++ test_key ++ "\"}"));
+}
+
+test "command: refuses a stream key that is not 64 lowercase hex" {
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen.local","port":45891,"key":"0123abcd"}
+    ));
+    try testing.expectError(error.Malformed, decoded(
+        \\{"command":"joinSource","host":"kitchen.local","port":45891,"key":"
+    ++ "0123456789ABCDEF" ** 4 ++
+        \\"}
+    ));
 }
 
 test "command: ignores a member belonging to no command" {

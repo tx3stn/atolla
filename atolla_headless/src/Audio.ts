@@ -11,12 +11,12 @@ export interface AudioEngine {
 	configureNext: (source: string, trackId: string, authHeader: string) => boolean;
 	consumeEvent: () => string;
 	currentTrackId: () => string;
-	joinSource: (host: string, port: number) => boolean;
+	joinSource: (host: string, port: number, key: string) => boolean;
 	positionMs: () => number;
 	provideClock: (bindAddress: string, port: number) => boolean;
 	receiving: () => boolean;
 	seekToMs: (positionMs: number) => boolean;
-	serveStream: (bindAddress: string, port: number) => boolean;
+	serveStream: (bindAddress: string, port: number, key: string) => boolean;
 	setPlaying: (playing: boolean) => void;
 	start: (device: string, streamLatencyMs: number) => boolean;
 }

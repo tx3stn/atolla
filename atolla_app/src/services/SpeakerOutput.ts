@@ -6,13 +6,18 @@ import {
 	type PlaybackStore,
 	PlayheadMoves,
 } from 'atolla_player/src/stores/Playback';
-import type { Command, CommandSetQueue, Hello } from 'atolla_sync/src/api/generated';
+import type {
+	Command,
+	CommandSetQueue,
+	Hello,
+	StreamKeyAnswer,
+} from 'atolla_sync/src/api/generated';
 import type { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import type { PlayersStore } from '../stores/Players';
 
 const log = getLogger('speaker-output');
 
-export type SpeakerClient = Pick<PlayerClient, 'command' | 'hello'>;
+export type SpeakerClient = Pick<PlayerClient, 'command' | 'hello' | 'streamKey'>;
 
 export interface SpeakerOutputOptions {
 	createClient: (baseUrl: string) => SpeakerClient;
@@ -38,6 +43,7 @@ interface Speaker {
 
 interface SourceTarget {
 	host: string;
+	key: string;
 	port: number;
 }
 
@@ -86,7 +92,22 @@ export class SpeakerOutput {
 			return;
 		}
 
-		source.target = { host: source.speaker.host, port: audioPort };
+		const keyed = await Promise.resolve(
+			source.speaker.client.streamKey(source.speaker.token),
+		).catch(() => null);
+		if (this.source !== source) {
+			return;
+		}
+
+		if (keyed === null || keyed.status !== 200) {
+			log.warn('could not get the stream key from the source, so nothing joins it', {
+				host: source.speaker.host,
+			});
+			return;
+		}
+
+		const { key } = keyed.json as StreamKeyAnswer;
+		source.target = { host: source.speaker.host, key, port: audioPort };
 		this.sync();
 	}
 

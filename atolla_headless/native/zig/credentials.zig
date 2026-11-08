@@ -117,19 +117,21 @@ pub fn bearer(header: []const u8) ?Token {
     if (!std.ascii.eqlIgnoreCase(trimmed[0..scheme.len], scheme)) return null;
     if (!std.ascii.isWhitespace(trimmed[scheme.len])) return null;
 
-    const presented = std.mem.trim(u8, trimmed[scheme.len..], &std.ascii.whitespace);
+    return parseToken(std.mem.trim(u8, trimmed[scheme.len..], &std.ascii.whitespace));
+}
 
-    if (presented.len != token_digits) return null;
+pub fn parseToken(text: []const u8) ?Token {
+    if (text.len != token_digits) return null;
 
-    var token: Token = undefined;
+    var parsed: Token = undefined;
 
-    for (presented, 0..) |byte, index| {
+    for (text, 0..) |byte, index| {
         if (!std.ascii.isDigit(byte) and (byte < 'a' or byte > 'f')) return null;
 
-        token[index] = byte;
+        parsed[index] = byte;
     }
 
-    return token;
+    return parsed;
 }
 
 fn normalized(text: []const u8) ?Code {

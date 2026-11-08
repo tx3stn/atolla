@@ -2,6 +2,7 @@ const std = @import("std");
 const audio_stream = @import("audio_stream.zig");
 const audio_wire = @import("audio_wire.zig");
 const Clock = @import("clock.zig").Clock;
+const credentials = @import("credentials.zig");
 const gst = @import("gst.zig");
 const gst_net = @import("gst_net.zig");
 const log = @import("log.zig");
@@ -328,13 +329,13 @@ pub const Player = struct {
         return buffer[0..length];
     }
 
-    pub fn join(self: *Player, host: []const u8, port: u16) !void {
+    pub fn join(self: *Player, host: []const u8, port: u16, key: audio_wire.Key) !void {
         self.leave();
         self.setPlaying(false);
         self.sender.joined.store(true, .release);
         errdefer self.leave();
 
-        try self.receiver.start(host, port);
+        try self.receiver.start(host, port, key);
     }
 
     pub fn leave(self: *Player) void {
@@ -370,13 +371,13 @@ pub const Player = struct {
         return sought;
     }
 
-    pub fn serve(self: *Player, address: *const std.Io.net.IpAddress, clock_port: u16) !u16 {
+    pub fn serve(self: *Player, address: *const std.Io.net.IpAddress, clock_port: u16, key: audio_wire.Key) !u16 {
         if (self.listener != null) return error.AlreadyServing;
 
         self.listener = @as(audio_stream.Listener, undefined);
         errdefer self.listener = null;
 
-        try self.listener.?.init(address, clock_port, self.sender.latency_ns);
+        try self.listener.?.init(address, clock_port, self.sender.latency_ns, key, audio_stream.key_timeout_ms);
         self.sender.listener.store(&self.listener.?, .release);
 
         return self.listener.?.port();
@@ -552,13 +553,14 @@ export fn atolla_audio_provide_clock(bind_address: [*:0]const u8, port: u16) boo
     return hosted.started and hosted.clock.provide(std.mem.span(bind_address), port) != null;
 }
 
-export fn atolla_audio_serve_stream(bind_address: [*:0]const u8, port: u16) bool {
+export fn atolla_audio_serve_stream(bind_address: [*:0]const u8, port: u16, key: [*:0]const u8) bool {
     if (!hosted.started) return false;
 
     const provider = hosted.clock.provider orelse return false;
     const address = std.Io.net.IpAddress.parse(std.mem.span(bind_address), port) catch return false;
+    const stream_key = credentials.parseToken(std.mem.span(key)) orelse return false;
 
-    _ = hosted.player.serve(&address, @intCast(hosted.clock.net.portOf(provider))) catch |err| {
+    _ = hosted.player.serve(&address, @intCast(hosted.clock.net.portOf(provider)), stream_key) catch |err| {
         log.warn("audio", "could not serve the stream: {s}", .{@errorName(err)});
 
         return false;
@@ -567,7 +569,7 @@ export fn atolla_audio_serve_stream(bind_address: [*:0]const u8, port: u16) bool
     return true;
 }
 
-export fn atolla_audio_join_source(host: [*:0]const u8, port: u16) bool {
+export fn atolla_audio_join_source(host: [*:0]const u8, port: u16, key: [*:0]const u8) bool {
     if (!hosted.started) return false;
 
     const named = std.mem.span(host);
@@ -577,7 +579,9 @@ export fn atolla_audio_join_source(host: [*:0]const u8, port: u16) bool {
         return true;
     }
 
-    hosted.player.join(named, port) catch |err| {
+    const stream_key = credentials.parseToken(std.mem.span(key)) orelse return false;
+
+    hosted.player.join(named, port, stream_key) catch |err| {
         log.warn("audio", "could not join the source: {s}", .{@errorName(err)});
 
         return false;
@@ -676,6 +680,8 @@ const test_auth_header =
 const test_latency_ns = 100 * std.time.ns_per_ms;
 
 const long_latency_ns = gst.second;
+
+const test_stream_key: audio_wire.Key = ("0123456789abcdef" ** 4).*;
 
 fn silentPlayer(runtime: *gst.Gst, player: *Player) !void {
     const clock = try startedClock(runtime);
@@ -982,7 +988,7 @@ fn servingSource(runtime: *gst.Gst, source: *Player, latency_ns: u64) !u16 {
 
     const loopback: std.Io.net.IpAddress = .{ .ip4 = .loopback(0) };
 
-    return source.serve(&loopback, clock_port);
+    return source.serve(&loopback, clock_port, test_stream_key);
 }
 
 fn untilFollowing(player: *const Player) !void {
@@ -1021,7 +1027,7 @@ test "audio_player: a speaker that joins a source stops its own playback" {
         }
     }.started);
 
-    try player.join("127.0.0.1", port);
+    try player.join("127.0.0.1", port, test_stream_key);
 
     const joined_at = player.positionMs();
     io_context().sleep(.fromMilliseconds(300), .awake) catch {};
@@ -1040,7 +1046,7 @@ test "audio_player: a joined speaker plays out on its source's clock, and on its
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
-    try player.join("127.0.0.1", port);
+    try player.join("127.0.0.1", port, test_stream_key);
     try untilFollowing(&player);
 
     try testing.expectEqual(player.receiver.clockFollowed().?, try pipelineClock(&player.member.pipeline));
@@ -1098,7 +1104,7 @@ test "audio_player: a pause stops its members at once" {
     try silentPlayer(&runtime, &member);
     defer member.deinit();
 
-    try member.join("127.0.0.1", port);
+    try member.join("127.0.0.1", port, test_stream_key);
     try untilFollowing(&member);
 
     var tmp = testing.tmpDir(.{});
@@ -1128,7 +1134,7 @@ test "audio_player: a source that reached its end lets its members play out what
     try silentPlayer(&runtime, &member);
     defer member.deinit();
 
-    try member.join("127.0.0.1", port);
+    try member.join("127.0.0.1", port, test_stream_key);
     try untilFollowing(&member);
 
     var tmp = testing.tmpDir(.{});
@@ -1191,6 +1197,11 @@ fn expectStreamedUntouched(runtime: *gst.Gst, path: [:0]const u8, data: []const 
     const stream = try std.Io.net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
     defer stream.close(io_context());
 
+    var write_buffer: [audio_wire.header_bytes + audio_wire.key_bytes]u8 = undefined;
+    var writer = stream.writer(io_context(), &write_buffer);
+    try audio_wire.writeKey(&writer.interface, test_stream_key);
+    try writer.interface.flush();
+
     var read_buffer: [4 * 1024]u8 = undefined;
     var reader: socket_reader.Reader = .init(stream.socket.handle, &read_buffer, 5000);
     const chunk_buffer = try testing.allocator.alloc(u8, audio_stream.max_chunk_bytes);
@@ -1214,7 +1225,7 @@ fn expectStreamedUntouched(runtime: *gst.Gst, path: [:0]const u8, data: []const 
         const chunk = switch (try audio_wire.read(&reader.interface, chunk_buffer)) {
             .chunk => |given| given,
             .flush => continue,
-            .hello => return error.TestUnexpectedResult,
+            .hello, .key => return error.TestUnexpectedResult,
         };
 
         try testing.expectEqual(format.rate, chunk.format.rate);
@@ -1334,7 +1345,7 @@ test "audio_player: a gapless queue across two rates hands its member each rate 
     try silentPlayer(&runtime, &member);
     defer member.deinit();
 
-    try member.join("127.0.0.1", port);
+    try member.join("127.0.0.1", port, test_stream_key);
     try untilFollowing(&member);
 
     var tmp = testing.tmpDir(.{});

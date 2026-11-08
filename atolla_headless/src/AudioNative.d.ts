@@ -26,8 +26,8 @@ export function atollaAudioClear(): void;
 
 export function atollaAudioProvideClock(bindAddress: string, port: number): boolean;
 
-export function atollaAudioServeStream(bindAddress: string, port: number): boolean;
+export function atollaAudioServeStream(bindAddress: string, port: number, key: string): boolean;
 
-export function atollaAudioJoinSource(host: string, port: number): boolean;
+export function atollaAudioJoinSource(host: string, port: number, key: string): boolean;
 
 export function atollaAudioReceiving(): boolean;
