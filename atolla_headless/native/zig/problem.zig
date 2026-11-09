@@ -46,6 +46,7 @@ pub fn response(
     var headers: [2]std.http.Header = .{ content_type, undefined };
     const count = writeRetryAfter(&headers, &retry_buffer, problem);
 
+    request.head.expect = null;
     try request.respond(render(&buffer, problem), .{
         .status = @enumFromInt(problem.status),
         .keep_alive = options.keep_alive,
@@ -203,6 +204,12 @@ pub const handler_timeout: Problem = .{
     .code = "handler_timeout",
     .status = 504,
     .title = "handler timeout",
+};
+
+pub const insufficient_storage: Problem = .{
+    .code = "insufficient_storage",
+    .status = 507,
+    .title = "insufficient storage",
 };
 
 const testing = std.testing;

@@ -9,6 +9,7 @@ pub const Route = enum(u32) {
     state = 3,
     media_server = 4,
     stream_key = 6,
+    media = 7,
 };
 
 pub const Outcome = union(enum) {
@@ -24,6 +25,7 @@ const Entry = struct {
     /// Whether a controller token admits the request. The table is where a route is declared, so
     /// it is also where the answer lives, mirroring the spec's default security and its overrides.
     token: bool = true,
+    prefix: bool = false,
 };
 
 const table = [_]Entry{
@@ -33,7 +35,12 @@ const table = [_]Entry{
     .{ .method = .GET, .path = "/state", .route = .state },
     .{ .method = .PUT, .path = "/media-server", .route = .media_server },
     .{ .method = .GET, .path = "/stream-key", .route = .stream_key },
+    .{ .method = .PUT, .path = "/media/", .route = .media, .prefix = true },
 };
+
+pub fn mediaTrackId(target: []const u8) []const u8 {
+    return pathOf(target)["/media/".len..];
+}
 
 pub fn requiresToken(route: Route) bool {
     for (table) |entry| {
@@ -44,17 +51,27 @@ pub fn requiresToken(route: Route) bool {
 }
 
 pub fn resolve(method: std.http.Method, target: []const u8) Outcome {
-    const path = target[0 .. std.mem.indexOfScalar(u8, target, '?') orelse target.len];
+    const path = pathOf(target);
     var claimed = false;
 
     for (table) |entry| {
-        if (!std.mem.eql(u8, path, entry.path)) continue;
+        if (!matches(entry, path)) continue;
         if (entry.method == method) return .{ .route = entry.route };
 
         claimed = true;
     }
 
     return if (claimed) .method_not_allowed else .not_found;
+}
+
+fn matches(entry: Entry, path: []const u8) bool {
+    if (!entry.prefix) return std.mem.eql(u8, path, entry.path);
+
+    return path.len > entry.path.len and std.mem.startsWith(u8, path, entry.path);
+}
+
+fn pathOf(target: []const u8) []const u8 {
+    return target[0 .. std.mem.indexOfScalar(u8, target, '?') orelse target.len];
 }
 
 const testing = std.testing;
@@ -89,6 +106,17 @@ test "router: resolves every route in the table" {
     try testing.expectEqual(Outcome{ .route = .state }, resolve(.GET, "/state?since=4"));
     try testing.expectEqual(Outcome{ .route = .media_server }, resolve(.PUT, "/media-server"));
     try testing.expectEqual(Outcome{ .route = .stream_key }, resolve(.GET, "/stream-key"));
+    try testing.expectEqual(Outcome{ .route = .media }, resolve(.PUT, "/media/track-1"));
+}
+
+test "router: a media upload names its track after the prefix" {
+    try testing.expectEqual(Outcome{ .route = .media }, resolve(.PUT, "/media/track-1?x=1"));
+    try testing.expectEqualStrings("track-1", mediaTrackId("/media/track-1?x=1"));
+}
+
+test "router: a media upload naming no track is not found" {
+    try testing.expectEqual(Outcome.not_found, resolve(.PUT, "/media/"));
+    try testing.expectEqual(Outcome.not_found, resolve(.PUT, "/media"));
 }
 
 test "router: a route is reachable only by its own method" {
@@ -96,6 +124,7 @@ test "router: a route is reachable only by its own method" {
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/state"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/media-server"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/stream-key"));
+    try testing.expectEqual(Outcome.method_not_allowed, resolve(.GET, "/media/track-1"));
 }
 
 test "router: only the discovery and pairing routes are reachable without a token" {
@@ -105,6 +134,7 @@ test "router: only the discovery and pairing routes are reachable without a toke
     try testing.expect(requiresToken(.state));
     try testing.expect(requiresToken(.media_server));
     try testing.expect(requiresToken(.stream_key));
+    try testing.expect(requiresToken(.media));
 }
 
 test "router: a route defaults to needing a token" {
@@ -122,4 +152,5 @@ test "router: route ids are stable" {
     try testing.expectEqual(3, @intFromEnum(Route.state));
     try testing.expectEqual(4, @intFromEnum(Route.media_server));
     try testing.expectEqual(6, @intFromEnum(Route.stream_key));
+    try testing.expectEqual(7, @intFromEnum(Route.media));
 }

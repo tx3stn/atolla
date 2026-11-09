@@ -6,10 +6,11 @@ const credentials = @import("credentials.zig");
 const gst = @import("gst.zig");
 const gst_net = @import("gst_net.zig");
 const log = @import("log.zig");
+const media_store = @import("media_store.zig");
 const socket_reader = @import("socket_reader.zig");
 const wav = @import("wav.zig");
 
-pub const max_track_id_bytes = 128;
+pub const max_track_id_bytes = media_store.max_track_id_bytes;
 pub const max_event_bytes = 512;
 pub const max_events = 32;
 

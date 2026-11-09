@@ -17,6 +17,7 @@ comptime {
     _ = @import("local_address.zig");
     _ = @import("log.zig");
     _ = @import("media_server.zig");
+    _ = @import("media_store.zig");
     _ = @import("pair.zig");
     _ = @import("problem.zig");
     _ = @import("random_bytes.zig");

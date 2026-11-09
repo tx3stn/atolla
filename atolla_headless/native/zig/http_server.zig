@@ -7,6 +7,7 @@ const credentials = @import("credentials.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
 const media_server = @import("media_server.zig");
+const media_store = @import("media_store.zig");
 const pair = @import("pair.zig");
 const problem = @import("problem.zig");
 const rate_limit = @import("rate_limit.zig");
@@ -46,6 +47,7 @@ pub const Options = struct {
     write_timeout_ms: i32 = 30_000,
     handler_timeout_ms: u64 = 28_000,
     handler: bridge.Handler = .{},
+    media: ?*media_store.Store = null,
 };
 
 pub const ListenError = net.IpAddress.ListenError;
@@ -201,6 +203,7 @@ pub const Server = struct {
     fn respond(
         self: *Server,
         request: *std.http.Server.Request,
+        reader: *socket_reader.Reader,
         key: rate_limit.Key,
         target: []const u8,
     ) !u16 {
@@ -208,11 +211,14 @@ pub const Server = struct {
             return problem.response(request, problem.length_required, .{ .keep_alive = false });
         }
 
-        if ((request.head.content_length orelse 0) > self.options.max_body_bytes) {
+        const outcome = router.resolve(request.head.method, request.head.target);
+        const is_upload = outcome == .route and outcome.route == .media;
+
+        if (!is_upload and (request.head.content_length orelse 0) > self.options.max_body_bytes) {
             return problem.response(request, problem.body_too_large, .{ .keep_alive = false });
         }
 
-        switch (router.resolve(request.head.method, request.head.target)) {
+        switch (outcome) {
             .route => |route| switch (route) {
                 .hello => {
                     try hello.respond(request);
@@ -228,6 +234,8 @@ pub const Server = struct {
                     if (router.requiresToken(route) and !credentials.authorized(self.io, request)) {
                         return problem.response(request, problem.invalid_token, .{ .keep_alive = false });
                     }
+
+                    if (route == .media) return self.serveMedia(request, reader);
 
                     const limit = bodyLimit(route);
                     if ((request.head.content_length orelse 0) > limit) {
@@ -303,7 +311,7 @@ pub const Server = struct {
             // answer go out the normal way: `respondUnflushed` tries to meet the expectation
             // again otherwise, and `readerExpectNone` documents null as how a caller says it has
             // handled one itself.
-            const status = self.respond(&request, key, target) catch |err| {
+            const status = self.respond(&request, &reader, key, target) catch |err| {
                 if (err != error.HttpExpectationFailed) return;
 
                 request.head.expect = null;
@@ -357,6 +365,72 @@ pub const Server = struct {
         return self.crossBridge(request, .media_server, target, body);
     }
 
+    fn serveMedia(self: *Server, request: *std.http.Server.Request, reader: *socket_reader.Reader) !u16 {
+        const store = self.options.media orelse {
+            return problem.response(request, problem.unavailable, .{ .keep_alive = false });
+        };
+
+        const id = router.mediaTrackId(request.head.target);
+        if (!media_store.isTrackId(id)) {
+            return problem.response(request, problem.not_found, .{ .keep_alive = false });
+        }
+
+        const length = request.head.content_length orelse 0;
+        if (length == 0) {
+            return problem.response(request, problem.malformed_body, .{ .keep_alive = false });
+        }
+
+        var upload = store.reserve(id, length) catch |err| {
+            const refusal = switch (err) {
+                error.LargerThanCache => problem.body_too_large,
+                error.CacheFull => problem.insufficient_storage,
+                else => problem.internal,
+            };
+
+            return problem.response(request, refusal, .{ .keep_alive = false });
+        };
+
+        reader.timeout_ms = self.options.idle_timeout_ms;
+        defer reader.timeout_ms = self.options.head_timeout_ms;
+
+        var transfer_buffer: [4 * 1024]u8 = undefined;
+        const body = request.readerExpectContinue(&transfer_buffer) catch |err| {
+            upload.abandon();
+            return err;
+        };
+
+        var file_buffer: [64 * 1024]u8 = undefined;
+        var file_writer = upload.file.writer(store.io, &file_buffer);
+
+        body.streamExact64(&file_writer.interface, length) catch |err| {
+            upload.abandon();
+
+            const refusal = if (err == error.WriteFailed) writeRefusal(file_writer.err) else problem.incomplete_body;
+            return problem.response(request, refusal, .{ .keep_alive = false });
+        };
+
+        file_writer.interface.flush() catch {
+            upload.abandon();
+            return problem.response(request, writeRefusal(file_writer.err), .{ .keep_alive = false });
+        };
+
+        const stored = upload.commit() catch |err| {
+            log.warn(log_name, "could not store an upload {f}", .{log.fields(.{ .err = @errorName(err) })});
+            return problem.response(request, problem.internal, .{});
+        };
+
+        switch (stored) {
+            .created => {
+                try request.respond("", .{ .status = .created });
+                return 201;
+            },
+            .replaced => {
+                try request.respond("", .{ .status = .no_content, .transfer_encoding = .none });
+                return 204;
+            },
+        }
+    }
+
     fn servePair(
         self: *Server,
         request: *std.http.Server.Request,
@@ -397,6 +471,7 @@ fn bodyLimit(route: router.Route) usize {
         .state => unrouted_body_bytes,
         .media_server => media_server.max_body_bytes,
         .stream_key => unrouted_body_bytes,
+        .media => 0,
     };
 }
 
@@ -408,6 +483,14 @@ fn readBody(request: *std.http.Server.Request, buffer: []u8) ![]const u8 {
     const reader = try request.readerExpectContinue(buffer);
 
     return if (length == 0) "" else reader.take(@intCast(length));
+}
+
+fn writeRefusal(err: ?std.Io.File.Writer.Error) problem.Problem {
+    const cause = err orelse return problem.internal;
+
+    log.warn(log_name, "could not write an upload {f}", .{log.fields(.{ .err = @errorName(cause) })});
+
+    return if (cause == error.NoSpaceLeft) problem.insufficient_storage else problem.internal;
 }
 
 fn discardPending(stream: net.Stream) void {
@@ -433,6 +516,8 @@ const Hosted = struct {
     thread: std.Thread,
 };
 
+var media: ?media_store.Store = null;
+
 export fn atolla_http_start(
     host: [*]const u8,
     host_len: usize,
@@ -446,7 +531,10 @@ export fn atolla_http_start(
     hosted.server = Server.listen(
         std.Io.Threaded.global_single_threaded.io(),
         &address,
-        .{ .handler = .{ .context = context, .dispatch = dispatch } },
+        .{
+            .handler = .{ .context = context, .dispatch = dispatch },
+            .media = if (media) |*store| store else null,
+        },
     ) catch {
         std.heap.c_allocator.destroy(hosted);
         return null;
@@ -479,6 +567,17 @@ export fn atolla_http_set_pairing_code_path(bytes: [*]const u8, len: usize) bool
 
 export fn atolla_http_set_controllers_path(bytes: [*]const u8, len: usize) bool {
     credentials.setControllersPath(bytes[0..len]) catch return false;
+
+    return true;
+}
+
+export fn atolla_http_set_media(path: [*]const u8, path_len: usize, capacity: u64) bool {
+    if (media) |*store| store.close();
+
+    media = media_store.Store.open(std.Io.Threaded.global_single_threaded.io(), path[0..path_len], capacity) catch {
+        media = null;
+        return false;
+    };
 
     return true;
 }
@@ -1643,6 +1742,214 @@ test "http_server: a second server can be hosted after the first is stopped" {
     try testing.expect(atolla_http_port(second) != 0);
     try testing.expectEqual(404, try get(atolla_http_port(second)));
     try testing.expect(port != 0);
+}
+
+test "http_server: a refusal before the body answers with its own status, not 100 Continue" {
+    var server: Server = undefined;
+    try testServer(&server, test_options);
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(std.fmt.comptimePrint(
+        "POST /command HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: {d}\r\nExpect: 100-continue\r\n\r\n",
+        .{command.max_body_bytes + 1},
+    ));
+
+    try testing.expectEqual(413, try connection.status());
+}
+
+const MediaCache = struct {
+    store: media_store.Store,
+    tmp: testing.TmpDir,
+
+    fn open(self: *MediaCache, capacity: u64) !void {
+        self.tmp = testing.tmpDir(.{});
+
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+        const path = try std.fmt.bufPrint(&buffer, ".zig-cache/tmp/{s}", .{self.tmp.sub_path});
+
+        self.store = try .open(testIo(), path, capacity);
+    }
+
+    fn close(self: *MediaCache) void {
+        self.store.close();
+        self.tmp.cleanup();
+    }
+
+    fn isEmpty(self: *MediaCache) !bool {
+        var entries = self.tmp.dir.iterate();
+
+        return try entries.next(testing.io) == null;
+    }
+};
+
+fn uploadRequest(comptime id: []const u8, comptime body: []const u8) []const u8 {
+    return std.fmt.comptimePrint(
+        "PUT /media/" ++ id ++ " HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+}
+
+fn sendUpload(port: u16, request: []const u8) !u16 {
+    const connection = try Connection.open(port);
+    defer connection.close();
+
+    try connection.send(request);
+
+    return connection.status();
+}
+
+test "http_server: stores an upload under its track id, answering 201 and then 204 when it is replaced" {
+    var cache: MediaCache = undefined;
+    try cache.open(100);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(201, try sendUpload(server.port(), uploadRequest("track-1", "first")));
+    try testing.expectEqual(204, try sendUpload(server.port(), uploadRequest("track-1", "second")));
+
+    var buffer: [16]u8 = undefined;
+    try testing.expectEqualStrings("second", try cache.tmp.dir.readFile(testing.io, "track-1", &buffer));
+}
+
+test "http_server: refuses an upload larger than the whole cache before inviting the body" {
+    var cache: MediaCache = undefined;
+    try cache.open(4);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("PUT /media/track-1 HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 5\r\nExpect: 100-continue\r\n\r\n");
+
+    try testing.expectEqual(413, try connection.status());
+    try testing.expect(try cache.isEmpty());
+}
+
+test "http_server: answers 404 for an upload whose track id isn't letters, digits, dashes and underscores" {
+    var cache: MediaCache = undefined;
+    try cache.open(100);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(404, try sendUpload(server.port(), uploadRequest("..%2Fsecrets", "x")));
+    try testing.expectEqual(404, try sendUpload(server.port(), uploadRequest(".hidden", "x")));
+    try testing.expect(try cache.isEmpty());
+}
+
+test "http_server: refuses an upload carrying no token" {
+    var cache: MediaCache = undefined;
+    try cache.open(100);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(401, try sendUpload(server.port(), "PUT /media/track-1 HTTP/1.1\r\nHost: t\r\ncontent-length: 1\r\n\r\nx"));
+    try testing.expect(try cache.isEmpty());
+}
+
+test "http_server: refuses an empty upload" {
+    var cache: MediaCache = undefined;
+    try cache.open(100);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(400, try sendUpload(server.port(), uploadRequest("track-1", "")));
+    try testing.expect(try cache.isEmpty());
+}
+
+test "http_server: an upload that stops short leaves no file behind" {
+    var cache: MediaCache = undefined;
+    try cache.open(100);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .idle_timeout_ms = 50, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(400, try sendUpload(server.port(), "PUT /media/track-1 HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 10\r\n\r\nshort"));
+    try testing.expect(try cache.isEmpty());
+}
+
+test "http_server: an upload is not held to the 1 MiB cap the other routes share" {
+    var cache: MediaCache = undefined;
+    try cache.open(2 * 1024 * 1024);
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const length = 1024 * 1024 + 1;
+    const body = try testing.allocator.alloc(u8, length);
+    defer testing.allocator.free(body);
+    @memset(body, 'a');
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(std.fmt.comptimePrint(
+        "PUT /media/track-1 HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: {d}\r\n\r\n",
+        .{length},
+    ));
+    try connection.send(body);
+
+    try testing.expectEqual(201, try connection.status());
+
+    const stat = try cache.tmp.dir.statFile(testing.io, "track-1", .{});
+    try testing.expectEqual(length, stat.size);
+}
+
+test "http_server: answers 503 for an upload when no cache was set up" {
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(503, try sendUpload(server.port(), uploadRequest("track-1", "x")));
 }
 
 const peer: net.Ip4Address = .{ .bytes = .{ 10, 0, 0, 1 }, .port = 51_000 };

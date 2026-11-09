@@ -151,6 +151,31 @@ public:
 
                                  return Valdi::Value::undefined();
                              })))
+            .setMapValue("atollaHttpSetMedia",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const Valdi::StringBox path = callContext.getParameterAsString(0);
+                                 const double capacity = callContext.getParameterAsDouble(1);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 if (!(capacity >= 1) || capacity > 9007199254740992.0) {
+                                     callContext.getExceptionTracker().onError(
+                                         Valdi::Error("atollaHttpSetMedia: capacity out of range"));
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 const std::string_view bytes = path.toStringView();
+                                 if (!atolla_http_set_media(reinterpret_cast<const unsigned char*>(bytes.data()),
+                                                            bytes.size(),
+                                                            static_cast<uint64_t>(capacity))) {
+                                     callContext.getExceptionTracker().onError(Valdi::Error(
+                                         "atollaHttpSetMedia: could not open the media directory"));
+                                 }
+
+                                 return Valdi::Value::undefined();
+                             })))
             .setMapValue("atollaHttpStart",
                          Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
                              [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
