@@ -52,14 +52,16 @@ security:
   - controllerToken: []
 
 tags:
+  - name: control
+    description: Driving playback and mirroring player state.
   - name: discovery
     description: Learning what a player is and what it speaks, before holding a credential.
+  - name: media
+    description: Copies of tracks the player keeps, so it can play them without the media server.
   - name: pairing
     description: |
       Trading the player's pairing code for a controller token, and giving the player the media
       server credential it acts under.
-  - name: control
-    description: Driving playback and mirroring player state.
 
 paths:
   /hello:
@@ -490,6 +492,72 @@ paths:
         '504':
           $ref: '#/components/responses/HandlerTimeout'
 
+  /media/{trackId}:
+    put:
+      operationId: putMedia
+      tags: [media]
+      x-lint-ignore:
+        - owasp-protection-global-unsafe-strict
+        - owasp-protection-global-unsafe
+      summary: Give the player a track's file to keep.
+      description: |
+        The body is the file exactly as the media server serves it with `static=true`, so the
+        player's copy is the original, bit for bit. Sending a track the player already holds
+        replaces it.
+
+        The player writes the body under a temporary name and renames it once the whole file has
+        arrived and reached the disk, so it never plays a track from part of a file. It deletes an
+        upload that stops short or goes quiet for 30 seconds.
+
+        Every refusal that doesn't need the body (the token, the track id, the length) is answered
+        before `100 Continue`, so a controller sending `Expect: 100-continue` never uploads a file
+        the player would refuse.
+
+        The body's cap is the player's media cache size, `mediaCacheGb` in its config file, rather
+        than the 1 MiB the other routes share. It must declare a `Content-Length`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+        - name: trackId
+          in: path
+          required: true
+          description: The media server's id for the track, also used as the file's name.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+            pattern: '^[A-Za-z0-9_-]+$'
+            examples: [9f2c4e1a7b3d5068e4a1c2b3d4e5f607]
+      requestBody:
+        required: true
+        description: The track's file.
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: The file's bytes. Must not be empty.
+      responses:
+        '201':
+          description: Stored. The player had no copy of this track before.
+        '204':
+          description: Stored, replacing the player's existing copy.
+        '400':
+          $ref: '#/components/responses/MediaBadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '404':
+          $ref: '#/components/responses/MediaTrackIdRefused'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/MediaLargerThanCache'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '500':
+          $ref: '#/components/responses/MediaWriteFailed'
+        '507':
+          $ref: '#/components/responses/MediaCacheFull'
+
 components:
   securitySchemes:
     controllerToken:
@@ -571,6 +639,7 @@ components:
             - handler_timeout
             - headers_too_large
             - incomplete_body
+            - insufficient_storage
             - internal
             - invalid_pairing_code
             - invalid_token
@@ -1579,6 +1648,12 @@ components:
         code: internal
         status: 500
         title: internal error
+    insufficientStorage:
+      description: The player's media cache has no room for the file.
+      value:
+        code: insufficient_storage
+        status: 507
+        title: insufficient storage
 
   responses:
     BadRequest:
@@ -1645,6 +1720,73 @@ components:
               $ref: '#/components/examples/malformedBody'
             unsupportedApiVersion:
               $ref: '#/components/examples/unsupportedApiVersion'
+
+    MediaBadRequest:
+      description: |
+        As `BadRequest`, plus `malformed_body` for an empty body. Here `incomplete_body` also covers
+        an upload that went quiet for 30 seconds. Nothing is stored, and any copy the player already
+        held is kept.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            incompleteBody:
+              $ref: '#/components/examples/incompleteBody'
+            malformedBody:
+              $ref: '#/components/examples/malformedBody'
+            unsupportedApiVersion:
+              $ref: '#/components/examples/unsupportedApiVersion'
+
+    MediaTrackIdRefused:
+      description: |
+        The track id contains something other than letters, digits, dashes and underscores, or is
+        longer than 128 bytes, so it could never name a file the player keeps. Nothing is read or
+        stored.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            notFound:
+              $ref: '#/components/examples/notFound'
+
+    MediaLargerThanCache:
+      description: |
+        The declared `Content-Length` is larger than the player's whole media cache (`mediaCacheGb`
+        in its config file), so the track could never be stored. The body was not read.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            bodyTooLarge:
+              $ref: '#/components/examples/bodyTooLarge'
+
+    MediaCacheFull:
+      description: |
+        The tracks the player holds, plus the uploads still arriving, leave too little room in its
+        media cache for this file. The body was not read. The player also answers this when the
+        disk fills while it writes the file, and deletes the partial file. Nothing is stored.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            insufficientStorage:
+              $ref: '#/components/examples/insufficientStorage'
+
+    MediaWriteFailed:
+      description: |
+        The player could not write or keep the file, and its log says why. Nothing is stored, and
+        any copy it already held is kept.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            internalError:
+              $ref: '#/components/examples/internalError'
 
     InvalidPairingCode:
       description: |
@@ -1738,6 +1880,7 @@ components:
         The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
         for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`.
         `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
+        `PUT /media/{trackId}` is the exception: the media cache size caps it instead.
       content:
         application/problem+json:
           schema:
@@ -1748,9 +1891,9 @@ components:
 
     ExpectationFailed:
       description: |
-        The request carried an `Expect` other than `100-continue`. `100-continue` itself is
-        honoured, and answered before a rejection that would otherwise invite the upload it exists
-        to prevent.
+        The request carried an `Expect` other than `100-continue`. The daemon honours
+        `100-continue`: a request it refuses before reading the body gets the refusal instead of
+        `100 Continue`, so the body is never sent.
       content:
         application/problem+json:
           schema:

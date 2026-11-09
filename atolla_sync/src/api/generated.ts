@@ -205,6 +205,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/{trackId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Give the player a track's file to keep.
+         * @description The body is the file exactly as the media server serves it with `static=true`, so the
+         *     player's copy is the original, bit for bit. Sending a track the player already holds
+         *     replaces it.
+         *
+         *     The player writes the body under a temporary name and renames it once the whole file has
+         *     arrived and reached the disk, so it never plays a track from part of a file. It deletes an
+         *     upload that stops short or goes quiet for 30 seconds.
+         *
+         *     Every refusal that doesn't need the body (the token, the track id, the length) is answered
+         *     before `100 Continue`, so a controller sending `Expect: 100-continue` never uploads a file
+         *     the player would refuse.
+         *
+         *     The body's cap is the player's media cache size, `mediaCacheGb` in its config file, rather
+         *     than the 1 MiB the other routes share. It must declare a `Content-Length`.
+         */
+        put: operations["putMedia"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -238,7 +271,7 @@ export interface components {
              * @example invalid_pairing_code
              * @enum {string}
              */
-            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "media_server_id_mismatch" | "media_server_user_mismatch" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
+            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "insufficient_storage" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "media_server_id_mismatch" | "media_server_user_mismatch" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
             /**
              * @description Rarely sent. Naming the field that failed tells an unauthenticated caller which field
              *     to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
@@ -976,6 +1009,69 @@ export interface components {
             };
         };
         /**
+         * @description As `BadRequest`, plus `malformed_body` for an empty body. Here `incomplete_body` also covers
+         *     an upload that went quiet for 30 seconds. Nothing is stored, and any copy the player already
+         *     held is kept.
+         */
+        MediaBadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The track id contains something other than letters, digits, dashes and underscores, or is
+         *     longer than 128 bytes, so it could never name a file the player keeps. Nothing is read or
+         *     stored.
+         */
+        MediaTrackIdRefused: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The declared `Content-Length` is larger than the player's whole media cache (`mediaCacheGb`
+         *     in its config file), so the track could never be stored. The body was not read.
+         */
+        MediaLargerThanCache: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The tracks the player holds, plus the uploads still arriving, leave too little room in its
+         *     media cache for this file. The body was not read. The player also answers this when the
+         *     disk fills while it writes the file, and deletes the partial file. Nothing is stored.
+         */
+        MediaCacheFull: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The player could not write or keep the file, and its log says why. Nothing is stored, and
+         *     any copy it already held is kept.
+         */
+        MediaWriteFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description The submitted code is not the provisioned one, or nothing is provisioned. The two are
          *     deliberately indistinguishable.
          */
@@ -1065,6 +1161,7 @@ export interface components {
          * @description The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
          *     for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`.
          *     `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
+         *     `PUT /media/{trackId}` is the exception: the media cache size caps it instead.
          */
         BodyTooLarge: {
             headers: {
@@ -1075,9 +1172,9 @@ export interface components {
             };
         };
         /**
-         * @description The request carried an `Expect` other than `100-continue`. `100-continue` itself is
-         *     honoured, and answered before a rejection that would otherwise invite the upload it exists
-         *     to prevent.
+         * @description The request carried an `Expect` other than `100-continue`. The daemon honours
+         *     `100-continue`: a request it refuses before reading the body gets the refusal instead of
+         *     `100 Continue`, so the body is never sent.
          */
         ExpectationFailed: {
             headers: {
@@ -1221,6 +1318,11 @@ export type ResponseBadRequest = components['responses']['BadRequest'];
 export type ResponsePairBadRequest = components['responses']['PairBadRequest'];
 export type ResponseCommandBadRequest = components['responses']['CommandBadRequest'];
 export type ResponseMediaServerBadRequest = components['responses']['MediaServerBadRequest'];
+export type ResponseMediaBadRequest = components['responses']['MediaBadRequest'];
+export type ResponseMediaTrackIdRefused = components['responses']['MediaTrackIdRefused'];
+export type ResponseMediaLargerThanCache = components['responses']['MediaLargerThanCache'];
+export type ResponseMediaCacheFull = components['responses']['MediaCacheFull'];
+export type ResponseMediaWriteFailed = components['responses']['MediaWriteFailed'];
 export type ResponseInvalidPairingCode = components['responses']['InvalidPairingCode'];
 export type ResponseInvalidToken = components['responses']['InvalidToken'];
 export type ResponseNotFound = components['responses']['NotFound'];
@@ -1575,6 +1677,56 @@ export interface operations {
             500: components["responses"]["HandlerFailed"];
             503: components["responses"]["Unavailable"];
             504: components["responses"]["HandlerTimeout"];
+        };
+    };
+    putMedia: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
+                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
+                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
+                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
+                 *     answers any version.
+                 */
+                "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
+            };
+            path: {
+                /** @description The media server's id for the track, also used as the file's name. */
+                trackId: string;
+            };
+            cookie?: never;
+        };
+        /** @description The track's file. */
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Stored. The player had no copy of this track before. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stored, replacing the player's existing copy. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["MediaBadRequest"];
+            401: components["responses"]["InvalidToken"];
+            404: components["responses"]["MediaTrackIdRefused"];
+            411: components["responses"]["LengthRequired"];
+            413: components["responses"]["MediaLargerThanCache"];
+            417: components["responses"]["ExpectationFailed"];
+            500: components["responses"]["MediaWriteFailed"];
+            507: components["responses"]["MediaCacheFull"];
         };
     };
 }
