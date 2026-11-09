@@ -23,6 +23,7 @@ const CONFIG = {
 	dataDir: '/var/lib/atolla',
 	language: 'en',
 	logLevel: 'info',
+	mediaCacheGb: 3,
 	name: 'Kitchen',
 	port: 45889,
 	streamLatencyMs: 1000,
@@ -90,6 +91,7 @@ function fakeHttpServer(started: Array<string> = []): HttpServer {
 		setHandler: () => {},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
+		setMedia: () => {},
 		setPairingCodePath: () => {},
 		start: (host, port) => {
 			started.push(`${host}:${port}`);
@@ -281,6 +283,38 @@ describe('startDaemon', () => {
 		expect(contents.get(controllersPath)).toBe('[]');
 	});
 
+	it('creates the media directory, then hands it to the native side with the cache size in bytes', async () => {
+		const { log } = capture();
+		const created: Array<string> = [];
+		const media: Array<[string, number, boolean]> = [];
+
+		void startDaemon({
+			audio: unavailableAudio(),
+			config: { ...CONFIG, dataDir: '/mnt/usb/atolla', mediaCacheGb: 1.5 },
+			files: {
+				...fakeFiles(),
+				createDirectorySync: (path) => {
+					created.push(path);
+					return true;
+				},
+			},
+			httpServer: {
+				...fakeHttpServer(),
+				setMedia: (path, capacityBytes) => {
+					media.push([path, capacityBytes, created.includes(path)]);
+				},
+			},
+			identity: IDENTITY,
+			log,
+			logLevel: 'info',
+			makeHttpClient: unusedHttpClient,
+			now: () => 1758000000000,
+			randomBytes: (count) => new Uint8Array(count),
+		});
+
+		expect(media).toEqual([['/mnt/usb/atolla/media', 1_500_000_000, true]]);
+	});
+
 	it('starts the control server before reading the queue, so a slow restore cannot delay it', async () => {
 		const { log } = capture();
 		const order: Array<string> = [];
@@ -304,6 +338,7 @@ describe('startDaemon', () => {
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},
+				setMedia: () => {},
 				setPairingCodePath: () => {},
 				start: (_host, port) => {
 					order.push('listen');

@@ -20,6 +20,7 @@ export interface HttpServer {
 	setHandler: (handler: RequestHandler) => void;
 	setHelloBody: (body: string) => void;
 	setLogLevel: (level: LogLevel) => void;
+	setMedia: (path: string, capacityBytes: number) => void;
 	setPairingCodePath: (path: string) => void;
 	start: (host: string, port: number) => number;
 	stop: () => void;

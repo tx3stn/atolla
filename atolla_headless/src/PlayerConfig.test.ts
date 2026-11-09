@@ -9,9 +9,11 @@ import {
 	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
 	DEFAULT_LOG_LEVEL,
+	DEFAULT_MEDIA_CACHE_GB,
 	DEFAULT_PORT,
 	DEFAULT_STREAM_LATENCY_MS,
 	makeConfigStore,
+	mediaCacheBytes,
 	type PlayerConfig,
 	readLogLevel,
 	readPort,
@@ -27,6 +29,7 @@ const CONFIG: PlayerConfig = {
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: DEFAULT_LOG_LEVEL,
+	mediaCacheGb: DEFAULT_MEDIA_CACHE_GB,
 	name: 'kitchen',
 	port: DEFAULT_PORT,
 	streamLatencyMs: DEFAULT_STREAM_LATENCY_MS,
@@ -124,6 +127,22 @@ describe('makeConfigStore read', () => {
 		}
 	});
 
+	it('reads whatever media cache size the operator set, decimals included', () => {
+		for (const size of [1, 1.5, 20]) {
+			const { files } = fakeFiles(`{"mediaCacheGb":${size},"name":"kitchen"}`);
+
+			expect(makeConfigStore(files, PATH).read()?.mediaCacheGb).toBe(size);
+		}
+	});
+
+	it('falls back on a media cache size that is not a number above zero', () => {
+		for (const size of ['"3"', '0', '-1', 'null']) {
+			const { files } = fakeFiles(`{"mediaCacheGb":${size},"name":"kitchen"}`);
+
+			expect(makeConfigStore(files, PATH).read()?.mediaCacheGb).toBe(DEFAULT_MEDIA_CACHE_GB);
+		}
+	});
+
 	it('reads a bind address that names one interface', () => {
 		const { files } = fakeFiles('{"bindAddress":"192.168.1.42","name":"kitchen"}');
 
@@ -197,6 +216,12 @@ describe('makeConfigStore write', () => {
 		makeConfigStore(files, PATH).write({ ...CONFIG, name: 'hall' });
 
 		expect(written[0][1].endsWith('\n')).toBe(true);
+	});
+});
+
+describe('mediaCacheBytes', () => {
+	it('counts a gigabyte as a thousand million bytes, as disks are sold', () => {
+		expect(mediaCacheBytes({ ...CONFIG, mediaCacheGb: 1.5 })).toBe(1_500_000_000);
 	});
 });
 

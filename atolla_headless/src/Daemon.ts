@@ -9,13 +9,14 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { AudioEngine } from './Audio';
 import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
 import { makeAudioStream } from './AudioStream';
+import { ensureDirectory } from './EnsureDirectory';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
 import { makeMediaServerCredentials } from './MediaServerCredentials';
 import { type MakeHttpClient, makeMediaServerTransports } from './MediaServerTransports';
 import { CONTROLLERS_KEY, PAIRING_KEY } from './Pairing';
-import { type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
+import { mediaCacheBytes, mediaDir, type PlayerConfig, secretsDir, stateDir } from './PlayerConfig';
 import type { PlayerIdentity } from './PlayerIdentity';
 import { makeQueueOwner } from './QueueOwner';
 import { type RandomBytes, randomHex } from './Random';
@@ -141,6 +142,8 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	deps.httpServer.setHelloBody(helloBody(deps.identity, stream.served()));
 	deps.httpServer.setControllersPath(secrets.pathFor(CONTROLLERS_KEY));
 	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
+	ensureDirectory(deps.files, mediaDir(deps.config));
+	deps.httpServer.setMedia(mediaDir(deps.config), mediaCacheBytes(deps.config));
 	attachServer(deps.httpServer, {
 		command: {
 			playback,

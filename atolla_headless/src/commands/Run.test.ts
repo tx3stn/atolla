@@ -8,6 +8,7 @@ import {
 	DEFAULT_BIND_ADDRESS,
 	DEFAULT_CLOCK_PORT,
 	DEFAULT_DATA_DIR,
+	DEFAULT_MEDIA_CACHE_GB,
 	DEFAULT_STREAM_LATENCY_MS,
 	type PlayerConfig,
 } from '../PlayerConfig';
@@ -30,6 +31,7 @@ const CONFIG: PlayerConfig = {
 	dataDir: DEFAULT_DATA_DIR,
 	language: 'en',
 	logLevel: 'info',
+	mediaCacheGb: DEFAULT_MEDIA_CACHE_GB,
 	name: 'Kitchen',
 	port: 45889,
 	streamLatencyMs: DEFAULT_STREAM_LATENCY_MS,
@@ -84,6 +86,7 @@ function context(
 			setHandler: () => {},
 			setHelloBody: () => {},
 			setLogLevel: () => {},
+			setMedia: () => {},
 			setPairingCodePath: () => {},
 			start: (_host: string, port: number) => port,
 			stop: () => {},

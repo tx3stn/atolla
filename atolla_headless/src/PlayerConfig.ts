@@ -14,6 +14,7 @@ export const DEFAULT_CLOCK_PORT = 45890;
 export const DEFAULT_CONFIG_PATH = '/etc/atolla/player.json';
 export const DEFAULT_DATA_DIR = '/var/lib/atolla';
 export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
+export const DEFAULT_MEDIA_CACHE_GB = 3;
 export const DEFAULT_PORT = 45889;
 export const DEFAULT_STREAM_LATENCY_MS = 125;
 
@@ -25,6 +26,7 @@ export interface PlayerConfig {
 	dataDir: string;
 	language: LanguageCode;
 	logLevel: LogLevel;
+	mediaCacheGb: number;
 	name: string;
 	port: number;
 	streamLatencyMs: number;
@@ -95,6 +97,10 @@ export function readPort(value: string): number {
 	return port;
 }
 
+export function mediaCacheBytes(config: PlayerConfig): number {
+	return Math.round(config.mediaCacheGb * 1_000_000_000);
+}
+
 export function mediaDir(config: PlayerConfig): string {
 	return `${config.dataDir}/media`;
 }
@@ -129,6 +135,10 @@ function isLogLevel(value: unknown): value is LogLevel {
 	return LOG_LEVELS.some((level) => level === value);
 }
 
+function isMediaCacheGb(value: unknown): value is number {
+	return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
 function isPort(value: unknown): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 65535;
 }
@@ -155,6 +165,7 @@ function parse(raw: string, path: string): PlayerConfig {
 		dataDir?: unknown;
 		language?: unknown;
 		logLevel?: unknown;
+		mediaCacheGb?: unknown;
 		name?: unknown;
 		port?: unknown;
 		streamLatencyMs?: unknown;
@@ -172,6 +183,7 @@ function parse(raw: string, path: string): PlayerConfig {
 			typeof value.dataDir === 'string' && value.dataDir !== '' ? value.dataDir : DEFAULT_DATA_DIR,
 		language: isLanguageCode(value.language) ? value.language : DEFAULT_LANGUAGE,
 		logLevel: isLogLevel(value.logLevel) ? value.logLevel : DEFAULT_LOG_LEVEL,
+		mediaCacheGb: isMediaCacheGb(value.mediaCacheGb) ? value.mediaCacheGb : DEFAULT_MEDIA_CACHE_GB,
 		name: typeof value.name === 'string' ? value.name : '',
 		port: isPort(value.port) ? value.port : DEFAULT_PORT,
 		streamLatencyMs: isStreamLatency(value.streamLatencyMs)

@@ -70,6 +70,7 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 		},
 		setHelloBody: () => {},
 		setLogLevel: () => {},
+		setMedia: () => {},
 		setPairingCodePath: () => {},
 		start: (_host, port) => port,
 		stop: () => {},

@@ -44,6 +44,7 @@ export const CmdConfig = {
 			dataDir: current.dataDir,
 			language: language === undefined ? current.language : readLanguage(language),
 			logLevel: current.logLevel,
+			mediaCacheGb: current.mediaCacheGb,
 			name: name ?? current.name,
 			port: port === undefined ? current.port : readPort(port),
 			streamLatencyMs: current.streamLatencyMs,
