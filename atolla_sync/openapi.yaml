@@ -69,6 +69,10 @@ paths:
       operationId: getHello
       tags: [discovery]
       security: []
+      x-lint-ignore:
+        - owasp-define-error-responses-500
+        - owasp-define-error-validation
+        - owasp-protection-global-safe
       summary: Identity and the API versions this player speaks.
       description: |
         Unauthenticated, and the one route that answers whatever version it is asked for: refusing
@@ -1739,12 +1743,6 @@ components:
         code: handler_timeout
         status: 504
         title: handler timeout
-    notImplemented:
-      description: The route is in the table but nothing serves it yet.
-      value:
-        code: not_implemented
-        status: 501
-        title: not implemented
     internalError:
       description: The handler threw.
       value:
@@ -1961,6 +1959,7 @@ components:
 
     NotFound:
       description: No route serves the requested path. Answered before an operation is selected.
+      x-lint-ignore: oas3-unused-component
       content:
         application/problem+json:
           schema:
@@ -1973,6 +1972,7 @@ components:
       description: |
         A route serves the path, but not by the method used. Answered before an operation is
         selected.
+      x-lint-ignore: oas3-unused-component
       content:
         application/problem+json:
           schema:
@@ -2066,6 +2066,7 @@ components:
       description: |
         The request head exceeded 8 KiB, so it was never parsed. Answered before an operation is
         selected, with the status line framed by hand.
+      x-lint-ignore: oas3-unused-component
       content:
         application/problem+json:
           schema:
@@ -2090,6 +2091,7 @@ components:
       description: |
         The daemon is already serving its maximum of 32 connections, so this one was refused
         without a request being read.
+      x-lint-ignore: oas3-unused-component
       headers:
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
@@ -2111,15 +2113,6 @@ components:
             handlerTimeout:
               $ref: '#/components/examples/handlerTimeout'
 
-    NotImplemented:
-      description: The route is in the router's table but no handler serves it yet.
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-          examples:
-            notImplemented:
-              $ref: '#/components/examples/notImplemented'
 
     HandlerFailed:
       description: |

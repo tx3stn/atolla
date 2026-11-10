@@ -1347,15 +1347,6 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The route is in the router's table but no handler serves it yet. */
-        NotImplemented: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
         /**
          * @description The handler threw. The daemon's log holds what went wrong; the problem says only that
          *     something did, since a caller on the LAN has no business knowing more.
@@ -1450,7 +1441,6 @@ export type ResponseHeadersTooLarge = components['responses']['HeadersTooLarge']
 export type ResponseUnavailable = components['responses']['Unavailable'];
 export type ResponseBusy = components['responses']['Busy'];
 export type ResponseHandlerTimeout = components['responses']['HandlerTimeout'];
-export type ResponseNotImplemented = components['responses']['NotImplemented'];
 export type ResponseHandlerFailed = components['responses']['HandlerFailed'];
 export type ParameterApiVersion = components['parameters']['ApiVersion'];
 export type HeaderRetryAfter = components['headers']['RetryAfter'];
