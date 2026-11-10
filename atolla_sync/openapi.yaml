@@ -492,6 +492,53 @@ paths:
         '504':
           $ref: '#/components/responses/HandlerTimeout'
 
+  /media:
+    put:
+      operationId: putCacheWindow
+      tags: [media]
+      summary: Tell the player which tracks to keep, most wanted first.
+      description: |
+        The player keeps only the tracks on this list, its cache window. When the list arrives it
+        deletes every other track it holds, and from then on it refuses an upload of a track the
+        list doesn't name. Each list replaces the one before, and an empty list deletes every track.
+
+        When an upload needs room, the player deletes the tracks listed after it, starting from the
+        end of the list.
+
+        After a restart the player has no list. Until one arrives it keeps the tracks already on
+        disk and refuses every upload.
+
+        The answer names the listed tracks the player already holds, so a controller uploads only
+        the rest.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: true
+        description: The tracks to keep, most wanted first.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CacheWindow'
+      responses:
+        '200':
+          description: The window is in place.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheWindowHeld'
+        '400':
+          $ref: '#/components/responses/CacheWindowBadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '411':
+          $ref: '#/components/responses/LengthRequired'
+        '413':
+          $ref: '#/components/responses/BodyTooLarge'
+        '417':
+          $ref: '#/components/responses/ExpectationFailed'
+        '500':
+          $ref: '#/components/responses/CacheWindowFailed'
+
   /media/{trackId}:
     put:
       operationId: putMedia
@@ -505,13 +552,17 @@ paths:
         player's copy is the original, bit for bit. Sending a track the player already holds
         replaces it.
 
+        The track must be on the player's cache window, the list `PUT /media` last sent. When the
+        file doesn't fit in the media cache, the player makes room by deleting the tracks listed
+        after it, starting from the end of the list.
+
         The player writes the body under a temporary name and renames it once the whole file has
         arrived and reached the disk, so it never plays a track from part of a file. It deletes an
         upload that stops short or goes quiet for 30 seconds.
 
-        Every refusal that doesn't need the body (the token, the track id, the length) is answered
-        before `100 Continue`, so a controller sending `Expect: 100-continue` never uploads a file
-        the player would refuse.
+        Every refusal that doesn't need the body (the token, the track id, the window, the length)
+        is answered before `100 Continue`, so a controller sending `Expect: 100-continue` never
+        uploads a file the player would refuse.
 
         The body's cap is the player's media cache size, `mediaCacheGb` in its config file, rather
         than the 1 MiB the other routes share. It must declare a `Content-Length`.
@@ -522,11 +573,7 @@ paths:
           required: true
           description: The media server's id for the track, also used as the file's name.
           schema:
-            type: string
-            minLength: 1
-            maxLength: 128
-            pattern: '^[A-Za-z0-9_-]+$'
-            examples: [9f2c4e1a7b3d5068e4a1c2b3d4e5f607]
+            $ref: '#/components/schemas/TrackId'
       requestBody:
         required: true
         description: The track's file.
@@ -535,7 +582,11 @@ paths:
             schema:
               type: string
               format: binary
-              description: The file's bytes. Must not be empty.
+              minLength: 1
+              maxLength: 9007199254740992
+              description: |
+                The file's bytes. A player refuses a file larger than its `mediaCacheGb` with `413`.
+                `maxLength` is the largest cache any player accepts, 2^53 bytes.
       responses:
         '201':
           description: Stored. The player had no copy of this track before.
@@ -547,6 +598,8 @@ paths:
           $ref: '#/components/responses/InvalidToken'
         '404':
           $ref: '#/components/responses/MediaTrackIdRefused'
+        '409':
+          $ref: '#/components/responses/MediaNotInWindow'
         '411':
           $ref: '#/components/responses/LengthRequired'
         '413':
@@ -650,6 +703,7 @@ components:
             - method_not_allowed
             - not_found
             - not_implemented
+            - not_in_window
             - too_many_attempts
             - unavailable
             - unsupported_api_version
@@ -885,6 +939,49 @@ components:
       properties:
         key:
           $ref: '#/components/schemas/StreamKey'
+
+    TrackId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[A-Za-z0-9_-]+$'
+      description: The media server's id for a track, also the name of the player's copy on disk.
+      examples: [9f2c4e1a7b3d5068e4a1c2b3d4e5f607]
+
+    CacheWindow:
+      type: object
+      description: |
+        The tracks the player's media cache keeps. An unknown member is ignored, so a v1 daemon
+        doesn't refuse a body a later controller added a field to.
+      required: [trackIds]
+      additionalProperties: true
+      properties:
+        trackIds:
+          type: array
+          maxItems: 35
+          uniqueItems: true
+          description: |
+            Most wanted first, since the player makes room by deleting from the end. 35 is the
+            largest window the app's track cache setting allows.
+          items:
+            $ref: '#/components/schemas/TrackId'
+          examples:
+            - [9f2c4e1a7b3d5068e4a1c2b3d4e5f607, 1a2b3c4d5e6f70819a0b1c2d3e4f5061]
+
+    CacheWindowHeld:
+      type: object
+      description: Which of the window's tracks the player already holds.
+      required: [held]
+      additionalProperties: false
+      properties:
+        held:
+          type: array
+          maxItems: 35
+          description: In the window's order. A controller uploads only the tracks missing here.
+          items:
+            $ref: '#/components/schemas/TrackId'
+          examples:
+            - [9f2c4e1a7b3d5068e4a1c2b3d4e5f607]
 
     StateVersion:
       type: integer
@@ -1556,6 +1653,12 @@ components:
         code: media_server_id_mismatch
         status: 409
         title: media server id mismatch
+    notInWindow:
+      description: The player's cache window doesn't list the track.
+      value:
+        code: not_in_window
+        status: 409
+        title: not in window
     mediaServerUserMismatch:
       description: The pushed credential does not belong to the account it claims.
       value:
@@ -1721,6 +1824,36 @@ components:
             unsupportedApiVersion:
               $ref: '#/components/examples/unsupportedApiVersion'
 
+    CacheWindowBadRequest:
+      description: |
+        As `BadRequest`, plus `malformed_body` for a body that isn't JSON, lists more than 35
+        tracks, lists one twice, or names one by an id `PUT /media/{trackId}` would refuse. The
+        player keeps the window it had and deletes nothing.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            incompleteBody:
+              $ref: '#/components/examples/incompleteBody'
+            malformedBody:
+              $ref: '#/components/examples/malformedBody'
+            unsupportedApiVersion:
+              $ref: '#/components/examples/unsupportedApiVersion'
+
+    CacheWindowFailed:
+      description: |
+        The player couldn't read its media cache or delete a track from it, and its log says why.
+        The new window is in place, but some of the tracks it drops may stay on disk until the next
+        window or upload arrives.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            internalError:
+              $ref: '#/components/examples/internalError'
+
     MediaBadRequest:
       description: |
         As `BadRequest`, plus `malformed_body` for an empty body. Here `incomplete_body` also covers
@@ -1751,6 +1884,18 @@ components:
             notFound:
               $ref: '#/components/examples/notFound'
 
+    MediaNotInWindow:
+      description: |
+        The player's cache window doesn't list this track, or no window has arrived since the player
+        started. The body was not read. Send the window with `PUT /media` first.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            notInWindow:
+              $ref: '#/components/examples/notInWindow'
+
     MediaLargerThanCache:
       description: |
         The declared `Content-Length` is larger than the player's whole media cache (`mediaCacheGb`
@@ -1765,9 +1910,10 @@ components:
 
     MediaCacheFull:
       description: |
-        The tracks the player holds, plus the uploads still arriving, leave too little room in its
-        media cache for this file. The body was not read. The player also answers this when the
-        disk fills while it writes the file, and deletes the partial file. Nothing is stored.
+        Deleting every track listed after this one wouldn't make room: the tracks listed ahead of it
+        and the uploads still arriving leave too little space in the media cache. The player deletes
+        none of the listed tracks and doesn't read the body. It also answers this when the disk
+        fills while it writes the file, and deletes the partial file, so nothing is stored.
       content:
         application/problem+json:
           schema:
@@ -1878,7 +2024,8 @@ components:
     BodyTooLarge:
       description: |
         The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-        for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`.
+        for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`, and
+        8 KiB for `PUT /media`.
         `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
         `PUT /media/{trackId}` is the exception: the media cache size caps it instead.
       content:

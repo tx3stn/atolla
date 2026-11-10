@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { PairAccepted } from 'atolla_sync/src/api/generated';
+import type { CacheWindow, CacheWindowHeld, PairAccepted } from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Cli, type Daemon, pairingCode } from './cli';
 import { FetchTransport } from './transport';
@@ -13,11 +13,19 @@ const PORT = 45995;
 
 const CACHE_BYTES = 1000;
 
-describe('PUT /media/{trackId}', () => {
+describe('media cache', () => {
 	let daemon: Daemon;
 	let dataDir: string;
 	let dir: string;
 	let token: string;
+
+	function sendWindow(window: CacheWindow): Promise<Response> {
+		return fetch(`http://127.0.0.1:${PORT}/media`, {
+			body: JSON.stringify(window),
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			method: 'PUT',
+		});
+	}
 
 	function upload(trackId: string, bytes: Uint8Array<ArrayBuffer>): Promise<Response> {
 		return fetch(`http://127.0.0.1:${PORT}/media/${trackId}`, {
@@ -61,6 +69,7 @@ describe('PUT /media/{trackId}', () => {
 
 	it('keeps the file in the media directory under its track id', async () => {
 		const bytes = new Uint8Array([1, 2, 3, 4, 5]);
+		await sendWindow({ trackIds: ['track-1'] });
 
 		const answer = await upload('track-1', bytes);
 
@@ -69,8 +78,22 @@ describe('PUT /media/{trackId}', () => {
 	});
 
 	it('refuses a file larger than the media cache set in the config file', async () => {
+		await sendWindow({ trackIds: ['track-1'] });
+
 		const answer = await upload('track-1', new Uint8Array(CACHE_BYTES + 1));
 
 		expect(answer.status).toBe(413);
+	});
+
+	it('deletes the tracks a new window drops and answers which of its tracks it holds', async () => {
+		await sendWindow({ trackIds: ['track-1', 'track-2'] });
+		await upload('track-1', new Uint8Array([1]));
+		await upload('track-2', new Uint8Array([2]));
+
+		const answer = await sendWindow({ trackIds: ['track-2', 'track-3'] });
+
+		expect(answer.status).toBe(200);
+		expect((await answer.json()) as CacheWindowHeld).toEqual({ held: ['track-2'] });
+		expect(existsSync(join(dataDir, 'media', 'track-1'))).toBe(false);
 	});
 });

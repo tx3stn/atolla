@@ -205,6 +205,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Tell the player which tracks to keep, most wanted first.
+         * @description The player keeps only the tracks on this list, its cache window. When the list arrives it
+         *     deletes every other track it holds, and from then on it refuses an upload of a track the
+         *     list doesn't name. Each list replaces the one before, and an empty list deletes every track.
+         *
+         *     When an upload needs room, the player deletes the tracks listed after it, starting from the
+         *     end of the list.
+         *
+         *     After a restart the player has no list. Until one arrives it keeps the tracks already on
+         *     disk and refuses every upload.
+         *
+         *     The answer names the listed tracks the player already holds, so a controller uploads only
+         *     the rest.
+         */
+        put: operations["putCacheWindow"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/{trackId}": {
         parameters: {
             query?: never;
@@ -219,13 +250,17 @@ export interface paths {
          *     player's copy is the original, bit for bit. Sending a track the player already holds
          *     replaces it.
          *
+         *     The track must be on the player's cache window, the list `PUT /media` last sent. When the
+         *     file doesn't fit in the media cache, the player makes room by deleting the tracks listed
+         *     after it, starting from the end of the list.
+         *
          *     The player writes the body under a temporary name and renames it once the whole file has
          *     arrived and reached the disk, so it never plays a track from part of a file. It deletes an
          *     upload that stops short or goes quiet for 30 seconds.
          *
-         *     Every refusal that doesn't need the body (the token, the track id, the length) is answered
-         *     before `100 Continue`, so a controller sending `Expect: 100-continue` never uploads a file
-         *     the player would refuse.
+         *     Every refusal that doesn't need the body (the token, the track id, the window, the length)
+         *     is answered before `100 Continue`, so a controller sending `Expect: 100-continue` never
+         *     uploads a file the player would refuse.
          *
          *     The body's cap is the player's media cache size, `mediaCacheGb` in its config file, rather
          *     than the 1 MiB the other routes share. It must declare a `Content-Length`.
@@ -271,7 +306,7 @@ export interface components {
              * @example invalid_pairing_code
              * @enum {string}
              */
-            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "insufficient_storage" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "media_server_id_mismatch" | "media_server_user_mismatch" | "method_not_allowed" | "not_found" | "not_implemented" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
+            code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "insufficient_storage" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "media_server_id_mismatch" | "media_server_user_mismatch" | "method_not_allowed" | "not_found" | "not_implemented" | "not_in_window" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
             /**
              * @description Rarely sent. Naming the field that failed tells an unauthenticated caller which field
              *     to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
@@ -447,6 +482,38 @@ export interface components {
         /** @description The key a controller passes to each member it sends to join this player. */
         StreamKeyAnswer: {
             key: components["schemas"]["StreamKey"];
+        };
+        /**
+         * @description The media server's id for a track, also the name of the player's copy on disk.
+         * @example 9f2c4e1a7b3d5068e4a1c2b3d4e5f607
+         */
+        TrackId: string;
+        /**
+         * @description The tracks the player's media cache keeps. An unknown member is ignored, so a v1 daemon
+         *     doesn't refuse a body a later controller added a field to.
+         */
+        CacheWindow: {
+            /**
+             * @description Most wanted first, since the player makes room by deleting from the end. 35 is the
+             *     largest window the app's track cache setting allows.
+             * @example [
+             *       "9f2c4e1a7b3d5068e4a1c2b3d4e5f607",
+             *       "1a2b3c4d5e6f70819a0b1c2d3e4f5061"
+             *     ]
+             */
+            trackIds: components["schemas"]["TrackId"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description Which of the window's tracks the player already holds. */
+        CacheWindowHeld: {
+            /**
+             * @description In the window's order. A controller uploads only the tracks missing here.
+             * @example [
+             *       "9f2c4e1a7b3d5068e4a1c2b3d4e5f607"
+             *     ]
+             */
+            held: components["schemas"]["TrackId"][];
         };
         /**
          * Format: int32
@@ -1009,6 +1076,32 @@ export interface components {
             };
         };
         /**
+         * @description As `BadRequest`, plus `malformed_body` for a body that isn't JSON, lists more than 35
+         *     tracks, lists one twice, or names one by an id `PUT /media/{trackId}` would refuse. The
+         *     player keeps the window it had and deletes nothing.
+         */
+        CacheWindowBadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The player couldn't read its media cache or delete a track from it, and its log says why.
+         *     The new window is in place, but some of the tracks it drops may stay on disk until the next
+         *     window or upload arrives.
+         */
+        CacheWindowFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description As `BadRequest`, plus `malformed_body` for an empty body. Here `incomplete_body` also covers
          *     an upload that went quiet for 30 seconds. Nothing is stored, and any copy the player already
          *     held is kept.
@@ -1035,6 +1128,18 @@ export interface components {
             };
         };
         /**
+         * @description The player's cache window doesn't list this track, or no window has arrived since the player
+         *     started. The body was not read. Send the window with `PUT /media` first.
+         */
+        MediaNotInWindow: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description The declared `Content-Length` is larger than the player's whole media cache (`mediaCacheGb`
          *     in its config file), so the track could never be stored. The body was not read.
          */
@@ -1047,9 +1152,10 @@ export interface components {
             };
         };
         /**
-         * @description The tracks the player holds, plus the uploads still arriving, leave too little room in its
-         *     media cache for this file. The body was not read. The player also answers this when the
-         *     disk fills while it writes the file, and deletes the partial file. Nothing is stored.
+         * @description Deleting every track listed after this one wouldn't make room: the tracks listed ahead of it
+         *     and the uploads still arriving leave too little space in the media cache. The player deletes
+         *     none of the listed tracks and doesn't read the body. It also answers this when the disk
+         *     fills while it writes the file, and deletes the partial file, so nothing is stored.
          */
         MediaCacheFull: {
             headers: {
@@ -1159,7 +1265,8 @@ export interface components {
         };
         /**
          * @description The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-         *     for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`.
+         *     for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`, and
+         *     8 KiB for `PUT /media`.
          *     `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
          *     `PUT /media/{trackId}` is the exception: the media cache size caps it instead.
          */
@@ -1288,6 +1395,9 @@ export type PairRequest = components['schemas']['PairRequest'];
 export type PairAccepted = components['schemas']['PairAccepted'];
 export type StreamKey = components['schemas']['StreamKey'];
 export type StreamKeyAnswer = components['schemas']['StreamKeyAnswer'];
+export type TrackId = components['schemas']['TrackId'];
+export type CacheWindow = components['schemas']['CacheWindow'];
+export type CacheWindowHeld = components['schemas']['CacheWindowHeld'];
 export type StateVersion = components['schemas']['StateVersion'];
 export type TrackIndex = components['schemas']['TrackIndex'];
 export type Tracks = components['schemas']['Tracks'];
@@ -1318,8 +1428,11 @@ export type ResponseBadRequest = components['responses']['BadRequest'];
 export type ResponsePairBadRequest = components['responses']['PairBadRequest'];
 export type ResponseCommandBadRequest = components['responses']['CommandBadRequest'];
 export type ResponseMediaServerBadRequest = components['responses']['MediaServerBadRequest'];
+export type ResponseCacheWindowBadRequest = components['responses']['CacheWindowBadRequest'];
+export type ResponseCacheWindowFailed = components['responses']['CacheWindowFailed'];
 export type ResponseMediaBadRequest = components['responses']['MediaBadRequest'];
 export type ResponseMediaTrackIdRefused = components['responses']['MediaTrackIdRefused'];
+export type ResponseMediaNotInWindow = components['responses']['MediaNotInWindow'];
 export type ResponseMediaLargerThanCache = components['responses']['MediaLargerThanCache'];
 export type ResponseMediaCacheFull = components['responses']['MediaCacheFull'];
 export type ResponseMediaWriteFailed = components['responses']['MediaWriteFailed'];
@@ -1679,6 +1792,46 @@ export interface operations {
             504: components["responses"]["HandlerTimeout"];
         };
     };
+    putCacheWindow: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
+                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
+                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
+                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
+                 *     answers any version.
+                 */
+                "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The tracks to keep, most wanted first. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CacheWindow"];
+            };
+        };
+        responses: {
+            /** @description The window is in place. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CacheWindowHeld"];
+                };
+            };
+            400: components["responses"]["CacheWindowBadRequest"];
+            401: components["responses"]["InvalidToken"];
+            411: components["responses"]["LengthRequired"];
+            413: components["responses"]["BodyTooLarge"];
+            417: components["responses"]["ExpectationFailed"];
+            500: components["responses"]["CacheWindowFailed"];
+        };
+    };
     putMedia: {
         parameters: {
             query?: never;
@@ -1694,7 +1847,7 @@ export interface operations {
             };
             path: {
                 /** @description The media server's id for the track, also used as the file's name. */
-                trackId: string;
+                trackId: components["schemas"]["TrackId"];
             };
             cookie?: never;
         };
@@ -1722,6 +1875,7 @@ export interface operations {
             400: components["responses"]["MediaBadRequest"];
             401: components["responses"]["InvalidToken"];
             404: components["responses"]["MediaTrackIdRefused"];
+            409: components["responses"]["MediaNotInWindow"];
             411: components["responses"]["LengthRequired"];
             413: components["responses"]["MediaLargerThanCache"];
             417: components["responses"]["ExpectationFailed"];
