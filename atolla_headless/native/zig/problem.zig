@@ -134,6 +134,12 @@ pub const media_server_id_mismatch: Problem = .{
     .title = "media server id mismatch",
 };
 
+pub const not_in_window: Problem = .{
+    .code = "not_in_window",
+    .status = 409,
+    .title = "not in window",
+};
+
 pub const length_required: Problem = .{
     .code = "length_required",
     .status = 411,

@@ -10,6 +10,7 @@ pub const Route = enum(u32) {
     media_server = 4,
     stream_key = 6,
     media = 7,
+    cache_window = 8,
 };
 
 pub const Outcome = union(enum) {
@@ -36,6 +37,7 @@ const table = [_]Entry{
     .{ .method = .PUT, .path = "/media-server", .route = .media_server },
     .{ .method = .GET, .path = "/stream-key", .route = .stream_key },
     .{ .method = .PUT, .path = "/media/", .route = .media, .prefix = true },
+    .{ .method = .PUT, .path = "/media", .route = .cache_window },
 };
 
 pub fn mediaTrackId(target: []const u8) []const u8 {
@@ -107,6 +109,7 @@ test "router: resolves every route in the table" {
     try testing.expectEqual(Outcome{ .route = .media_server }, resolve(.PUT, "/media-server"));
     try testing.expectEqual(Outcome{ .route = .stream_key }, resolve(.GET, "/stream-key"));
     try testing.expectEqual(Outcome{ .route = .media }, resolve(.PUT, "/media/track-1"));
+    try testing.expectEqual(Outcome{ .route = .cache_window }, resolve(.PUT, "/media"));
 }
 
 test "router: a media upload names its track after the prefix" {
@@ -116,7 +119,6 @@ test "router: a media upload names its track after the prefix" {
 
 test "router: a media upload naming no track is not found" {
     try testing.expectEqual(Outcome.not_found, resolve(.PUT, "/media/"));
-    try testing.expectEqual(Outcome.not_found, resolve(.PUT, "/media"));
 }
 
 test "router: a route is reachable only by its own method" {
@@ -125,6 +127,7 @@ test "router: a route is reachable only by its own method" {
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/media-server"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.POST, "/stream-key"));
     try testing.expectEqual(Outcome.method_not_allowed, resolve(.GET, "/media/track-1"));
+    try testing.expectEqual(Outcome.method_not_allowed, resolve(.GET, "/media"));
 }
 
 test "router: only the discovery and pairing routes are reachable without a token" {
@@ -135,6 +138,7 @@ test "router: only the discovery and pairing routes are reachable without a toke
     try testing.expect(requiresToken(.media_server));
     try testing.expect(requiresToken(.stream_key));
     try testing.expect(requiresToken(.media));
+    try testing.expect(requiresToken(.cache_window));
 }
 
 test "router: a route defaults to needing a token" {
@@ -153,4 +157,5 @@ test "router: route ids are stable" {
     try testing.expectEqual(4, @intFromEnum(Route.media_server));
     try testing.expectEqual(6, @intFromEnum(Route.stream_key));
     try testing.expectEqual(7, @intFromEnum(Route.media));
+    try testing.expectEqual(8, @intFromEnum(Route.cache_window));
 }

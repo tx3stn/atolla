@@ -12,6 +12,7 @@ zig_binary(
     srcs = [
         "api_version.zig",
         "bridge.zig",
+        "cache_window.zig",
         "command.zig",
         "credentials.zig",
         "hello.zig",
@@ -41,6 +42,7 @@ zig_static_library(
         "audio_stream.zig",
         "audio_wire.zig",
         "bridge.zig",
+        "cache_window.zig",
         "clock.zig",
         "command.zig",
         "credentials.zig",

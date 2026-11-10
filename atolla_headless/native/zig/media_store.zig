@@ -2,14 +2,18 @@ const std = @import("std");
 
 pub const max_track_id_bytes = 128;
 
+pub const max_window_tracks = 35;
+
 const temp_prefix = ".";
 
 const max_temp_name_bytes = temp_prefix.len + max_track_id_bytes + 1 + 20;
 
 pub const Outcome = enum { created, replaced };
 
-pub const ReserveError = error{ CacheFull, LargerThanCache } ||
-    std.Io.Dir.Iterator.Error ||
+pub const SweepError = std.Io.Dir.Iterator.Error || std.Io.Dir.DeleteFileError;
+
+pub const ReserveError = error{ CacheFull, LargerThanCache, NotInWindow } ||
+    SweepError ||
     std.Io.File.OpenError;
 
 pub fn isTrackId(id: []const u8) bool {
@@ -22,6 +26,22 @@ pub fn isTrackId(id: []const u8) bool {
     return true;
 }
 
+const TrackId = struct {
+    bytes: [max_track_id_bytes]u8,
+    len: usize,
+
+    fn init(id: []const u8) TrackId {
+        var track: TrackId = .{ .bytes = undefined, .len = id.len };
+        @memcpy(track.bytes[0..id.len], id);
+
+        return track;
+    }
+
+    fn slice(self: *const TrackId) []const u8 {
+        return self.bytes[0..self.len];
+    }
+};
+
 pub const Store = struct {
     capacity: u64,
     dir: std.Io.Dir,
@@ -29,6 +49,8 @@ pub const Store = struct {
     mutex: std.Io.Mutex = .init,
     next_temp: u64 = 0,
     reserved: u64 = 0,
+    window: [max_window_tracks]TrackId = undefined,
+    window_len: usize = 0,
 
     pub fn open(io: std.Io, path: []const u8, capacity: u64) !Store {
         const dir = try std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
@@ -44,23 +66,22 @@ pub const Store = struct {
     }
 
     pub fn reserve(self: *Store, id: []const u8, length: u64) ReserveError!Upload {
-        if (length > self.capacity) return error.LargerThanCache;
-
         self.mutex.lockUncancelable(self.io);
         defer self.mutex.unlock(self.io);
 
-        if (try self.heldBytes() + self.reserved + length > self.capacity) return error.CacheFull;
+        const rank = self.rankOf(id) orelse return error.NotInWindow;
+        if (length > self.capacity) return error.LargerThanCache;
+
+        try self.makeRoom(rank, length);
 
         var upload: Upload = .{
             .file = undefined,
-            .id = undefined,
-            .id_len = id.len,
+            .id = .init(id),
             .length = length,
             .store = self,
             .temp = undefined,
             .temp_len = 0,
         };
-        @memcpy(upload.id[0..id.len], id);
 
         const temp = std.fmt.bufPrint(&upload.temp, temp_prefix ++ "{s}.{d}", .{ id, self.next_temp }) catch unreachable;
         upload.temp_len = temp.len;
@@ -72,25 +93,91 @@ pub const Store = struct {
         return upload;
     }
 
-    fn heldBytes(self: *Store) std.Io.Dir.Iterator.Error!u64 {
-        var total: u64 = 0;
+    pub fn setWindow(
+        self: *Store,
+        ids: []const []const u8,
+        held: *[max_window_tracks][]const u8,
+    ) SweepError![]const []const u8 {
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
+
+        for (ids, 0..) |id, rank| self.window[rank] = .init(id);
+        self.window_len = ids.len;
+
+        const sizes = try self.sweep();
+
+        var count: usize = 0;
+        for (ids, 0..) |id, rank| {
+            if (sizes[rank] == null) continue;
+
+            held[count] = id;
+            count += 1;
+        }
+
+        return held[0..count];
+    }
+
+    fn deleteTrack(self: *Store, id: []const u8) std.Io.Dir.DeleteFileError!void {
+        self.dir.deleteFile(self.io, id) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => return err,
+        };
+    }
+
+    fn makeRoom(self: *Store, rank: usize, length: u64) ReserveError!void {
+        const sizes = try self.sweep();
+
+        var held: u64 = 0;
+        var farther: u64 = 0;
+
+        for (sizes[0..self.window_len], 0..) |size, other| {
+            held += size orelse 0;
+            if (other > rank) farther += size orelse 0;
+        }
+
+        if (held - farther + self.reserved + length > self.capacity) return error.CacheFull;
+
+        var farthest = self.window_len;
+        while (held + self.reserved + length > self.capacity) {
+            farthest -= 1;
+
+            const size = sizes[farthest] orelse continue;
+            try self.deleteTrack(self.window[farthest].slice());
+            held -= size;
+        }
+    }
+
+    fn rankOf(self: *const Store, id: []const u8) ?usize {
+        for (self.window[0..self.window_len], 0..) |listed, rank| {
+            if (std.mem.eql(u8, listed.slice(), id)) return rank;
+        }
+
+        return null;
+    }
+
+    fn sweep(self: *Store) SweepError![max_window_tracks]?u64 {
+        var sizes: [max_window_tracks]?u64 = @splat(null);
         var entries = self.dir.iterate();
 
         while (try entries.next(self.io)) |entry| {
             if (!isTrackId(entry.name)) continue;
 
+            const rank = self.rankOf(entry.name) orelse {
+                try self.deleteTrack(entry.name);
+                continue;
+            };
+
             const stat = self.dir.statFile(self.io, entry.name, .{}) catch continue;
-            total += stat.size;
+            sizes[rank] = stat.size;
         }
 
-        return total;
+        return sizes;
     }
 };
 
 pub const Upload = struct {
     file: std.Io.File,
-    id: [max_track_id_bytes]u8,
-    id_len: usize,
+    id: TrackId,
     length: u64,
     store: *Store,
     temp: [max_temp_name_bytes]u8,
@@ -136,7 +223,7 @@ pub const Upload = struct {
     }
 
     pub fn trackId(self: *const Upload) []const u8 {
-        return self.id[0..self.id_len];
+        return self.id.slice();
     }
 
     fn tempName(self: *const Upload) []const u8 {
@@ -210,6 +297,9 @@ test "media_store: an upload appears under its id only once it commits" {
     var store = try openIn(&tmp, 100);
     defer store.close();
 
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{"track"}, &held);
+
     var upload = try store.reserve("track", 3);
     try upload.file.writeStreamingAll(testing.io, "abc");
 
@@ -227,6 +317,9 @@ test "media_store: a second upload of a track replaces the first" {
     var store = try openIn(&tmp, 100);
     defer store.close();
 
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{"track"}, &held);
+
     try testing.expectEqual(Outcome.created, try put(&store, "track", "old"));
     try testing.expectEqual(Outcome.replaced, try put(&store, "track", "new"));
 
@@ -240,6 +333,9 @@ test "media_store: an abandoned upload deletes its partial file and frees the sp
 
     var store = try openIn(&tmp, 4);
     defer store.close();
+
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{"track"}, &held);
 
     var upload = try store.reserve("track", 4);
     try upload.file.writeStreamingAll(testing.io, "ab");
@@ -259,6 +355,9 @@ test "media_store: refuses a file larger than the whole cache" {
     var store = try openIn(&tmp, 4);
     defer store.close();
 
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{"track"}, &held);
+
     try testing.expectError(error.LargerThanCache, store.reserve("track", 5));
 }
 
@@ -269,8 +368,82 @@ test "media_store: an upload in progress reserves its full size, so a second upl
     var store = try openIn(&tmp, 10);
     defer store.close();
 
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{ "first", "second" }, &held);
+
     var first = try store.reserve("first", 6);
     defer first.abandon();
 
     try testing.expectError(error.CacheFull, store.reserve("second", 5));
+}
+
+test "media_store: a window deletes the tracks it doesn't list and answers which of its own are held, in its order" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "dropped", .data = "x" });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "first", .data = "x" });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "third", .data = "x" });
+
+    var store = try openIn(&tmp, 100);
+    defer store.close();
+
+    var held: [max_window_tracks][]const u8 = undefined;
+    const answer = try store.setWindow(&.{ "third", "second", "first" }, &held);
+
+    try testing.expectEqual(2, answer.len);
+    try testing.expectEqualStrings("third", answer[0]);
+    try testing.expectEqualStrings("first", answer[1]);
+    try testing.expect(!exists(&tmp, "dropped"));
+}
+
+test "media_store: refuses an upload of a track the window doesn't list" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var store = try openIn(&tmp, 100);
+    defer store.close();
+
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{"listed"}, &held);
+
+    try testing.expectError(error.NotInWindow, store.reserve("unlisted", 1));
+}
+
+test "media_store: makes room by deleting the farthest tracks the window ranks after the upload" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var store = try openIn(&tmp, 10);
+    defer store.close();
+
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{ "first", "second", "third", "fourth" }, &held);
+
+    _ = try put(&store, "first", "abc");
+    _ = try put(&store, "third", "abc");
+    _ = try put(&store, "fourth", "abc");
+    _ = try put(&store, "second", "abc");
+
+    try testing.expect(exists(&tmp, "first"));
+    try testing.expect(exists(&tmp, "second"));
+    try testing.expect(exists(&tmp, "third"));
+    try testing.expect(!exists(&tmp, "fourth"));
+}
+
+test "media_store: refuses an upload, deleting nothing, when the tracks ranked after it can't free enough" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var store = try openIn(&tmp, 10);
+    defer store.close();
+
+    var held: [max_window_tracks][]const u8 = undefined;
+    _ = try store.setWindow(&.{ "first", "second", "third" }, &held);
+
+    _ = try put(&store, "first", "abcdef");
+    _ = try put(&store, "third", "abc");
+
+    try testing.expectError(error.CacheFull, store.reserve("second", 5));
+    try testing.expect(exists(&tmp, "third"));
 }

@@ -2,6 +2,7 @@ const std = @import("std");
 const net = std.Io.net;
 const api_version = @import("api_version.zig");
 const bridge = @import("bridge.zig");
+const cache_window = @import("cache_window.zig");
 const command = @import("command.zig");
 const credentials = @import("credentials.zig");
 const hello = @import("hello.zig");
@@ -254,6 +255,7 @@ pub const Server = struct {
                     if (route == .pair) return self.servePair(request, key, target, body);
                     if (route == .command) return self.serveCommand(request, target, body);
                     if (route == .media_server) return self.serveMediaServer(request, target, body);
+                    if (route == .cache_window) return self.serveCacheWindow(request, body);
 
                     if (route == .state) {
                         _ = state.since(target) catch {
@@ -331,6 +333,32 @@ pub const Server = struct {
         }
     }
 
+    fn serveCacheWindow(self: *Server, request: *std.http.Server.Request, body: []const u8) !u16 {
+        const store = self.options.media orelse {
+            return problem.response(request, problem.unavailable, .{});
+        };
+
+        var scratch: [cache_window.max_body_bytes]u8 = undefined;
+        const ids = cache_window.parse(&scratch, body) catch {
+            return problem.response(request, problem.malformed_body, .{});
+        };
+
+        var held_buffer: [media_store.max_window_tracks][]const u8 = undefined;
+        const held = store.setWindow(ids, &held_buffer) catch |err| {
+            log.warn(log_name, "could not apply a cache window {f}", .{log.fields(.{ .err = @errorName(err) })});
+            return problem.response(request, problem.internal, .{});
+        };
+
+        var answer_buffer: [cache_window.max_body_bytes]u8 = undefined;
+        const answer = std.fmt.bufPrint(&answer_buffer, "{f}", .{std.json.fmt(.{ .held = held }, .{})}) catch {
+            return problem.response(request, problem.internal, .{});
+        };
+
+        try request.respond(answer, .{ .extra_headers = &.{json_content_type} });
+
+        return 200;
+    }
+
     /// The parsed shape is not carried across the bridge: TypeScript needs the object anyway, and
     /// the body it already receives is the one source. This is the gate, not the decoder.
     fn serveCommand(
@@ -382,6 +410,7 @@ pub const Server = struct {
 
         var upload = store.reserve(id, length) catch |err| {
             const refusal = switch (err) {
+                error.NotInWindow => problem.not_in_window,
                 error.LargerThanCache => problem.body_too_large,
                 error.CacheFull => problem.insufficient_storage,
                 else => problem.internal,
@@ -472,6 +501,7 @@ fn bodyLimit(route: router.Route) usize {
         .media_server => media_server.max_body_bytes,
         .stream_key => unrouted_body_bytes,
         .media => 0,
+        .cache_window => cache_window.max_body_bytes,
     };
 }
 
@@ -1767,13 +1797,16 @@ const MediaCache = struct {
     store: media_store.Store,
     tmp: testing.TmpDir,
 
-    fn open(self: *MediaCache, capacity: u64) !void {
+    fn open(self: *MediaCache, capacity: u64, window: []const []const u8) !void {
         self.tmp = testing.tmpDir(.{});
 
         var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const path = try std.fmt.bufPrint(&buffer, ".zig-cache/tmp/{s}", .{self.tmp.sub_path});
 
         self.store = try .open(testIo(), path, capacity);
+
+        var held: [media_store.max_window_tracks][]const u8 = undefined;
+        _ = try self.store.setWindow(window, &held);
     }
 
     fn close(self: *MediaCache) void {
@@ -1806,7 +1839,7 @@ fn sendUpload(port: u16, request: []const u8) !u16 {
 
 test "http_server: stores an upload under its track id, answering 201 and then 204 when it is replaced" {
     var cache: MediaCache = undefined;
-    try cache.open(100);
+    try cache.open(100, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1825,7 +1858,7 @@ test "http_server: stores an upload under its track id, answering 201 and then 2
 
 test "http_server: refuses an upload larger than the whole cache before inviting the body" {
     var cache: MediaCache = undefined;
-    try cache.open(4);
+    try cache.open(4, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1846,7 +1879,7 @@ test "http_server: refuses an upload larger than the whole cache before inviting
 
 test "http_server: answers 404 for an upload whose track id isn't letters, digits, dashes and underscores" {
     var cache: MediaCache = undefined;
-    try cache.open(100);
+    try cache.open(100, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1863,7 +1896,7 @@ test "http_server: answers 404 for an upload whose track id isn't letters, digit
 
 test "http_server: refuses an upload carrying no token" {
     var cache: MediaCache = undefined;
-    try cache.open(100);
+    try cache.open(100, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1879,7 +1912,7 @@ test "http_server: refuses an upload carrying no token" {
 
 test "http_server: refuses an empty upload" {
     var cache: MediaCache = undefined;
-    try cache.open(100);
+    try cache.open(100, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1895,7 +1928,7 @@ test "http_server: refuses an empty upload" {
 
 test "http_server: an upload that stops short leaves no file behind" {
     var cache: MediaCache = undefined;
-    try cache.open(100);
+    try cache.open(100, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1911,7 +1944,7 @@ test "http_server: an upload that stops short leaves no file behind" {
 
 test "http_server: an upload is not held to the 1 MiB cap the other routes share" {
     var cache: MediaCache = undefined;
-    try cache.open(2 * 1024 * 1024);
+    try cache.open(2 * 1024 * 1024, &.{"track-1"});
     defer cache.close();
 
     var server: Server = undefined;
@@ -1950,6 +1983,119 @@ test "http_server: answers 503 for an upload when no cache was set up" {
     defer harness.stop();
 
     try testing.expectEqual(503, try sendUpload(server.port(), uploadRequest("track-1", "x")));
+}
+
+test "http_server: refuses an upload of a track the cache window doesn't list before inviting the body" {
+    var cache: MediaCache = undefined;
+    try cache.open(100, &.{"track-1"});
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send("PUT /media/track-2 HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: 5\r\nExpect: 100-continue\r\n\r\n");
+
+    try testing.expectEqual(409, try connection.status());
+    try testing.expect(try cache.isEmpty());
+}
+
+test "http_server: answers 507 for an upload the cache window ranks behind tracks that already fill the cache" {
+    var cache: MediaCache = undefined;
+    try cache.open(4, &.{ "track-1", "track-2" });
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    try testing.expectEqual(201, try sendUpload(server.port(), uploadRequest("track-1", "abcd")));
+    try testing.expectEqual(507, try sendUpload(server.port(), uploadRequest("track-2", "x")));
+}
+
+fn windowRequest(comptime body: []const u8) []const u8 {
+    return std.fmt.comptimePrint(
+        "PUT /media HTTP/1.1\r\nHost: t\r\n" ++ authorized ++ "content-length: {d}\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+}
+
+test "http_server: a cache window deletes the tracks it doesn't list and answers which of its own are held" {
+    var cache: MediaCache = undefined;
+    try cache.open(100, &.{});
+    defer cache.close();
+
+    try cache.tmp.dir.writeFile(testing.io, .{ .sub_path = "track-1", .data = "x" });
+    try cache.tmp.dir.writeFile(testing.io, .{ .sub_path = "track-2", .data = "x" });
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(windowRequest(
+        \\{"trackIds":["track-3","track-1"]}
+    ));
+
+    try testing.expect(try connection.contains("HTTP/1.1 200 "));
+    try testing.expect(try connection.contains(
+        \\{"held":["track-1"]}
+    ));
+    try testing.expectError(error.FileNotFound, cache.tmp.dir.statFile(testing.io, "track-2", .{}));
+}
+
+test "http_server: refuses a cache window it can't parse" {
+    var cache: MediaCache = undefined;
+    try cache.open(100, &.{});
+    defer cache.close();
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(windowRequest(
+        \\{"trackIds":["../secrets"]}
+    ));
+
+    try testing.expectEqual(400, try connection.status());
+}
+
+test "http_server: answers 503 for a cache window when no cache was set up" {
+    var server: Server = undefined;
+    try testServer(&server, .{ .head_timeout_ms = 1_000 });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    try connection.send(windowRequest(
+        \\{"trackIds":[]}
+    ));
+
+    try testing.expectEqual(503, try connection.status());
 }
 
 const peer: net.Ip4Address = .{ .bytes = .{ 10, 0, 0, 1 }, .port = 51_000 };

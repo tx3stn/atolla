@@ -7,6 +7,7 @@ comptime {
     _ = @import("audio_stream.zig");
     _ = @import("audio_wire.zig");
     _ = @import("bridge.zig");
+    _ = @import("cache_window.zig");
     _ = @import("clock.zig");
     _ = @import("command.zig");
     _ = @import("credentials.zig");
