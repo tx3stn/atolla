@@ -65,6 +65,17 @@ pub const Store = struct {
         self.dir.close(self.io);
     }
 
+    pub fn holds(self: *Store, id: []const u8) bool {
+        if (!isTrackId(id)) return false;
+
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
+
+        _ = self.dir.statFile(self.io, id, .{}) catch return false;
+
+        return true;
+    }
+
     pub fn reserve(self: *Store, id: []const u8, length: u64) ReserveError!Upload {
         self.mutex.lockUncancelable(self.io);
         defer self.mutex.unlock(self.io);

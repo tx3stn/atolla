@@ -11,12 +11,14 @@ comptime {
     _ = @import("clock.zig");
     _ = @import("command.zig");
     _ = @import("credentials.zig");
+    _ = @import("dscp.zig");
     _ = @import("gst.zig");
     _ = @import("gst_net.zig");
     _ = @import("hello.zig");
     _ = @import("http_server.zig");
     _ = @import("local_address.zig");
     _ = @import("log.zig");
+    _ = @import("media_fetcher.zig");
     _ = @import("media_server.zig");
     _ = @import("media_store.zig");
     _ = @import("pair.zig");
