@@ -83,6 +83,7 @@ function context(
 			localAddress,
 			respond: () => true,
 			setControllersPath: () => {},
+			setFetchList: () => {},
 			setHandler: () => {},
 			setHelloBody: () => {},
 			setLogLevel: () => {},

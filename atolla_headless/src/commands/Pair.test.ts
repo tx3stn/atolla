@@ -84,6 +84,7 @@ function harness(
 					localAddress,
 					respond: () => true,
 					setControllersPath: () => {},
+					setFetchList: () => {},
 					setHandler: () => {},
 					setHelloBody: () => {},
 					setLogLevel: () => {},

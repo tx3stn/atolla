@@ -34,6 +34,7 @@ function deps(): ServerDeps {
 			stream: { join: () => {} },
 			version: makeStateVersion(),
 		},
+		media: { fetchList: { rebuild: () => {}, setWindow: () => {} } },
 		mediaServer: { credentials, transports: verifyingTransports, version: makeStateVersion() },
 		pair: {
 			credentials,
@@ -65,6 +66,7 @@ function fakeHttpServer(answers: Array<{ body: string; requestId: number; status
 			return true;
 		},
 		setControllersPath: () => {},
+		setFetchList: () => {},
 		setHandler: (given) => {
 			handler = given;
 		},
@@ -116,6 +118,29 @@ describe('attachServer', () => {
 		expect(answers).toEqual([
 			{ body: JSON.stringify({ key: STREAM_KEY }), requestId: 11, status: 200 },
 		]);
+	});
+
+	it('hands the window a controller puts to the fetch list', async () => {
+		const answers: Array<{ body: string; requestId: number; status: number }> = [];
+		const windows: Array<Array<string>> = [];
+		const { dispatch, httpServer } = fakeHttpServer(answers);
+
+		attachServer(httpServer, {
+			...deps(),
+			media: {
+				fetchList: {
+					rebuild: () => {},
+					setWindow: (trackIds) => {
+						windows.push(trackIds);
+					},
+				},
+			},
+		});
+		dispatch(12, ROUTE.media, '/media', JSON.stringify({ trackIds: ['t1', 't2'] }));
+		await settled();
+
+		expect(windows).toEqual([['t1', 't2']]);
+		expect(answers).toEqual([{ body: '', requestId: 12, status: 204 }]);
 	});
 
 	it('still answers when a handler rejects, so the connection is not left waiting', async () => {

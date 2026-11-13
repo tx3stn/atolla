@@ -21,6 +21,8 @@ export function atollaHttpSetControllersPath(path: string): void;
 
 export function atollaHttpSetMedia(path: string, capacityBytes: number): void;
 
+export function atollaHttpSetFetchList(list: string): void;
+
 // Returns the port actually bound, which differs from the one asked for when 0 requests an
 // ephemeral one. `host` is an IPv4 address; 0.0.0.0 serves every interface.
 export function atollaHttpStart(host: string, port: number): number;

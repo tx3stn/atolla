@@ -70,6 +70,7 @@ function context(argv: Array<string>) {
 				localAddress: () => '192.168.1.42',
 				respond: () => true,
 				setControllersPath: () => {},
+				setFetchList: () => {},
 				setHandler: () => {},
 				setHelloBody: () => {},
 				setLogLevel: () => {},

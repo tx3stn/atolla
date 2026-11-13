@@ -171,7 +171,24 @@ public:
                                                             bytes.size(),
                                                             static_cast<uint64_t>(capacity))) {
                                      callContext.getExceptionTracker().onError(Valdi::Error(
-                                         "atollaHttpSetMedia: could not open the media directory"));
+                                         "atollaHttpSetMedia: could not set up the media cache"));
+                                 }
+
+                                 return Valdi::Value::undefined();
+                             })))
+            .setMapValue("atollaHttpSetFetchList",
+                         Valdi::Value(Valdi::makeShared<Valdi::ValueFunctionWithCallable>(
+                             [](const Valdi::ValueFunctionCallContext& callContext) -> Valdi::Value {
+                                 const Valdi::StringBox list = callContext.getParameterAsString(0);
+                                 if (!callContext.getExceptionTracker()) {
+                                     return Valdi::Value::undefined();
+                                 }
+
+                                 const std::string_view bytes = list.toStringView();
+                                 if (!atolla_http_set_fetch_list(reinterpret_cast<const unsigned char*>(bytes.data()),
+                                                                 bytes.size())) {
+                                     callContext.getExceptionTracker().onError(
+                                         Valdi::Error("atollaHttpSetFetchList: list refused"));
                                  }
 
                                  return Valdi::Value::undefined();

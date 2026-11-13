@@ -43,6 +43,8 @@ bool atolla_http_set_controllers_path(const unsigned char *path, size_t len);
 
 bool atolla_http_set_media(const unsigned char *path, size_t path_len, uint64_t capacity);
 
+bool atolla_http_set_fetch_list(const unsigned char *bytes, size_t len);
+
 // Binds the given IPv4 host and port and serves on its own thread. Port 0 binds an ephemeral one,
 // readable back with atolla_http_port. NULL if the host would not parse or the bind failed.
 AtollaHttpServer *atolla_http_start(const unsigned char *host,

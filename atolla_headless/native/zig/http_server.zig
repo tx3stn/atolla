@@ -7,6 +7,7 @@ const command = @import("command.zig");
 const credentials = @import("credentials.zig");
 const hello = @import("hello.zig");
 const log = @import("log.zig");
+const media_fetcher = @import("media_fetcher.zig");
 const media_server = @import("media_server.zig");
 const media_store = @import("media_store.zig");
 const pair = @import("pair.zig");
@@ -255,7 +256,7 @@ pub const Server = struct {
                     if (route == .pair) return self.servePair(request, key, target, body);
                     if (route == .command) return self.serveCommand(request, target, body);
                     if (route == .media_server) return self.serveMediaServer(request, target, body);
-                    if (route == .cache_window) return self.serveCacheWindow(request, body);
+                    if (route == .cache_window) return self.serveCacheWindow(request, target, body);
 
                     if (route == .state) {
                         _ = state.since(target) catch {
@@ -333,7 +334,12 @@ pub const Server = struct {
         }
     }
 
-    fn serveCacheWindow(self: *Server, request: *std.http.Server.Request, body: []const u8) !u16 {
+    fn serveCacheWindow(
+        self: *Server,
+        request: *std.http.Server.Request,
+        target: []const u8,
+        body: []const u8,
+    ) !u16 {
         const store = self.options.media orelse {
             return problem.response(request, problem.unavailable, .{});
         };
@@ -348,6 +354,10 @@ pub const Server = struct {
             log.warn(log_name, "could not apply a cache window {f}", .{log.fields(.{ .err = @errorName(err) })});
             return problem.response(request, problem.internal, .{});
         };
+
+        if (!self.tellBridge(.cache_window, target, body)) {
+            log.warn(log_name, "the handler didn't take a cache window", .{});
+        }
 
         var answer_buffer: [cache_window.max_body_bytes]u8 = undefined;
         const answer = std.fmt.bufPrint(&answer_buffer, "{f}", .{std.json.fmt(.{ .held = held }, .{})}) catch {
@@ -476,6 +486,18 @@ pub const Server = struct {
             .cross => self.crossBridge(request, .pair, target, body),
         };
     }
+
+    fn tellBridge(self: *Server, route: router.Route, target: []const u8, body: []const u8) bool {
+        const dispatch = self.options.handler.dispatch orelse return false;
+        const id = bridge.pending.claim(self.io) orelse return false;
+        defer bridge.pending.release(self.io, id);
+
+        dispatch(self.options.handler.context, id, @intFromEnum(route), target.ptr, target.len, body.ptr, body.len);
+
+        const answer = bridge.pending.awaitResponse(self.io, id, self.options.handler_timeout_ms) orelse return false;
+
+        return answer.status < 400;
+    }
 };
 
 fn limiterKey(address: net.IpAddress) rate_limit.Key {
@@ -548,6 +570,8 @@ const Hosted = struct {
 
 var media: ?media_store.Store = null;
 
+var fetcher: ?media_fetcher.Fetcher = null;
+
 export fn atolla_http_start(
     host: [*]const u8,
     host_len: usize,
@@ -602,12 +626,30 @@ export fn atolla_http_set_controllers_path(bytes: [*]const u8, len: usize) bool 
 }
 
 export fn atolla_http_set_media(path: [*]const u8, path_len: usize, capacity: u64) bool {
+    const io = std.Io.Threaded.global_single_threaded.io();
+
+    if (fetcher) |*running| running.stop();
+    fetcher = null;
     if (media) |*store| store.close();
 
-    media = media_store.Store.open(std.Io.Threaded.global_single_threaded.io(), path[0..path_len], capacity) catch {
+    media = media_store.Store.open(io, path[0..path_len], capacity) catch {
         media = null;
         return false;
     };
+
+    fetcher = @as(media_fetcher.Fetcher, undefined);
+    fetcher.?.start(std.heap.c_allocator, io, &media.?) catch {
+        fetcher = null;
+        return false;
+    };
+
+    return true;
+}
+
+export fn atolla_http_set_fetch_list(bytes: [*]const u8, len: usize) bool {
+    const running = if (fetcher) |*held| held else return false;
+
+    running.setListFromJson(bytes[0..len]) catch return false;
 
     return true;
 }
@@ -2056,6 +2098,37 @@ test "http_server: a cache window deletes the tracks it doesn't list and answers
         \\{"held":["track-1"]}
     ));
     try testing.expectError(error.FileNotFound, cache.tmp.dir.statFile(testing.io, "track-2", .{}));
+}
+
+test "http_server: hands a cache window to the handler, and still answers which tracks are held itself" {
+    var stub: StubHandler = .{ .status = 204, .body = "" };
+
+    var cache: MediaCache = undefined;
+    try cache.open(100, &.{});
+    defer cache.close();
+
+    try cache.tmp.dir.writeFile(testing.io, .{ .sub_path = "track-1", .data = "x" });
+
+    var server: Server = undefined;
+    try testServer(&server, .{ .handler = stub.handler(), .head_timeout_ms = 1_000, .media = &cache.store });
+    defer server.deinit();
+
+    var harness = try Harness.start(&server);
+    defer harness.stop();
+
+    const connection = try Connection.open(server.port());
+    defer connection.close();
+
+    const body =
+        \\{"trackIds":["track-1"]}
+    ;
+    try connection.send(windowRequest(body));
+
+    try testing.expect(try connection.contains("HTTP/1.1 200 "));
+    try testing.expect(try connection.contains(
+        \\{"held":["track-1"]}
+    ));
+    try testing.expectEqualStrings(body, stub.seen[0..stub.seen_len]);
 }
 
 test "http_server: refuses a cache window it can't parse" {

@@ -2,6 +2,7 @@ import { getLogger } from 'atolla_core/src/services/Logger';
 import type { StreamKeyAnswer } from 'atolla_sync/src/api/generated';
 import type { Answer, HttpServer } from './Http';
 import { type CommandDeps, handleCommand } from './routes/Command';
+import { handleMedia, type MediaDeps } from './routes/Media';
 import { handleMediaServer, type MediaServerDeps } from './routes/MediaServer';
 import { handlePair, type PairDeps } from './routes/Pair';
 import { handleState, type StateDeps } from './routes/State';
@@ -9,6 +10,7 @@ import { handleState, type StateDeps } from './routes/State';
 export const ROUTE = {
 	command: 2,
 	hello: 0,
+	media: 8,
 	mediaServer: 4,
 	pair: 1,
 	state: 3,
@@ -17,6 +19,7 @@ export const ROUTE = {
 
 export interface ServerDeps {
 	command: CommandDeps;
+	media: MediaDeps;
 	mediaServer: MediaServerDeps;
 	pair: PairDeps;
 	state: StateDeps;
@@ -32,6 +35,10 @@ export function attachServer(httpServer: HttpServer, deps: ServerDeps): void {
 		switch (route) {
 			case ROUTE.command:
 				answer = handleCommand(deps.command, body);
+				break;
+
+			case ROUTE.media:
+				answer = handleMedia(deps.media, body);
 				break;
 
 			case ROUTE.mediaServer:

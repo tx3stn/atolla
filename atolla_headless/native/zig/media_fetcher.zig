@@ -6,7 +6,7 @@ const media_store = @import("media_store.zig");
 
 const log_name = "fetcher";
 
-// 15 + 5 × 3 = 30s to give up on a vanished media server, the upload stall limit in http_server.zig.
+// The fetcher gives up on a vanished media server after 15 + 5 × 3 = 30s, the stall limit uploads get in http_server.zig.
 const keepalive_idle_seconds = 15;
 const keepalive_interval_seconds = 5;
 const keepalive_probes = 3;
@@ -19,6 +19,12 @@ const keepalive_idle_option = switch (builtin.os.tag) {
 
 pub const Entry = struct {
     auth_header: []const u8,
+    id: []const u8,
+    url: []const u8,
+};
+
+const WireEntry = struct {
+    authHeader: []const u8,
     id: []const u8,
     url: []const u8,
 };
@@ -73,6 +79,25 @@ pub const Fetcher = struct {
         self.mutex.unlock(self.io);
 
         replaced.deinit();
+    }
+
+    pub fn setListFromJson(self: *Fetcher, json: []const u8) (error{Malformed} || std.mem.Allocator.Error)!void {
+        const parsed = std.json.parseFromSlice([]const WireEntry, self.allocator, json, .{
+            .ignore_unknown_fields = true,
+        }) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.Malformed,
+        };
+        defer parsed.deinit();
+
+        const entries = try self.allocator.alloc(Entry, parsed.value.len);
+        defer self.allocator.free(entries);
+
+        for (parsed.value, entries) |wire, *entry| {
+            entry.* = .{ .auth_header = wire.authHeader, .id = wire.id, .url = wire.url };
+        }
+
+        try self.setList(entries);
     }
 
     pub fn start(
@@ -152,7 +177,7 @@ pub const Fetcher = struct {
         };
 
         // Zig 0.16 never sends `privileged_headers` (sendHead in std/http/Client.zig), and the
-        // `authorization` slot it does send survives a redirect to any host, so redirects aren't followed.
+        // `authorization` slot it does send is kept on a redirect to any host, so redirects aren't followed.
         var request = self.client.request(.GET, uri, .{
             .headers = .{
                 .accept_encoding = .omit,
@@ -604,6 +629,30 @@ test "media_fetcher: downloads each listed track the cache doesn't hold, nearest
     try testing.expectEqualStrings("aaa", try bench.tmp.dir.readFile(testing.io, "a", &buffer));
     try testing.expectEqualStrings("held", try bench.tmp.dir.readFile(testing.io, "b", &buffer));
     try testing.expectEqualStrings("ccc", try bench.tmp.dir.readFile(testing.io, "c", &buffer));
+}
+
+test "media_fetcher: takes its list as the JSON the daemon sends" {
+    var bench: Bench = undefined;
+    try bench.start(&.{.{ .path = "/a", .body = "aaa" }}, &.{"a"});
+    defer bench.stop();
+
+    var buffer: [256]u8 = undefined;
+    const json = try std.fmt.bufPrint(
+        &buffer,
+        "[{{\"authHeader\":\"\",\"id\":\"a\",\"url\":\"http://127.0.0.1:{d}/a\"}}]",
+        .{bench.server.port()},
+    );
+
+    try bench.fetcher.setListFromJson(json);
+    try waitForFile(&bench, "a");
+}
+
+test "media_fetcher: refuses a list that isn't JSON" {
+    var bench: Bench = undefined;
+    try bench.start(&.{}, &.{});
+    defer bench.stop();
+
+    try testing.expectError(error.Malformed, bench.fetcher.setListFromJson("not json"));
 }
 
 test "media_fetcher: sends the media server the auth header it was given" {

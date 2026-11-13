@@ -512,6 +512,11 @@ paths:
         After a restart the player has no list. Until one arrives it keeps the tracks already on
         disk and refuses every upload.
 
+        While an account owns the queue (the `userId` on `setQueue`), the player also downloads the
+        listed tracks it doesn't hold from the media server, in the list's order. It skips the track
+        it's playing, since it's streaming that one. For a queue no account owns, it downloads
+        nothing.
+
         The answer names the listed tracks the player already holds, so a controller uploads only
         the rest.
       parameters:

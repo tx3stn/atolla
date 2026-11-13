@@ -17,6 +17,7 @@ export interface HttpServer {
 	localAddress: () => string;
 	respond: (requestId: number, status: number, body: string) => boolean;
 	setControllersPath: (path: string) => void;
+	setFetchList: (list: string) => void;
 	setHandler: (handler: RequestHandler) => void;
 	setHelloBody: (body: string) => void;
 	setLogLevel: (level: LogLevel) => void;

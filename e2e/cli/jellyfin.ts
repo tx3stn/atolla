@@ -1,6 +1,6 @@
-// Only `/Users/Me`, which is all the daemon asks a media server before it will hold a credential.
-// Browsing a library is `tools/mock-server`'s job; this has to run on a bare CI runner and inside
-// the linux test image, where Docker is not reachable.
+// Serves `/Users/Me`, which the daemon asks before it will hold a credential, and the stream it plays
+// and caches tracks from. Browsing a library is `tools/mock-server`'s job; this has to run on a bare
+// CI runner and inside the linux test image, where Docker is not reachable.
 export interface FakeJellyfin {
 	authorizations: Array<string>;
 	baseUrl: string;
@@ -10,14 +10,24 @@ export interface FakeJellyfin {
 	tokenFor: (userId: string) => string;
 }
 
-export function startJellyfin(userIds: Array<string>): FakeJellyfin {
+export function startJellyfin(
+	userIds: Array<string>,
+	tracks: Map<string, Uint8Array<ArrayBuffer>> = new Map(),
+): FakeJellyfin {
 	const tokenFor = (userId: string) => `token-for-${userId}`;
 	const accounts = new Map(userIds.map((userId) => [tokenFor(userId), userId]));
 	const authorizations: Array<string> = [];
 
 	const server = Bun.serve({
 		fetch: (request) => {
-			if (new URL(request.url).pathname !== '/Users/Me') {
+			const path = new URL(request.url).pathname;
+
+			const stream = path.match(/^\/Audio\/([^/]+)\/stream\.mp3$/);
+			if (stream !== null) {
+				return streamTrack(tracks.get(stream[1]), accounts, request);
+			}
+
+			if (path !== '/Users/Me') {
 				return new Response(null, { status: 404 });
 			}
 
@@ -50,6 +60,22 @@ export function startJellyfin(userIds: Array<string>): FakeJellyfin {
 		},
 		tokenFor,
 	};
+}
+
+function streamTrack(
+	track: Uint8Array<ArrayBuffer> | undefined,
+	accounts: Map<string, string>,
+	request: Request,
+): Response {
+	if (!accounts.has(bearerToken(request.headers.get('Authorization') ?? ''))) {
+		return new Response(null, { status: 401 });
+	}
+
+	if (track === undefined) {
+		return new Response(null, { status: 404 });
+	}
+
+	return new Response(track, { headers: { 'Content-Type': 'audio/wav' } });
 }
 
 function bearerToken(authorization: string): string {

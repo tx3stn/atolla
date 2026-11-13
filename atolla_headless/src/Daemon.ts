@@ -10,6 +10,7 @@ import type { AudioEngine } from './Audio';
 import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
 import { makeAudioStream } from './AudioStream';
 import { ensureDirectory } from './EnsureDirectory';
+import { makeFetchList } from './FetchList';
 import { makeFileKeyValueStore, type StoreFiles } from './FileKeyValueStore';
 import { helloBody } from './Hello';
 import type { HttpServer } from './Http';
@@ -144,6 +145,16 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	deps.httpServer.setPairingCodePath(secrets.pathFor(PAIRING_KEY));
 	ensureDirectory(deps.files, mediaDir(deps.config));
 	deps.httpServer.setMedia(mediaDir(deps.config), mediaCacheBytes(deps.config));
+
+	const fetchList = makeFetchList({
+		currentTrackId: () => playback.track?.id ?? null,
+		queueOwner,
+		setFetchList: deps.httpServer.setFetchList,
+		transports,
+	});
+	credentials.subscribe(fetchList.rebuild);
+	playback.subscribe(fetchList.rebuild);
+
 	attachServer(deps.httpServer, {
 		command: {
 			playback,
@@ -152,6 +163,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			stream,
 			version,
 		},
+		media: { fetchList },
 		mediaServer: {
 			credentials,
 			transports,
