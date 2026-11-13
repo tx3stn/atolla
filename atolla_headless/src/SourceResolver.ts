@@ -25,23 +25,18 @@ export function isMediaTrackId(trackId: string): boolean {
 	return trackId.length > 0 && trackId.length <= MAX_TRACK_ID_LENGTH && TRACK_ID.test(trackId);
 }
 
-// A queue nobody owns has only local files behind it, so the path is composed without a stat and a
-// missing one fails at the engine, as it did before the daemon could reach a media server at all.
-// An owner means a credential is expected, so the stat runs: handing over a path that is not there
-// while the credential is still on its way spends the track.
 export function makeSourceResolver(
 	deps: SourceResolverDeps,
 ): (track: Track) => ResolvedSource | null {
 	return (track) => {
 		const local = resolveLocalSource(deps.config, track.id);
-		const owner = deps.queueOwner.get();
-
-		if (owner === null) {
-			return local === null ? null : { authHeader: '', source: local };
-		}
-
 		if (local !== null && deps.files.existsSync(local)) {
 			return { authHeader: '', source: local };
+		}
+
+		const owner = deps.queueOwner.get();
+		if (owner === null) {
+			return null;
 		}
 
 		const access = deps.transports.forUser(owner);

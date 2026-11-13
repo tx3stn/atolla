@@ -52,23 +52,31 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 	let lastSeekTarget: number | null = null;
 	let pendingSeekMs: number | null = null;
 	let pendingSeekAttempts = 0;
+	let waitingId: string | null = null;
+	let waitingNextId: string | null = null;
 
 	const offerSeek = (positionMs: number): void => {
 		pendingSeekAttempts = 0;
 		pendingSeekMs = audio.seekToMs(positionMs) ? null : positionMs;
 	};
 
+	const unbind = (): void => {
+		if (audio.currentTrackId() !== '') {
+			audio.clear();
+		}
+		bound = null;
+		handed = null;
+		offeredNextId = null;
+		pendingSeekMs = null;
+		waitingNextId = null;
+	};
+
 	const bindTrack = (): void => {
 		const track = playback.track;
 
 		if (track === undefined || track === null) {
-			if (audio.currentTrackId() !== '') {
-				audio.clear();
-			}
-			bound = null;
-			handed = null;
-			offeredNextId = null;
-			pendingSeekMs = null;
+			unbind();
+			waitingId = null;
 			return;
 		}
 
@@ -82,9 +90,15 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 
 		const resolved = resolveSource(track);
 		if (resolved === null) {
-			log.warn('no source for track', { trackId: track.id });
+			if (waitingId !== track.id) {
+				log.warn('no source for track', { trackId: track.id });
+				waitingId = track.id;
+			}
+			unbind();
 			return;
 		}
+
+		waitingId = null;
 
 		// Resolved again rather than left alone: a pushed credential rebuilds the transport behind the
 		// resolver, and a track paused on the replaced token would otherwise play it.
@@ -135,16 +149,22 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 		handed = null;
 
 		if (next === null) {
+			waitingNextId = null;
 			audio.clearNext();
 			return;
 		}
 
 		const resolved = resolveSource(next);
 		if (resolved === null) {
-			log.warn('no source for the next track', { trackId: next.id });
+			if (waitingNextId !== next.id) {
+				log.warn('no source for the next track', { trackId: next.id });
+				waitingNextId = next.id;
+			}
 			audio.clearNext();
 			return;
 		}
+
+		waitingNextId = null;
 
 		if (!audio.configureNext(resolved.source, next.id, resolved.authHeader)) {
 			log.warn('engine refused the next track', { trackId: next.id });
@@ -223,8 +243,19 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			bindTrack();
 			bindNextTrack();
 		}
+
+		if (waitingId !== null) {
+			lastSeekTarget = playback.seekTarget;
+			return;
+		}
+
 		applyPlaying();
 		applySeek();
+	};
+
+	const refresh = (): void => {
+		offeredNextId = null;
+		apply();
 	};
 
 	const drain = (): void => {
@@ -323,10 +354,7 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			unsubscribe?.();
 			unsubscribe = null;
 		},
-		refresh: () => {
-			offeredNextId = null;
-			apply();
-		},
+		refresh,
 		start: () => {
 			unsubscribe = playback.subscribe(apply);
 			apply();
@@ -335,6 +363,10 @@ export function makeAudioPlayer({ audio, playback, resolveSource }: AudioPlayerD
 			// Batched so several buffered completions settle as one notification, rather than walking
 			// the engine through every intermediate track.
 			playback.runBatched(drain);
+
+			if (waitingId !== null || waitingNextId !== null) {
+				refresh();
+			}
 
 			if (seekPending()) {
 				return;

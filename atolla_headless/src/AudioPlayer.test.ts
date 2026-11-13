@@ -90,6 +90,10 @@ function moveOnToNext(engine: FakeEngine): void {
 	engine.events.push(`completed:${finished}`);
 }
 
+function onDisk(present: Array<string>): (trackId: string) => ResolvedSource | null {
+	return (id) => (present.includes(id) ? { authHeader: '', source: `/media/${id}` } : null);
+}
+
 function fixture(
 	resolve: (trackId: string) => ResolvedSource | null = (id) => ({
 		authHeader: '',
@@ -680,12 +684,63 @@ describe('makeAudioPlayer', () => {
 		expect(audio.cleared).toBe(1);
 	});
 
-	it('leaves the engine alone when nothing resolves the track to bytes', () => {
-		const { audio, playback } = fixture(() => null);
+	it('stops the track before it when the track it moves to has no file yet', () => {
+		const { audio, playback } = fixture(onDisk(['t1']));
 
 		playback.playTracks(TRACKS, 0);
+		playback.jumpToIndex(2);
+
+		expect(audio.current).toBe('');
+	});
+
+	it('leaves play, pause and seeks out of the engine while the track waits', () => {
+		const { audio, playback } = fixture(onDisk([]));
+
+		playback.playTracks(TRACKS, 0);
+		playback.playPause();
+		playback.playPause();
+		playback.seekTo(30);
 
 		expect(audio.configured).toHaveLength(0);
+		expect(audio.playing).toBe(false);
+		expect(audio.seeks).toEqual([]);
+	});
+
+	it('starts a waiting track from the beginning once its file arrives', () => {
+		const present: Array<string> = [];
+		const { audio, player, playback } = fixture(onDisk(present));
+
+		playback.playTracks(TRACKS, 0);
+		present.push('t1');
+		player.tick();
+
+		expect(audio.configured).toEqual([{ authHeader: '', source: '/media/t1', trackId: 't1' }]);
+		expect(audio.playing).toBe(true);
+		expect(audio.seeks).toEqual([]);
+	});
+
+	it('applies a seek received while the track waits once its file arrives', () => {
+		const present: Array<string> = [];
+		const { audio, player, playback } = fixture(onDisk(present));
+
+		playback.playTracks(TRACKS, 0);
+		playback.seekTo(42);
+		present.push('t1');
+		player.tick();
+
+		expect(audio.current).toBe('t1');
+		expect(audio.seeks).toEqual([42_000]);
+	});
+
+	it('offers the next track once its file arrives', () => {
+		const present = ['t1'];
+		const { audio, player, playback } = fixture(onDisk(present));
+
+		playback.playTracks(TRACKS, 0);
+		present.push('t2');
+		player.tick();
+
+		expect(audio.next).toEqual({ authHeader: '', source: '/media/t2', trackId: 't2' });
 	});
 
 	it('reports what the engine holds for a restore to follow', () => {

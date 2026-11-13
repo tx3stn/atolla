@@ -5,12 +5,15 @@ import { dirname, join } from 'node:path';
 import type { PairAccepted, StateSnapshot, Track } from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import { Cli, type Daemon, pairingCode } from './cli';
+import { putCacheWindow, putMedia } from './media';
 import { silence } from './silence';
 import { FetchTransport } from './transport';
 
 // away from the 45889 default and from the sibling suites, so neither a daemon left running on
 // this machine nor another spec can make these pass
 const PORT = 45993;
+
+const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 // `none` decodes and keeps time without an output device, which is what docker and the runners
 // have. Playback still takes its real duration, so the fixtures are short.
@@ -26,6 +29,8 @@ const TRACKS: Array<Track> = [
 const UNHURRIED: Track = { duration: 30, id: 'unhurried', name: 'unhurried' };
 
 const LOOPED: Track = { duration: 4, id: 'looped', name: 'looped' };
+
+const UPLOADED: Track = { duration: 2, id: 'uploaded', name: 'uploaded' };
 
 describe('playback', () => {
 	let cli: Cli;
@@ -89,7 +94,7 @@ describe('playback', () => {
 		cli = new Cli({ config: configPath });
 		const code = pairingCode(cli.pair().stdout);
 		daemon = await cli.run();
-		client = new PlayerClient(`http://127.0.0.1:${PORT}`, new FetchTransport());
+		client = new PlayerClient(BASE_URL, new FetchTransport());
 
 		const paired = await client.pair({ code, controllerId: 'phone-1', controllerName: 'pixel 8' });
 		token = (paired.json as PairAccepted).token;
@@ -135,6 +140,28 @@ describe('playback', () => {
 
 		expect(again.playback.isPlaying).toBe(true);
 		expect(again.queue.trackIndex).toBe(0);
+	});
+
+	it('waits for a track whose file has not arrived, then plays it once it is uploaded', async () => {
+		await client.command(token, {
+			command: 'setQueue',
+			trackIndex: 0,
+			tracks: [UPLOADED, TRACKS[0]],
+		});
+		await client.command(token, { command: 'play' });
+		await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+		const waiting = await snapshot();
+
+		expect(waiting.queue.trackIndex).toBe(0);
+		expect(waiting.playback.positionMs).toBe(0);
+
+		await putCacheWindow(BASE_URL, token, { trackIds: [UPLOADED.id, TRACKS[0].id] });
+		await putMedia(BASE_URL, token, UPLOADED.id, new Uint8Array(silence(UPLOADED.duration)));
+
+		const playing = await until((state) => state.playback.positionMs > 0, 'the upload to play');
+
+		expect(playing.queue.trackIndex).toBe(0);
 	});
 
 	it('pauses where it was asked to', async () => {
