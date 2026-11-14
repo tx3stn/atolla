@@ -7,6 +7,7 @@ import { Cli, type Daemon } from './cli';
 // away from the 45889 default, so a daemon left running on this machine cannot make these pass
 const PORT = 45991;
 const AUDIO_PORT = 45990;
+const CLOCK_PORT = 45989;
 
 describe('atolla run', () => {
 	let cli: Cli;
@@ -24,6 +25,7 @@ describe('atolla run', () => {
 				audioDevice: 'none',
 				audioPort: AUDIO_PORT,
 				bindAddress: '127.0.0.1',
+				clockPort: CLOCK_PORT,
 				dataDir: join(dir, 'data'),
 				language: 'en',
 				name: 'Kitchen',

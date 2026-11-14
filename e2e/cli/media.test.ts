@@ -11,6 +11,8 @@ import { FetchTransport } from './transport';
 // away from the 45889 default and from the sibling suites, so neither a daemon left running on
 // this machine nor another spec can make these pass
 const PORT = 45995;
+const AUDIO_PORT = 45985;
+const CLOCK_PORT = 45965;
 
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
@@ -31,7 +33,9 @@ describe('media cache', () => {
 		writeFileSync(
 			configPath,
 			JSON.stringify({
+				audioPort: AUDIO_PORT,
 				bindAddress: '127.0.0.1',
+				clockPort: CLOCK_PORT,
 				dataDir,
 				language: 'en',
 				mediaCacheGb: CACHE_BYTES / 1_000_000_000,

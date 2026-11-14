@@ -13,6 +13,8 @@ import { FetchTransport } from './transport';
 // away from the 45889 default and from the sibling suites, so neither a daemon left running on
 // this machine nor another spec can make these pass
 const PORT = 45996;
+const AUDIO_PORT = 45986;
+const CLOCK_PORT = 45966;
 
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
@@ -77,7 +79,9 @@ describe('fetching the cache window from the media server', () => {
 			configPath,
 			JSON.stringify({
 				audioDevice: SILENT,
+				audioPort: AUDIO_PORT,
 				bindAddress: '127.0.0.1',
+				clockPort: CLOCK_PORT,
 				dataDir,
 				language: 'en',
 				name: 'Kitchen',

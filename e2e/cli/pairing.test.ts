@@ -11,6 +11,8 @@ import { FetchTransport } from './transport';
 // away from the 45889 default and from run.test.ts, so neither a daemon left running on this
 // machine nor a sibling suite can make these pass
 const PORT = 45992;
+const AUDIO_PORT = 45982;
+const CLOCK_PORT = 45962;
 
 type Pairing = PendingRequest<PlayerAnswer<PairAccepted | Problem>>;
 
@@ -64,7 +66,9 @@ describe('POST /pair', () => {
 		writeFileSync(
 			configPath,
 			JSON.stringify({
+				audioPort: AUDIO_PORT,
 				bindAddress: '127.0.0.1',
+				clockPort: CLOCK_PORT,
 				dataDir,
 				language: 'en',
 				name: 'Kitchen',
