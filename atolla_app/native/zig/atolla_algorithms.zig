@@ -8,9 +8,12 @@ const std = @import("std");
 // which macOS exports and the iOS SDK does not, breaking the device link.
 pub const panic = std.debug.simple_panic;
 
+pub const std_options: std.Options = .{ .http_disable_tls = true };
+
 comptime {
-    _ = @import("palette_extractor.zig");
     _ = @import("image_blur.zig");
-    _ = @import("waveform_generator.zig");
+    _ = @import("media_uploader.zig");
+    _ = @import("palette_extractor.zig");
     _ = @import("scrobble_tracker.zig");
+    _ = @import("waveform_generator.zig");
 }

@@ -11,6 +11,7 @@ zig_static_library(
     name = "atolla_algorithms_zig",
     srcs = [
         "image_blur.zig",
+        "media_uploader.zig",
         "palette_extractor.zig",
         "scrobble_tracker.zig",
         "waveform_generator.zig",
