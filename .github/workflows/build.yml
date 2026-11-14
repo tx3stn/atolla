@@ -277,7 +277,7 @@ jobs:
   # Each headless build runs the same test suite against its own binary.
   e2e-cli-amd64:
     needs: cli-linux-amd64
-    if: ${{ !inputs.release }}
+    if: ${{ !inputs.release && github.event_name != 'schedule' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -289,7 +289,7 @@ jobs:
 
   e2e-cli-arm64:
     needs: cli-linux-arm64
-    if: ${{ !inputs.release }}
+    if: ${{ !inputs.release && github.event_name != 'schedule' }}
     runs-on: ubuntu-22.04-arm
     timeout-minutes: 15
     steps:
@@ -301,7 +301,7 @@ jobs:
 
   e2e-cli-macos:
     needs: cli-macos-arm64
-    if: ${{ !inputs.release }}
+    if: ${{ !inputs.release && github.event_name != 'schedule' }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:

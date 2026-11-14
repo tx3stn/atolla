@@ -14,6 +14,8 @@ on:
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/dependabot.yml"
       - "vrsn.toml"
+  schedule:
+    - cron: "23 4 */2 * *"
   workflow_call:
   workflow_dispatch:
 
@@ -163,6 +165,7 @@ jobs:
           key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_headless/BUILD.bazel', 'atolla_sync/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
   openapi:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -233,37 +236,12 @@ jobs:
         uses: ./.github/actions/free-disk-space
       - name: Install libxml2
         uses: ./.github/actions/install-libxml2
-      # Pin the output base so it can be cached: restoring it gives a warm build
-      # (extracted external repos + bazel-out) with no re-extraction or recompile.
-      # It's SAVED only on the default branch (below), so MR runs read main's warm
-      # base but never write multi-GB entries that would churn the shared 10 GB pool.
-      # No --remote_download_minimal below: this warm base already holds the outputs.
-      - name: pin bazel output base
-        run: echo "startup --output_base=$HOME/.cache/bazel-ob" >> ~/.bazelrc
       - name: configure bazel caching
         uses: ./.github/actions/configure-bazel-caching
         with:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
-      # Restore the warm output base (extracted repos + bazel-out) — a hit means no
-      # re-extraction and no recompile. Keyed on the dependency set (MODULE/patches), NOT
-      # the commit SHA: a per-SHA key banked a fresh multi-GB base on every main push, and a
-      # handful of those overflow the shared 10 GB Actions pool and evict each other (and the
-      # repo caches) — so the base was gone by the next run and component-tests fell back to a
-      # full cold build. One base per dependency set is all we need: the expensive artifacts
-      # (Hermes/Skia/Valdi core) only change when the dependency set does, so within a set
-      # bazel just rebuilds the cheap app/test sources incrementally off the restored base.
-      # SAVED only on the default branch (below), so MR runs read main's base but never write.
-      - name: restore bazel output base
-        id: restore-bazel-ob
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/bazel-ob
-          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
-          restore-keys: |
-            bazel-ob-${{ github.job }}-${{ runner.os }}-
-      # cold path only — a restored output base already contains every extracted repo
+          remote-download-minimal: "true"
       - name: restore bazel repository cache
-        if: steps.restore-bazel-ob.outputs.cache-matched-key == ''
         id: restore-bazel-repo
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -275,19 +253,6 @@ jobs:
         uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run test:components
         timeout-minutes: 120
-      - name: shut down bazel server
-        if: always()
-        run: bazel shutdown && du -sh ~/.cache/bazel-ob || true
-      # Save the multi-GB caches ONLY on the default branch so MR runs never write to (and
-      # churn) the shared Actions pool. MR runs still get per-push reuse via BuildBuddy. With
-      # the dep-set key above, main banks exactly one base per dependency set (the cache-hit
-      # guard skips the save once it exists) instead of a fresh multi-GB entry per commit.
-      - name: save bazel output base
-        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/bazel-ob
-          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
 
   android-tests:
     runs-on: ubuntu-latest
@@ -310,7 +275,7 @@ jobs:
       # identical no matter which job/target fetched it and the store is additive,
       # so there's no reason to partition by job — doing that minted a ~3.7 GiB copy
       # per job (~15 GiB across the jobs) that thrashed the 10 GiB Actions pool and
-      # evicted the projectsync-outputs and bazel-ob caches every run. Keyed on the
+      # evicted the projectsync-outputs cache every run. Keyed on the
       # dep-set alone; android-tests is the sole saver (below) because its download
       # set is a superset (host toolchain + the Android NDK/SDK). Every other job
       # restores read-only; a partial hit self-heals as bazel fetches only what's missing.
