@@ -15,8 +15,6 @@ pre-push:
             run: bun run format:zig
           - name: test
             run: bun run test
-          - name: test:zig
-            run: bun run test:zig
           - name: test:cli
             run: bun run test:e2e:cli
     - name: bazel
@@ -42,3 +40,23 @@ pre-push:
           - name: generate
             glob: "atolla_sync/openapi.yaml"
             run: bun run openapi:generate
+    - name: zig
+      group:
+        parallel: true
+        jobs:
+          - name: test:zig:app
+            run: bun run test:zig app
+          - name: test:zig:cli:audio_player
+            run: bun run test:zig cli:audio_player
+          - name: test:zig:cli:audio_stream
+            run: bun run test:zig cli:audio_stream
+          - name: test:zig:cli:gst
+            run: bun run test:zig cli:gst
+          - name: test:zig:cli:server
+            run: bun run test:zig cli:server
+          - name: test:zig:cli:control
+            run: bun run test:zig cli:control
+          - name: test:zig:cli:media
+            run: bun run test:zig cli:media
+          - name: test:zig:cli:network
+            run: bun run test:zig cli:network

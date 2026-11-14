@@ -51,7 +51,6 @@
 		"build:headless:arm64": "./.scripts/build-headless.sh arm64",
 		"build:ipa": "./.scripts/build-ios-ipa.sh",
 		"check": "bunx lefthook run pre-push --all-files",
-		"check:bazel": "bun run check:zig && bun run test:zig && bun run test:android && bun run test:ios",
 		"check:full": "./.scripts/check-full.sh",
 		"check:static": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig",
 		"check:zig": "bazel build //atolla_app/native/zig:atolla_algorithms_zig //atolla_headless/native/zig:atolla_headless_zig //atolla_headless/native/zig:dev_serve //:valdi_editor_anchor",
