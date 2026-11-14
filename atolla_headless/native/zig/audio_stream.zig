@@ -1,6 +1,7 @@
 const std = @import("std");
 const audio_wire = @import("audio_wire.zig");
 const Clock = @import("clock.zig").Clock;
+const dscp = @import("dscp.zig");
 const gst = @import("gst.zig");
 const gst_net = @import("gst_net.zig");
 const log = @import("log.zig");
@@ -350,6 +351,10 @@ pub const Listener = struct {
         const no_delay: c_int = 1;
 
         try posix.setsockopt(stream.socket.handle, posix.IPPROTO.TCP, posix.TCP.NODELAY, std.mem.asBytes(&no_delay));
+
+        dscp.mark(stream, .af41) catch |err| {
+            log.warn("audio", "could not mark a member's audio as high priority {f}", .{log.fields(.{ .err = @errorName(err) })});
+        };
 
         var buffer: [64]u8 = undefined;
         var writer = stream.writer(self.io, &buffer);
@@ -1244,6 +1249,32 @@ test "audio_stream: a source's flush reaches its members" {
     source.sender.flush();
 
     try testing.expectEqual(audio_wire.Frame.flush, try audio_wire.read(&reader.interface, &chunk_buffer));
+}
+
+test "audio_stream: a source marks the audio it sends its members as high priority" {
+    var runtime = try loaded();
+
+    var source: TestSource = undefined;
+    try source.init(&runtime, test_caps, 20, 300 * std.time.ns_per_ms);
+    defer source.deinit();
+
+    const stream = try connectWithKey(source.listener.port(), test_key);
+    defer stream.close(io_context());
+
+    for (0..100) |_| {
+        if (source.listener.memberCount() == 1) break;
+
+        sleep(50);
+    }
+
+    try testing.expectEqual(1, source.listener.memberCount());
+
+    var traffic_class: c_int = 0;
+    var length: std.c.socklen_t = @sizeOf(c_int);
+    const member = source.listener.members.items[0];
+
+    try testing.expectEqual(0, std.c.getsockopt(member.socket.handle, posix.IPPROTO.IP, dscp.ip_tos, &traffic_class, &length));
+    try testing.expectEqual(0x88, traffic_class);
 }
 
 test "audio_stream: a member is receiving until the end of the audio it holds, not just its start" {

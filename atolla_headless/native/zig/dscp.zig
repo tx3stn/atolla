@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 // std's macOS values are private (lib/std/c/darwin.zig), so these are copied from Apple's macOS SDK headers.
-const ip_tos = switch (builtin.os.tag) {
+pub const ip_tos = switch (builtin.os.tag) {
     .macos => 3, // IP_TOS in MacOSX.sdk/usr/include/netinet/in.h
     else => std.posix.IP.TOS,
 };
@@ -12,7 +12,11 @@ const ipv6_tclass = switch (builtin.os.tag) {
     else => std.posix.IPV6.TCLASS,
 };
 
+// The audio a source sends its members is AF41 and track downloads are CS1, so Wi-Fi sends the audio
+// first and playback stays steady.
+// Values taken from figure 1: https://www.rfc-editor.org/rfc/rfc8325#section-4.3
 pub const Class = enum(u6) {
+    af41 = 34,
     cs1 = 8,
 };
 
