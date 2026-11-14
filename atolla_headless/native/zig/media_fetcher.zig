@@ -508,7 +508,7 @@ const Bench = struct {
     tmp: testing.TmpDir,
 
     fn start(self: *Bench, routes: []const Route, window: []const []const u8) !void {
-        self.tmp = testing.tmpDir(.{});
+        self.tmp = testing.tmpDir(.{ .iterate = true });
         errdefer self.tmp.cleanup();
 
         var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;

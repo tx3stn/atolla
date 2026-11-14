@@ -1840,7 +1840,7 @@ const MediaCache = struct {
     tmp: testing.TmpDir,
 
     fn open(self: *MediaCache, capacity: u64, window: []const []const u8) !void {
-        self.tmp = testing.tmpDir(.{});
+        self.tmp = testing.tmpDir(.{ .iterate = true });
 
         var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const path = try std.fmt.bufPrint(&buffer, ".zig-cache/tmp/{s}", .{self.tmp.sub_path});

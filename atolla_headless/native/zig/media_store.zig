@@ -339,7 +339,7 @@ test "media_store: a second upload of a track replaces the first" {
 }
 
 test "media_store: an abandoned upload deletes its partial file and frees the space it reserved" {
-    var tmp = testing.tmpDir(.{});
+    var tmp = testing.tmpDir(.{ .iterate = true });
     defer tmp.cleanup();
 
     var store = try openIn(&tmp, 4);
