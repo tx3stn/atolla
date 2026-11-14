@@ -4,6 +4,7 @@ import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore, PlayheadMoves } from 'atolla_player/src/stores/Playback';
 import type {
+	CacheWindowHeld,
 	Command,
 	CommandAccepted,
 	Hello,
@@ -67,12 +68,32 @@ interface Sent {
 	token: string;
 }
 
+interface SentWindow {
+	baseUrl: string;
+	token: string;
+	trackIds: Array<string>;
+}
+
+interface Target {
+	host: string;
+	port: number;
+	token: string;
+}
+
+interface UploadWindow {
+	sendFiles: boolean;
+	trackIds: Array<string>;
+}
+
+const TRACK_CACHE_MAX_TRACKS = 20;
+
 const RESTARTED_KITCHEN_KEY = 'e'.repeat(64);
 
 interface Options {
 	keyRequestFails?: boolean;
 	keys?: Record<string, string>;
 	keysHeld?: Promise<void>;
+	offline?: boolean;
 	refusing?: boolean;
 	silent?: boolean;
 	speakers?: Array<typeof KITCHEN>;
@@ -85,6 +106,12 @@ function answer(refusing: boolean): PendingRequest<PlayerAnswer<CommandAccepted 
 		? Promise.reject(new Error('unreachable'))
 		: Promise.resolve({ headers: {}, json: {} as CommandAccepted, status: 202 });
 	return Object.assign(settled, { cancel: () => {} });
+}
+
+function heldNothing(): PendingRequest<PlayerAnswer<CacheWindowHeld | Problem>> {
+	return Object.assign(Promise.resolve({ headers: {}, json: { held: [] }, status: 200 }), {
+		cancel: () => {},
+	});
 }
 
 function greeting(options: Options): PendingRequest<PlayerAnswer<Hello | Problem>> {
@@ -138,7 +165,11 @@ async function harness(options: Options = {}) {
 	const playersStore = new PlayersStore({ store: keyValueStore });
 	const playbackStore = new PlaybackStore();
 	const sent: Array<Sent> = [];
+	const sentWindows: Array<SentWindow> = [];
 	const keyRequests: Array<{ baseUrl: string; token: string }> = [];
+	const mode = { offline: options.offline === true };
+	const targets: Array<Target> = [];
+	const uploadWindows: Array<UploadWindow> = [];
 	const output = new SpeakerOutput({
 		createClient: (baseUrl) => ({
 			command: (token, body) => {
@@ -146,13 +177,27 @@ async function harness(options: Options = {}) {
 				return answer(options.refusing === true);
 			},
 			hello: () => greeting(options),
+			media: (token, body) => {
+				sentWindows.push({ baseUrl, token, trackIds: body.trackIds });
+				return heldNothing();
+			},
 			streamKey: (token) => {
 				keyRequests.push({ baseUrl, token });
 				return keyAnswer(baseUrl, options);
 			},
 		}),
+		isOffline: () => mode.offline,
 		playbackStore,
 		playersStore,
+		trackCacheMaxTracks: () => TRACK_CACHE_MAX_TRACKS,
+		uploader: {
+			setTarget: (host, port, token) => {
+				targets.push({ host, port, token });
+			},
+			setWindow: (trackIds, sendFiles) => {
+				uploadWindows.push({ sendFiles, trackIds });
+			},
+		},
 		userId: () => options.userId ?? 'user-1',
 	});
 	output.start();
@@ -163,9 +208,25 @@ async function harness(options: Options = {}) {
 		sent.filter((entry) => entry.baseUrl === speaker.baseUrl).map((entry) => entry.body);
 	const clear = (): void => {
 		sent.length = 0;
+		sentWindows.length = 0;
+		targets.length = 0;
+		uploadWindows.length = 0;
 	};
 
-	return { clear, commands, commandsTo, keyRequests, output, playbackStore, playersStore, sent };
+	return {
+		clear,
+		commands,
+		commandsTo,
+		keyRequests,
+		mode,
+		output,
+		playbackStore,
+		playersStore,
+		sent,
+		sentWindows,
+		targets,
+		uploadWindows,
+	};
 }
 
 async function grouped(speakers: Array<typeof KITCHEN>) {
@@ -646,6 +707,107 @@ describe('SpeakerOutput', () => {
 			await settle();
 
 			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
+	});
+
+	describe('uploads to the source', () => {
+		it('points the uploader at the speaker it drives and sends it the window, without files online', async () => {
+			const { playbackStore, playersStore, targets, uploadWindows } = await harness();
+			playbackStore.play([track1, track2, track3], album, 1);
+
+			playersStore.setEnabled(KITCHEN.id, true);
+			await settle();
+
+			expect(targets).toEqual([{ host: '192.168.1.42', port: 45889, token: KITCHEN.token }]);
+			expect(uploadWindows).toEqual([
+				{ sendFiles: false, trackIds: [track1.id, track2.id, track3.id] },
+			]);
+		});
+
+		it('sends files and no account in offline mode', async () => {
+			const { commands, playbackStore, playersStore, uploadWindows } = await harness({
+				offline: true,
+			});
+			playbackStore.play([track1, track2], album, 0);
+
+			playersStore.setEnabled(KITCHEN.id, true);
+			await settle();
+
+			expect(uploadWindows).toEqual([{ sendFiles: true, trackIds: [track1.id, track2.id] }]);
+			expect(commands()[0]).toEqual({
+				album,
+				command: 'setQueue',
+				trackIndex: 0,
+				tracks: [track1, track2],
+			});
+		});
+
+		it('sends the window again when the queue changes', async () => {
+			const { playbackStore, uploadWindows } = await playingThroughKitchen();
+
+			playbackStore.play([track3, track4], album, 0);
+			await settle();
+
+			expect(uploadWindows).toEqual([{ sendFiles: false, trackIds: [track3.id, track4.id] }]);
+		});
+
+		it('leaves the window alone when only the playhead moves', async () => {
+			const { playbackStore, uploadWindows } = await playingThroughKitchen();
+
+			playbackStore.playPause();
+			playbackStore.seekTo(95.5);
+			await settle();
+
+			expect(uploadWindows).toEqual([]);
+		});
+
+		it('sends the same window with files once the phone goes offline, and nothing to the speaker', async () => {
+			const { commands, mode, output, uploadWindows } = await playingThroughKitchen();
+
+			mode.offline = true;
+			output.connectionModeChanged();
+			await settle();
+
+			expect(uploadWindows).toEqual([
+				{ sendFiles: true, trackIds: [track1.id, track2.id, track3.id] },
+			]);
+			expect(commands()).toEqual([]);
+		});
+
+		it('sends the uploader nothing while no speaker is on', async () => {
+			const { mode, output, playbackStore, targets, uploadWindows } = await harness();
+			playbackStore.play([track1, track2], album, 0);
+
+			mode.offline = true;
+			output.connectionModeChanged();
+			await settle();
+
+			expect(targets).toEqual([]);
+			expect(uploadWindows).toEqual([]);
+		});
+
+		it('empties the window of a speaker that stops being the source and uploads to the new one', async () => {
+			const { playersStore, sentWindows, targets } = await grouped([KITCHEN, LOUNGE]);
+
+			playersStore.setEnabled(KITCHEN.id, false);
+			await settle();
+
+			expect(sentWindows).toEqual([
+				{ baseUrl: KITCHEN.baseUrl, token: KITCHEN.token, trackIds: [] },
+			]);
+			expect(targets).toEqual([{ host: '192.168.1.43', port: 45889, token: LOUNGE.token }]);
+		});
+
+		it('empties the window of the last speaker switched off and stops the uploader', async () => {
+			const { playersStore, sentWindows, targets } = await playingThroughKitchen();
+
+			playersStore.setEnabled(KITCHEN.id, false);
+			await settle();
+
+			expect(sentWindows).toEqual([
+				{ baseUrl: KITCHEN.baseUrl, token: KITCHEN.token, trackIds: [] },
+			]);
+			expect(targets).toEqual([{ host: '', port: 0, token: '' }]);
 		});
 	});
 });

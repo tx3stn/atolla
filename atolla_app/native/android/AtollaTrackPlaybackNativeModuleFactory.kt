@@ -2,6 +2,7 @@ package atolla.native.android
 
 import android.app.Notification
 import com.tx3stn.atolla.AtollaCacheImageLoader
+import com.tx3stn.atolla.AtollaMediaUploader
 import com.tx3stn.atolla.AtollaScrobbleNative
 import com.tx3stn.atolla.AtollaScrobbleQueue
 import android.app.NotificationChannel
@@ -85,6 +86,14 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 
 			override fun setAtollaRetainedTrackIds(idsJson: String) {
 				AtollaTrackPlaybackNativeCache.setRetainedTrackIds(idsJson)
+			}
+
+			override fun setAtollaMediaUploadTarget(host: String, port: Double, token: String) {
+				AtollaMediaUploader.setTarget(host, port.toInt(), token)
+			}
+
+			override fun setAtollaMediaUploadWindow(idsJson: String, sendFiles: Boolean) {
+				AtollaMediaUploader.setWindow(idsJson, sendFiles)
 			}
 
 			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, authHeader: String, onComplete: (String) -> Unit) {
@@ -1355,17 +1364,23 @@ object AtollaTrackPlaybackNativeCache {
 	}
 
 	@Synchronized
-	fun getCachedTrackFileUrl(trackId: String): String {
+	fun getCachedTrackFile(trackId: String): File? {
 		if (trackId.isBlank()) {
-			return ""
+			return null
 		}
 
-		val file = resolveExistingTrackFile(trackId) ?: return ""
+		val file = resolveExistingTrackFile(trackId) ?: return null
 		if (!file.exists() || !file.isFile) {
-			return ""
+			return null
 		}
 
 		touch(file)
+
+		return file
+	}
+
+	fun getCachedTrackFileUrl(trackId: String): String {
+		val file = getCachedTrackFile(trackId) ?: return ""
 
 		return toFileUrl(file)
 	}
@@ -1660,17 +1675,23 @@ object AtollaDownloadedTrackNativeCache {
 	}
 
 	@Synchronized
-	fun getCachedTrackFileUrl(trackId: String): String {
+	fun getCachedTrackFile(trackId: String): File? {
 		if (trackId.isBlank()) {
-			return ""
+			return null
 		}
 
-		val file = resolveExistingTrackFile(trackId) ?: return ""
+		val file = resolveExistingTrackFile(trackId) ?: return null
 		if (!file.exists() || !file.isFile) {
-			return ""
+			return null
 		}
 
 		touch(file)
+
+		return file
+	}
+
+	fun getCachedTrackFileUrl(trackId: String): String {
+		val file = getCachedTrackFile(trackId) ?: return ""
 
 		return toFileUrl(file)
 	}

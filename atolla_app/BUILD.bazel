@@ -40,6 +40,7 @@ valdi_module(
     ],
     native_deps = [
         "//atolla_app/native/zig:blur_android_jni",
+        "//atolla_app/native/zig:media_uploader_android_jni",
         "//atolla_app/native/zig:palette_android_jni",
         "//atolla_app/native/zig:scrobble_android_jni",
         "//atolla_app/native/zig:waveform_android_jni",

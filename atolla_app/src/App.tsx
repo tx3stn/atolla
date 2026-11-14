@@ -56,6 +56,7 @@ import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
+import { MediaUploaderNativeAdapter } from './services/MediaUploaderNativeAdapter';
 import { isUnauthorizedCacheError } from './services/NativeCacheResult';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
@@ -170,8 +171,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
 	private readonly speakerOutput = new SpeakerOutput({
 		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
+		isOffline: () => this.connectivity.getMode() === ConnectionModes.offline,
 		playbackStore: this.playbackStore,
 		playersStore: this.playersStore,
+		trackCacheMaxTracks: () => this.preferences.trackCacheMaxTracks,
+		uploader: new MediaUploaderNativeAdapter(),
 		userId: () => this.sessionManager.getSession()?.userId ?? '',
 	});
 	private downloadService = new DownloadService({
@@ -495,6 +499,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 		this.setState(partial);
+		if (partial.connectionMode !== undefined) {
+			this.speakerOutput.connectionModeChanged();
+		}
 		if (this.state.isSessionExpiredOpen) {
 			this.openSessionExpiredModal();
 		}

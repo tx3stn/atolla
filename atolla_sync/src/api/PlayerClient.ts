@@ -1,5 +1,7 @@
 import type {
 	ApiVersion,
+	CacheWindow,
+	CacheWindowHeld,
 	Command,
 	CommandAccepted,
 	Hello,
@@ -49,6 +51,15 @@ export class PlayerClient {
 
 	hello(): PendingRequest<PlayerAnswer<Hello | Problem>> {
 		return this.settled(this.transport.get(this.url('/hello')));
+	}
+
+	media(token: string, body: CacheWindow): PendingRequest<PlayerAnswer<CacheWindowHeld | Problem>> {
+		const headers = this.headers(token);
+		headers['Content-Type'] = 'application/json';
+
+		const bytes = new TextEncoder().encode(JSON.stringify(body));
+
+		return this.settled(this.transport.put(this.url('/media'), bytes, headers));
 	}
 
 	mediaServer(

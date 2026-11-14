@@ -137,4 +137,10 @@ export function setAtollaAudioPlaybackUpcomingQueue(queueJson: string): void;
 export function setAtollaRetainedTrackIds(idsJson: string): void;
 
 // @ExportFunction
+export function setAtollaMediaUploadTarget(host: string, port: number, token: string): void;
+
+// @ExportFunction
+export function setAtollaMediaUploadWindow(idsJson: string, sendFiles: boolean): void;
+
+// @ExportFunction
 export function setAtollaTrackPlaybackAuthHeader(header: string): void;

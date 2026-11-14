@@ -115,6 +115,21 @@ describe('PlayerClient', () => {
 		]);
 	});
 
+	it('puts the cache window to /media as json bytes with the controller token', async () => {
+		const { calls, transport } = createTransport([answered(200, { held: [] })]);
+
+		await new PlayerClient(BASE_URL, transport).media('tok', { trackIds: ['track-1'] });
+
+		expect(calls).toEqual([
+			{
+				body: JSON.stringify({ trackIds: ['track-1'] }),
+				headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+				method: 'PUT',
+				url: `${BASE_URL}/media`,
+			},
+		]);
+	});
+
 	it('puts the credential to /media-server as json bytes with the controller token', async () => {
 		const { calls, transport } = createTransport([answered(200, { version: 413 })]);
 

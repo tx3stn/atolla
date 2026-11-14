@@ -154,6 +154,13 @@ objc_library(
 )
 
 objc_library(
+    name = "media_uploader_ios_bridge",
+    srcs = ["ios/media_uploader_ios_bridge.m"],
+    hdrs = ["ios/media_uploader_ios_bridge.h"],
+    deps = ["//atolla_app/native/zig:media_uploader_algorithm"],
+)
+
+objc_library(
     name = "atolla_logger_module_factory_ios",
     srcs = ["ios/AtollaLoggerNativeModuleFactory.m"],
     copts = ["-I."],
@@ -208,8 +215,10 @@ objc_library(
         ":atolla_auth_redirect_guard_ios",
         ":atolla_download_guards_ios",
         ":atolla_image_cache_access_ios",
+        ":atolla_media_upload_window_ios",
         ":atolla_playback_guards_ios",
         ":atolla_track_cache_retention_ios",
+        ":media_uploader_ios_bridge",
         ":scrobble_ios_bridge",
         "//atolla_app:atolla_app_api_objc",
     ],
@@ -313,6 +322,13 @@ objc_library(
     copts = ["-I."],
 )
 
+objc_library(
+    name = "atolla_media_upload_window_ios",
+    srcs = ["ios/AtollaMediaUploadWindow.m"],
+    hdrs = ["ios/AtollaMediaUploadWindow.h"],
+    copts = ["-I."],
+)
+
 kt_android_library(
     name = "atolla_native_modules_kt_android",
     srcs = [
@@ -326,6 +342,8 @@ kt_android_library(
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
+        "android/AtollaMediaUploadWindow.kt",
+        "android/AtollaMediaUploader.kt",
         "android/AtollaNetworkReachabilityNativeModuleFactory.kt",
         "android/AtollaPlaybackGuards.kt",
         "android/AtollaPlaybackService.kt",
@@ -391,4 +409,9 @@ kt_jvm_library(
 kt_jvm_library(
     name = "atolla_waveform_codec_selector",
     srcs = ["android/AtollaWaveformCodecSelector.kt"],
+)
+
+kt_jvm_library(
+    name = "atolla_media_upload_window",
+    srcs = ["android/AtollaMediaUploadWindow.kt"],
 )

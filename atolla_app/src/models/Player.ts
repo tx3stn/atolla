@@ -32,6 +32,10 @@ export function hostOf(baseUrl: string): string {
 	return baseUrl.slice('http://'.length, baseUrl.lastIndexOf(':'));
 }
 
+export function portOf(baseUrl: string): number {
+	return Number(baseUrl.slice(baseUrl.lastIndexOf(':') + 1));
+}
+
 export interface PlayerSection {
 	group: string;
 	players: Array<Player>;

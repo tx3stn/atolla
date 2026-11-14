@@ -9,6 +9,8 @@
 #import "atolla_app/native/ios/AtollaAuthRedirectGuard.h"
 #import "atolla_app/native/ios/AtollaDownloadGuards.h"
 #import "atolla_app/native/ios/AtollaImageCacheAccess.h"
+#import "atolla_app/native/ios/AtollaMediaUploadWindow.h"
+#import "media_uploader_ios_bridge.h"
 #import "scrobble_ios_bridge.h"
 
 // associates the source track id with each AVPlayerItem so the loaded current item can be
@@ -21,6 +23,7 @@ static const void *kAtollaPlayerItemTrackIdKey = &kAtollaPlayerItemTrackIdKey;
 
 + (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authHeader:(NSString * _Nonnull)authHeader;
 + (NSString * _Nonnull)getCachedTrackFileUrl:(NSString * _Nonnull)trackId;
++ (nullable NSString *)getCachedTrackPath:(NSString * _Nonnull)trackId;
 + (NSInteger)getCacheEntryCount;
 + (void)clearCache;
 + (void)setCacheMaxTracks:(NSInteger)maxTracks;
@@ -302,16 +305,21 @@ static NSSet<NSString *> *sRetainedKeys;
 }
 
 + (NSString * _Nonnull)getCachedTrackFileUrl:(NSString * _Nonnull)trackId {
-    if (trackId.length == 0) return @"";
+    NSString *path = [self getCachedTrackPath:trackId];
+    return path ? [@"file://" stringByAppendingString:path] : @"";
+}
+
++ (nullable NSString *)getCachedTrackPath:(NSString * _Nonnull)trackId {
+    if (trackId.length == 0) return nil;
     [sTrackCacheLock lock];
     @try {
         NSURL *dir = [self resolveCacheDir];
-        if (!dir) return @"";
+        if (!dir) return nil;
         NSString *key = [self safeTrackKey:trackId];
         NSURL *file = [self resolveExistingTrackFileWithKey:key inDir:dir];
-        if (!file || ![[NSFileManager defaultManager] fileExistsAtPath:file.path]) return @"";
+        if (!file || ![[NSFileManager defaultManager] fileExistsAtPath:file.path]) return nil;
         [self touchFile:file];
-        return [@"file://" stringByAppendingString:file.path];
+        return file.path;
     } @finally {
         [sTrackCacheLock unlock];
     }
@@ -388,6 +396,7 @@ static NSSet<NSString *> *sRetainedKeys;
 
 + (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authHeader:(NSString * _Nonnull)authHeader;
 + (NSString * _Nonnull)getCachedTrackFileUrl:(NSString * _Nonnull)trackId;
++ (nullable NSString *)getCachedTrackPath:(NSString * _Nonnull)trackId;
 + (long long)getTotalSizeBytes;
 + (void)removeTrack:(NSString * _Nonnull)trackId;
 
@@ -502,16 +511,21 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
 }
 
 + (NSString * _Nonnull)getCachedTrackFileUrl:(NSString * _Nonnull)trackId {
-    if (trackId.length == 0) return @"";
+    NSString *path = [self getCachedTrackPath:trackId];
+    return path ? [@"file://" stringByAppendingString:path] : @"";
+}
+
++ (nullable NSString *)getCachedTrackPath:(NSString * _Nonnull)trackId {
+    if (trackId.length == 0) return nil;
     [sDownloadedTrackCacheLock lock];
     @try {
         NSURL *dir = [self resolveFilesDir];
-        if (!dir) return @"";
+        if (!dir) return nil;
         NSString *key = [self safeKey:trackId];
         NSURL *file = [self resolveExistingFileForKey:key inDir:dir];
-        if (!file || ![[NSFileManager defaultManager] fileExistsAtPath:file.path]) return @"";
+        if (!file || ![[NSFileManager defaultManager] fileExistsAtPath:file.path]) return nil;
         [AtollaTrackCache touchFile:file];
-        return [@"file://" stringByAppendingString:file.path];
+        return file.path;
     } @finally {
         [sDownloadedTrackCacheLock unlock];
     }
@@ -1801,6 +1815,15 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
 
 // MARK: - Module Implementation
 
+static dispatch_queue_t AtollaMediaUploadQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        queue = dispatch_queue_create("atolla.media-upload", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
 @interface AtollaTrackPlaybackNativeModuleImpl : NSObject <atolla_appTrackPlaybackNativeModule>
 @end
 
@@ -1838,6 +1861,37 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
 
 - (void)setAtollaRetainedTrackIdsWithIdsJson:(NSString * _Nonnull)idsJson {
     [AtollaTrackCache setRetainedTrackIds:idsJson];
+}
+
+- (void)setAtollaMediaUploadTargetWithHost:(NSString * _Nonnull)host
+                                      port:(double)port
+                                     token:(NSString * _Nonnull)token {
+    dispatch_async(AtollaMediaUploadQueue(), ^{
+        [AtollaMediaUploader setTargetHost:host port:(uint16_t)port token:token];
+    });
+}
+
+- (void)setAtollaMediaUploadWindowWithIdsJson:(NSString * _Nonnull)idsJson sendFiles:(BOOL)sendFiles {
+    dispatch_async(AtollaMediaUploadQueue(), ^{
+        NSArray<NSString *> *trackIds = [NSJSONSerialization JSONObjectWithData:[idsJson dataUsingEncoding:NSUTF8StringEncoding]
+                                                                        options:0
+                                                                          error:nil];
+        if (![trackIds isKindOfClass:[NSArray class]]) {
+            NSLog(@"[AtollaMediaUploader] could not read the window's track ids");
+            return;
+        }
+
+        NSArray *tracks = AtollaMediaUploadTracks(
+            trackIds,
+            sendFiles,
+            ^NSString *(NSString *trackId) { return [AtollaDownloadedTrackCache getCachedTrackPath:trackId]; },
+            ^NSString *(NSString *trackId) { return [AtollaTrackCache getCachedTrackPath:trackId]; });
+        NSData *window = [NSJSONSerialization dataWithJSONObject:@{@"sendFiles": @(sendFiles), @"tracks": tracks}
+                                                         options:0
+                                                           error:nil];
+
+        [AtollaMediaUploader setWindowJson:[[NSString alloc] initWithData:window encoding:NSUTF8StringEncoding]];
+    });
 }
 
 - (void)cacheAtollaDownloadedTrackFromUrlAsyncWithTrackId:(NSString * _Nonnull)trackId

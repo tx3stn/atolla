@@ -17,13 +17,21 @@ pub const Track = struct {
     path: ?[]const u8 = null,
 };
 
+// std.json also reads a []const u8 from an array of numbers, and that code goes through f128, which needs
+// compiler-rt helpers Apple's arm64 runtime doesn't have. Reading these strings as Values keeps those helpers
+// out of the iOS link.
+const WireTrack = struct {
+    id: std.json.Value,
+    path: std.json.Value = .null,
+};
+
 const Window = struct {
     sendFiles: bool,
-    tracks: []const Track,
+    tracks: []const WireTrack,
 };
 
 const Held = struct {
-    held: []const []const u8,
+    held: []const std.json.Value,
 };
 
 const Target = struct {
@@ -69,19 +77,6 @@ pub const Uploader = struct {
         self.client.deinit();
         self.target_memory.deinit();
         self.window_memory.deinit();
-    }
-
-    pub fn fileReady(self: *Uploader, id: []const u8, path: []const u8) std.mem.Allocator.Error!void {
-        self.mutex.lockUncancelable(self.io);
-        defer self.mutex.unlock(self.io);
-
-        const track = find(self.tracks, id) orelse return;
-        track.path = try self.window_memory.allocator().dupe(u8, path);
-
-        if (!self.send_files) return;
-
-        self.generation += 1;
-        self.condition.signal(self.io);
     }
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io) Uploader {
@@ -179,7 +174,19 @@ pub const Uploader = struct {
         };
         defer parsed.deinit();
 
-        try self.setWindow(parsed.value.tracks, parsed.value.sendFiles);
+        const tracks = try parsed.arena.allocator().alloc(Track, parsed.value.tracks.len);
+        for (parsed.value.tracks, tracks) |wire, *track| {
+            track.* = .{
+                .id = string(wire.id) orelse return error.Malformed,
+                .path = switch (wire.path) {
+                    .null => null,
+                    .string => |path| path,
+                    else => return error.Malformed,
+                },
+            };
+        }
+
+        try self.setWindow(tracks, parsed.value.sendFiles);
     }
 
     pub fn stop(self: *Uploader) void {
@@ -341,7 +348,10 @@ pub const Uploader = struct {
             .ignore_unknown_fields = true,
         }) catch return error.Failed;
 
-        return answer.held;
+        const held = arena.alloc([]const u8, answer.held.len) catch return error.Failed;
+        for (answer.held, held) |value, *id| id.* = string(value) orelse return error.Failed;
+
+        return held;
     }
 
     fn upload(self: *Uploader, arena: std.mem.Allocator, snapshot: Snapshot, id: []const u8, path: []const u8) Outcome {
@@ -403,6 +413,28 @@ pub const Uploader = struct {
         return !self.stopping and self.send_files and find(self.tracks, id) != null;
     }
 };
+
+var shared: Uploader = undefined;
+
+export fn atolla_media_uploader_init() void {
+    shared = .init(std.heap.page_allocator, std.Io.Threaded.global_single_threaded.io());
+}
+
+export fn atolla_media_uploader_run() void {
+    shared.run();
+}
+
+export fn atolla_media_uploader_set_target(host: [*]const u8, host_len: usize, port: u16, token: [*]const u8, token_len: usize) bool {
+    shared.setTarget(host[0..host_len], port, token[0..token_len]) catch return false;
+
+    return true;
+}
+
+export fn atolla_media_uploader_set_window(json: [*]const u8, json_len: usize) bool {
+    shared.setWindowFromJson(json[0..json_len]) catch return false;
+
+    return true;
+}
 
 fn answered(status: std.http.Status) Outcome {
     return switch (status) {
@@ -475,6 +507,13 @@ fn sameTarget(current: ?Target, next: ?Target) bool {
 
 fn setInt(handle: std.posix.socket_t, level: i32, option: u32, value: c_int) std.posix.SetSockOptError!void {
     try std.posix.setsockopt(handle, level, option, std.mem.asBytes(&value));
+}
+
+fn string(value: std.json.Value) ?[]const u8 {
+    return switch (value) {
+        .string => |text| text,
+        else => null,
+    };
 }
 
 const testing = std.testing;
@@ -828,7 +867,7 @@ test "media_uploader: doesn't send a track the source already holds" {
     try testing.expectEqualStrings("held", try source.read("a", &buffer));
 }
 
-test "media_uploader: a track with no file yet waits, then uploads once its file is ready" {
+test "media_uploader: skips a track the phone has no file for and carries on" {
     var source: Source = undefined;
     try source.start(1024, &.{});
     defer source.stop();
@@ -837,19 +876,15 @@ test "media_uploader: a track with no file yet waits, then uploads once its file
     try phone.start();
     defer phone.stop();
 
-    var paths: [2][256]u8 = undefined;
+    var path: [256]u8 = undefined;
     try phone.uploader.setTarget("127.0.0.1", source.port(), test_token);
     try phone.uploader.setWindow(&.{
         .{ .id = "a" },
-        .{ .id = "b", .path = try phone.file("b", "bbb", &paths[0]) },
+        .{ .id = "b", .path = try phone.file("b", "bbb", &path) },
     }, true);
 
     try eventually(Source.holds, .{ &source, "b" });
     try testing.expect(!source.holds("a"));
-
-    try phone.uploader.fileReady("a", try phone.file("a", "aaa", &paths[1]));
-
-    try eventually(Source.holds, .{ &source, "a" });
 }
 
 test "media_uploader: uploads the nearest tracks that fit, then waits for the next window once the source is full" {
@@ -971,6 +1006,47 @@ test "media_uploader: refuses a window that isn't JSON" {
     defer uploader.deinit();
 
     try testing.expectError(error.Malformed, uploader.setWindowFromJson("not json"));
+}
+
+test "media_uploader: refuses a window whose track id isn't a string" {
+    var uploader: Uploader = .init(testing.allocator, testIo());
+    defer uploader.deinit();
+
+    try testing.expectError(error.Malformed, uploader.setWindowFromJson(
+        \\{"sendFiles":true,"tracks":[{"id":1}]}
+    ));
+}
+
+test "media_uploader: the app drives it through its C API" {
+    var source: Source = undefined;
+    try source.start(1024, &.{});
+    defer source.stop();
+
+    var files = testing.tmpDir(.{});
+    defer files.cleanup();
+
+    try files.dir.writeFile(testing.io, .{ .sub_path = "a", .data = "aaa" });
+
+    atolla_media_uploader_init();
+    const thread = try std.Thread.spawn(.{}, atolla_media_uploader_run, .{});
+    defer {
+        shared.stop();
+        thread.join();
+        shared.deinit();
+    }
+
+    const host = "127.0.0.1";
+    try testing.expect(atolla_media_uploader_set_target(host, host.len, source.port(), test_token, test_token.len));
+
+    var json: [512]u8 = undefined;
+    const window = try std.fmt.bufPrint(
+        &json,
+        "{{\"sendFiles\":true,\"tracks\":[{{\"id\":\"a\",\"path\":\".zig-cache/tmp/{s}/a\"}}]}}",
+        .{files.sub_path},
+    );
+    try testing.expect(atolla_media_uploader_set_window(window.ptr, window.len));
+
+    try eventually(Source.holds, .{ &source, "a" });
 }
 
 test "media_uploader: sends the source nothing until it has a window, so the source's cache is never emptied by mistake" {
