@@ -124,6 +124,7 @@ pub const Player = struct {
     playing: bool = false,
     ended: std.atomic.Value(bool) = .init(false),
     held_position_ns: ?i64 = null,
+    output: std.atomic.Value(audio_stream.OutputState) = .init(.idle),
 
     /// Read by the bus thread to tell a network failure from a missing file.
     remote: std.atomic.Value(bool) = .init(false),
@@ -345,6 +346,12 @@ pub const Player = struct {
         self.receiver.stop();
         self.member.playOn(self.clock);
         self.sender.joined.store(false, .release);
+
+        log.info("audio", "left the source", .{});
+    }
+
+    pub fn outputState(self: *const Player) audio_stream.OutputState {
+        return self.output.load(.acquire);
     }
 
     pub fn positionMs(self: *const Player) i64 {
@@ -397,10 +404,7 @@ pub const Player = struct {
         var id: [max_track_id_bytes]u8 = undefined;
 
         while (!self.stopping.load(.acquire)) {
-            switch (self.member.pipeline.wait(0, &message)) {
-                .failed => |text| log.err("audio", "the output failed: {s}", .{text}),
-                .ended, .started, .timeout => {},
-            }
+            self.watchOutput(&message);
 
             switch (self.pipeline.wait(poll_interval_ns, &message)) {
                 .timeout => continue,
@@ -497,6 +501,23 @@ pub const Player = struct {
 
         self.pending = next.*;
         self.next = null;
+    }
+
+    fn watchOutput(self: *Player, message: []u8) void {
+        while (true) switch (self.member.pipeline.notice(message)) {
+            .none => break,
+            .failed => |text| log.err("audio", "output failed {f}", .{log.fields(.{ .reason = text })}),
+            .warned => |text| log.warn("audio", "output warned {f}", .{log.fields(.{ .reason = text })}),
+            .changed => |change| log.debug("audio", "output pipeline changed state {f}", .{log.fields(.{
+                .state = @tagName(change.to),
+                .pending = if (change.pending == .void_pending) null else @tagName(change.pending),
+            })}),
+        };
+
+        const clock = self.gst.gstreamer.gst_pipeline_get_clock(self.member.pipeline.element) orelse return;
+        defer self.gst.gstreamer.gst_object_unref(clock);
+
+        self.output.store(self.member.check(self.receiver.sync.now(clock), self.sender.latency_ns), .release);
     }
 };
 
@@ -1055,6 +1076,61 @@ test "audio_player: a joined speaker plays out on its source's clock, and on its
     player.leave();
 
     try testing.expectEqual(player.clock, try pipelineClock(&player.member.pipeline));
+}
+
+fn untilOutput(player: *Player, comptime state: audio_stream.OutputState) !void {
+    try until(player, struct {
+        fn reached(current: *Player) bool {
+            return current.outputState() == state;
+        }
+    }.reached);
+}
+
+test "audio_player: a speaker's output says it is playing while it plays, and idle once paused" {
+    var runtime = try loaded();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    try player.configure(path, "track-output", "");
+    player.setPlaying(true);
+    try untilOutput(&player, .playing);
+
+    player.setPlaying(false);
+    try untilOutput(&player, .idle);
+}
+
+test "audio_player: a joined speaker's output says it is playing while its source plays" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source, test_latency_ns);
+    defer source.deinit();
+
+    var member: Player = undefined;
+    try silentPlayer(&runtime, &member);
+    defer member.deinit();
+
+    try member.join("127.0.0.1", port, test_stream_key);
+    try untilFollowing(&member);
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    try source.configure(path, "track-followed", "");
+    source.setPlaying(true);
+
+    try untilOutput(&member, .playing);
 }
 
 fn untilReceiving(player: *Player) !void {

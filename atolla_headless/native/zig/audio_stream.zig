@@ -21,23 +21,78 @@ const poll_interval_ms = 100;
 
 const no_lead = std.math.maxInt(u64);
 
-const tally_interval_ns = 60 * std.time.ns_per_s;
+const tally_interval_ms = 60 * std.time.ms_per_s;
 
 pub const key_timeout_ms = 5_000;
 
 const member_head = "appsrc name=source format=time ! audioconvert ! audioresample name=resample";
 
-pub const Error = gst.PipelineError || error{OutputNotFound};
+const not_pushed = std.math.maxInt(u64);
+
+pub const Error = gst.PipelineError || std.mem.Allocator.Error || error{OutputNotFound};
 
 pub const Output = union(enum) {
     described: [:0]const u8,
     named: []const u8,
 };
 
+pub const OutputState = enum(u8) { idle, playing, stalled };
+
+const Measure = struct {
+    state: OutputState,
+    lag_ns: u64,
+};
+
+const Progress = struct {
+    pushed_from_ns: std.atomic.Value(u64) = .init(not_pushed),
+    pushed_until_ns: std.atomic.Value(u64) = .init(0),
+    reached_until_ns: std.atomic.Value(u64) = .init(0),
+
+    fn measure(self: *const Progress, now_ns: u64, tolerance_ns: u64) Measure {
+        const from = self.pushed_from_ns.load(.acquire);
+        if (from == not_pushed or now_ns < from) return .{ .state = .idle, .lag_ns = 0 };
+
+        const until = self.pushed_until_ns.load(.acquire);
+        const lag = @min(now_ns, until) -| @max(self.reached_until_ns.load(.acquire), from);
+
+        if (lag > tolerance_ns) return .{ .state = .stalled, .lag_ns = lag };
+        if (now_ns >= until) return .{ .state = .idle, .lag_ns = lag };
+
+        return .{ .state = .playing, .lag_ns = lag };
+    }
+
+    fn pushed(self: *Progress, from_ns: u64, until_ns: u64) bool {
+        const first = self.pushed_from_ns.cmpxchgStrong(not_pushed, from_ns, .acq_rel, .acquire) == null;
+        self.pushed_until_ns.store(until_ns, .release);
+
+        return first;
+    }
+
+    fn reset(self: *Progress) void {
+        self.pushed_from_ns.store(not_pushed, .release);
+        self.pushed_until_ns.store(0, .release);
+        self.reached_until_ns.store(0, .release);
+    }
+};
+
+fn onReached(_: *gst.Object, info: *gst.PadProbeInfo, user_data: ?*anyopaque) callconv(.c) c_int {
+    const progress: *Progress = @ptrCast(@alignCast(user_data orelse return gst.pad_probe_ok));
+    const buffer: *gst.Buffer = @ptrCast(@alignCast(info.data orelse return gst.pad_probe_ok));
+
+    if (buffer.pts != gst.clock_time_none and buffer.duration != gst.clock_time_none) {
+        progress.reached_until_ns.store(buffer.pts + buffer.duration, .release);
+    }
+
+    return gst.pad_probe_ok;
+}
+
 pub const Member = struct {
     pipeline: gst.Pipeline,
     source: *gst.Object,
+    progress: *Progress,
     format: ?Format = null,
+    refused: u32 = 0,
+    state: OutputState = .idle,
 
     pub fn init(runtime: *const gst.Gst, output: Output, clock: *gst.Object) Error!Member {
         var description: [512]u8 = undefined;
@@ -56,12 +111,18 @@ pub const Member = struct {
             .named => |name| try attachNamed(&pipeline, name),
         }
 
+        const progress = try std.heap.c_allocator.create(Progress);
+        errdefer std.heap.c_allocator.destroy(progress);
+        progress.* = .{};
+
+        try watchReached(&pipeline, progress);
+
         const source = pipeline.child("source") orelse return error.LaunchFailed;
 
         pipeline.schedule(clock, 0);
         _ = pipeline.setState(.playing);
 
-        return .{ .pipeline = pipeline, .source = source };
+        return .{ .pipeline = pipeline, .source = source, .progress = progress };
     }
 
     pub fn deinit(self: *Member) void {
@@ -69,6 +130,29 @@ pub const Member = struct {
 
         self.pipeline.deinit();
         runtime.gstreamer.gst_object_unref(self.source);
+        std.heap.c_allocator.destroy(self.progress);
+    }
+
+    pub fn check(self: *Member, now_ns: u64, tolerance_ns: u64) OutputState {
+        const measured = self.progress.measure(now_ns, tolerance_ns);
+
+        if (measured.state != self.state) {
+            switch (measured.state) {
+                .stalled => log.warn("audio", "output is behind {f}", .{
+                    log.fields(.{ .behindMs = measured.lag_ns / std.time.ns_per_ms }),
+                }),
+                .playing => if (self.state == .stalled) {
+                    log.info("audio", "output is playing again", .{});
+                } else {
+                    log.debug("audio", "output is playing", .{});
+                },
+                .idle => log.debug("audio", "output is idle", .{}),
+            }
+
+            self.state = measured.state;
+        }
+
+        return measured.state;
     }
 
     pub fn flush(self: *const Member) void {
@@ -82,6 +166,7 @@ pub const Member = struct {
             _ = runtime.gstreamer.gst_element_send_event(self.source, event);
         }
 
+        self.progress.reset();
         _ = self.pipeline.setState(.playing);
     }
 
@@ -94,11 +179,35 @@ pub const Member = struct {
             return false;
         };
 
+        const duration = durationNs(format, bytes.len);
+
         _ = runtime.gstreamer.gst_buffer_fill(buffer, 0, bytes.ptr, bytes.len);
         buffer.pts = play_at_ns;
-        buffer.duration = durationNs(format, bytes.len);
+        buffer.duration = duration;
 
-        return runtime.app.gst_app_src_push_buffer(self.source, buffer) == gst.flow_ok;
+        const flow = runtime.app.gst_app_src_push_buffer(self.source, buffer);
+        const first_since_flush = self.progress.pushed(play_at_ns, play_at_ns + duration);
+
+        if (first_since_flush) self.announce(play_at_ns);
+
+        if (flow != gst.flow_ok) {
+            if (self.refused == 0) {
+                log.warn("audio", "output refused audio {f}", .{
+                    log.fields(.{ .reason = std.mem.span(runtime.gstreamer.gst_flow_get_name(flow)) }),
+                });
+            }
+
+            self.refused += 1;
+
+            return false;
+        }
+
+        if (self.refused > 0) {
+            log.info("audio", "output took audio again {f}", .{log.fields(.{ .refused = self.refused })});
+            self.refused = 0;
+        }
+
+        return true;
     }
 
     pub fn playOn(self: *const Member, clock: *gst.Object) void {
@@ -106,6 +215,18 @@ pub const Member = struct {
         _ = self.pipeline.setState(.paused);
         self.pipeline.schedule(clock, 0);
         _ = self.pipeline.setState(.playing);
+    }
+
+    fn announce(self: *const Member, play_at_ns: u64) void {
+        const runtime = self.pipeline.gst;
+        const clock = runtime.gstreamer.gst_pipeline_get_clock(self.pipeline.element) orelse return;
+        defer runtime.gstreamer.gst_object_unref(clock);
+
+        const now_ns = runtime.gstreamer.gst_clock_get_time(clock);
+        const due_in_ns = @as(i128, play_at_ns) - @as(i128, now_ns);
+        const due_in_ms: i64 = @intCast(@divTrunc(due_in_ns, std.time.ns_per_ms));
+
+        log.info("audio", "output got its next audio {f}", .{log.fields(.{ .dueInMs = due_in_ms })});
     }
 
     fn setFormat(self: *Member, format: Format) void {
@@ -203,6 +324,18 @@ fn attachNamed(pipeline: *const gst.Pipeline, name: []const u8) Error!void {
     if (runtime.gstreamer.gst_element_link(resample, sink) == 0) return error.LaunchFailed;
 }
 
+fn watchReached(pipeline: *const gst.Pipeline, progress: *Progress) Error!void {
+    const runtime = pipeline.gst;
+
+    const resample = pipeline.child("resample") orelse return error.LaunchFailed;
+    defer runtime.gstreamer.gst_object_unref(resample);
+
+    const pad = runtime.gstreamer.gst_element_get_static_pad(resample, "src") orelse return error.LaunchFailed;
+    defer runtime.gstreamer.gst_object_unref(pad);
+
+    _ = runtime.gstreamer.gst_pad_add_probe(pad, gst.pad_probe_buffer, onReached, progress, null);
+}
+
 pub const Sender = struct {
     gst: *const gst.Gst,
     pipeline: *gst.Object,
@@ -224,6 +357,7 @@ pub const Sender = struct {
     pub fn flush(self: *const Sender) void {
         if (self.joined.load(.acquire)) return;
 
+        log.info("audio", "flushed output and members", .{});
         self.member.flush();
         if (self.listener.load(.acquire)) |members| members.flush();
     }
@@ -386,7 +520,10 @@ pub const Listener = struct {
                 continue;
             }
 
-            log.warn("audio", "dropped a member that fell behind", .{});
+            var host_buffer: [64]u8 = undefined;
+            const host = hostOf(&host_buffer, member.socket.address) catch "an unknown address";
+
+            log.warn("audio", "dropped a member that fell behind {f}", .{log.fields(.{ .host = host })});
             member.close(self.io);
             _ = self.members.swapRemove(index);
         }
@@ -506,6 +643,7 @@ pub const Receiver = struct {
     play_until_ns: std.atomic.Value(u64) = .init(0),
     received: std.atomic.Value(u32) = .init(0),
     late: std.atomic.Value(u32) = .init(0),
+    skipped: std.atomic.Value(u32) = .init(0),
     smallest_lead_ns: std.atomic.Value(u64) = .init(no_lead),
     thread: ?std.Thread = null,
 
@@ -522,6 +660,7 @@ pub const Receiver = struct {
         self.play_until_ns.store(0, .release);
         self.received.store(0, .release);
         self.late.store(0, .release);
+        self.skipped.store(0, .release);
         self.smallest_lead_ns.store(no_lead, .release);
 
         self.thread = try std.Thread.spawn(.{}, run, .{self});
@@ -547,6 +686,10 @@ pub const Receiver = struct {
         return self.play_until_ns.load(.acquire) > self.sync.now(clock);
     }
 
+    fn awakeMs(self: *const Receiver) i64 {
+        return std.Io.Timestamp.now(self.io, .awake).toMilliseconds();
+    }
+
     fn hear(self: *Receiver, now_ns: u64, piece: audio_wire.Chunk) void {
         _ = self.received.fetchAdd(1, .acq_rel);
 
@@ -564,21 +707,20 @@ pub const Receiver = struct {
     fn report(self: *Receiver) void {
         const received = self.received.swap(0, .acq_rel);
         const late = self.late.swap(0, .acq_rel);
+        const skipped = self.skipped.swap(0, .acq_rel);
         const smallest_lead_ns = self.smallest_lead_ns.swap(no_lead, .acq_rel);
 
-        if (smallest_lead_ns == no_lead) {
-            log.warn("audio", "in the last minute {d} chunks arrived, all of them late", .{received});
-        } else if (late > 0) {
-            log.warn("audio", "in the last minute {d} chunks arrived, {d} of them late; the closest on time had {d}ms to spare", .{
-                received,
-                late,
-                smallest_lead_ns / std.time.ns_per_ms,
-            });
+        const tally = log.fields(.{
+            .chunks = received + skipped,
+            .late = late,
+            .skipped = skipped,
+            .headroomMs = if (smallest_lead_ns == no_lead) null else smallest_lead_ns / std.time.ns_per_ms,
+        });
+
+        if (late > 0 or skipped > 0) {
+            log.warn("audio", "audio from the source in the last minute {f}", .{tally});
         } else {
-            log.debug("audio", "in the last minute {d} chunks arrived, none late; the closest had {d}ms to spare", .{
-                received,
-                smallest_lead_ns / std.time.ns_per_ms,
-            });
+            log.debug("audio", "audio from the source in the last minute {f}", .{tally});
         }
     }
 
@@ -621,30 +763,56 @@ pub const Receiver = struct {
         self.clock.store(clock, .release);
         self.member.playOn(clock);
 
-        var tally_started_ns: ?u64 = null;
+        log.info("audio", "following a source {f}", .{log.fields(.{ .host = self.host[0..self.host_len], .port = self.port })});
+
+        var synced = false;
+        var unsynced_since_ms = self.awakeMs();
+        var skipped_until_synced: u32 = 0;
+        var tally_started_ms = self.awakeMs();
+        var last_frame_ms = self.awakeMs();
 
         while (!self.stopping.load(.acquire)) {
             const frame = audio_wire.read(&reader.interface, &chunk_buffer) catch {
-                if (!self.stopping.load(.acquire)) log.warn("audio", "the source closed the stream", .{});
+                if (!self.stopping.load(.acquire)) {
+                    log.warn("audio", "source closed the stream {f}", .{log.fields(.{ .quietMs = self.awakeMs() - last_frame_ms })});
+                }
 
                 return;
             };
 
+            last_frame_ms = self.awakeMs();
+
             switch (frame) {
                 .hello, .key => return,
                 .chunk => |piece| {
-                    if (!self.sync.isSynced(clock)) continue;
+                    if (self.sync.isSynced(clock)) {
+                        if (!synced) {
+                            log.info("audio", "clock synced with the source {f}", .{
+                                log.fields(.{ .afterMs = self.awakeMs() - unsynced_since_ms, .skipped = skipped_until_synced }),
+                            });
+                            synced = true;
+                        }
 
-                    const now_ns = self.sync.now(clock);
-                    self.hear(now_ns, piece);
+                        self.hear(self.sync.now(clock), piece);
+                    } else {
+                        if (synced) {
+                            log.warn("audio", "clock lost sync with the source", .{});
+                            synced = false;
+                            unsynced_since_ms = self.awakeMs();
+                            skipped_until_synced = 0;
+                        }
 
-                    if (tally_started_ns == null) tally_started_ns = now_ns;
-                    if (now_ns -| tally_started_ns.? >= tally_interval_ns) {
+                        skipped_until_synced += 1;
+                        _ = self.skipped.fetchAdd(1, .acq_rel);
+                    }
+
+                    if (self.awakeMs() - tally_started_ms >= tally_interval_ms) {
                         self.report();
-                        tally_started_ns = now_ns;
+                        tally_started_ms = self.awakeMs();
                     }
                 },
                 .flush => {
+                    log.info("audio", "source flushed", .{});
                     self.member.flush();
                     self.play_until_ns.store(0, .release);
                 },
@@ -711,6 +879,8 @@ const watched_output: Output = .{ .described = "fakesink name=output sync=true s
 const test_key: audio_wire.Key = ("0123456789abcdef" ** 4).*;
 
 const other_key: audio_wire.Key = ("fedcba9876543210" ** 4).*;
+
+const test_tolerance_ns = 100 * std.time.ns_per_ms;
 
 const Rendered = struct {
     clock: *const Clock,
@@ -782,6 +952,16 @@ fn sleepUntil(clock: *const Clock, at_ns: u64) void {
 fn untilRendered(rendered: *const Rendered) !void {
     for (0..100) |_| {
         if (rendered.at_ns.load(.acquire) != 0) return;
+
+        sleep(50);
+    }
+
+    return error.TestExpectedRender;
+}
+
+fn untilRenderedAtLeast(rendered: *const Rendered, count: u32) !void {
+    for (0..100) |_| {
+        if (rendered.count.load(.acquire) >= count) return;
 
         sleep(50);
     }
@@ -974,6 +1154,103 @@ test "audio_stream: a member moved to another clock drops what it held for the o
     try untilRendered(&rendered);
 
     try testing.expectEqual(at, rendered.pts.load(.acquire));
+}
+
+test "audio_stream: an output's played position follows what its sink has rendered" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &clock };
+    try watch(&member, &rendered);
+
+    const chunk: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const chunk_ns = durationNs(test_format, chunk.len);
+    const from = clock.net.now(clock.system) + 200 * std.time.ns_per_ms;
+
+    for (0..10) |index| {
+        try testing.expect(member.play(from + index * chunk_ns, test_format, &chunk));
+    }
+
+    try untilRenderedAtLeast(&rendered, 5);
+
+    const reached = member.progress.reached_until_ns.load(.acquire);
+    const rendered_pts = rendered.last_pts.load(.acquire);
+
+    try testing.expect(reached >= rendered_pts);
+    try testing.expect(reached <= rendered_pts + 2 * chunk_ns);
+}
+
+test "audio_stream: an output is idle until the audio it holds is due, then playing" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    try testing.expectEqual(OutputState.idle, member.check(clock.net.now(clock.system), test_tolerance_ns));
+
+    const chunk: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const chunk_ns = durationNs(test_format, chunk.len);
+    const from = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
+
+    for (0..10) |index| {
+        try testing.expect(member.play(from + index * chunk_ns, test_format, &chunk));
+    }
+
+    try testing.expectEqual(OutputState.idle, member.check(clock.net.now(clock.system), test_tolerance_ns));
+
+    sleepUntil(&clock, from + 300 * std.time.ns_per_ms);
+
+    try testing.expectEqual(OutputState.playing, member.check(clock.net.now(clock.system), test_tolerance_ns));
+}
+
+test "audio_stream: an output that has played everything it was given is idle" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    const chunk: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const chunk_ns = durationNs(test_format, chunk.len);
+    const from = clock.net.now(clock.system) + 100 * std.time.ns_per_ms;
+
+    for (0..3) |index| {
+        try testing.expect(member.play(from + index * chunk_ns, test_format, &chunk));
+    }
+
+    sleepUntil(&clock, from + 3 * chunk_ns + 200 * std.time.ns_per_ms);
+
+    try testing.expectEqual(OutputState.idle, member.check(clock.net.now(clock.system), test_tolerance_ns));
+}
+
+test "audio_stream: an output holding due audio it has not played is stalled, until a flush" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    _ = member.pipeline.setState(.paused);
+
+    const chunk: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const chunk_ns = durationNs(test_format, chunk.len);
+    const from = clock.net.now(clock.system) + 50 * std.time.ns_per_ms;
+
+    for (0..10) |index| {
+        try testing.expect(member.play(from + index * chunk_ns, test_format, &chunk));
+    }
+
+    sleepUntil(&clock, from + 400 * std.time.ns_per_ms);
+
+    try testing.expectEqual(OutputState.stalled, member.check(clock.net.now(clock.system), test_tolerance_ns));
+
+    member.flush();
+
+    try testing.expectEqual(OutputState.idle, member.check(clock.net.now(clock.system), test_tolerance_ns));
 }
 
 test "audio_stream: the sender stamps each chunk to be heard the latency after it is decoded" {

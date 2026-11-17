@@ -38,6 +38,8 @@ pub const StateChange = enum(c_int) {
 pub const MessageType = enum(c_uint) {
     eos = 1,
     @"error" = 2,
+    warning = 1 << 2,
+    state_changed = 1 << 6,
     stream_start = 1 << 28,
     _,
 };
@@ -96,6 +98,18 @@ pub const Buffer = extern struct {
     offset_end: u64,
 };
 
+pub const PadProbeInfo = extern struct {
+    type: c_uint,
+    id: c_ulong,
+    data: ?*anyopaque,
+    offset: u64,
+    size: c_uint,
+};
+
+pub const pad_probe_buffer: c_uint = 1 << 4;
+
+pub const pad_probe_ok: c_int = 1;
+
 pub const MapInfo = extern struct {
     memory: ?*anyopaque = null,
     flags: c_uint = 0,
@@ -123,6 +137,7 @@ const Gstreamer = struct {
     gst_buffer_unmap: *const fn (*Buffer, *MapInfo) callconv(.c) void,
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
     gst_caps_get_structure: *const fn (*const Caps, c_uint) callconv(.c) ?*const Structure,
+    gst_clock_get_time: *const fn (*Object) callconv(.c) u64,
     gst_device_create_element: *const fn (*Object, ?[*:0]const u8) callconv(.c) ?*Object,
     gst_device_get_display_name: *const fn (*Object) callconv(.c) ?[*:0]u8,
     gst_device_monitor_add_filter: *const fn (*Object, [*:0]const u8, ?*Object) callconv(.c) c_uint,
@@ -135,6 +150,7 @@ const Gstreamer = struct {
     gst_element_get_base_time: *const fn (*Object) callconv(.c) u64,
     gst_element_get_type: *const fn () callconv(.c) usize,
     gst_element_get_bus: *const fn (*Object) callconv(.c) ?*Object,
+    gst_element_get_static_pad: *const fn (*Object, [*:0]const u8) callconv(.c) ?*Object,
     gst_element_link: *const fn (*Object, *Object) callconv(.c) c_int,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
     gst_element_seek_simple: *const fn (*Object, Format, c_uint, i64) callconv(.c) c_int,
@@ -145,10 +161,20 @@ const Gstreamer = struct {
     gst_event_new_flush_start: *const fn () callconv(.c) ?*Event,
     gst_event_new_flush_stop: *const fn (c_int) callconv(.c) ?*Event,
     gst_filename_to_uri: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?[*:0]u8,
+    gst_flow_get_name: *const fn (c_int) callconv(.c) [*:0]const u8,
     gst_init: *const fn (?*c_int, ?*?[*][*:0]u8) callconv(.c) void,
     gst_message_parse_error: *const fn (*Message, *?*GError, *?[*:0]u8) callconv(.c) void,
+    gst_message_parse_state_changed: *const fn (*Message, ?*State, ?*State, ?*State) callconv(.c) void,
+    gst_message_parse_warning: *const fn (*Message, *?*GError, *?[*:0]u8) callconv(.c) void,
     gst_mini_object_unref: *const fn (*anyopaque) callconv(.c) void,
     gst_object_unref: *const fn (*Object) callconv(.c) void,
+    gst_pad_add_probe: *const fn (
+        *Object,
+        c_uint,
+        *const fn (*Object, *PadProbeInfo, ?*anyopaque) callconv(.c) c_int,
+        ?*anyopaque,
+        ?*const anyopaque,
+    ) callconv(.c) c_ulong,
     gst_pad_get_current_caps: *const fn (*Object) callconv(.c) ?*Caps,
     gst_parse_launch: *const fn ([*:0]const u8, ?*?*GError) callconv(.c) ?*Object,
     gst_pipeline_get_clock: *const fn (*Object) callconv(.c) ?*Object,
@@ -360,6 +386,18 @@ pub const Gst = struct {
 
 pub const PipelineError = error{ UnreadablePath, UriTooLong, LaunchFailed, NoBus };
 
+pub const Change = struct {
+    to: State,
+    pending: State,
+};
+
+pub const Notice = union(enum) {
+    changed: Change,
+    failed: []const u8,
+    none,
+    warned: []const u8,
+};
+
 pub const Outcome = union(enum) {
     ended,
     failed: []const u8,
@@ -477,6 +515,31 @@ pub const Pipeline = struct {
         return self.gst.gstreamer.gst_bin_get_by_name(self.element, name.ptr);
     }
 
+    pub fn notice(self: *const Pipeline, buffer: []u8) Notice {
+        const mask = @intFromEnum(MessageType.@"error") |
+            @intFromEnum(MessageType.warning) |
+            @intFromEnum(MessageType.state_changed);
+
+        while (self.gst.gstreamer.gst_bus_timed_pop_filtered(self.bus, 0, mask)) |message| {
+            defer self.gst.gstreamer.gst_mini_object_unref(message);
+
+            switch (message.type) {
+                .state_changed => {
+                    if (message.src != self.element) continue;
+
+                    var change: Change = .{ .to = .void_pending, .pending = .void_pending };
+                    self.gst.gstreamer.gst_message_parse_state_changed(message, null, &change.to, &change.pending);
+
+                    return .{ .changed = change };
+                },
+                .warning => return .{ .warned = self.reason(message, buffer, self.gst.gstreamer.gst_message_parse_warning) },
+                else => return .{ .failed = self.reason(message, buffer, self.gst.gstreamer.gst_message_parse_error) },
+            }
+        }
+
+        return .none;
+    }
+
     /// Null when the pipeline has not prerolled far enough to know.
     pub fn position(self: *const Pipeline) ?i64 {
         var nanoseconds: i64 = 0;
@@ -560,13 +623,22 @@ pub const Pipeline = struct {
         if (message.type == .eos) return .ended;
         if (message.type == .stream_start) return .started;
 
+        return .{ .failed = self.reason(message, buffer, self.gst.gstreamer.gst_message_parse_error) };
+    }
+
+    fn reason(
+        self: *const Pipeline,
+        message: *Message,
+        buffer: []u8,
+        parse: *const fn (*Message, *?*GError, *?[*:0]u8) callconv(.c) void,
+    ) []const u8 {
         var failure: ?*GError = null;
         var debug: ?[*:0]u8 = null;
 
-        self.gst.gstreamer.gst_message_parse_error(message, &failure, &debug);
+        parse(message, &failure, &debug);
         defer if (debug) |text| self.gst.glib.g_free(text);
 
-        const given = failure orelse return .{ .failed = "" };
+        const given = failure orelse return "";
         defer self.gst.glib.g_error_free(given);
 
         const text = if (given.message) |message_text| std.mem.span(message_text) else "";
@@ -574,7 +646,7 @@ pub const Pipeline = struct {
 
         @memcpy(buffer[0..length], text[0..length]);
 
-        return .{ .failed = buffer[0..length] };
+        return buffer[0..length];
     }
 };
 
@@ -777,6 +849,40 @@ test "gst: says a stream has started before it says it ended" {
 
     try testing.expect(pipeline.wait(10 * second, &message) == .started);
     try testing.expect(pipeline.wait(10 * second, &message) == .ended);
+}
+
+test "gst: notices the pipeline's own state changes and passes over its elements'" {
+    var gst = try loaded();
+    defer gst.close();
+
+    gst.initialise();
+
+    var pipeline = try Pipeline.launch(&gst, "audiotestsrc ! fakesink sync=true");
+    defer pipeline.deinit();
+
+    _ = pipeline.setState(.playing);
+
+    var message: [256]u8 = undefined;
+    var reached: [3]State = undefined;
+    var count: usize = 0;
+
+    for (0..100) |_| {
+        switch (pipeline.notice(&message)) {
+            .changed => |change| {
+                if (count < reached.len) reached[count] = change.to;
+                count += 1;
+            },
+            .none => {
+                if (count >= reached.len) break;
+
+                testIo().sleep(.fromMilliseconds(50), .awake) catch {};
+            },
+            .failed, .warned => return error.TestUnexpectedResult,
+        }
+    }
+
+    try testing.expectEqual(reached.len, count);
+    try testing.expectEqualSlices(State, &.{ .ready, .paused, .playing }, &reached);
 }
 
 test "gst: reports a source it cannot read rather than hanging" {
