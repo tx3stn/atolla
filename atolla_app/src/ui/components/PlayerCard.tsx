@@ -163,7 +163,7 @@ function iconFor(player: Player): typeof res.players {
 }
 
 function isUnhealthy(player: Player): boolean {
-	return player.lastError != null || !player.reachable;
+	return !player.reachable;
 }
 
 function metaText(player: Player): string {
@@ -187,9 +187,6 @@ function statusStyleFor(player: Player): Style<Label> {
 }
 
 function statusText(player: Player, sourceName: string | undefined): string {
-	if (player.lastError != null) {
-		return player.lastError;
-	}
 	if (!player.reachable) {
 		return Strings.playersStatusUnreachable();
 	}

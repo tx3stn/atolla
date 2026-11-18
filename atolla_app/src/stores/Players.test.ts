@@ -934,6 +934,7 @@ describe('PlayersStore status', () => {
 			leader: SPEAKER.id,
 			members: [
 				{
+					assigned: false,
 					enabled: true,
 					id: SPEAKER.id,
 					name: SPEAKER.name,
@@ -954,11 +955,11 @@ describe('PlayersStore status', () => {
 
 	it('shows what the speaker reports for itself', async () => {
 		const { speaker } = await watching([
-			answered(200, snapshot({ lastError: 'could not reach the media server', state: 'playing' })),
+			answered(200, snapshot({ assigned: true, state: 'playing' })),
 		]);
 
 		expect(speaker().state).toBe(PlayerStates.playing);
-		expect(speaker().lastError).toBe('could not reach the media server');
+		expect(speaker().assigned).toBe(true);
 		expect(speaker().reachable).toBe(true);
 	});
 
@@ -980,7 +981,7 @@ describe('PlayersStore status', () => {
 
 		expect(asked.length).toBe(1);
 		expect(speaker().reachable).toBe(true);
-		expect(speaker().lastError).toBeNull();
+		expect(speaker().assigned).toBeNull();
 	});
 
 	it('shows the source a member is joined to', async () => {
@@ -1055,13 +1056,13 @@ function ids(store: PlayersStore): Array<string> {
 
 function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 	return {
+		assigned: null,
 		baseUrl: 'http://192.168.1.42:45889',
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,
 		id,
 		isThisDevice: false,
-		lastError: null,
 		name: `Player ${id}`,
 		reachable: true,
 		source: null,

@@ -3,12 +3,14 @@ import { isTrack, type Track } from 'atolla_core/src/models/Track';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { LoopModes, type PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { Command } from 'atolla_sync/src/api/generated';
+import type { Assignment } from '../Assignment';
 import type { AudioStream } from '../AudioStream';
 import type { Answer } from '../Http';
 import type { QueueOwner } from '../QueueOwner';
 import type { StateVersion } from '../StateVersion';
 
 export interface CommandDeps {
+	assignment: Assignment;
 	playback: PlaybackStore;
 	queueOwner: QueueOwner;
 	// The server answers before the queue is on disk, so a command arriving during the restore
@@ -88,6 +90,8 @@ function apply(deps: CommandDeps, command: Command): boolean {
 			playback.setLoopMode(LoopModes[command.loopMode]);
 			return true;
 		case 'joinSource':
+			deps.assignment.assign();
+
 			if (command.host === undefined || command.port === undefined || command.key === undefined) {
 				deps.stream.join(null);
 				return true;
@@ -115,6 +119,10 @@ function apply(deps: CommandDeps, command: Command): boolean {
 					deps.queueOwner.claim(command.userId);
 				}
 			});
+
+			if (applied) {
+				deps.assignment.assign();
+			}
 
 			return applied;
 		}

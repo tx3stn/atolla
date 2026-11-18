@@ -569,13 +569,13 @@ function labelValues(component: RenderedComponent): Array<unknown> {
 
 function makePlayer(id: string, overrides: Partial<Player> = {}): Player {
 	return {
+		assigned: null,
 		baseUrl: 'http://192.168.1.42:45889',
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,
 		id,
 		isThisDevice: false,
-		lastError: null,
 		name: `Player ${id}`,
 		reachable: true,
 		source: null,

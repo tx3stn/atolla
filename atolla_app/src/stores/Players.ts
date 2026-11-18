@@ -57,7 +57,7 @@ export type CreatePlayerClient = (baseUrl: string) => PlayerClientPort;
 
 export type CreateStatusClient = (baseUrl: string) => Pick<PlayerClient, 'state'>;
 
-type PlayerStatus = Pick<Player, 'lastError' | 'reachable' | 'source' | 'state'>;
+type PlayerStatus = Pick<Player, 'assigned' | 'reachable' | 'source' | 'state'>;
 
 interface StatusWatch {
 	requests: Set<{ cancel?: () => void }>;
@@ -373,7 +373,7 @@ export class PlayersStore {
 		const reported = member?.source ?? null;
 
 		this.updateStatus(id, {
-			lastError: member?.lastError ?? null,
+			assigned: member?.assigned ?? null,
 			reachable: true,
 			source: sameSource(held, reported) ? held : reported,
 			state: member?.state ?? PlayerStates.idle,
@@ -504,13 +504,13 @@ export class PlayersStore {
 
 	private remember(probed: ProbedPlayer, token: string): Player {
 		const player: Player = {
+			assigned: null,
 			baseUrl: probed.baseUrl,
 			enabled: this.players.find((candidate) => candidate.id === probed.id)?.enabled ?? false,
 			group: DEFAULT_PLAYER_GROUP,
 			icon: null,
 			id: probed.id,
 			isThisDevice: false,
-			lastError: null,
 			name: probed.name,
 			reachable: true,
 			source: null,
@@ -528,13 +528,13 @@ export class PlayersStore {
 
 	private restore(stored: PersistedPlayer): Player {
 		return {
+			assigned: null,
 			baseUrl: stored.baseUrl,
 			enabled: stored.enabled,
 			group: DEFAULT_PLAYER_GROUP,
 			icon: stored.icon,
 			id: stored.id,
 			isThisDevice: false,
-			lastError: null,
 			name: stored.name,
 			reachable: true,
 			source: null,
@@ -545,13 +545,13 @@ export class PlayersStore {
 
 	private thisDevice(): Player {
 		return {
+			assigned: null,
 			baseUrl: null,
 			enabled: this.thisDeviceEnabled,
 			group: DEFAULT_PLAYER_GROUP,
 			icon: null,
 			id: THIS_DEVICE_ID,
 			isThisDevice: true,
-			lastError: null,
 			name: this.deviceName(),
 			reachable: true,
 			source: null,

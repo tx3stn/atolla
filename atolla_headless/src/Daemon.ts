@@ -6,6 +6,7 @@ import {
 	type LogWriter,
 } from 'atolla_core/src/services/Logger';
 import { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { makeAssignment } from './Assignment';
 import type { AudioEngine } from './Audio';
 import { makeAudioPlayer, POLL_INTERVAL_MS } from './AudioPlayer';
 import { makeAudioStream } from './AudioStream';
@@ -60,6 +61,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 	const state = stateDir(deps.config);
 	const playback = new PlaybackStore();
 	const version = makeStateVersion();
+	const assignment = makeAssignment(version);
 	const credentials = makeMediaServerCredentials(version);
 	const queueOwner = makeQueueOwner(makeFileKeyValueStore(deps.files, state));
 	const transports = makeMediaServerTransports({
@@ -157,6 +159,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 
 	attachServer(deps.httpServer, {
 		command: {
+			assignment,
 			playback,
 			queueOwner,
 			restored,
@@ -176,6 +179,7 @@ export async function startDaemon(deps: DaemonDeps): Promise<number> {
 			transports,
 		},
 		state: {
+			assignment,
 			credentials,
 			identity: deps.identity,
 			now: deps.now,

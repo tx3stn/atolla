@@ -28,6 +28,7 @@ function deps(): ServerDeps {
 
 	return {
 		command: {
+			assignment: { assign: () => {}, assigned: () => false },
 			playback: new PlaybackStore(),
 			queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 			restored: Promise.resolve(),
@@ -43,6 +44,7 @@ function deps(): ServerDeps {
 			transports: verifyingTransports,
 		},
 		state: {
+			assignment: { assign: () => {}, assigned: () => false },
 			credentials,
 			identity: { id: 'c2be50c9b97e1c53', name: 'Kitchen', tier: 'tight', version: '0.0.0' },
 			now: () => 1758000000000,

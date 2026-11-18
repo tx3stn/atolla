@@ -6,13 +6,13 @@ import { DEFAULT_PLAYER_GROUP, type Player, PlayerStates, PlayerTiers } from '..
 import { type DeviceTokenMinter, mintPlayerCredential } from './PlayerCredential';
 
 const kitchen: Player = {
+	assigned: null,
 	baseUrl: 'http://192.168.1.42:45889',
 	enabled: true,
 	group: DEFAULT_PLAYER_GROUP,
 	icon: null,
 	id: '0123456789abcdef',
 	isThisDevice: false,
-	lastError: null,
 	name: 'Kitchen',
 	reachable: true,
 	source: null,

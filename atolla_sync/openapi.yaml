@@ -411,7 +411,8 @@ paths:
                 group: default
                 leader: 4f3c9a1de8b27065
                 members:
-                  - enabled: true
+                  - assigned: true
+                    enabled: true
                     id: 4f3c9a1de8b27065
                     name: Kitchen
                     state: playing
@@ -1482,9 +1483,16 @@ components:
       description: |
         A player in the group. Today a daemon is a group of one and reports only itself, so this
         array has a single entry; discovery fills it out at the step that builds the beacon.
-      required: [enabled, id, name, state, tier]
+      required: [assigned, enabled, id, name, state, tier]
       additionalProperties: true
       properties:
+        assigned:
+          type: boolean
+          description: |
+            Whether this player has been given a queue (`setQueue`) or a source (`joinSource`)
+            since it started. A restart clears it, so a controller that sees it go false knows to
+            send everything again.
+          examples: [true]
         enabled:
           type: boolean
           description: |
@@ -1496,15 +1504,6 @@ components:
           pattern: '^[0-9a-f]{16}$'
           description: The stable player id, the same one `GET /hello` reports.
           examples: [4f3c9a1de8b27065]
-        lastError:
-          type: string
-          maxLength: 256
-          pattern: '^[^\r\n]*$'
-          description: |
-            Why this member is not playing when it should be, absent when nothing is wrong. A
-            member that misses a track keeps its place in the group and rejoins at the next one, so
-            this is what a controller shows instead of removing it from the list.
-          examples: ['could not reach the media server']
         name:
           type: string
           maxLength: 256
@@ -1549,7 +1548,8 @@ components:
           items:
             $ref: '#/components/schemas/Member'
           examples:
-            - - enabled: true
+            - - assigned: true
+                enabled: true
                 id: 4f3c9a1de8b27065
                 name: Kitchen
                 state: playing

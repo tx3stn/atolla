@@ -14,13 +14,13 @@ export const PlayerTiers = {
 } as const satisfies Record<Member['tier'], Member['tier']>;
 
 export interface Player {
+	assigned: boolean | null;
 	baseUrl: string | null;
 	enabled: boolean;
 	group: string;
 	icon: string | null;
 	id: string;
 	isThisDevice: boolean;
-	lastError: string | null;
 	name: string;
 	reachable: boolean;
 	source: MemberSource | null;

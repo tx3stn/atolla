@@ -3,6 +3,7 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
 import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { LoopModes, PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { type Assignment, makeAssignment } from '../Assignment';
 import type { SourceTarget } from '../AudioStream';
 import { makeQueueOwner } from '../QueueOwner';
 import { makeStateVersion } from '../StateVersion';
@@ -24,6 +25,7 @@ const TRACKS = [track('t1'), track('t2'), track('t3')];
 const STREAM_KEY = '3e9d1f7a5c0b8246e1d3f5a7c9b0e2d4f6a8c1e3b5d7f9a0c2e4b6d8f1a3c5e7';
 
 function fixture(): CommandDeps & {
+	assignment: Assignment;
 	joined: Array<SourceTarget | null>;
 } {
 	const playback = new PlaybackStore();
@@ -33,6 +35,7 @@ function fixture(): CommandDeps & {
 	playback.subscribe(() => version.bump());
 
 	return {
+		assignment: makeAssignment(version),
 		joined,
 		playback,
 		queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
@@ -236,6 +239,7 @@ describe('handleCommand', () => {
 
 		const answered = handleCommand(
 			{
+				assignment: makeAssignment(version),
 				playback,
 				queueOwner: makeQueueOwner(new InMemoryKeyValueStore()),
 				restored,
@@ -345,6 +349,55 @@ describe('handleCommand', () => {
 			await send(deps, { command: 'setQueue', tracks: 'not tracks', userId: 'u1' });
 
 			expect(deps.queueOwner.get()).toBeNull();
+		});
+	});
+
+	describe('assignment', () => {
+		it('is assigned by a queue', async () => {
+			const deps = fixture();
+
+			await queued(deps);
+
+			expect(deps.assignment.assigned()).toBe(true);
+		});
+
+		it('is assigned by joining a source', async () => {
+			const deps = fixture();
+
+			await send(deps, {
+				command: 'joinSource',
+				host: '192.168.1.42',
+				key: STREAM_KEY,
+				port: 45891,
+			});
+
+			expect(deps.assignment.assigned()).toBe(true);
+		});
+
+		it('is assigned by leaving a source', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'joinSource' });
+
+			expect(deps.assignment.assigned()).toBe(true);
+		});
+
+		it('is not assigned by a command that only steers what it already holds', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'play' });
+			await send(deps, { command: 'seek', positionMs: 1000 });
+			await send(deps, { command: 'setLoopMode', loopMode: 'track' });
+
+			expect(deps.assignment.assigned()).toBe(false);
+		});
+
+		it('is not assigned by a queue it refused', async () => {
+			const deps = fixture();
+
+			await send(deps, { command: 'setQueue', tracks: 'not tracks' });
+
+			expect(deps.assignment.assigned()).toBe(false);
 		});
 	});
 });

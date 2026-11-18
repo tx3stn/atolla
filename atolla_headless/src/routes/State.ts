@@ -1,5 +1,6 @@
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { PlayerState, StateSnapshot } from 'atolla_sync/src/api/generated';
+import type { Assignment } from '../Assignment';
 import type { AudioStream } from '../AudioStream';
 import type { Answer } from '../Http';
 import type { MediaServerCredentials } from '../MediaServerCredentials';
@@ -8,6 +9,7 @@ import type { QueueOwner } from '../QueueOwner';
 import type { StateVersion } from '../StateVersion';
 
 export interface StateDeps {
+	assignment: Assignment;
 	credentials: MediaServerCredentials;
 	identity: PlayerIdentity;
 	now: () => number;
@@ -80,6 +82,7 @@ function snapshot(deps: StateDeps): StateSnapshot {
 		leader: identity.id,
 		members: [
 			{
+				assigned: deps.assignment.assigned(),
 				enabled: true,
 				id: identity.id,
 				name: identity.name,

@@ -898,6 +898,13 @@ export interface components {
          */
         Member: {
             /**
+             * @description Whether this player has been given a queue (`setQueue`) or a source (`joinSource`)
+             *     since it started. A restart clears it, so a controller that sees it go false knows to
+             *     send everything again.
+             * @example true
+             */
+            assigned: boolean;
+            /**
              * @description Whether this member plays. The enabled set is what defines the group, so a player that
              *     is present but not enabled is one the user switched off rather than one that failed.
              * @example true
@@ -908,13 +915,6 @@ export interface components {
              * @example 4f3c9a1de8b27065
              */
             id: string;
-            /**
-             * @description Why this member is not playing when it should be, absent when nothing is wrong. A
-             *     member that misses a track keeps its place in the group and rejoins at the next one, so
-             *     this is what a controller shows instead of removing it from the list.
-             * @example could not reach the media server
-             */
-            lastError?: string;
             /** @example Kitchen */
             name: string;
             source?: components["schemas"]["MemberSource"];
@@ -948,6 +948,7 @@ export interface components {
             /**
              * @example [
              *       {
+             *         "assigned": true,
              *         "enabled": true,
              *         "id": "4f3c9a1de8b27065",
              *         "name": "Kitchen",
@@ -1684,6 +1685,7 @@ export interface operations {
                      *       "leader": "4f3c9a1de8b27065",
                      *       "members": [
                      *         {
+                     *           "assigned": true,
                      *           "enabled": true,
                      *           "id": "4f3c9a1de8b27065",
                      *           "name": "Kitchen",

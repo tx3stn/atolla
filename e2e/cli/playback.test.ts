@@ -119,6 +119,22 @@ describe('playback', () => {
 		expect(playing.queue.trackIndex).toBe(0);
 	});
 
+	it('is no longer assigned after a restart, though it restores the queue it held', async () => {
+		expect((await snapshot()).members[0]?.assigned).toBe(false);
+
+		await client.command(token, { command: 'setQueue', trackIndex: 0, tracks: TRACKS });
+		expect((await snapshot()).members[0]?.assigned).toBe(true);
+
+		await daemon.stop();
+		daemon = await cli.run();
+
+		const restarted = await snapshot();
+		expect(restarted.queue.tracks.map((track) => track.id)).toEqual(
+			TRACKS.map((track) => track.id),
+		);
+		expect(restarted.members[0]?.assigned).toBe(false);
+	});
+
 	it('moves to the next track when one finishes', async () => {
 		await client.command(token, { command: 'setQueue', trackIndex: 0, tracks: TRACKS });
 		await client.command(token, { command: 'play' });

@@ -22,17 +22,6 @@ import { styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
 const KITCHEN_SOURCE = { host: '192.168.1.42', port: 45891, receiving: true };
 
 describe('PlayerCard', () => {
-	valdiIt('shows the error when the player reports one', async (driver) => {
-		const component = driver.renderComponent(
-			PlayerCard,
-			{ onToggle: () => {}, player: makePlayer({ lastError: 'could not reach the media server' }) },
-			undefined,
-		);
-
-		expect(labelValues(component)).toContain('could not reach the media server');
-		expect(labelValues(component)).not.toContain(Strings.playersStatusConnected());
-	});
-
 	valdiIt('shows unreachable when the player did not answer', async (driver) => {
 		const component = driver.renderComponent(
 			PlayerCard,
@@ -41,17 +30,6 @@ describe('PlayerCard', () => {
 		);
 
 		expect(labelValues(component)).toContain(Strings.playersStatusUnreachable());
-	});
-
-	valdiIt('prefers the error over unreachable', async (driver) => {
-		const component = driver.renderComponent(
-			PlayerCard,
-			{ onToggle: () => {}, player: makePlayer({ lastError: 'boom', reachable: false }) },
-			undefined,
-		);
-
-		expect(labelValues(component)).toContain('boom');
-		expect(labelValues(component)).not.toContain(Strings.playersStatusUnreachable());
 	});
 
 	valdiIt('shows connected when nothing is wrong', async (driver) => {
@@ -191,16 +169,6 @@ describe('PlayerCard', () => {
 		);
 
 		expect(dotColor(component)).toBe(theme.colors.success);
-	});
-
-	valdiIt('marks an errored player with the destructive dot', async (driver) => {
-		const component = driver.renderComponent(
-			PlayerCard,
-			{ onToggle: () => {}, player: makePlayer({ lastError: 'boom' }) },
-			undefined,
-		);
-
-		expect(dotColor(component)).toBe(theme.colors.destructive);
 	});
 
 	valdiIt('marks an unreachable player with the destructive dot', async (driver) => {
@@ -420,13 +388,13 @@ function renderWithLongPress(driver: IComponentTestDriver, onLongPress: () => vo
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
 	return {
+		assigned: null,
 		baseUrl: 'http://192.168.1.42:45889',
 		enabled: true,
 		group: DEFAULT_PLAYER_GROUP,
 		icon: null,
 		id: 'kitchen',
 		isThisDevice: false,
-		lastError: null,
 		name: 'Kitchen',
 		reachable: true,
 		source: null,

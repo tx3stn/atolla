@@ -48,6 +48,7 @@ function fixture(): StateDeps {
 	playback.subscribe(() => version.bump());
 
 	return {
+		assignment: { assign: () => {}, assigned: () => false },
 		credentials: makeMediaServerCredentials(version),
 		identity: IDENTITY,
 		now: () => NOW,
@@ -82,6 +83,7 @@ describe('handleState', () => {
 
 		expect(snapshot?.members).toEqual([
 			{
+				assigned: false,
 				enabled: true,
 				id: IDENTITY.id,
 				name: 'Kitchen',
@@ -89,6 +91,14 @@ describe('handleState', () => {
 				tier: 'tight',
 			},
 		]);
+	});
+
+	it('reports whether it has been given a queue or a source since it started', async () => {
+		expect((await read(fixture())).snapshot?.members[0]?.assigned).toBe(false);
+
+		const deps = { ...fixture(), assignment: { assign: () => {}, assigned: () => true } };
+
+		expect((await read(deps)).snapshot?.members[0]?.assigned).toBe(true);
 	});
 
 	it('reports the source a member joined, and whether audio is arriving from it', async () => {
