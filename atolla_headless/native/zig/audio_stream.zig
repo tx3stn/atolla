@@ -515,15 +515,23 @@ pub const Listener = struct {
         while (index < self.members.items.len) {
             const member = self.members.items[index];
 
-            if (sendWhole(member.socket.handle, header, bytes)) {
+            const sent = sendWhole(member.socket.handle, header, bytes);
+
+            if (sent == .whole) {
                 index += 1;
                 continue;
             }
 
             var host_buffer: [64]u8 = undefined;
             const host = hostOf(&host_buffer, member.socket.address) catch "an unknown address";
+            const where = log.fields(.{ .host = host });
 
-            log.warn("audio", "dropped a member that fell behind {f}", .{log.fields(.{ .host = host })});
+            switch (sent) {
+                .behind => log.warn("audio", "dropped a member that fell behind {f}", .{where}),
+                .disconnected => log.warn("audio", "dropped a member that had disconnected {f}", .{where}),
+                .whole => unreachable,
+            }
+
             member.close(self.io);
             _ = self.members.swapRemove(index);
         }
@@ -604,7 +612,9 @@ fn nonBlocking(handle: posix.socket_t) !void {
     if (posix.system.fcntl(handle, posix.F.SETFL, flags | non_blocking) < 0) return error.Unexpected;
 }
 
-fn sendWhole(handle: posix.socket_t, header: []const u8, bytes: []const u8) bool {
+const Sent = enum { behind, disconnected, whole };
+
+fn sendWhole(handle: posix.socket_t, header: []const u8, bytes: []const u8) Sent {
     const vectors = [_]posix.iovec_const{
         .{ .base = header.ptr, .len = header.len },
         .{ .base = bytes.ptr, .len = bytes.len },
@@ -623,9 +633,10 @@ fn sendWhole(handle: posix.socket_t, header: []const u8, bytes: []const u8) bool
         const sent = posix.system.sendmsg(handle, &message, posix.MSG.NOSIGNAL);
 
         switch (posix.errno(sent)) {
-            .SUCCESS => return @as(usize, @intCast(sent)) == header.len + bytes.len,
+            .SUCCESS => return if (@as(usize, @intCast(sent)) == header.len + bytes.len) .whole else .behind,
             .INTR => continue,
-            else => return false,
+            .AGAIN => return .behind,
+            else => return .disconnected,
         }
     }
 }
@@ -1622,6 +1633,56 @@ test "audio_stream: a member that stops reading is dropped without holding up th
     sleep(300);
 
     try testing.expect(played.count.load(.acquire) > dropped_at);
+}
+
+fn untilNotWhole(handle: posix.socket_t, header: []const u8, bytes: []const u8) Sent {
+    for (0..1000) |_| {
+        const sent = sendWhole(handle, header, bytes);
+        if (sent != .whole) return sent;
+
+        sleep(1);
+    }
+
+    return .whole;
+}
+
+test "audio_stream: a send to a member that stops reading says it fell behind" {
+    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+    var server = try net.IpAddress.listen(&loopback, io_context(), .{ .mode = .stream });
+    defer server.deinit(io_context());
+
+    const address: net.IpAddress = .{ .ip4 = .loopback(server.socket.address.getPort()) };
+    const client = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+    defer client.close(io_context());
+
+    const accepted = try server.accept(io_context());
+    defer accepted.close(io_context());
+    try nonBlocking(accepted.socket.handle);
+
+    const header = [_]u8{0} ** audio_wire.chunk_header_bytes;
+    const bytes = [_]u8{0} ** (64 * 1024);
+
+    try testing.expectEqual(.behind, untilNotWhole(accepted.socket.handle, &header, &bytes));
+}
+
+test "audio_stream: a send to a member that has disconnected says it disconnected" {
+    const loopback: net.IpAddress = .{ .ip4 = .loopback(0) };
+    var server = try net.IpAddress.listen(&loopback, io_context(), .{ .mode = .stream });
+    defer server.deinit(io_context());
+
+    const address: net.IpAddress = .{ .ip4 = .loopback(server.socket.address.getPort()) };
+    const client = try net.IpAddress.connect(&address, io_context(), .{ .mode = .stream });
+
+    const accepted = try server.accept(io_context());
+    defer accepted.close(io_context());
+    try nonBlocking(accepted.socket.handle);
+
+    client.close(io_context());
+
+    const header = [_]u8{0} ** audio_wire.chunk_header_bytes;
+    const bytes = [_]u8{0} ** 1024;
+
+    try testing.expectEqual(.disconnected, untilNotWhole(accepted.socket.handle, &header, &bytes));
 }
 
 test "audio_stream: a member plays each chunk in the format it came with" {
