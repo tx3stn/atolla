@@ -760,13 +760,18 @@ fn nextEvent(player: *Player, buffer: []u8) ![]const u8 {
     return error.TestExpectedEvent;
 }
 
-fn pipelineClock(pipeline: *const gst.Pipeline) !*gst.Object {
-    const clock = pipeline.gst.gstreamer.gst_pipeline_get_clock(pipeline.element) orelse {
-        return error.TestExpectedClock;
-    };
-    pipeline.gst.gstreamer.gst_object_unref(clock);
+fn untilRunsOn(pipeline: *const gst.Pipeline, expected: *gst.Object) !void {
+    for (0..100) |_| {
+        if (pipeline.gst.gstreamer.gst_element_get_clock(pipeline.element)) |clock| {
+            pipeline.gst.gstreamer.gst_object_unref(clock);
 
-    return clock;
+            if (clock == expected) return;
+        }
+
+        io_context().sleep(.fromMilliseconds(50), .awake) catch {};
+    }
+
+    return error.TestExpectedClock;
 }
 
 test "audio_player: a machine with no output gets a sink that keeps time" {
@@ -1068,14 +1073,57 @@ test "audio_player: a joined speaker plays out on its source's clock, and on its
     try silentPlayer(&runtime, &player);
     defer player.deinit();
 
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
     try player.join("127.0.0.1", port, test_stream_key);
     try untilFollowing(&player);
 
-    try testing.expectEqual(player.receiver.clockFollowed().?, try pipelineClock(&player.member.pipeline));
+    try source.configure(path, "track-followed", "");
+    source.setPlaying(true);
+
+    try untilRunsOn(&player.member.pipeline, player.receiver.clockFollowed().?);
 
     player.leave();
 
-    try testing.expectEqual(player.clock, try pipelineClock(&player.member.pipeline));
+    try player.configure(path, "track-own", "");
+    player.setPlaying(true);
+
+    try untilRunsOn(&player.member.pipeline, player.clock);
+}
+
+test "audio_player: a speaker that has played on its own clock plays out on its source's once it joins" {
+    var runtime = try loaded();
+
+    var source: Player = undefined;
+    const port = try servingSource(&runtime, &source, test_latency_ns);
+    defer source.deinit();
+
+    var player: Player = undefined;
+    try silentPlayer(&runtime, &player);
+    defer player.deinit();
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    var path_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const path = try writeTone(&tmp, &path_buffer);
+
+    try player.configure(path, "track-own", "");
+    player.setPlaying(true);
+
+    try untilRunsOn(&player.member.pipeline, player.clock);
+
+    try player.join("127.0.0.1", port, test_stream_key);
+    try untilFollowing(&player);
+
+    try source.configure(path, "track-followed", "");
+    source.setPlaying(true);
+
+    try untilRunsOn(&player.member.pipeline, player.receiver.clockFollowed().?);
 }
 
 fn untilOutput(player: *Player, comptime state: audio_stream.OutputState) !void {

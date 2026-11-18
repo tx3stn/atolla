@@ -212,7 +212,7 @@ pub const Member = struct {
 
     pub fn playOn(self: *const Member, clock: *gst.Object) void {
         self.flush();
-        _ = self.pipeline.setState(.paused);
+        _ = self.pipeline.setState(.ready);
         self.pipeline.schedule(clock, 0);
         _ = self.pipeline.setState(.playing);
     }

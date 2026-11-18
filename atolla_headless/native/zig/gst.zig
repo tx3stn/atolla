@@ -150,6 +150,7 @@ const Gstreamer = struct {
     gst_element_get_base_time: *const fn (*Object) callconv(.c) u64,
     gst_element_get_type: *const fn () callconv(.c) usize,
     gst_element_get_bus: *const fn (*Object) callconv(.c) ?*Object,
+    gst_element_get_clock: *const fn (*Object) callconv(.c) ?*Object,
     gst_element_get_static_pad: *const fn (*Object, [*:0]const u8) callconv(.c) ?*Object,
     gst_element_link: *const fn (*Object, *Object) callconv(.c) c_int,
     gst_element_query_position: *const fn (*Object, Format, *i64) callconv(.c) c_int,
