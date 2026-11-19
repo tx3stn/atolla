@@ -5,10 +5,12 @@ ignore-paths:
   - build/wda
   - generated
   - node_modules
+  - patches
   - ".git"
   - ".github"
   - ".claude"
   - ".planning"
+  - ".scripts"
   - ".tmp"
   - ".vscode"
 ignore-rules:
@@ -38,3 +40,5 @@ ignore-rules:
   - android_prevent_screenshot
   # filterTouchesWhenObscured: app has no tap worth stealing. blocked at OS level on 12+ anyway
   - android_tapjacking
+  # http urls are all over tests and are valid in actual app usage
+  - js_cleartext_http_traffic

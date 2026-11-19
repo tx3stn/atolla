@@ -125,7 +125,7 @@ describe('PUT /media-server', () => {
 			code,
 			controllerId: 'phone-2',
 			controllerName: 'pixel 9',
-			mediaServer: { ...credential('u1'), accessToken: 'revoked-a-while-ago' },
+			mediaServer: { ...credential('u1'), accessToken: 'revoked-a-while-ago' }, // mobsf-ignore: js_hardcoded_secret
 		});
 
 		expect(paired.status).toBe(200);
@@ -205,7 +205,7 @@ describe('PUT /media-server', () => {
 	it('refuses a credential the server no longer honours', async () => {
 		const answer = await client.mediaServer(token, {
 			...credential('u1'),
-			accessToken: 'revoked-a-while-ago',
+			accessToken: 'revoked-a-while-ago', // mobsf-ignore: js_hardcoded_secret
 		});
 
 		expect(answer.status).toBe(422);
@@ -228,7 +228,7 @@ describe('PUT /media-server', () => {
 
 		const answer = await client.mediaServer(token, {
 			...credential('u1'),
-			accessToken: 'revoked-a-while-ago',
+			accessToken: 'revoked-a-while-ago', // mobsf-ignore: js_hardcoded_secret
 		});
 
 		expect(answer.status).toBe(422);

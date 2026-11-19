@@ -50,7 +50,7 @@ describe('makeMediaServerCredentials', () => {
 		const { credentials } = fixture();
 
 		credentials.push(credential('u1'));
-		credentials.push(credential('u1', { accessToken: 'minted-again' }));
+		credentials.push(credential('u1', { accessToken: 'minted-again' })); // mobsf-ignore: js_hardcoded_secret
 
 		expect(credentials.userIds()).toEqual(['u1']);
 		expect(credentials.get('u1')?.accessToken).toBe('minted-again');

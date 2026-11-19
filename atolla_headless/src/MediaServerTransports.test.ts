@@ -122,7 +122,7 @@ describe('forUser', () => {
 		credentials.push(credential('u1'));
 		const first = transports.forUser('u1');
 
-		credentials.push(credential('u1', { accessToken: 'minted-again' }));
+		credentials.push(credential('u1', { accessToken: 'minted-again' })); // mobsf-ignore: js_hardcoded_secret
 		const second = transports.forUser('u1');
 
 		expect(second).not.toBe(first);
