@@ -102,4 +102,34 @@ describe('LidarrClient', () => {
 			).rejects.toBe(IntegrationErrors.TIMED_OUT);
 		});
 	});
+
+	describe('calendar', () => {
+		it('asks for the albums between two dates with their artists', async () => {
+			const { calls, transport } = answering(200, '[]');
+
+			await new LidarrClient(transport, 'http://lidarr.local:8686', 'key-1').calendar(
+				'2026-11-19T00:00:00.000Z',
+				'2027-02-17T00:00:00.000Z',
+			);
+
+			expect(calls).toEqual([
+				{
+					headers: { Accept: 'application/json', 'X-Api-Key': 'key-1' },
+					url: 'http://lidarr.local:8686/api/v1/calendar?start=2026-11-19T00%3A00%3A00.000Z&end=2027-02-17T00%3A00%3A00.000Z&includeArtist=true',
+				},
+			]);
+		});
+
+		it('answers with the albums the server sent', async () => {
+			const { transport } = answering(200, '[{"id":7,"title":"Upcoming"}]');
+
+			const albums = await new LidarrClient(
+				transport,
+				'http://lidarr.local:8686',
+				'key-1',
+			).calendar('2026-11-19T00:00:00.000Z', '2027-02-17T00:00:00.000Z');
+
+			expect(albums).toEqual([{ id: 7, title: 'Upcoming' }]);
+		});
+	});
 });

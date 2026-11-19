@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { LidarrClient } from 'atolla_app/src/integrations/lidarr/Client';
 import { LidarrConnection } from 'atolla_app/src/integrations/lidarr/Connection';
+import { UpcomingService } from 'atolla_app/src/integrations/lidarr/UpcomingService';
 import { CardSizes, type ConnectionMode, ConnectionModes } from 'atolla_app/src/models/App';
 import type { ArtworkPaletteService } from 'atolla_app/src/services/ArtworkPaletteService';
 import type { LyricsService } from 'atolla_app/src/services/LyricsService';
@@ -127,6 +128,7 @@ function makeLidarr(): LidarrConnection {
 	return new LidarrConnection({
 		createClient: (url, apiKey) => new LidarrClient(lidarrServer, url, apiKey),
 		store: new InMemoryKeyValueStore(),
+		upcoming: new UpcomingService(new InMemoryKeyValueStore()),
 	});
 }
 

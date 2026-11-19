@@ -4,6 +4,7 @@ import type { HttpResponse, HttpTransport } from 'atolla_sync/src/api/Transport'
 import { IntegrationErrors } from '../IntegrationErrors';
 import { LidarrClient } from './Client';
 import { LidarrConnection } from './Connection';
+import { UpcomingService } from './UpcomingService';
 
 function server(statusCode: number, body: string) {
 	const urls: Array<string> = [];
@@ -26,10 +27,15 @@ function server(statusCode: number, body: string) {
 	return { keys, transport, urls };
 }
 
-function connection(transport: HttpTransport, store = new InMemoryKeyValueStore()) {
+function connection(
+	transport: HttpTransport,
+	store = new InMemoryKeyValueStore(),
+	upcoming = new UpcomingService(new InMemoryKeyValueStore()),
+) {
 	return new LidarrConnection({
 		createClient: (url, apiKey) => new LidarrClient(transport, url, apiKey),
 		store,
+		upcoming,
 	});
 }
 
@@ -115,6 +121,25 @@ describe('LidarrConnection', () => {
 
 			expect(lidarrConnection.connected()).toBeNull();
 			expect(lidarrConnection.savedUrl()).toBe('http://lidarr.local:8686');
+		});
+
+		it('forgets the upcoming albums', async () => {
+			const { transport } = server(200, lidarr);
+			const upcoming = new UpcomingService(new InMemoryKeyValueStore());
+			const lidarrConnection = connection(transport, new InMemoryKeyValueStore(), upcoming);
+			await lidarrConnection.connect('http://lidarr.local:8686', 'key-1');
+			const calendar = server(
+				200,
+				'[{"artist":{"artistName":"Converge"},"id":1,"releaseDate":"2026-12-05T00:00:00Z","title":"Axe to Fall"}]',
+			);
+			await upcoming.refresh(
+				new LidarrClient(calendar.transport, 'http://lidarr.local:8686', 'key-1'),
+				new Date(2026, 10, 19),
+			);
+
+			await lidarrConnection.disconnect();
+
+			expect(upcoming.albums(new Date(2026, 10, 19))).toEqual([]);
 		});
 
 		it('tells its listeners', async () => {

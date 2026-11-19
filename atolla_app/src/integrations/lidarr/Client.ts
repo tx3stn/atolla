@@ -1,7 +1,7 @@
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import type { HttpResponse, HttpTransport } from 'atolla_sync/src/api/Transport';
 import { IntegrationErrors } from '../IntegrationErrors';
-import type { LidarrSystemStatus } from './Models';
+import type { LidarrAlbum, LidarrSystemStatus } from './Models';
 
 export class LidarrClient {
 	constructor(
@@ -9,6 +9,12 @@ export class LidarrClient {
 		private readonly baseUrl: string,
 		private readonly apiKey: string,
 	) {}
+
+	calendar(start: string, end: string): Promise<Array<LidarrAlbum>> {
+		return this.getJson<Array<LidarrAlbum>>(
+			`/api/v1/calendar?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&includeArtist=true`,
+		);
+	}
 
 	status(): Promise<LidarrSystemStatus> {
 		return this.getJson<LidarrSystemStatus>('/api/v1/system/status');

@@ -2,6 +2,7 @@ import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { normalizeServerUrl } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import { IntegrationErrors } from '../IntegrationErrors';
 import type { LidarrClient } from './Client';
+import type { UpcomingService } from './UpcomingService';
 
 const CONNECTION_KEY = 'connection';
 
@@ -13,6 +14,7 @@ export interface LidarrDetails {
 interface LidarrConnectionDeps {
 	createClient: (url: string, apiKey: string) => LidarrClient;
 	store: KeyValueStore;
+	upcoming: UpcomingService;
 }
 
 export class LidarrConnection {
@@ -36,8 +38,9 @@ export class LidarrConnection {
 		return this.apiKey === '' ? null : { apiKey: this.apiKey, url: this.url };
 	}
 
-	disconnect(): Promise<void> {
-		return this.save(this.url, '');
+	async disconnect(): Promise<void> {
+		await this.save(this.url, '');
+		await this.deps.upcoming.clear();
 	}
 
 	async load(): Promise<void> {

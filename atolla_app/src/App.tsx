@@ -43,6 +43,7 @@ import {
 import { IntegrationErrors } from './integrations/IntegrationErrors';
 import { LidarrClient } from './integrations/lidarr/Client';
 import { LidarrConnection } from './integrations/lidarr/Connection';
+import { UpcomingService } from './integrations/lidarr/UpcomingService';
 import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
 import { type ConnectionMode, ConnectionModes } from './models/App';
 import type { Player } from './models/Player';
@@ -168,6 +169,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			enableEncryption: true,
 		}),
 	});
+	private readonly upcoming = new UpcomingService(
+		new PersistentStore('atolla/integrations/lidarr/cache', { deviceGlobal: true }),
+	);
 	private readonly lidarr = new LidarrConnection({
 		createClient: (url, apiKey) =>
 			new LidarrClient(
@@ -179,6 +183,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			deviceGlobal: true,
 			enableEncryption: true,
 		}),
+		upcoming: this.upcoming,
 	});
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
