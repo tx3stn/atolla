@@ -177,6 +177,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		trackCacheMaxTracks: () => this.preferences.trackCacheMaxTracks,
 		uploader: new MediaUploaderNativeAdapter(),
 		userId: () => this.sessionManager.getSession()?.userId ?? '',
+		wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 	});
 	private downloadService = new DownloadService({
 		cacheImage: (id, url, category) => this.assetCache.cacheImageAsset(id, url, category),

@@ -19,6 +19,8 @@ import type { PlayersStore } from '../stores/Players';
 
 const log = getLogger('speaker-output');
 
+const JOIN_RETRY_MS = 5_000;
+
 export type SpeakerClient = Pick<PlayerClient, 'command' | 'hello' | 'media' | 'streamKey'>;
 
 export interface MediaUploader {
@@ -34,6 +36,7 @@ export interface SpeakerOutputOptions {
 	trackCacheMaxTracks: () => number;
 	uploader: MediaUploader;
 	userId: () => string;
+	wait: (ms: number) => Promise<void>;
 }
 
 interface Speaker {
@@ -194,6 +197,7 @@ export class SpeakerOutput {
 
 		if (greeted === null || greeted.status !== 200) {
 			log.warn('could not greet the source, so the speaker cannot join it', { host: source.host });
+			void this.retryJoin(member, source);
 			return;
 		}
 
@@ -212,6 +216,7 @@ export class SpeakerOutput {
 			log.warn('could not get the stream key from the source, so the speaker cannot join it', {
 				host: source.host,
 			});
+			void this.retryJoin(member, source);
 			return;
 		}
 
@@ -291,6 +296,16 @@ export class SpeakerOutput {
 		}
 
 		this.options.uploader.setTarget(source.host, source.port, source.token);
+	}
+
+	private async retryJoin(member: Speaker, source: Speaker): Promise<void> {
+		await this.options.wait(JOIN_RETRY_MS);
+		if (!this.stillJoining(member, source)) {
+			return;
+		}
+
+		member.joinedTo = null;
+		this.sync();
 	}
 
 	private send(speaker: Speaker, command: Command): void {

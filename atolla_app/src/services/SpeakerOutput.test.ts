@@ -170,6 +170,8 @@ async function harness(options: Options = {}) {
 	const mode = { offline: options.offline === true };
 	const targets: Array<Target> = [];
 	const uploadWindows: Array<UploadWindow> = [];
+	const waited: Array<number> = [];
+	const waiting: Array<() => void> = [];
 	const output = new SpeakerOutput({
 		createClient: (baseUrl) => ({
 			command: (token, body) => {
@@ -199,6 +201,12 @@ async function harness(options: Options = {}) {
 			},
 		},
 		userId: () => options.userId ?? 'user-1',
+		wait: (ms) => {
+			waited.push(ms);
+			return new Promise<void>((resolve) => {
+				waiting.push(resolve);
+			});
+		},
 	});
 	let unassigned: (id: string) => void = () => {};
 	playersStore.onUnassigned = (listener) => {
@@ -217,11 +225,18 @@ async function harness(options: Options = {}) {
 		targets.length = 0;
 		uploadWindows.length = 0;
 	};
+	const elapse = async (): Promise<void> => {
+		for (const resolve of waiting.splice(0)) {
+			resolve();
+		}
+		await settle();
+	};
 
 	return {
 		clear,
 		commands,
 		commandsTo,
+		elapse,
 		keyRequests,
 		mode,
 		output,
@@ -232,6 +247,7 @@ async function harness(options: Options = {}) {
 		sentWindows,
 		targets,
 		uploadWindows,
+		waited,
 	};
 }
 
@@ -713,6 +729,82 @@ describe('SpeakerOutput', () => {
 			await settle();
 
 			expect(commandsTo(LOUNGE)).toEqual([]);
+		});
+
+		it('tries joining again 5s after the source did not answer its greeting', async () => {
+			const options: Options = { silent: true, speakers: [KITCHEN, LOUNGE] };
+			const { commandsTo, elapse, playbackStore, playersStore, waited } = await harness(options);
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([]);
+			expect(waited).toEqual([5000]);
+
+			options.silent = false;
+			await elapse();
+
+			expect(commandsTo(LOUNGE)).toEqual([
+				{
+					command: 'joinSource',
+					host: '192.168.1.42',
+					key: STREAM_KEYS[KITCHEN.baseUrl],
+					port: AUDIO_PORT,
+				},
+			]);
+		});
+
+		it('tries joining again 5s after the source did not give its stream key', async () => {
+			const options: Options = { keyRequestFails: true, speakers: [KITCHEN, LOUNGE] };
+			const { commandsTo, elapse, playbackStore, playersStore, waited } = await harness(options);
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([]);
+			expect(waited).toEqual([5000]);
+
+			options.keyRequestFails = false;
+			await elapse();
+
+			expect(commandsTo(LOUNGE)).toEqual([
+				{
+					command: 'joinSource',
+					host: '192.168.1.42',
+					key: STREAM_KEYS[KITCHEN.baseUrl],
+					port: AUDIO_PORT,
+				},
+			]);
+		});
+
+		it('does not try joining again once the member is switched off', async () => {
+			const options: Options = { silent: true, speakers: [KITCHEN, LOUNGE] };
+			const { commandsTo, elapse, playbackStore, playersStore } = await harness(options);
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			playersStore.setEnabled(LOUNGE.id, false);
+			options.silent = false;
+			await elapse();
+
+			expect(commandsTo(LOUNGE)).toEqual([{ command: 'joinSource' }]);
+		});
+
+		it('does not try joining again a source that streams no audio', async () => {
+			const { playbackStore, playersStore, waited } = await harness({
+				speakers: [KITCHEN, LOUNGE],
+				streamsAudio: false,
+			});
+			playbackStore.play([track1, track2], album, 0);
+			playersStore.setEnabled(KITCHEN.id, true);
+			playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+
+			expect(waited).toEqual([]);
 		});
 	});
 
