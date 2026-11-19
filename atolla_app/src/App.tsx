@@ -61,11 +61,12 @@ import { isUnauthorizedCacheError } from './services/NativeCacheResult';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { mintPlayerCredential } from './services/PlayerCredential';
-import { PlayerTransport } from './services/PlayerTransport';
+import { PlayerErrors } from './services/PlayerErrors';
 import { syncToastText } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
 import { SessionManager } from './services/SessionManager';
 import { SpeakerOutput } from './services/SpeakerOutput';
+import { TimedTransport } from './services/TimedTransport';
 import { ToastService, ToastTypes } from './services/ToastService';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
@@ -140,9 +141,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private barColors = new BarColorStore();
 	private playersStore = new PlayersStore({
 		controllerId: () => this.sessionManager.getEffectiveDeviceId(),
-		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
+		createClient: (baseUrl) =>
+			new PlayerClient(
+				baseUrl,
+				new TimedTransport(new HTTPClient(), { timedOut: PlayerErrors.PLAYER_TIMED_OUT }),
+			),
 		createStatusClient: (baseUrl) =>
-			new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient(), { timeoutMs: 30_000 })),
+			new PlayerClient(
+				baseUrl,
+				new TimedTransport(new HTTPClient(), {
+					timedOut: PlayerErrors.PLAYER_TIMED_OUT,
+					timeoutMs: 30_000,
+				}),
+			),
 		deviceName: () => this.sessionManager.getEffectiveDeviceName(),
 		networkTransport: () => this.networkStatus.getTransport(),
 		provisioning: {
@@ -170,7 +181,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	);
 	private playbackStore = new PlaybackStore();
 	private readonly speakerOutput = new SpeakerOutput({
-		createClient: (baseUrl) => new PlayerClient(baseUrl, new PlayerTransport(new HTTPClient())),
+		createClient: (baseUrl) =>
+			new PlayerClient(
+				baseUrl,
+				new TimedTransport(new HTTPClient(), { timedOut: PlayerErrors.PLAYER_TIMED_OUT }),
+			),
 		isOffline: () => this.connectivity.getMode() === ConnectionModes.offline,
 		playbackStore: this.playbackStore,
 		playersStore: this.playersStore,

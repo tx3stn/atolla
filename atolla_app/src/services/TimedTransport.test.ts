@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'bun:test';
+import { InternalError } from 'atolla_core/src/utils/Errors';
 import type { Hello } from 'atolla_sync/src/api/generated';
 import { PlayerClient } from 'atolla_sync/src/api/PlayerClient';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { PlayerErrors } from './PlayerErrors';
-import { PlayerTransport } from './PlayerTransport';
+import { TimedTransport } from './TimedTransport';
+
+const TIMED_OUT = new InternalError('timed_out');
 
 interface Call {
 	body?: Uint8Array;
@@ -65,11 +67,14 @@ function manualTimer() {
 	return { state, timer };
 }
 
-describe('PlayerTransport', () => {
+describe('TimedTransport', () => {
 	it('forwards a get with its headers', async () => {
 		const { calls, client } = answeringClient();
 
-		await new PlayerTransport(client).get('http://192.168.1.42:45889/hello', { Accept: 'x' });
+		await new TimedTransport(client, { timedOut: TIMED_OUT }).get(
+			'http://192.168.1.42:45889/hello',
+			{ Accept: 'x' },
+		);
 
 		expect(calls).toEqual([
 			{ headers: { Accept: 'x' }, method: 'get', url: 'http://192.168.1.42:45889/hello' },
@@ -80,7 +85,9 @@ describe('PlayerTransport', () => {
 		const { calls, client } = answeringClient();
 		const body = new TextEncoder().encode('{}');
 
-		await new PlayerTransport(client).post('http://host:1/pair', body, { 'Content-Type': 'json' });
+		await new TimedTransport(client, { timedOut: TIMED_OUT }).post('http://host:1/pair', body, {
+			'Content-Type': 'json',
+		});
 
 		expect(calls).toEqual([
 			{
@@ -96,7 +103,11 @@ describe('PlayerTransport', () => {
 		const { calls, client } = answeringClient();
 		const body = new TextEncoder().encode('{}');
 
-		await new PlayerTransport(client).put('http://host:1/media-server', body, { A: 'b' });
+		await new TimedTransport(client, { timedOut: TIMED_OUT }).put(
+			'http://host:1/media-server',
+			body,
+			{ A: 'b' },
+		);
 
 		expect(calls).toEqual([
 			{ body, headers: { A: 'b' }, method: 'put', url: 'http://host:1/media-server' },
@@ -111,33 +122,41 @@ describe('PlayerTransport', () => {
 		};
 		const { client } = answeringClient(response);
 
-		expect(await new PlayerTransport(client).get('http://host:1/hello')).toBe(response);
+		expect(await new TimedTransport(client, { timedOut: TIMED_OUT }).get('http://host:1/hello')).toBe(
+			response,
+		);
 	});
 
 	it('passes a rejection through as it arrives', async () => {
 		const failure = new Error('network down');
 		const client = { get: () => Promise.reject(failure) } as unknown as IHTTPClient;
 
-		await expect(new PlayerTransport(client).get('http://host:1/hello')).rejects.toBe(failure);
+		await expect(
+			new TimedTransport(client, { timedOut: TIMED_OUT }).get('http://host:1/hello'),
+		).rejects.toBe(failure);
 	});
 
-	it('gives up on a request that never answers', async () => {
+	it('rejects with the error it was given when a request never answers', async () => {
 		const { client } = silentClient();
 		const { state, timer } = manualTimer();
 
-		const request = new PlayerTransport(client, { timeoutMs: 15_000, timer }).get(
-			'http://host:1/hello',
-		);
+		const request = new TimedTransport(client, {
+			timedOut: TIMED_OUT,
+			timeoutMs: 15_000,
+			timer,
+		}).get('http://host:1/hello');
 		state.fire();
 
-		await expect(request).rejects.toBe(PlayerErrors.PLAYER_TIMED_OUT);
+		await expect(request).rejects.toBe(TIMED_OUT);
 	});
 
 	it('cancels the underlying request when it gives up', () => {
 		const { cancels, client } = silentClient();
 		const { state, timer } = manualTimer();
 
-		const request = new PlayerTransport(client, { timer }).get('http://host:1/hello');
+		const request = new TimedTransport(client, { timedOut: TIMED_OUT, timer }).get(
+			'http://host:1/hello',
+		);
 		request.then(
 			() => {},
 			() => {},
@@ -151,7 +170,9 @@ describe('PlayerTransport', () => {
 		const { client } = silentClient();
 		const { state, timer } = manualTimer();
 
-		void new PlayerTransport(client, { timeoutMs: 25_000, timer }).get('http://host:1/state');
+		void new TimedTransport(client, { timedOut: TIMED_OUT, timeoutMs: 25_000, timer }).get(
+			'http://host:1/state',
+		);
 
 		expect(state.scheduledMs).toBe(25_000);
 	});
@@ -160,7 +181,7 @@ describe('PlayerTransport', () => {
 		const { client } = silentClient();
 		const { state, timer } = manualTimer();
 
-		void new PlayerTransport(client, { timer }).get('http://host:1/hello');
+		void new TimedTransport(client, { timedOut: TIMED_OUT, timer }).get('http://host:1/hello');
 
 		expect(state.scheduledMs).toBe(15_000);
 	});
@@ -169,7 +190,7 @@ describe('PlayerTransport', () => {
 		const { client } = answeringClient();
 		const { state, timer } = manualTimer();
 
-		await new PlayerTransport(client, { timer }).get('http://host:1/hello');
+		await new TimedTransport(client, { timedOut: TIMED_OUT, timer }).get('http://host:1/hello');
 
 		expect(state.cleared).toBe(1);
 	});
@@ -178,7 +199,9 @@ describe('PlayerTransport', () => {
 		const { client } = answeringClient();
 		const { state, timer } = manualTimer();
 
-		const answer = await new PlayerTransport(client, { timer }).get('http://host:1/hello');
+		const answer = await new TimedTransport(client, { timedOut: TIMED_OUT, timer }).get(
+			'http://host:1/hello',
+		);
 		state.fire();
 
 		expect(answer.statusCode).toBe(204);
@@ -201,7 +224,7 @@ describe('PlayerTransport', () => {
 
 		const answer = await new PlayerClient(
 			'http://192.168.1.42:45889',
-			new PlayerTransport(client),
+			new TimedTransport(client, { timedOut: TIMED_OUT }),
 		).hello();
 
 		expect(calls[0]?.url).toBe('http://192.168.1.42:45889/hello');
@@ -213,7 +236,9 @@ describe('PlayerTransport', () => {
 		const { cancels, client } = silentClient();
 		const { timer } = manualTimer();
 
-		const request = new PlayerTransport(client, { timer }).get('http://host:1/hello');
+		const request = new TimedTransport(client, { timedOut: TIMED_OUT, timer }).get(
+			'http://host:1/hello',
+		);
 		request.then(
 			() => {},
 			() => {},

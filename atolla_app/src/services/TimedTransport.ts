@@ -1,4 +1,5 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
+import type { InternalError } from 'atolla_core/src/utils/Errors';
 import { defaultTimer, type TimerFn } from 'atolla_core/src/utils/Timer';
 import type {
 	HttpHeaders,
@@ -9,25 +10,27 @@ import type {
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { PlayerErrors } from './PlayerErrors';
 
-const log = getLogger('player-transport');
+const log = getLogger('timed-transport');
 
 const defaultRequestTimeoutMs = 15_000;
 
-interface PlayerTransportOptions {
+interface TimedTransportOptions {
+	timedOut: InternalError<string>;
 	timeoutMs?: number;
 	timer?: TimerFn;
 }
 
-export class PlayerTransport implements HttpTransport {
+export class TimedTransport implements HttpTransport {
+	private readonly timedOut: InternalError<string>;
 	private readonly timeoutMs: number;
 	private readonly timer: TimerFn;
 
 	constructor(
 		private readonly client: IHTTPClient,
-		options: PlayerTransportOptions = {},
+		options: TimedTransportOptions,
 	) {
+		this.timedOut = options.timedOut;
 		this.timeoutMs = options.timeoutMs ?? defaultRequestTimeoutMs;
 		this.timer = options.timer ?? defaultTimer;
 	}
@@ -63,7 +66,7 @@ export class PlayerTransport implements HttpTransport {
 				if (!finish()) return;
 
 				log.warn('request timed out', { method, timeoutMs: this.timeoutMs, url });
-				reject(PlayerErrors.PLAYER_TIMED_OUT);
+				reject(this.timedOut);
 				request.cancel?.();
 			}, this.timeoutMs);
 
