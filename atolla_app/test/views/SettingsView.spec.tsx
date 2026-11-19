@@ -249,6 +249,49 @@ describe('SettingsView', () => {
 		expect(preferences.onThisDayLookaheadDays).toBe(7);
 	});
 
+	valdiIt('writes the selected upcoming limit to preferences', async (driver) => {
+		const preferences = mockPreferences();
+		const lidarr = makeLidarr();
+		await lidarr.connect('http://lidarr.local:8686', 'key-1');
+		const component = driver.renderComponent(
+			SettingsView,
+			makeViewModel({ lidarr, preferences }),
+			undefined,
+		);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-upcoming-limit-dropdown')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityId') === 'settings-upcoming-limit-option-3')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(preferences.upcomingLimit).toBe(3);
+	});
+
+	valdiIt('hides the upcoming limit while lidarr is not connected', async (driver) => {
+		const component = driver.renderComponent(SettingsView, makeViewModel(), undefined);
+
+		expect(
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).find(
+				(v) => v.getAttribute('accessibilityLabel') === 'settings-upcoming-limit-dropdown',
+			),
+		).toBeUndefined();
+	});
+
+	valdiIt('shows the upcoming limit once lidarr is connected', async (driver) => {
+		const lidarr = makeLidarr();
+		const component = driver.renderComponent(SettingsView, makeViewModel({ lidarr }), undefined);
+
+		await lidarr.connect('http://lidarr.local:8686', 'key-1');
+
+		expect(
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).find(
+				(v) => v.getAttribute('accessibilityLabel') === 'settings-upcoming-limit-dropdown',
+			),
+		).toBeDefined();
+	});
+
 	valdiIt('toggling animations writes to preferences', async (driver) => {
 		const preferences = mockPreferences();
 		const viewModel = makeViewModel({ preferences });

@@ -92,6 +92,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
 	private cachedUpcomingAlbumsRef: Array<UpcomingAlbum> | null = null;
 	private cachedUpcomingCards: Array<CardDetailItem> = [];
+	private cachedUpcomingLimit = -1;
 	private subscribedPinnedItemsStore: PinnedItemsStore | undefined;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbum: Album | null = null;
@@ -419,12 +420,17 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private createUpcomingCards(): Array<CardDetailItem> {
-		if (this.state.upcomingAlbums === this.cachedUpcomingAlbumsRef) {
+		const limit = this.viewModel.preferences.upcomingLimit;
+		if (
+			this.state.upcomingAlbums === this.cachedUpcomingAlbumsRef &&
+			limit === this.cachedUpcomingLimit
+		) {
 			return this.cachedUpcomingCards;
 		}
 
 		this.cachedUpcomingAlbumsRef = this.state.upcomingAlbums;
-		this.cachedUpcomingCards = createUpcomingCardDetails(this.state.upcomingAlbums);
+		this.cachedUpcomingLimit = limit;
+		this.cachedUpcomingCards = createUpcomingCardDetails(this.state.upcomingAlbums.slice(0, limit));
 		return this.cachedUpcomingCards;
 	}
 

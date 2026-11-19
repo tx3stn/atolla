@@ -517,6 +517,42 @@ describe('HomeView upcoming', () => {
 		expect(labelValues(component)).toContain('2099-01-15');
 	});
 
+	valdiIt('shows only as many upcoming albums as chosen, soonest first', async (driver) => {
+		const base = makeBaseDeps();
+		await base.preferences.setUpcomingLimit(3);
+		const { lidarr, upcoming } = await connectedLidarr(fourReleases());
+
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(upcomingCardIds(component)).toEqual([
+			'card-detail-lidarr-1',
+			'card-detail-lidarr-2',
+			'card-detail-lidarr-3',
+		]);
+	});
+
+	valdiIt('shows more upcoming albums once the limit is raised', async (driver) => {
+		const base = makeBaseDeps();
+		await base.preferences.setUpcomingLimit(3);
+		const { lidarr, upcoming } = await connectedLidarr(fourReleases());
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		await base.preferences.setUpcomingLimit(5);
+		await flushAsyncWork();
+
+		expect(upcomingCardIds(component).length).toBe(4);
+	});
+
 	valdiIt('shows the saved list without asking lidarr while offline', async (driver) => {
 		const base = makeBaseDeps();
 		const { calendarCalls, lidarr, upcoming } = await connectedLidarr([lidarrAlbum({ id: 1 })]);
@@ -583,6 +619,15 @@ function lidarrAlbum(overrides: Partial<LidarrAlbum> = {}): LidarrAlbum {
 		title: 'Axe to Fall',
 		...overrides,
 	};
+}
+
+function fourReleases(): Array<LidarrAlbum> {
+	return [
+		lidarrAlbum({ id: 4, releaseDate: '2099-04-01T00:00:00Z' }),
+		lidarrAlbum({ id: 2, releaseDate: '2099-02-01T00:00:00Z' }),
+		lidarrAlbum({ id: 1, releaseDate: '2099-01-01T00:00:00Z' }),
+		lidarrAlbum({ id: 3, releaseDate: '2099-03-01T00:00:00Z' }),
+	];
 }
 
 function unconnectedLidarr(albums: Array<LidarrAlbum>) {

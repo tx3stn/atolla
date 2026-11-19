@@ -578,6 +578,9 @@
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"
 	},
+	"settings_upcoming_limit": {
+		"defaultMessage": "albums à venir affichés"
+	},
 	"shuffle": {
 		"defaultMessage": "aléatoire"
 	},

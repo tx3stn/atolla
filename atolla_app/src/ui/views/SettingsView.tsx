@@ -40,6 +40,7 @@ import {
 	ON_THIS_DAY_LOOKAHEAD_OPTIONS,
 	type Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
+	UPCOMING_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
 import {
 	clearAtollaTrackCache,
@@ -96,6 +97,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(this.viewModel.downloadService.subscribe(this.bump));
+		this.registerDisposable(this.viewModel.lidarr.subscribe(this.bump));
 		if (this.viewModel.visible) {
 			this.startStatsPolling();
 		}
@@ -310,6 +312,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 							options={ON_THIS_DAY_LOOKAHEAD_OPTIONS}
 							selectedValue={selectedOnThisDayLookahead}
 						/>
+						{this.viewModel.lidarr.connected() !== null && (
+							<SelectOption
+								accessibilityId='settings-upcoming-limit'
+								label={Strings.settingsUpcomingLimit()}
+								onSelect={this.handleUpcomingLimitSelect}
+								options={UPCOMING_LIMIT_OPTIONS}
+								selectedValue={this.viewModel.preferences.upcomingLimit}
+							/>
+						)}
 					</view>
 
 					<IntegrationsSection
@@ -580,6 +591,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		void this.viewModel.preferences.setTrackCacheMaxTracks(count);
 		this.applyTrackCacheLimit(count);
 		this.refreshTrackCachedCount();
+	};
+
+	private handleUpcomingLimitSelect = (limit: number): void => {
+		void this.viewModel.preferences.setUpcomingLimit(limit);
 	};
 
 	private refreshNativeCacheStats(): void {

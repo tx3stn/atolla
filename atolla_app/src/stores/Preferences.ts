@@ -13,6 +13,8 @@ export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35];
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
 export const ON_THIS_DAY_LOOKAHEAD_OPTIONS = [1, 3, 5, 7, 10, 14];
 export const DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS = 1;
+export const UPCOMING_LIMIT_OPTIONS = [3, 5, 10];
+export const DEFAULT_UPCOMING_LIMIT = 5;
 
 const PreferenceKeys = {
 	cardSize: 'card_size',
@@ -28,6 +30,7 @@ const PreferenceKeys = {
 	navigationAnimationsEnabled: 'navigation_animations_enabled',
 	onThisDayLookaheadDays: 'on_this_day_lookahead_days',
 	trackCacheMaxTracks: 'track_cache_max_tracks',
+	upcomingLimit: 'upcoming_limit',
 } as const;
 
 const DEVICE_ID_CHUNKS = 4;
@@ -73,6 +76,7 @@ export class Preferences {
 	private _mode: ConnectionMode = ConnectionModes.offline;
 	private _onThisDayLookaheadDays = DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS;
 	private _trackCacheMaxTracks = DEFAULT_TRACK_CACHE_MAX_TRACKS;
+	private _upcomingLimit = DEFAULT_UPCOMING_LIMIT;
 
 	constructor(
 		store?: PreferencesStore,
@@ -146,6 +150,10 @@ export class Preferences {
 
 	get trackCacheMaxTracks(): number {
 		return this._trackCacheMaxTracks;
+	}
+
+	get upcomingLimit(): number {
+		return this._upcomingLimit;
 	}
 
 	async getAnimationsEnabled(): Promise<boolean> {
@@ -293,6 +301,18 @@ export class Preferences {
 		}
 	}
 
+	async getUpcomingLimit(): Promise<number> {
+		try {
+			const value = Number(await this.store.fetchString(PreferenceKeys.upcomingLimit));
+			if (UPCOMING_LIMIT_OPTIONS.includes(value as (typeof UPCOMING_LIMIT_OPTIONS)[number])) {
+				return value;
+			}
+			return DEFAULT_UPCOMING_LIMIT;
+		} catch {
+			return DEFAULT_UPCOMING_LIMIT;
+		}
+	}
+
 	async hasMode(): Promise<boolean> {
 		try {
 			return (await this.store.exists?.(PreferenceKeys.mode)) ?? false;
@@ -316,6 +336,7 @@ export class Preferences {
 			mode,
 			onThisDayLookaheadDays,
 			trackCacheMaxTracks,
+			upcomingLimit,
 		] = await Promise.all([
 			this.getAnimationsEnabled(),
 			this.getCardSize(),
@@ -330,6 +351,7 @@ export class Preferences {
 			this.getMode(),
 			this.getOnThisDayLookaheadDays(),
 			this.getTrackCacheMaxTracks(),
+			this.getUpcomingLimit(),
 		]);
 		this._animationsEnabled = animationsEnabled;
 		this._cardSize = cardSize;
@@ -344,6 +366,7 @@ export class Preferences {
 		this._mode = mode;
 		this._onThisDayLookaheadDays = onThisDayLookaheadDays;
 		this._trackCacheMaxTracks = trackCacheMaxTracks;
+		this._upcomingLimit = upcomingLimit;
 		this.notify();
 	}
 
@@ -452,6 +475,17 @@ export class Preferences {
 			this.notify();
 		}
 		return this.store.storeString(PreferenceKeys.trackCacheMaxTracks, String(count));
+	}
+
+	setUpcomingLimit(limit: number): Promise<void> {
+		if (!UPCOMING_LIMIT_OPTIONS.includes(limit as (typeof UPCOMING_LIMIT_OPTIONS)[number])) {
+			return Promise.resolve();
+		}
+		if (this._upcomingLimit !== limit) {
+			this._upcomingLimit = limit;
+			this.notify();
+		}
+		return this.store.storeString(PreferenceKeys.upcomingLimit, String(limit));
 	}
 
 	subscribe(listener: () => void): () => void {

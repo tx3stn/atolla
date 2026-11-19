@@ -5,6 +5,7 @@ import {
 	DEFAULT_CARD_SIZE,
 	DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	DEFAULT_UPCOMING_LIMIT,
 	ON_THIS_DAY_LOOKAHEAD_OPTIONS,
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
@@ -176,6 +177,52 @@ describe('Preferences', () => {
 
 			await expectAsync(store.fetchString('on_this_day_lookahead_days')).toBeRejected();
 			expect(preferences.onThisDayLookaheadDays).toBe(DEFAULT_ON_THIS_DAY_LOOKAHEAD_DAYS);
+		});
+	});
+
+	describe('getUpcomingLimit()', () => {
+		it('returns default when preference is missing', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			expect(await preferences.getUpcomingLimit()).toBe(DEFAULT_UPCOMING_LIMIT);
+		});
+
+		it('returns default when stored value is invalid', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('upcoming_limit', '7');
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getUpcomingLimit()).toBe(DEFAULT_UPCOMING_LIMIT);
+		});
+
+		it('returns stored value when allowed', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('upcoming_limit', '10');
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getUpcomingLimit()).toBe(10);
+		});
+	});
+
+	describe('setUpcomingLimit()', () => {
+		it('stores allowed value', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setUpcomingLimit(3);
+
+			expect(await store.fetchString('upcoming_limit')).toBe('3');
+			expect(preferences.upcomingLimit).toBe(3);
+		});
+
+		it('ignores disallowed value', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setUpcomingLimit(7);
+
+			await expectAsync(store.fetchString('upcoming_limit')).toBeRejected();
+			expect(preferences.upcomingLimit).toBe(DEFAULT_UPCOMING_LIMIT);
 		});
 	});
 

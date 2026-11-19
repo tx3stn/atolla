@@ -578,6 +578,9 @@
 	"settings_title": {
 		"defaultMessage": "SETTINGS"
 	},
+	"settings_upcoming_limit": {
+		"defaultMessage": "upcoming albums shown"
+	},
 	"shuffle": {
 		"defaultMessage": "shuffle"
 	},
