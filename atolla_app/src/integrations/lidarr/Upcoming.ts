@@ -1,4 +1,6 @@
 import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
+import type { CardDetailItem } from '../../models/App';
+import { formatReleaseDate } from '../../utils/Date';
 import type { LidarrAlbum } from './Models';
 
 export interface UpcomingAlbum {
@@ -7,6 +9,17 @@ export interface UpcomingAlbum {
 	id: string;
 	releaseDate: string;
 	title: string;
+}
+
+export function createUpcomingCardDetails(albums: Array<UpcomingAlbum>): Array<CardDetailItem> {
+	return albums.map((album) => ({
+		artworkKey: album.coverUrl ?? '',
+		id: `lidarr-${album.id}`,
+		kind: 'album',
+		lineOne: formatReleaseDate(album.releaseDate) ?? '',
+		lineThree: album.artistName,
+		lineTwo: album.title,
+	}));
 }
 
 export function toUpcomingAlbums(albums: Array<LidarrAlbum>): Array<UpcomingAlbum> {

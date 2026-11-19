@@ -13,6 +13,9 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
+import type { LidarrConnection } from '../../integrations/lidarr/Connection';
+import { createUpcomingCardDetails, type UpcomingAlbum } from '../../integrations/lidarr/Upcoming';
+import type { UpcomingService } from '../../integrations/lidarr/UpcomingService';
 import type { CardDetailItem } from '../../models/App';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import type { EntityRef } from '../../services/EntityTracks';
@@ -47,6 +50,7 @@ const log = getLogger('home');
 
 export interface HomeViewModel {
 	connectionMode: ConnectionMode;
+	lidarr: LidarrConnection;
 	lyricsService: LyricsService;
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -61,6 +65,7 @@ export interface HomeViewModel {
 	recentlyPlayedTracks: Array<Track>;
 	toastService: ToastService;
 	transport: Transport;
+	upcoming: UpcomingService;
 }
 
 interface HomeState {
@@ -70,6 +75,7 @@ interface HomeState {
 	pinnedItems: Array<PinnedItemEntry>;
 	recentlyAddedAlbums: Array<Album>;
 	revision: number;
+	upcomingAlbums: Array<UpcomingAlbum>;
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
@@ -84,6 +90,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedRecentlyAddedGridColumns = -1;
 	private cachedPinnedCards: Array<Card> = [];
 	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
+	private cachedUpcomingAlbumsRef: Array<UpcomingAlbum> | null = null;
+	private cachedUpcomingCards: Array<CardDetailItem> = [];
 	private subscribedPinnedItemsStore: PinnedItemsStore | undefined;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbum: Album | null = null;
@@ -97,12 +105,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		pinnedItems: [],
 		recentlyAddedAlbums: [],
 		revision: 0,
+		upcomingAlbums: [],
 	};
 
 	onCreate(): void {
 		this.lastKnownGridColumns = this.viewModel.preferences.gridColumns;
 		this.lastKnownOnThisDayLookahead = this.viewModel.preferences.onThisDayLookaheadDays;
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.handlePreferencesChange));
+		this.registerDisposable(this.viewModel.lidarr.subscribe(this.handleLidarrChange));
 		this.registerDisposable(this.playlistFlow.cancel);
 		this.loadAlbums();
 		this.subscribeToPinnedItemsStore();
@@ -113,12 +123,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const pinnedCards = this.createPinnedCards();
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
+		const upcomingCards = this.createUpcomingCards();
 
 		log.debug('render', {
 			onThisDay: onThisDayCards.length,
 			pinned: pinnedCards.length,
 			recentlyAdded: recentlyAddedCards.length,
 			recentlyPlayed: recentlyPlayedTracks.length,
+			upcoming: upcomingCards.length,
 		});
 
 		<layout accessibilityLabel='home-view' style={styles.root}>
@@ -205,6 +217,25 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
 						)}
 					</layout>
+
+					{this.viewModel.lidarr.connected() !== null && (
+						<layout style={styles.section}>
+							<HomeSectionHeader
+								accessibilityId='home-section-upcoming'
+								title={Strings.homeSectionUpcoming()}
+							/>
+							{upcomingCards.length > 0 ? (
+								<CardDetailList
+									accessibilityId='home-upcoming-grid'
+									cards={upcomingCards}
+									columnCount={this.viewModel.preferences.detailColumns}
+									onCardTap={this.handleUpcomingCardTap}
+								/>
+							) : (
+								<label style={styles.emptyState} value={Strings.homeNoUpcoming()} />
+							)}
+						</layout>
+					)}
 				</layout>
 			</RefreshableScroll>
 		</layout>;
@@ -270,6 +301,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		void Promise.all([
 			this.loadOnThisDay(generation, true),
 			online ? this.loadRecentlyAdded(generation) : Promise.resolve(),
+			this.loadUpcoming(generation),
 		]).then(() => {
 			if (!this.isDestroyed()) {
 				this.setState({ isRefreshing: false });
@@ -281,6 +313,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
 		void this.loadOnThisDay(generation);
+		void this.loadUpcoming(generation);
 		this.restoreCachedRecentlyAdded(generation);
 
 		// offline only has downloaded albums, so keep the last full-library snapshot rather than overwrite home with the downloads subset
@@ -383,6 +416,70 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				this.setState({ recentlyAddedAlbums: albums });
 			})
 			.catch(() => {});
+	}
+
+	private createUpcomingCards(): Array<CardDetailItem> {
+		if (this.state.upcomingAlbums === this.cachedUpcomingAlbumsRef) {
+			return this.cachedUpcomingCards;
+		}
+
+		this.cachedUpcomingAlbumsRef = this.state.upcomingAlbums;
+		this.cachedUpcomingCards = createUpcomingCardDetails(this.state.upcomingAlbums);
+		return this.cachedUpcomingCards;
+	}
+
+	private handleLidarrChange = (): void => {
+		void this.loadUpcoming(this.loadGeneration);
+	};
+
+	private handleUpcomingCardTap = (): void => {};
+
+	private loadUpcoming(generation: number): Promise<void> {
+		const { lidarr, upcoming } = this.viewModel;
+		const client = lidarr.client();
+		if (client === null) {
+			this.setState({ upcomingAlbums: [] });
+			return Promise.resolve();
+		}
+
+		return upcoming
+			.ensureLoaded()
+			.then(() => {
+				if (this.isDestroyed() || generation !== this.loadGeneration) {
+					return;
+				}
+				this.setState({ upcomingAlbums: upcoming.albums(new Date()) });
+
+				if (this.viewModel.connectionMode === ConnectionModes.offline) {
+					return undefined;
+				}
+
+				return upcoming.refresh(client, new Date()).then(() => {
+					if (this.isDestroyed() || generation !== this.loadGeneration) {
+						return;
+					}
+					const albums = upcoming.albums(new Date());
+					this.setState({ upcomingAlbums: albums });
+					this.preloadUpcomingArtwork(albums);
+				});
+			})
+			.catch((error: unknown) => {
+				log.warn('could not refresh upcoming albums', { error });
+			});
+	}
+
+	private preloadUpcomingArtwork(albums: Array<UpcomingAlbum>): void {
+		try {
+			preloadAtollaImages(
+				createUpcomingCardDetails(albums)
+					.filter((card) => card.artworkKey !== '')
+					.map((card) =>
+						buildImageSource({ category: 'album_art_thumb', id: card.id, url: card.artworkKey }),
+					),
+			);
+		} catch {
+			// non-Android targets have no native preload bridge
+		}
 	}
 
 	// the cards depend on today's date, so the day is part of the cache key: an app left open

@@ -12,6 +12,8 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { LidarrConnection } from '../../integrations/lidarr/Connection';
+import type { UpcomingService } from '../../integrations/lidarr/UpcomingService';
 import type { ConnectionMode } from '../../models/App';
 import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
@@ -34,6 +36,7 @@ import { HomeView } from '../views/HomeView';
 export interface HomeTabViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
+	lidarr: LidarrConnection;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
@@ -47,6 +50,7 @@ export interface HomeTabViewModel {
 	recentlyPlayedTracks: Array<Track>;
 	toastService: ToastService;
 	transport: Transport;
+	upcoming: UpcomingService;
 	viewCache: ViewCache;
 }
 
@@ -62,6 +66,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 
 					<HomeView
 						connectionMode={this.viewModel.connectionMode}
+						lidarr={this.viewModel.lidarr}
 						lyricsService={this.viewModel.lyricsService}
 						modalSlot={this.viewModel.modalSlot}
 						onNavigateToArtist={this.handleArtistTap}
@@ -76,6 +81,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 						recentlyPlayedTracks={this.viewModel.recentlyPlayedTracks}
 						toastService={this.viewModel.toastService}
 						transport={this.viewModel.transport}
+						upcoming={this.viewModel.upcoming}
 					/>;
 				})}
 			</NavigationRoot>

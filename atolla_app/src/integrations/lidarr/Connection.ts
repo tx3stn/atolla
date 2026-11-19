@@ -24,6 +24,10 @@ export class LidarrConnection {
 
 	constructor(private readonly deps: LidarrConnectionDeps) {}
 
+	client(): LidarrClient | null {
+		return this.apiKey === '' ? null : this.deps.createClient(this.url, this.apiKey);
+	}
+
 	async connect(url: string, apiKey: string): Promise<void> {
 		const normalizedUrl = normalizeServerUrl(url);
 		const trimmedKey = apiKey.trim();

@@ -191,6 +191,9 @@
 	"home_no_anniversaries": {
 		"defaultMessage": "aucun anniversaire aujourd'hui"
 	},
+	"home_no_upcoming": {
+		"defaultMessage": "rien à venir"
+	},
 	"home_nothing_pinned": {
 		"defaultMessage": "rien d'épinglé"
 	},
@@ -211,6 +214,9 @@
 	},
 	"home_section_recently_played": {
 		"defaultMessage": "ÉCOUTÉS RÉCEMMENT"
+	},
+	"home_section_upcoming": {
+		"defaultMessage": "À VENIR"
 	},
 	"home_title": {
 		"defaultMessage": "ACCUEIL"

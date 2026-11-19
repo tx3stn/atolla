@@ -568,6 +568,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return {
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
+			lidarr: this.lidarr,
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
@@ -580,6 +581,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),
 			toastService: this.toastService,
 			transport: this.connectivity.getTransport(),
+			upcoming: this.upcoming,
 			viewCache: this.userScope.getViewCache(),
 		};
 	}

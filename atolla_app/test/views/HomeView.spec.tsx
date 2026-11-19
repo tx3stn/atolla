@@ -1,5 +1,10 @@
 import 'jasmine/src/jasmine';
+import { LidarrClient } from 'atolla_app/src/integrations/lidarr/Client';
+import { LidarrConnection } from 'atolla_app/src/integrations/lidarr/Connection';
+import type { LidarrAlbum } from 'atolla_app/src/integrations/lidarr/Models';
+import { UpcomingService } from 'atolla_app/src/integrations/lidarr/UpcomingService';
 import { ConnectionModes } from 'atolla_app/src/models/App';
+import Strings from 'atolla_app/src/Strings';
 import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import type { OnThisDayService } from 'atolla_app/src/services/OnThisDayService';
 import type { RecentlyAddedService } from 'atolla_app/src/services/RecentlyAddedService';
@@ -8,8 +13,10 @@ import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { HomeView, type HomeViewModel } from 'atolla_app/src/ui/views/HomeView';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import type { HttpTransport } from 'atolla_sync/src/api/Transport';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';
@@ -93,14 +100,17 @@ function makeRecentlyAddedService() {
 }
 
 function makeBaseDeps() {
+	const { lidarr, upcoming } = unconnectedLidarr([]);
 	return {
 		connectionMode: ConnectionModes.online,
+		lidarr,
 		lyricsService: {} as LyricsService,
 		onOpenAlbum: () => {},
 		playbackStore: { subscribe: () => () => {} } as unknown as PlaybackStore,
 		preferences: new Preferences({ fetchString: async () => '', storeString: async () => {} }),
 		toastService: { show: () => {}, subscribe: () => () => {} } as unknown as ToastService,
 		transport: {} as Transport,
+		upcoming,
 	};
 }
 
@@ -462,3 +472,163 @@ describe('HomeView', () => {
 		expect(menu).toBeUndefined();
 	});
 });
+
+describe('HomeView upcoming', () => {
+	valdiIt('shows no upcoming section while lidarr is not connected', async (driver) => {
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel(makeBaseDeps(), undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(findByLabel(component, 'home-section-upcoming')).toBeUndefined();
+	});
+
+	valdiIt('says nothing is upcoming when lidarr has nothing coming', async (driver) => {
+		const base = makeBaseDeps();
+		const { lidarr, upcoming } = await connectedLidarr([]);
+
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(labelValues(component)).toContain(Strings.homeNoUpcoming());
+	});
+
+	valdiIt('shows upcoming albums soonest first with their release dates', async (driver) => {
+		const base = makeBaseDeps();
+		const { lidarr, upcoming } = await connectedLidarr([
+			lidarrAlbum({ id: 1, releaseDate: '2099-03-01T00:00:00Z', title: 'Jane Doe' }),
+			lidarrAlbum({ id: 2, releaseDate: '2099-01-15T00:00:00Z', title: 'Axe to Fall' }),
+		]);
+
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(upcomingCardIds(component)).toEqual(['card-detail-lidarr-2', 'card-detail-lidarr-1']);
+		expect(labelValues(component)).toContain('2099-01-15');
+	});
+
+	valdiIt('shows the saved list without asking lidarr while offline', async (driver) => {
+		const base = makeBaseDeps();
+		const { calendarCalls, lidarr, upcoming } = await connectedLidarr([lidarrAlbum({ id: 1 })]);
+		const client = lidarr.client();
+		if (client === null) {
+			throw new Error('lidarr should be connected');
+		}
+		await upcoming.refresh(client, new Date());
+
+		const component = driver.renderComponent(
+			HomeView,
+			{
+				...buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+				connectionMode: ConnectionModes.offline,
+			},
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(calendarCalls.count).toBe(1);
+		expect(upcomingCardIds(component)).toEqual(['card-detail-lidarr-1']);
+	});
+
+	valdiIt('shows the section once lidarr is connected', async (driver) => {
+		const base = makeBaseDeps();
+		const { lidarr, upcoming } = unconnectedLidarr([lidarrAlbum({ id: 1 })]);
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		await lidarr.connect('http://lidarr.local:8686', 'key-1');
+		await flushAsyncWork();
+
+		expect(upcomingCardIds(component)).toEqual(['card-detail-lidarr-1']);
+	});
+
+	valdiIt('hides the section once lidarr is disconnected', async (driver) => {
+		const base = makeBaseDeps();
+		const { lidarr, upcoming } = await connectedLidarr([lidarrAlbum({ id: 1 })]);
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+		expect(findByLabel(component, 'home-section-upcoming')).toBeDefined();
+
+		await lidarr.disconnect();
+		await flushAsyncWork();
+
+		expect(findByLabel(component, 'home-section-upcoming')).toBeUndefined();
+	});
+});
+
+function lidarrAlbum(overrides: Partial<LidarrAlbum> = {}): LidarrAlbum {
+	return {
+		artist: { artistName: 'Converge' },
+		id: 1,
+		images: [],
+		releaseDate: '2099-01-15T00:00:00Z',
+		title: 'Axe to Fall',
+		...overrides,
+	};
+}
+
+function unconnectedLidarr(albums: Array<LidarrAlbum>) {
+	const calendarCalls = { count: 0 };
+	const transport: HttpTransport = {
+		get: (url) => {
+			const isCalendar = url.includes('/api/v1/calendar');
+			if (isCalendar) {
+				calendarCalls.count += 1;
+			}
+			const body = isCalendar ? JSON.stringify(albums) : '{"appName":"Lidarr"}';
+			return Promise.resolve({
+				body: new TextEncoder().encode(body),
+				headers: {},
+				statusCode: 200,
+			});
+		},
+		post: () => Promise.reject(new Error('unused')),
+		put: () => Promise.reject(new Error('unused')),
+	};
+	const upcoming = new UpcomingService(new InMemoryKeyValueStore());
+	const lidarr = new LidarrConnection({
+		createClient: (url, apiKey) => new LidarrClient(transport, url, apiKey),
+		store: new InMemoryKeyValueStore(),
+		upcoming,
+	});
+
+	return { calendarCalls, lidarr, upcoming };
+}
+
+async function connectedLidarr(albums: Array<LidarrAlbum>) {
+	const unconnected = unconnectedLidarr(albums);
+	await unconnected.lidarr.connect('http://lidarr.local:8686', 'key-1');
+
+	return unconnected;
+}
+
+function labelValues(component: unknown): Array<unknown> {
+	return elementTypeFind(
+		componentGetElements(component as never),
+		IRenderedElementViewClass.Label,
+	).map((label) => label.getAttribute('value'));
+}
+
+function upcomingCardIds(component: unknown): Array<unknown> {
+	return elementTypeFind(componentGetElements(component as never), IRenderedElementViewClass.View)
+		.map((view) => view.getAttribute('accessibilityId'))
+		.filter((id) => typeof id === 'string' && id.startsWith('card-detail-lidarr-'));
+}

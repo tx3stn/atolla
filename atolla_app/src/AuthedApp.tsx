@@ -112,6 +112,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						<HomeTab
 							connectionMode={home.connectionMode}
 							downloadService={home.downloadService}
+							lidarr={home.lidarr}
 							lyricsService={home.lyricsService}
 							modalSlot={home.modalSlot}
 							networkStatus={home.networkStatus}
@@ -125,6 +126,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							recentlyPlayedTracks={home.recentlyPlayedTracks}
 							toastService={home.toastService}
 							transport={home.transport}
+							upcoming={home.upcoming}
 							viewCache={home.viewCache}
 						/>
 					</ErrorBoundary>

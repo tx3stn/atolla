@@ -157,6 +157,29 @@ describe('LidarrConnection', () => {
 		});
 	});
 
+	describe('client', () => {
+		it('talks to the saved server with the saved key', async () => {
+			const { keys, transport, urls } = server(200, lidarr);
+			const lidarrConnection = connection(transport);
+			await lidarrConnection.connect('http://lidarr.local:8686', 'key-1');
+
+			await lidarrConnection.client()?.status();
+
+			expect(urls[1]).toBe('http://lidarr.local:8686/api/v1/system/status');
+			expect(keys[1]).toBe('key-1');
+		});
+
+		it('is not there while disconnected', async () => {
+			const { transport } = server(200, lidarr);
+			const lidarrConnection = connection(transport);
+			await lidarrConnection.connect('http://lidarr.local:8686', 'key-1');
+
+			await lidarrConnection.disconnect();
+
+			expect(lidarrConnection.client()).toBeNull();
+		});
+	});
+
 	describe('load', () => {
 		it('restores a saved connection', async () => {
 			const { transport } = server(200, lidarr);

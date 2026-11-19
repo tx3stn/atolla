@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { LidarrAlbum } from './Models';
-import { toUpcomingAlbums } from './Upcoming';
+import { createUpcomingCardDetails, toUpcomingAlbums, type UpcomingAlbum } from './Upcoming';
 
 function lidarrAlbum(overrides: Partial<LidarrAlbum> = {}): LidarrAlbum {
 	return {
@@ -65,5 +65,34 @@ describe('toUpcomingAlbums', () => {
 		const first = lidarrAlbum({ artist: { artistName: 'Beecher' }, id: 2 });
 
 		expect(toUpcomingAlbums([second, first]).map((album) => album.id)).toEqual(['2', '1']);
+	});
+});
+
+describe('createUpcomingCardDetails', () => {
+	const album: UpcomingAlbum = {
+		artistName: 'Converge',
+		coverUrl: 'https://covers.example/1.jpg',
+		id: '1',
+		releaseDate: '2026-12-05T00:00:00Z',
+		title: 'Axe to Fall',
+	};
+
+	it('shows the release date, title and artist', () => {
+		expect(createUpcomingCardDetails([album])).toEqual([
+			{
+				artworkKey: 'https://covers.example/1.jpg',
+				id: 'lidarr-1',
+				kind: 'album',
+				lineOne: '2026-12-05',
+				lineThree: 'Converge',
+				lineTwo: 'Axe to Fall',
+			},
+		]);
+	});
+
+	it('falls back to the placeholder artwork without a cover', () => {
+		const withoutCover = { ...album, coverUrl: undefined };
+
+		expect(createUpcomingCardDetails([withoutCover])[0]?.artworkKey).toBe('');
 	});
 });

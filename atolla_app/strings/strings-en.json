@@ -191,6 +191,9 @@
 	"home_no_anniversaries": {
 		"defaultMessage": "no anniversaries today"
 	},
+	"home_no_upcoming": {
+		"defaultMessage": "nothing upcoming"
+	},
 	"home_nothing_pinned": {
 		"defaultMessage": "nothing pinned"
 	},
@@ -211,6 +214,9 @@
 	},
 	"home_section_recently_played": {
 		"defaultMessage": "RECENTLY PLAYED"
+	},
+	"home_section_upcoming": {
+		"defaultMessage": "UPCOMING"
 	},
 	"home_title": {
 		"defaultMessage": "HOME"
