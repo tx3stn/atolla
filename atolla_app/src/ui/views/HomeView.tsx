@@ -1,4 +1,5 @@
 import Strings from 'atolla_app/src/Strings';
+import type { LanguageCode } from 'atolla_core/src/Language';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
@@ -92,6 +93,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
 	private cachedUpcomingAlbumsRef: Array<UpcomingAlbum> | null = null;
 	private cachedUpcomingCards: Array<CardDetailItem> = [];
+	private cachedUpcomingLanguage: LanguageCode | null = null;
 	private cachedUpcomingLimit = -1;
 	private subscribedPinnedItemsStore: PinnedItemsStore | undefined;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
@@ -420,17 +422,22 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private createUpcomingCards(): Array<CardDetailItem> {
-		const limit = this.viewModel.preferences.upcomingLimit;
+		const { language, upcomingLimit } = this.viewModel.preferences;
 		if (
 			this.state.upcomingAlbums === this.cachedUpcomingAlbumsRef &&
-			limit === this.cachedUpcomingLimit
+			language === this.cachedUpcomingLanguage &&
+			upcomingLimit === this.cachedUpcomingLimit
 		) {
 			return this.cachedUpcomingCards;
 		}
 
 		this.cachedUpcomingAlbumsRef = this.state.upcomingAlbums;
-		this.cachedUpcomingLimit = limit;
-		this.cachedUpcomingCards = createUpcomingCardDetails(this.state.upcomingAlbums.slice(0, limit));
+		this.cachedUpcomingLanguage = language;
+		this.cachedUpcomingLimit = upcomingLimit;
+		this.cachedUpcomingCards = createUpcomingCardDetails(
+			this.state.upcomingAlbums.slice(0, upcomingLimit),
+			language,
+		);
 		return this.cachedUpcomingCards;
 	}
 
@@ -477,7 +484,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private preloadUpcomingArtwork(albums: Array<UpcomingAlbum>): void {
 		try {
 			preloadAtollaImages(
-				createUpcomingCardDetails(albums)
+				createUpcomingCardDetails(albums, this.viewModel.preferences.language)
 					.filter((card) => card.artworkKey !== '')
 					.map((card) =>
 						buildImageSource({ category: 'album_art_thumb', id: card.id, url: card.artworkKey }),

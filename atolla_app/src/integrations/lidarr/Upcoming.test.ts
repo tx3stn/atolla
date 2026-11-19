@@ -77,22 +77,28 @@ describe('createUpcomingCardDetails', () => {
 		title: 'Axe to Fall',
 	};
 
-	it('shows the release date, title and artist', () => {
-		expect(createUpcomingCardDetails([album])).toEqual([
+	it('shows the release day, title and artist', () => {
+		expect(createUpcomingCardDetails([album], 'en')).toEqual([
 			{
 				artworkKey: 'https://covers.example/1.jpg',
 				id: 'lidarr-1',
 				kind: 'album',
-				lineOne: '2026-12-05',
+				lineOne: 'dateDayMonth 5th monthDecember',
 				lineThree: 'Converge',
 				lineTwo: 'Axe to Fall',
 			},
 		]);
 	});
 
+	it('writes the release day in the language given', () => {
+		expect(createUpcomingCardDetails([album], 'fr')[0]?.lineOne).toBe(
+			'dateDayMonth 5 monthDecember',
+		);
+	});
+
 	it('falls back to the placeholder artwork without a cover', () => {
 		const withoutCover = { ...album, coverUrl: undefined };
 
-		expect(createUpcomingCardDetails([withoutCover])[0]?.artworkKey).toBe('');
+		expect(createUpcomingCardDetails([withoutCover], 'en')[0]?.artworkKey).toBe('');
 	});
 });

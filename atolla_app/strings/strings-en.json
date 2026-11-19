@@ -99,6 +99,10 @@
 	"create_playlist_modal_title": {
 		"defaultMessage": "NEW PLAYLIST"
 	},
+	"date_day_month": {
+		"defaultMessage": "{day%s} {month%s}",
+		"example": "20th November"
+	},
 	"dev_tools_animations_button": {
 		"defaultMessage": "animation gallery"
 	},
@@ -216,7 +220,7 @@
 		"defaultMessage": "RECENTLY PLAYED"
 	},
 	"home_section_upcoming": {
-		"defaultMessage": "UPCOMING"
+		"defaultMessage": "UPCOMING RELEASES"
 	},
 	"home_title": {
 		"defaultMessage": "HOME"
@@ -264,6 +268,42 @@
 	},
 	"lyrics_failed": {
 		"defaultMessage": "failed to load lyrics"
+	},
+	"month_april": {
+		"defaultMessage": "April"
+	},
+	"month_august": {
+		"defaultMessage": "August"
+	},
+	"month_december": {
+		"defaultMessage": "December"
+	},
+	"month_february": {
+		"defaultMessage": "February"
+	},
+	"month_january": {
+		"defaultMessage": "January"
+	},
+	"month_july": {
+		"defaultMessage": "July"
+	},
+	"month_june": {
+		"defaultMessage": "June"
+	},
+	"month_march": {
+		"defaultMessage": "March"
+	},
+	"month_may": {
+		"defaultMessage": "May"
+	},
+	"month_november": {
+		"defaultMessage": "November"
+	},
+	"month_october": {
+		"defaultMessage": "October"
+	},
+	"month_september": {
+		"defaultMessage": "September"
 	},
 	"no": {
 		"defaultMessage": "no"

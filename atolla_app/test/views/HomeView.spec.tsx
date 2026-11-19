@@ -514,7 +514,23 @@ describe('HomeView upcoming', () => {
 		await flushAsyncWork();
 
 		expect(upcomingCardIds(component)).toEqual(['card-detail-lidarr-2', 'card-detail-lidarr-1']);
-		expect(labelValues(component)).toContain('2099-01-15');
+		expect(labelValues(component)).toContain(Strings.dateDayMonth('15th', Strings.monthJanuary()));
+	});
+
+	valdiIt('writes the release day in the chosen language', async (driver) => {
+		const base = makeBaseDeps();
+		const { lidarr, upcoming } = await connectedLidarr([lidarrAlbum({ id: 1 })]);
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		await base.preferences.setLanguage('fr');
+		await flushAsyncWork();
+
+		expect(labelValues(component)).toContain(Strings.dateDayMonth('15', Strings.monthJanuary()));
 	});
 
 	valdiIt('shows only as many upcoming albums as chosen, soonest first', async (driver) => {
