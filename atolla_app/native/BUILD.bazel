@@ -338,6 +338,7 @@ kt_android_library(
         "android/AtollaDownloadGuards.kt",
         "android/AtollaHapticsBootstrap.kt",
         "android/AtollaHapticsBootstrapModuleFactory.kt",
+        "android/AtollaImageAuth.kt",
         "android/AtollaImageFallback.kt",
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
@@ -389,6 +390,11 @@ kt_jvm_library(
 kt_jvm_library(
     name = "atolla_track_cache_retention",
     srcs = ["android/AtollaTrackCacheRetention.kt"],
+)
+
+kt_jvm_library(
+    name = "atolla_image_auth",
+    srcs = ["android/AtollaImageAuth.kt"],
 )
 
 kt_jvm_library(

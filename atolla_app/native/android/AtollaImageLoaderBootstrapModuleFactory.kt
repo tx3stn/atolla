@@ -80,8 +80,8 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 				AtollaCacheImageLoader.imageCachedObserver = callback
 			}
 
-			override fun setAtollaImageLoaderAuthHeader(header: String) {
-				AtollaCacheImageLoader.authHeader = header.ifBlank { null }
+			override fun setAtollaImageLoaderAuthHeader(header: String, serverUrl: String) {
+				AtollaCacheImageLoader.auth = AtollaImageAuth.from(header, serverUrl)
 			}
 		}
 	}

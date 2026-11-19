@@ -16,6 +16,29 @@ BOOL AtollaRedirectKeepsAuth(NSURL *_Nullable server, NSURL *_Nullable target) {
     return !isDowngrade;
 }
 
+static NSInteger AtollaEffectivePort(NSURL *url) {
+    if (url.port != nil) {
+        return url.port.integerValue;
+    }
+    if ([url.scheme caseInsensitiveCompare:@"https"] == NSOrderedSame) {
+        return 443;
+    }
+    if ([url.scheme caseInsensitiveCompare:@"http"] == NSOrderedSame) {
+        return 80;
+    }
+    return -1;
+}
+
+BOOL AtollaSameOrigin(NSURL *_Nullable server, NSURL *_Nullable target) {
+    if (server == nil || target == nil || server.scheme == nil || target.scheme == nil ||
+        server.host == nil || target.host == nil) {
+        return NO;
+    }
+    return [server.scheme caseInsensitiveCompare:target.scheme] == NSOrderedSame &&
+           [server.host caseInsensitiveCompare:target.host] == NSOrderedSame &&
+           AtollaEffectivePort(server) == AtollaEffectivePort(target);
+}
+
 @implementation AtollaAuthRedirectGuard
 
 + (NSURLSession *)sharedDefaultSession {

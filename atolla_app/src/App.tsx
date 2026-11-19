@@ -277,7 +277,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		resolveCachedImage: (category, identity) => this.resolveCachedImage(category, identity),
 		sessionManager: this.sessionManager,
 		setImageSourcesOffline: (offline) => configureImageSourcesOffline(offline),
-		setNativeAuthHeader: (header) => this.pushNativeAuthHeader(header),
+		setNativeAuthHeader: (header, serverUrl) => this.pushNativeAuthHeader(header, serverUrl),
 		showToast: (message) => this.toastService.show({ message, variant: ToastTypes.error }),
 	});
 	private userScope: UserScope = new UserScope({
@@ -785,9 +785,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	private pushNativeAuthHeader(header: string): void {
+	private pushNativeAuthHeader(header: string, serverUrl: string): void {
 		try {
-			setAtollaImageLoaderAuthHeader(header);
+			setAtollaImageLoaderAuthHeader(header, serverUrl);
 		} catch {
 			// native image loader bootstrap may be unavailable on non-Android/iOS targets
 		}

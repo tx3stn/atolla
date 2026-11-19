@@ -42,4 +42,46 @@
     XCTAssertFalse(AtollaRedirectKeepsAuth(nil, nil));
 }
 
+- (void)testImageOnTheServerIsSameOrigin {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com:8096"];
+    NSURL *image = [NSURL URLWithString:@"https://jellyfin.example.com:8096/Items/1/Images/Primary"];
+    XCTAssertTrue(AtollaSameOrigin(server, image));
+}
+
+- (void)testImageOnAnotherHostIsNotSameOrigin {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com:8096"];
+    NSURL *image = [NSURL URLWithString:@"https://coverartarchive.org/release-group/1/front"];
+    XCTAssertFalse(AtollaSameOrigin(server, image));
+}
+
+- (void)testImageOnAnotherPortOfTheSameHostIsNotSameOrigin {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com:8096"];
+    NSURL *image = [NSURL URLWithString:@"https://jellyfin.example.com:8686/MediaCover/1/cover.jpg"];
+    XCTAssertFalse(AtollaSameOrigin(server, image));
+}
+
+- (void)testImageOverHttpFromAnHttpsServerIsNotSameOrigin {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com:8096"];
+    NSURL *image = [NSURL URLWithString:@"http://jellyfin.example.com:8096/Items/1/Images/Primary"];
+    XCTAssertFalse(AtollaSameOrigin(server, image));
+}
+
+- (void)testDefaultPortMatchesTheSamePortWrittenOut {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com"];
+    NSURL *image = [NSURL URLWithString:@"https://jellyfin.example.com:443/Items/1/Images/Primary"];
+    XCTAssertTrue(AtollaSameOrigin(server, image));
+}
+
+- (void)testHostThatDiffersOnlyInCaseIsSameOrigin {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com:8096"];
+    NSURL *image = [NSURL URLWithString:@"https://Jellyfin.Example.com:8096/Items/1/Images/Primary"];
+    XCTAssertTrue(AtollaSameOrigin(server, image));
+}
+
+- (void)testNilIsNotSameOrigin {
+    NSURL *server = [NSURL URLWithString:@"https://jellyfin.example.com"];
+    XCTAssertFalse(AtollaSameOrigin(server, nil));
+    XCTAssertFalse(AtollaSameOrigin(nil, server));
+}
+
 @end

@@ -28,7 +28,7 @@ export interface ConnectivityDeps {
 	resolveCachedImage: ResolveCachedImage;
 	sessionManager: SessionManager;
 	setImageSourcesOffline(offline: boolean): void;
-	setNativeAuthHeader(header: string): void;
+	setNativeAuthHeader(header: string, serverUrl: string): void;
 	showToast(message: string): void;
 }
 
@@ -243,7 +243,10 @@ export class Connectivity {
 	private rebuildTransport(session: AuthSession | null): void {
 		const generation = ++this.transportGeneration;
 		const live = this.mode === ConnectionModes.online && session != null;
-		this.deps.setNativeAuthHeader(live ? this.deps.sessionManager.getAuthHeader() : '');
+		this.deps.setNativeAuthHeader(
+			live ? this.deps.sessionManager.getAuthHeader() : '',
+			live ? session.serverUrl : '',
+		);
 		this.deps.setImageSourcesOffline(!live);
 		if (live) {
 			this.transport = new LiveTransport(

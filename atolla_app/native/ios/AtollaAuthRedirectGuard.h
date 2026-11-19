@@ -4,6 +4,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 BOOL AtollaRedirectKeepsAuth(NSURL *_Nullable server, NSURL *_Nullable target);
+BOOL AtollaSameOrigin(NSURL *_Nullable server, NSURL *_Nullable target);
 
 @interface AtollaAuthRedirectGuard : NSObject <NSURLSessionTaskDelegate>
 + (NSURLSession *)sharedDefaultSession;

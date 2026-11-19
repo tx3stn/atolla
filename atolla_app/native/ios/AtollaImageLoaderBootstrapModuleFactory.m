@@ -264,9 +264,28 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 
 // MARK: - Image Loader
 
+@interface AtollaIOSImageAuth : NSObject
+@property (nonatomic, copy, readonly) NSString *header;
+@property (nonatomic, copy, readonly) NSURL *server;
+- (instancetype)initWithHeader:(NSString *)header server:(NSURL *)server;
+@end
+
+@implementation AtollaIOSImageAuth
+
+- (instancetype)initWithHeader:(NSString *)header server:(NSURL *)server {
+    self = [super init];
+    if (self) {
+        _header = [header copy];
+        _server = [server copy];
+    }
+    return self;
+}
+
+@end
+
 @interface AtollaIOSImageLoader : NSObject <SCValdiImageLoader>
 // atomic for the cross-thread set (session change) vs read (background fetch)
-@property (atomic, copy, nullable) NSString *authHeader;
+@property (atomic, strong, nullable) AtollaIOSImageAuth *auth;
 + (instancetype)sharedInstance;
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category identity:(NSString *)identity;
 - (nullable NSString *)resolveCachedFileUrlForCategory:(NSString *)category identity:(NSString *)identity;
@@ -339,9 +358,9 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 
 - (NSMutableURLRequest *)imageRequestForURL:(NSURL *)url {
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
-    NSString *authHeader = self.authHeader;
-    if (authHeader.length > 0) {
-        [request setValue:authHeader forHTTPHeaderField:@"Authorization"];
+    AtollaIOSImageAuth *auth = self.auth;
+    if (auth != nil && AtollaSameOrigin(auth.server, url)) {
+        [request setValue:auth.header forHTTPHeaderField:@"Authorization"];
     }
     return request;
 }
@@ -637,8 +656,10 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     [AtollaIOSImageLoader.sharedInstance setImageCachedObserver:callback];
 }
 
-- (void)setAtollaImageLoaderAuthHeaderWithHeader:(NSString *)header {
-    AtollaIOSImageLoader.sharedInstance.authHeader = header.length > 0 ? header : nil;
+- (void)setAtollaImageLoaderAuthHeaderWithHeader:(NSString *)header serverUrl:(NSString *)serverUrl {
+    NSURL *server = serverUrl.length > 0 ? [NSURL URLWithString:serverUrl] : nil;
+    AtollaIOSImageLoader.sharedInstance.auth =
+        header.length > 0 && server.host != nil ? [[AtollaIOSImageAuth alloc] initWithHeader:header server:server] : nil;
 }
 
 @end

@@ -23,7 +23,7 @@ interface Calls {
 	onOnline: number;
 	onSessionExpired: number;
 	onUserChanged: Array<string>;
-	setNativeAuthHeader: Array<string>;
+	setNativeAuthHeader: Array<{ header: string; serverUrl: string }>;
 	showToast: Array<string>;
 }
 
@@ -90,7 +90,8 @@ function makeConnectivity(opts?: {
 		resolveCachedImage: () => null,
 		sessionManager,
 		setImageSourcesOffline: () => {},
-		setNativeAuthHeader: (header) => calls.setNativeAuthHeader.push(header),
+		setNativeAuthHeader: (header, serverUrl) =>
+			calls.setNativeAuthHeader.push({ header, serverUrl }),
 		showToast: (message) => calls.showToast.push(message),
 	};
 
@@ -108,7 +109,9 @@ describe('Connectivity', () => {
 		expect(connectivity.getTransport() instanceof LiveTransport).toBe(true);
 		expect(connectivity.getMode()).toBe(ConnectionModes.online);
 		expect(calls.onUserChanged).toEqual(['user-1']);
-		expect(calls.setNativeAuthHeader).toEqual(['MediaBrowser Token="tok"']);
+		expect(calls.setNativeAuthHeader).toEqual([
+			{ header: 'MediaBrowser Token="tok"', serverUrl: 'https://server' },
+		]);
 		expect(
 			calls.applyState.some(
 				(s) => s.connectionMode === ConnectionModes.online && s.isAuthRequired === false,
@@ -126,7 +129,7 @@ describe('Connectivity', () => {
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.onUserChanged).toEqual(['shared']);
-		expect(calls.setNativeAuthHeader).toEqual(['']);
+		expect(calls.setNativeAuthHeader).toEqual([{ header: '', serverUrl: '' }]);
 	});
 
 	it('setMode(online) with a session builds a live transport and triggers reconnect', async () => {
@@ -176,7 +179,10 @@ describe('Connectivity', () => {
 		expect(connectivity.getMode()).toBe(ConnectionModes.offline);
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(false);
-		expect(calls.setNativeAuthHeader[calls.setNativeAuthHeader.length - 1]).toBe('');
+		expect(calls.setNativeAuthHeader[calls.setNativeAuthHeader.length - 1]).toEqual({
+			header: '',
+			serverUrl: '',
+		});
 	});
 
 	it('handleSessionChanged(null) while online marks auth-required and drops the transport', async () => {
@@ -188,6 +194,9 @@ describe('Connectivity', () => {
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(true);
-		expect(calls.setNativeAuthHeader).toEqual(['MediaBrowser Token="tok"', '']);
+		expect(calls.setNativeAuthHeader).toEqual([
+			{ header: 'MediaBrowser Token="tok"', serverUrl: 'https://server' },
+			{ header: '', serverUrl: '' },
+		]);
 	});
 });

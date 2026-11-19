@@ -2,6 +2,7 @@ package com.tx3stn.atolla
 
 import atolla.native.android.AtollaDiskCacheStats
 import atolla.native.android.AtollaDiskStatsSnapshot
+import atolla.native.android.AtollaImageAuth
 import atolla.native.android.AtollaImageFallback
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -146,7 +147,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		var sharedInstance: AtollaCacheImageLoader? = null
 		var imageCachedObserver: ((identity: String, category: String) -> Unit)? = null
 		@Volatile
-		var authHeader: String? = null
+		var auth: AtollaImageAuth? = null
 	}
 
 	private val tag = "AtollaCacheLoader"
@@ -792,14 +793,14 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	}
 
 	private fun fetchBytes(url: String): ByteArray {
-		val serverOrigin = url.toHttpUrlOrNull() ?: throw IOException("Invalid image url: $url")
-		var current = serverOrigin
+		val imageOrigin = url.toHttpUrlOrNull() ?: throw IOException("Invalid image url: $url")
+		val auth = AtollaCacheImageLoader.auth?.takeIf { it.appliesTo(imageOrigin.toUri()) }
+		var current = imageOrigin
 		var redirectCount = 0
 		while (true) {
-			val authHeader = AtollaCacheImageLoader.authHeader
 			val builder = Request.Builder().url(current)
-			if (!authHeader.isNullOrBlank() && redirectKeepsAuth(serverOrigin, current)) {
-				builder.addHeader("Authorization", authHeader)
+			if (auth != null && redirectKeepsAuth(imageOrigin, current)) {
+				builder.addHeader("Authorization", auth.header)
 			}
 			val response = redirectlessHttpClient.newCall(builder.build()).execute()
 			if (response.isRedirect && redirectCount < maxImageRedirects) {
