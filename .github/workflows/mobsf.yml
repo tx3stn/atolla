@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run mobsfscan
-        uses: MobSF/mobsfscan@18cce72c077cbac1925439c3158363fd3bb361aa # 1.1.0
+        uses: MobSF/mobsfscan@e48f780d04c4fdd38ec07c1de3d2210513f48ecd # 1.2.0
         with:
           args: . --config .mobsf.yaml --sarif --output results.sarif --no-fail
       - name: Upload mobsfscan report
