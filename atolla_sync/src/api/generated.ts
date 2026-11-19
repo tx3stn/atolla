@@ -13,12 +13,13 @@ export interface paths {
         };
         /**
          * Identity and the API versions this player speaks.
-         * @description Unauthenticated, and the one route that answers whatever version it is asked for: refusing
-         *     discovery on a version mismatch would leave a mixed-version fleet unable to find out why.
+         * @description Needs no token, and it's the one route that answers whatever version it's asked for.
+         *     Refusing it on a version mismatch would leave a controller unable to find out why it can't
+         *     talk to the player.
          *
-         *     The body is built once at startup and served verbatim by the server, so it keeps answering
-         *     while the JS thread is busy. Every field is a process-lifetime constant; anything that
-         *     changes lives in the beacon or `/state`. Takes no body.
+         *     The server builds the body once at startup and serves it as is, so it keeps answering while
+         *     the JS thread is busy. Every field stays the same for as long as the process runs. Anything
+         *     that changes is in `/state`. The request takes no body.
          */
         get: operations["getHello"];
         put?: never;
@@ -40,20 +41,22 @@ export interface paths {
         put?: never;
         /**
          * Trade the player's pairing code for a controller token.
-         * @description The code is compared by the server, so a wrong one never reaches TypeScript. Whitespace is
-         *     stripped before the comparison, which is what lets a controller submit the spaced form the
-         *     player displays. A daemon with no code provisioned refuses every attempt.
+         * @description The server compares the code, so a wrong one never reaches TypeScript. It ignores
+         *     whitespace, so a controller can send the code spaced the way the player prints it. A daemon
+         *     with no code set up refuses every attempt.
          *
-         *     The body may carry a media server for the player to use. That is a Jellyfin token the
-         *     controller mints for this player, not the user's own session token, so a compromised
+         *     The body may carry a media server credential for the player to use. It's a Jellyfin token
+         *     the controller mints for this player, not the user's own session token, so a compromised
          *     speaker costs one revocable credential.
          *
          *     Bodies are capped at 4 KiB and must declare a `Content-Length`.
          *
-         *     Failed attempts are throttled per caller address. Three refusals earn a `429` carrying
-         *     `Retry-After: 1`. A throttled attempt records nothing, so hammering does not extend the
-         *     block: wait it out and the next wrong code is a `401` again, with the one after it held for
-         *     2 seconds, then 4. A successful pair clears the failures behind it.
+         *     Wrong codes are throttled per caller address. After three, the player holds that address
+         *     for 1 second, answering `429` with `Retry-After`. Each further wrong code doubles the hold
+         *     (2 seconds, then 4) up to 60. Wrong codes from every address also count together: after
+         *     ten, with no minute-long gap between them, every caller is held the same way. A throttled
+         *     attempt counts for nothing, so retrying early doesn't extend the hold. A successful pair
+         *     clears the count.
          */
         post: operations["pair"];
         delete?: never;
@@ -72,28 +75,27 @@ export interface paths {
         get?: never;
         /**
          * Give the player a media server credential to use on its own behalf.
-         * @description The same credential `POST /pair` may carry, pushed by a controller that is already paired.
-         *     The player holds credentials in memory and never writes them to disk, so a restarted player
-         *     has none. Re-pairing would supply one, at the cost of making the user retype the pairing
-         *     code.
+         * @description The same credential `POST /pair` may carry, pushed by a controller that's already paired.
+         *     The player keeps credentials in memory and never writes them to disk, so a restarted player
+         *     has none until a controller pushes one again.
          *
          *     A controller learns it needs to push by reading `/state`. `sourceHealth.mediaServerUsers`
-         *     lists the accounts the player holds a credential for, and a controller that does not find
-         *     its own sends one. It is also how a second household member provisions a speaker somebody
-         *     else paired, without disturbing the first credential.
+         *     lists the accounts the player holds a credential for, and a controller that doesn't find
+         *     its own sends one. That's also how a second person in the household gives a speaker their
+         *     own credential without disturbing the first.
          *
          *     The player holds one credential per account. Pushing again for the same `userId` replaces
-         *     it, and pushing for a different one adds it alongside. No credential survives a restart.
+         *     it, and pushing for a different one adds it alongside.
          *
-         *     Two pushes are refused rather than stored. A push naming a different `serverId` than the
-         *     player already holds would repoint the speaker at another server, and answers `409`. A push
-         *     whose credential does not belong to the `userId` it names fails a check the player makes
-         *     against the media server, because the account is asserted by the controller and nothing on
-         *     the wire proves it, and answers `422`. The two carry different statuses because a handler
-         *     names its failure with a status and nothing more.
+         *     Two pushes are refused instead of stored:
+         *     - A different `serverId` from the one the player already holds would point the speaker at
+         *       another server. That answers `409`.
+         *     - The controller asserts the account, and nothing on the wire proves it, so the player
+         *       asks the media server whose the token is. A token that isn't valid for the named `userId`
+         *       answers `422`.
          *
-         *     A differing `baseUrl` is not refused, because each credential keeps the address the
-         *     controller that pushed it uses.
+         *     A different `baseUrl` isn't refused, because each credential keeps the address its
+         *     controller uses.
          *
          *     Bodies are capped at 4 KiB and must declare a `Content-Length`.
          */
@@ -116,27 +118,20 @@ export interface paths {
         put?: never;
         /**
          * Act on the player's queue or playback.
-         * @description Every command shares one route, discriminated on `command`. The name and the shape of
-         *     its members are the wire contract, so `command.zig` refuses an unknown name or a malformed
-         *     member before the request crosses the bridge. The `tracks` array is the exception and
-         *     passes through as opaque bytes: `Track` is a TypeScript interface with one source of truth,
-         *     so a second definition in Zig would start refusing valid queues the day a field was added,
-         *     and TypeScript needs the parsed object regardless.
+         * @description Every command shares one route, told apart by `command`. The name and the shape of each
+         *     command's members are the wire contract, so `command.zig` refuses an unknown name or a
+         *     malformed member before the request crosses the bridge. The `tracks` array is the
+         *     exception, and passes through unparsed. `Track` is defined once, in TypeScript, so a
+         *     second definition in Zig would start refusing valid queues the day a field was added.
          *
-         *     A `202` says the command was accepted, not that it has happened. The leader applies it to
-         *     the queue it owns and answers with the state version that reflects it. What the speakers
-         *     then do is visible only through `GET /state`: a `previous` can restart the current track
-         *     instead of stepping back. A controller that reads this response as the outcome will show
-         *     something the players are not doing.
+         *     A `202` means the player accepted the command and applied it to its queue. The body names
+         *     the state version that reflects it. What the player then does shows only in `GET /state`:
+         *     a `previous`, for example, can restart the current track instead of stepping back.
          *
-         *     Commands naming a queue position may also carry the `trackId` expected there. A controller
-         *     acts on a mirror that can be a long poll behind, and with several controllers paired the
-         *     queue moves under it, so an index on its own can point at a track the user never chose.
-         *     When the id does not match, the player drops the command.
-         *
-         *     `setVolume` and `setMembers` appear in the design but are not accepted yet: both are group
-         *     state rather than queue state and arrive with the group coordinator. Until then they are
-         *     refused as `malformed_body`, like any other unknown name.
+         *     Commands that name a queue position may also carry the `trackId` expected there. A
+         *     controller works from a mirror that can be a long poll behind, and with several controllers
+         *     paired the queue can move under it, so an index alone can point at a track the user never
+         *     chose. When the id doesn't match, the player drops the command.
          *
          *     Bodies are capped at 1 MiB and must declare a `Content-Length`.
          */
@@ -156,22 +151,19 @@ export interface paths {
         };
         /**
          * The player's queue, playback and group state.
-         * @description Everything a controller mirrors, in one snapshot. A controller holds the last one it was
-         *     given and replaces it wholesale; there are no partial updates, because a snapshot small
-         *     enough to send whole is simpler than a diff both ends have to agree on.
+         * @description Everything a controller mirrors, in one snapshot. A controller keeps the last one and
+         *     replaces it whole each time. There are no partial updates: a snapshot this small is simpler
+         *     to send whole than a diff both ends would have to agree on.
          *
-         *     The route is a long poll. Passing `since` asks for the first snapshot newer than that
-         *     version, and the daemon holds the request open for up to 25 seconds waiting for one, though
-         *     a change wakes it immediately. Twenty-five seconds passing with nothing new is not an
-         *     error: it answers `304` with no body, because the controller already holds that snapshot
-         *     and re-sending a queue of several hundred tracks every 25 seconds would be the only thing
-         *     the wire carried. Omitting `since` answers the current snapshot straight away, which is how
-         *     a controller gets its first one.
+         *     The route is a long poll. With `since`, the daemon holds the request open for up to 25
+         *     seconds until its version moves on, and answers as soon as it does. If nothing changes in
+         *     that time, it answers `304` with no body, since the controller already holds that snapshot
+         *     and resending a long queue every 25 seconds would waste the wire. Without `since`, it
+         *     answers the current snapshot straight away, which is how a controller gets its first one.
          *
-         *     The loop a controller runs is to read a snapshot, apply it, then ask again with the
-         *     `version` it applied. A `304` means ask again unchanged, and a `200` means replace the
-         *     mirror. Position is the one part that does not need a new snapshot, which is what
-         *     `positionAtMs` is for.
+         *     A controller reads a snapshot, applies it, then asks again with the `version` it applied.
+         *     After a `304` it asks again with the same version, and after a `200` it replaces its mirror.
+         *     Position is the one part that doesn't need a new snapshot. `positionAtMs` is for that.
          */
         get: operations["getState"];
         put?: never;
@@ -193,7 +185,7 @@ export interface paths {
          * The key a member presents to join this player's audio stream.
          * @description A controller fetches it from the player it picked as a group's source and hands it to each
          *     member in `joinSource`. The source streams only to a member that presents it, so a device
-         *     that merely reaches the audio port hears nothing. The player makes a new one each time it
+         *     that only reaches the audio port hears nothing. The player makes a new key each time it
          *     starts, so a controller fetches it again after a restart.
          */
         get: operations["getStreamKey"];
@@ -215,19 +207,19 @@ export interface paths {
         get?: never;
         /**
          * Tell the player which tracks to keep, most wanted first.
-         * @description The player keeps only the tracks on this list, its cache window. When the list arrives it
+         * @description The player keeps only the tracks on this list, its cache window. When a list arrives, it
          *     deletes every other track it holds, and from then on it refuses an upload of a track the
          *     list doesn't name. Each list replaces the one before, and an empty list deletes every track.
          *
          *     When an upload needs room, the player deletes the tracks listed after it, starting from the
          *     end of the list.
          *
-         *     After a restart the player has no list. Until one arrives it keeps the tracks already on
+         *     After a restart the player has no list. Until one arrives, it keeps the tracks already on
          *     disk and refuses every upload.
          *
          *     While an account owns the queue (the `userId` on `setQueue`), the player also downloads the
          *     listed tracks it doesn't hold from the media server, in the list's order. It skips the track
-         *     it's playing, since it's streaming that one. For a queue no account owns, it downloads
+         *     it's playing, because it's streaming that one. For a queue no account owns, it downloads
          *     nothing.
          *
          *     The answer names the listed tracks the player already holds, so a controller uploads only
@@ -267,8 +259,8 @@ export interface paths {
          *     is answered before `100 Continue`, so a controller sending `Expect: 100-continue` never
          *     uploads a file the player would refuse.
          *
-         *     The body's cap is the player's media cache size, `mediaCacheGb` in its config file, rather
-         *     than the 1 MiB the other routes share. It must declare a `Content-Length`.
+         *     The body's cap is the player's media cache size, `mediaCacheGb` in its config file, instead
+         *     of a fixed cap like the other routes have. It must declare a `Content-Length`.
          */
         put: operations["putMedia"];
         post?: never;
@@ -284,19 +276,19 @@ export interface components {
     schemas: {
         /**
          * Format: int32
-         * @description A version of this contract. There is one, and this is the single place that changes when a
-         *     second one lands.
+         * @description A version of this contract. There's only one so far, and this is the one place to change
+         *     when a second arrives.
          * @example 1
          * @constant
          */
         ApiVersion: 1;
         /**
-         * @description RFC 9457 problem details, served as `application/problem+json`. `type` is omitted rather
-         *     than written as `about:blank`, which the RFC says is what an absent `type` means, so it
-         *     stays free for a documentation URL later. Extension members are flat alongside the standard
-         *     ones and are dropped when a given problem does not carry them.
+         * @description RFC 9457 problem details, served as `application/problem+json`. `type` is left out, which
+         *     the RFC says means `about:blank`, so it stays free for a documentation URL later. Extension
+         *     members sit alongside the standard ones, and are left out when a problem doesn't carry them.
          *
-         *     `code` is the stable vocabulary a client switches on. `title` is prose and may be reworded.
+         *     `code` is what a client switches on, and it stays stable. `title` is prose and may be
+         *     reworded.
          * @example {
          *       "code": "not_found",
          *       "status": 404,
@@ -305,25 +297,24 @@ export interface components {
          */
         Problem: {
             /**
-             * @description The machine-readable name of this refusal, and the whole vocabulary the daemon can
-             *     answer with. `internal` is what a handler that threw answers, and doubles as the
-             *     fallback body when a problem will not fit its render buffer.
+             * @description The machine-readable name of the refusal. This list is every code the daemon can send.
+             *     A handler that throws answers `internal`, which is also the fallback when a problem
+             *     won't fit its render buffer.
              * @example invalid_pairing_code
              * @enum {string}
              */
             code: "body_too_large" | "busy" | "expectation_failed" | "handler_timeout" | "headers_too_large" | "incomplete_body" | "insufficient_storage" | "internal" | "invalid_pairing_code" | "invalid_token" | "length_required" | "malformed_body" | "media_server_id_mismatch" | "media_server_user_mismatch" | "method_not_allowed" | "not_found" | "not_implemented" | "not_in_window" | "too_many_attempts" | "unavailable" | "unsupported_api_version";
             /**
-             * @description Rarely sent. Naming the field that failed tells an unauthenticated caller which field
-             *     to fix, and `/pair` is the one body a stranger on the LAN can post. Printable ASCII,
-             *     and short: the whole rendered problem has to fit a 256-byte buffer or the daemon falls
-             *     back to `internal`.
+             * @description Rarely sent, because naming the field that failed would tell a stranger on the LAN
+             *     posting to `/pair` what to fix. Printable ASCII, and short: the whole rendered problem
+             *     has to fit in 256 bytes, or the daemon sends `internal` instead.
              * @example try later
              */
             detail?: string;
             /**
              * Format: int32
-             * @description How long to wait before trying again, repeated in the `Retry-After` header. The
-             *     throttle doubles from 1 second and the limiter caps it at 60.
+             * @description How long to wait before trying again, repeated in the `Retry-After` header. The hold
+             *     doubles from 1 second, up to 60.
              * @example 1
              */
             retryAfterSeconds?: number;
@@ -341,8 +332,8 @@ export interface components {
              */
             supported?: components["schemas"]["ApiVersion"][];
             /**
-             * @description A short human-readable summary of the refusal. Every one the daemon carries is
-             *     lowercase words, and it is prose: switch on `code`, not on this.
+             * @description A short summary of the refusal, in lowercase words. It's prose, so switch on `code`
+             *     instead.
              * @example not found
              */
             title: string;
@@ -357,9 +348,9 @@ export interface components {
              */
             apiVersions: components["schemas"]["ApiVersion"][];
             /**
-             * @description Where this player streams its audio for others to join, absent when it streams none
-             *     (the port was taken, or the player predates streaming), so it cannot be a group's
-             *     source. The host is the one the controller reached this player at.
+             * @description Where this player streams its audio for others to join. It's absent when the player
+             *     streams none, because the port was taken or the player predates streaming, and then it
+             *     can't be a group's source. The host is the one the controller reached this player at.
              * @example 45891
              */
             audioPort?: components["schemas"]["AudioPort"];
@@ -370,20 +361,19 @@ export interface components {
             id: string;
             /**
              * @description The display name from the player's config, empty if none was set. The whole `/hello`
-             *     body has to fit a 1 KiB buffer, so a very long name stops the route answering at all.
+             *     body has to fit in 1 KiB, so a very long name stops the route answering at all.
              * @example Kitchen
              */
             name: string;
             /**
-             * @description How tightly this player can synchronise. A daemon is `tight`; a phone joining a group
-             *     is `loose`.
+             * @description How tightly this player can synchronise. A daemon is `tight`. `loose` is for a phone
+             *     playing as part of a group, which isn't built yet.
              * @example tight
              * @enum {string}
              */
             tier: "loose" | "tight";
             /**
-             * @description The current API version, duplicating `apiVersions`' last entry. Short because the
-             *     beacon repeats it in every datagram, where there is no header to carry it.
+             * @description The current API version, the same as the last entry in `apiVersions`.
              * @example 1
              */
             v: components["schemas"]["ApiVersion"];
@@ -394,16 +384,15 @@ export interface components {
             version: string;
         };
         /**
-         * @description A media server account. The player keys credentials on this rather than on the controller,
-         *     so two of one person's phones replace each other instead of provisioning twice. It is also
-         *     what a play is reported against.
+         * @description A media server account. The player keys credentials on it, not on the controller, so two of
+         *     one person's phones replace each other's credential instead of holding two.
          * @example 8b1f2c3d4e5f6071
          */
         UserId: string;
         /**
          * @description A media server credential for the player to use on its own behalf. The player holds one per
-         *     account and never writes any of them to disk, so `PUT /media-server` pushes it again after
-         *     a restart.
+         *     account and never writes them to disk, so a controller pushes it again with
+         *     `PUT /media-server` after a restart.
          */
         MediaServer: {
             /**
@@ -413,25 +402,25 @@ export interface components {
             accessToken: string;
             /**
              * Format: uri
-             * @description Where the media server answers, as this controller reaches it. Two controllers may hold
-             *     different spellings of the same server, one resolved by mDNS and another typed as an
-             *     address. Each credential keeps its own, and the player uses the one belonging to whoever
-             *     owns the queue. `serverId` identifies the server.
+             * @description Where the media server answers, as this controller reaches it. Two controllers may
+             *     spell the same server differently, one as an mDNS name and one as a typed address. Each
+             *     credential keeps its own, and the player uses the one that belongs to whoever owns the
+             *     queue. `serverId` is what identifies the server.
              * @example http://jellyfin.local:8096
              */
             baseUrl: string;
             /**
-             * @description The device identity the token was minted against, which carries the account as well as
-             *     the player: `atolla-<playerId>-<userId>`. The per-user form matters because a media
-             *     server that revokes by device ends every session sharing one. A shared id would have one
-             *     household member's re-provisioning sign the others out.
+             * @description The device identity the token was minted against, naming the account as well as the
+             *     player: `atolla-<playerId>-<userId>`. Jellyfin signs out the earlier sessions on a
+             *     device when it issues a new token for it, so a shared id would let one person's
+             *     re-provisioning sign the others out. It also means that minting twice for the same
+             *     player and account leaves only the second token working.
              * @example atolla-4f3c9a1de8b27065-8b1f2c3d4e5f6071
              */
             deviceId: string;
             /**
-             * @description The media server's own identifier, which is what a push is compared against. A player
-             *     serves one server, and a push naming another is refused with
-             *     `media_server_id_mismatch`.
+             * @description The media server's own identifier, which a push is compared against. A player uses one
+             *     server, and a push naming another is refused with `media_server_id_mismatch`.
              * @example 7e0a5b9c2d4f8613
              */
             serverId: string;
@@ -440,28 +429,27 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description Every length cap here is enforced by `pair.zig` before the request crosses the bridge, and
-         *     an unknown member is ignored so a v1 daemon does not refuse a body a later controller added
-         *     a field to.
+         * @description `pair.zig` enforces every length cap here before the request crosses the bridge. It ignores
+         *     an unknown member, so a v1 daemon doesn't refuse a body a newer controller added a field
+         *     to.
          */
         PairRequest: {
             /**
-             * @description The player's pairing code. The daemon strips whitespace before comparing, so the
-             *     spaced form the player displays is accepted too, and it enforces only a 32-byte cap
-             *     here: a code of the wrong shape is a `401` rather than a `400`, so the caller learns
-             *     nothing about it.
+             * @description The player's pairing code. The daemon ignores whitespace, so the spaced form the
+             *     player prints works too. It enforces only a 32-byte cap here, so a code of the wrong
+             *     shape is a `401`, not a `400`, and the caller learns nothing about it.
              * @example 19524002
              */
             code: string;
             /**
              * @description Stable per controller. Pairing again under an id the player already knows replaces that
-             *     record, so the old token dies.
+             *     record, and the old token stops working.
              * @example phone-1
              */
             controllerId: string;
             /**
-             * @description Shown to the user when they review what is paired. May be empty, but must be present:
-             *     a body omitting it is refused.
+             * @description Shown to the user when they review what's paired. It may be empty, but a body without
+             *     it is refused.
              * @example pixel 8
              */
             controllerName: string;
@@ -495,7 +483,7 @@ export interface components {
         TrackId: string;
         /**
          * @description The tracks the player's media cache keeps. An unknown member is ignored, so a v1 daemon
-         *     doesn't refuse a body a later controller added a field to.
+         *     doesn't refuse a body a newer controller added a field to.
          */
         CacheWindow: {
             /**
@@ -522,21 +510,20 @@ export interface components {
         };
         /**
          * Format: int32
-         * @description A monotonic counter the leader bumps whenever the state a controller mirrors changes. Its
-         *     only job is to order changes. It does not count commands: one command can settle several
-         *     fields, and some changes have no command behind them at all.
+         * @description A counter the player bumps whenever the state a controller mirrors changes. It only orders
+         *     changes, and doesn't count commands: one command can change several fields, and some
+         *     changes have no command behind them.
          *
-         *     Nothing persists it, so it starts again at 1 when the daemon restarts. Persisting would
-         *     mean a disk write on every bump, which is every command, to protect against something a
-         *     rule handles for nothing: a `since` higher than the current version names something the
-         *     daemon will never reach, so it is answered immediately with the current snapshot rather
-         *     than held for 25 seconds. A controller that outlived a restart gets one snapshot it may
-         *     already have held, adopts the version in it, and carries on. A `since` equal to the current
-         *     version is the ordinary case and does block, which is what a poll is for. Versions are
-         *     ordered within a run of the daemon, and comparing them across runs means nothing.
+         *     Nothing persists it, so it starts again at 1 when the daemon restarts. A `since` that
+         *     matches the current version waits, which is what a poll is for. Any other `since` is
+         *     answered straight away with the current snapshot, so a controller that outlived a restart
+         *     usually gets one snapshot it may already hold, takes the version in it, and carries on. The
+         *     new count can match the old `since` by chance, so a controller that lost contact with the
+         *     player should drop `since` for its next read. Versions are ordered within one run of the
+         *     daemon, and comparing them across runs means nothing.
          *
-         *     The 32-bit ceiling takes a bump a second for 68 years to reach, and it keeps the value
-         *     exact in every JSON parser. An `int64` would not, for a client reading it as a JavaScript
+         *     At one bump a second, the 32-bit ceiling takes 68 years to reach, and it keeps the value
+         *     exact in every JSON parser. An `int64` wouldn't, for a client that reads it as a JavaScript
          *     number.
          * @example 412
          */
@@ -544,18 +531,17 @@ export interface components {
         /**
          * Format: int32
          * @description A position in the queue, counted from zero. The server holds no queue of its own, so the
-         *     bound is only a sanity check, and it sits well above what the 1 MiB body cap lets a
-         *     `setQueue` deliver. Whether the index falls inside the queue the player currently has is
-         *     settled after the request crosses the bridge.
+         *     bound is only a sanity check, well above what the 1 MiB body cap lets a `setQueue` deliver.
+         *     Whether the index falls inside the player's current queue is checked after the request
+         *     crosses the bridge.
          * @example 3
          */
         TrackIndex: number;
         /**
          * @description The queue a command carries. The server hands this array across the bridge without parsing
-         *     it, so it enforces neither the member shape nor `maxItems`: the 1 MiB body cap is what
-         *     refuses an oversized queue, and it is reached first anyway. What checks the shape is the
-         *     handler on the other side, which refuses the body as `malformed_body` if a member is not a
-         *     track.
+         *     it, so it enforces neither the member shape nor `maxItems`. The 1 MiB body cap is what
+         *     refuses an oversized queue, and a queue reaches it first anyway. The handler on the other
+         *     side checks the shape, and refuses the body as `malformed_body` if a member isn't a track.
          * @example [
          *       {
          *         "duration": 293.4,
@@ -569,11 +555,10 @@ export interface components {
         CommandBare: {
             /**
              * @description `pause` stops the current track where it is, `next` and `previous` move between
-             *     tracks, and `shuffle` reorders what has not played yet.
+             *     tracks, and `shuffle` reorders what hasn't played yet.
              *
-             *     `previous` follows the button rather than the word: the leader restarts the current
-             *     track when it is more than three seconds in, and steps back otherwise. That is what
-             *     the same button already does when the phone is playing.
+             *     `previous` behaves like the button: the player restarts the current track when it's
+             *     more than three seconds in, and steps back otherwise, as the phone does.
              *      (enum property replaced by openapi-typescript)
              * @enum {string}
              */
@@ -600,10 +585,10 @@ export interface components {
             command: "seek";
             /**
              * Format: int64
-             * @description Where to move to, measured from the start of the track. Milliseconds, matching
-             *     `/state`'s `positionMs`, though the player's own clock works in seconds and rounds.
-             *     The bound is a day, which no track reaches. Whether the position falls inside the
-             *     track being played is settled after the request crosses the bridge.
+             * @description Where to move to, from the start of the track, in milliseconds to match `/state`'s
+             *     `positionMs`. The player itself works in seconds and rounds. The bound is a day, which
+             *     no track reaches. Whether the position falls inside the current track is checked after
+             *     the request crosses the bridge.
              * @example 91234
              */
             positionMs: number;
@@ -623,24 +608,26 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description Replace the queue outright and start playing. This is the largest body the API takes, and
-         *     the reason `/command`'s cap is 1 MiB rather than the 4 KiB the other routes get.
+         * @description Replace the queue outright and start playing. It's the largest JSON body the API takes, and
+         *     the reason `/command`'s cap is 1 MiB when the other JSON routes allow a few KiB. A
+         *     `setQueue` the player applies sets its `assigned`.
          *
-         *     `userId` claims the queue for that account, and the player fetches and reports plays under
-         *     its credential until the queue is replaced or emptied. Replacing a queue takes ownership
-         *     outright, unlike `addToQueue` and `playNext`, because the user chose everything in it.
-         *     Omitting it leaves the queue unowned, which is what a controller that has provisioned
-         *     nothing sends. A `setQueue` with no tracks clears the owner along with the queue.
+         *     `userId` claims the queue for that account, and the player fetches tracks with that
+         *     account's credential until the queue is replaced or emptied. Replacing a queue takes
+         *     ownership outright, unlike `addToQueue` and `playNext`, because the user chose everything
+         *     in it. Leaving `userId` out leaves the queue unowned, which is what a controller sends
+         *     offline or before it has provisioned anything. A `setQueue` with no tracks clears the owner
+         *     along with the queue.
          */
         CommandSetQueue: {
             /**
              * @description The album the queue came from, when it came from one. A queue with no album behind it,
-             *     such as a shuffle across an artist, omits it. The server passes it through unparsed, as
-             *     it does `tracks`.
+             *     such as a shuffle across an artist, leaves it out. The server passes it through
+             *     unparsed, as it does `tracks`.
              *
-             *     An album that arrives malformed is dropped rather than refusing the command, which is
-             *     the one place this route is lenient: the tracks are what the user asked to hear, and
-             *     the album is the context they are shown in. A malformed `tracks` refuses.
+             *     A malformed album is dropped and the command still applies. It's the one place this
+             *     route is lenient: the tracks are what the user asked to hear, and the album is only the
+             *     context they're shown in. A malformed `tracks` is refused.
              */
             album?: components["schemas"]["Album"];
             /**
@@ -658,8 +645,8 @@ export interface components {
          * @description Append tracks to the end of the queue.
          *
          *     `userId` claims the queue only when nothing owns it yet. Adding to somebody else's queue
-         *     does not take it over, so a guest can queue a track without the rest of the evening being
-         *     reported against their account.
+         *     doesn't take it over, so a guest can queue a track without the whole queue moving to their
+         *     account.
          */
         CommandAddToQueue: {
             /**
@@ -714,10 +701,9 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description Choose how the queue repeats. The controller sends the mode it wants rather than asking the
-         *     player to cycle to the next one, because a mirror that is a long poll behind would cycle
-         *     from a mode the player has already left. Naming the mode gives the same result whatever the
-         *     player currently has.
+         * @description Choose how the queue repeats. The controller names the mode it wants, instead of asking the
+         *     player to cycle to the next one, because a mirror a long poll behind would cycle from a mode
+         *     the player has already left.
          */
         CommandSetLoopMode: {
             /**
@@ -736,11 +722,12 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description Play the audio another player streams, the source a controller picked for the group, or
-         *     leave it when `host`, `port` and `key` are left out. Joining pauses this player's own
-         *     queue, and the player connects at once and reports how that is going in its member's
-         *     `source`, so an unreachable source, or one that refuses the key, still answers 202. Joining
-         *     the source it already joined with the same key changes nothing.
+         * @description Play the audio another player streams, the source a controller picked for the group. With
+         *     `host`, `port` and `key` left out, it leaves the source instead. Joining pauses this
+         *     player's own queue. The player connects straight away and reports how that's going in its
+         *     member's `source`, so an unreachable source, or one that refuses the key, still answers
+         *     `202`. Joining the source it already joined, with the same key, changes nothing. Any
+         *     `joinSource`, joining or leaving, sets the player's `assigned`.
          */
         CommandJoinSource: {
             /**
@@ -756,49 +743,48 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description The track the controller expects to find at the position it named. Optional, and worth
-         *     sending: the player drops the command when the id does not match, so a stale mirror cannot
-         *     reorder or delete the wrong track. A command that omits it is applied to whatever sits at
-         *     that position.
+         * @description The track the controller expects to find at the position it named. It's optional, but worth
+         *     sending: the player drops the command when the id doesn't match, so a stale mirror can't
+         *     reorder or delete the wrong track. A command without it applies to whatever is at that
+         *     position.
          * @example 3c4d5e6f708192a3
          */
         CommandTrackId: string;
         /**
-         * @description One command for the player. `command` names it and the rest of the members belong to that
-         *     name: an unknown name is `malformed_body`, as is a missing or wrongly typed member of a
-         *     name the player does know.
+         * @description One command for the player. `command` names it, and the other members belong to that name.
+         *     An unknown name is `malformed_body`, and so is a missing or wrongly typed member of a name
+         *     the player knows.
          *
-         *     A member belonging to no command is ignored rather than refused, as in `PairRequest`, so a
-         *     v1 daemon keeps accepting a body that a later controller added a field to. That is why each
-         *     variant is open rather than sealed.
+         *     A member that belongs to no command is ignored, as in `PairRequest`, so a v1 daemon keeps
+         *     accepting a body a newer controller added a field to. That's why each variant allows extra
+         *     members.
          */
         Command: components["schemas"]["CommandBare"] | components["schemas"]["CommandPlay"] | components["schemas"]["CommandSeek"] | components["schemas"]["CommandJumpToIndex"] | components["schemas"]["CommandSetQueue"] | components["schemas"]["CommandAddToQueue"] | components["schemas"]["CommandPlayNext"] | components["schemas"]["CommandRemoveAt"] | components["schemas"]["CommandMove"] | components["schemas"]["CommandSetLoopMode"] | components["schemas"]["CommandJoinSource"];
         /**
-         * @description The version the command produced. `GET /state?since=` with anything lower returns that
-         *     snapshot without blocking, so a controller can read the result of its own command without
-         *     waiting for the next change. It says nothing about what the speakers are doing.
+         * @description The version the command produced. `GET /state?since=` with any other version answers
+         *     straight away, so a controller can read the result of its own command without waiting for
+         *     the next change. It reflects the queue, not what the speakers have done since.
          */
         CommandAccepted: {
             version: components["schemas"]["StateVersion"];
         };
         /**
-         * @description The version the push produced. Bumping it is what tells a controller already long-polling
-         *     that the player is provisioned. Without that it would sit on `/state` until something else
-         *     changed.
+         * @description The version the push produced. The bump is what tells a controller already long polling
+         *     that the player now holds the credential. Without it, the controller would wait on `/state`
+         *     until something else changed.
          */
         MediaServerAccepted: {
             version: components["schemas"]["StateVersion"];
         };
         /**
          * @description A track, as much of one as a controller needs. `atolla_core/src/models/Track.ts` is the one
-         *     source of truth and holds a good deal more: release dates, sort names, genres, disc and
-         *     track numbers. The daemon relays all of it untouched, and this schema describes none of it,
-         *     because nothing reading a snapshot depends on it. Listing those members here would make a
-         *     second definition to keep in step with the first, and the spec is the copy that would be
-         *     wrong once they drifted.
+         *     definition, and holds a good deal more: release dates, sort names, genres, disc and track
+         *     numbers. The daemon passes all of it on untouched. This schema leaves those members out,
+         *     because nothing reading a snapshot depends on them, and listing them here would be a second
+         *     definition to keep in step.
          *
-         *     What is described is the members the interface requires, plus the ones a controller renders
-         *     and navigates from. Anything else the media server supplied arrives alongside them.
+         *     It describes the members the interface requires, plus the ones a controller shows and
+         *     navigates from. Anything else the media server supplied arrives alongside them.
          */
         Track: {
             /**
@@ -808,7 +794,7 @@ export interface components {
             albumId?: string;
             /**
              * Format: uri
-             * @description The artwork. A controller has no way to work this out, so it travels with the track.
+             * @description The artwork. A controller can't work this out for itself, so it travels with the track.
              * @example http://jellyfin.local:8096/Items/6f2b8c4d/Images/Primary
              */
             albumImageUrl?: string;
@@ -820,15 +806,14 @@ export interface components {
             artistName?: string;
             /**
              * Format: double
-             * @description Seconds, not milliseconds, because that is what the store and the audio engine work in.
-             *     The playback position beside it is milliseconds: a position needs finer resolution than
-             *     a length, and the asymmetry is deliberate.
+             * @description In seconds, because that's what the store and the audio engine work in. The playback
+             *     position is in milliseconds, because a position needs finer resolution than a length.
              * @example 293.4
              */
             duration: number;
             /**
-             * @description The media server's identifier. A command naming a queue position may carry it as a
-             *     guard, and the native player matches the track it is playing by it.
+             * @description The media server's identifier. A command that names a queue position may carry it as a
+             *     check, and the native player matches the track it's playing by it.
              * @example 1a2b3c4d5e6f7081
              */
             id: string;
@@ -838,8 +823,8 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description The album a queue came from, so a controller can say what is playing without looking it up.
-         *     As with `Track`, this is what a controller depends on rather than everything
+         * @description The album a queue came from, so a controller can say what's playing without looking it up.
+         *     As with `Track`, this covers what a controller depends on, not everything
          *     `atolla_core/src/models/Album.ts` holds.
          */
         Album: {
@@ -860,8 +845,8 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * @description What a player is doing. `idle` is a player with nothing queued, which is not the same as one
-         *     holding a queue it has paused.
+         * @description What a player is doing. `idle` means nothing is queued, which isn't the same as holding a
+         *     queue it has paused.
          * @example playing
          * @enum {string}
          */
@@ -879,10 +864,10 @@ export interface components {
         AudioPort: number;
         /**
          * @description The source a member was told to join with `joinSource`, absent while it plays its own
-         *     queue. `receiving` says whether it holds audio from that source still to play, so it is
-         *     false until the source is reached and its clock synced, and turns false again once the
-         *     source stops sending. A member that restarts has forgotten what it joined, which is how a
-         *     controller knows to send `joinSource` again.
+         *     queue. `receiving` says whether it holds audio from that source still to play. It's false
+         *     until the source is reached and its clock has synced, and false again once the source stops
+         *     sending. A member that restarts has forgotten what it joined, and reports
+         *     `assigned: false`.
          */
         MemberSource: {
             host: components["schemas"]["PlayerHost"];
@@ -892,10 +877,7 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /**
-         * @description A player in the group. Today a daemon is a group of one and reports only itself, so this
-         *     array has a single entry; discovery fills it out at the step that builds the beacon.
-         */
+        /** @description A player in the group. A daemon reports only itself today, so this array has one entry. */
         Member: {
             /**
              * @description Whether this player has been given a queue (`setQueue`) or a source (`joinSource`)
@@ -905,8 +887,9 @@ export interface components {
              */
             assigned: boolean;
             /**
-             * @description Whether this member plays. The enabled set is what defines the group, so a player that
-             *     is present but not enabled is one the user switched off rather than one that failed.
+             * @description Whether this member plays. The enabled set defines the group, so a player that's
+             *     present but not enabled is one the user switched off, not one that failed. A daemon
+             *     reports only itself today, so this is always `true`.
              * @example true
              */
             enabled: boolean;
@@ -934,14 +917,14 @@ export interface components {
          */
         StateSnapshot: {
             /**
-             * @description Which group this snapshot describes. There is one, called `default`, and it is on the
-             *     wire from the start so that zones are an addition later rather than a redesign.
+             * @description Which group this snapshot describes. There's one, called `default`. It's on the wire
+             *     from the start so that zones can be added later without a redesign.
              * @example default
              */
             group: string;
             /**
-             * @description The player that owns the queue. A daemon on its own leads, so this is its own id until
-             *     a group has more than one member in it.
+             * @description The player that owns the queue. A daemon reports only itself today, so this is always
+             *     its own id.
              * @example 4f3c9a1de8b27065
              */
             leader: string;
@@ -968,22 +951,20 @@ export interface components {
                 loopMode: "none" | "queue" | "track";
                 /**
                  * Format: int64
-                 * @description The leader's wall clock when it read `positionMs`, in epoch milliseconds. The two
-                 *     clocks are not synchronised, so what this is good for is elapsed time rather than
-                 *     the absolute value: a controller takes the difference against its own clock as the
-                 *     snapshot arrives, keeps it, and extrapolates from there. Reading it as a time its
-                 *     own clock agrees with puts the progress bar out by however far the two have
-                 *     drifted.
+                 * @description The player's wall clock when it read `positionMs`, in epoch milliseconds. The
+                 *     player's and the controller's clocks aren't synchronised, so this is only good for
+                 *     elapsed time. A controller takes the difference from its own clock as the snapshot
+                 *     arrives, keeps it, and extrapolates from there. Treating it as a time on the
+                 *     controller's own clock puts the progress bar out by however far the clocks differ.
                  * @example 1758000000000
                  */
                 positionAtMs: number;
                 /**
                  * Format: int64
-                 * @description How far into the current track the leader was at `positionAtMs`. The pair lets a
+                 * @description How far into the current track the player was at `positionAtMs`. The pair lets a
                  *     controller run a smooth progress bar between snapshots instead of asking for the
-                 *     position over and over. Position is the only part of the state that changes
-                 *     continuously, so without the pair the long poll would have nothing useful to say
-                 *     about it.
+                 *     position over and over. Position is the only part of the state that changes all the
+                 *     time, so the long poll couldn't report it usefully without the pair.
                  * @example 91234
                  */
                 positionMs: number;
@@ -991,10 +972,10 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
-             * @description What the player is playing through. `owner` is the account the queue belongs to, absent
-             *     when nothing has claimed it. The leader fetches and reports plays under that account's
-             *     credential, which is why the owner survives a restart while the credential itself does
-             *     not.
+             * @description What the player is playing through. `owner` is the account the queue belongs to,
+             *     absent when nothing has claimed it. The player fetches tracks with that account's
+             *     credential. The owner is only an account id, so it survives a restart, but the
+             *     credential it selects doesn't.
              */
             queue: {
                 album?: components["schemas"]["Album"];
@@ -1005,17 +986,17 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
-             * @description How the player is placed to reach the media server. An absent member means the player
-             *     has nothing to say yet, and should not be read as a no.
+             * @description How well the player can reach the media server. A member that's absent means the
+             *     player has nothing to say about it yet, not that the answer is no.
              */
             sourceHealth?: {
                 /**
-                 * @description Which accounts the player currently holds a credential for, never the credentials
-                 *     themselves. There is no read path, only `PUT /media-server`. A controller looks for
-                 *     its own account and pushes when it is missing, which is how a player that lost its
-                 *     credentials to a restart gets them back without prompting anyone. Reporting the set
-                 *     rather than a bare boolean keeps one snapshot at one version instead of a body that
-                 *     varies by who asked.
+                 * @description Which accounts the player holds a credential for, never the credentials themselves.
+                 *     Nothing reads a credential back, and the only way in is `PUT /media-server`. A
+                 *     controller looks for its own account and pushes when it's missing, which is how a
+                 *     player that lost its credentials to a restart gets them back without asking anyone.
+                 *     Reporting the set, instead of a yes or no, keeps one body per version instead of one
+                 *     that depends on who asked.
                  * @example [
                  *       "8b1f2c3d4e5f6071"
                  *     ]
@@ -1032,7 +1013,8 @@ export interface components {
     responses: {
         /**
          * @description Refused before the route could act. `incomplete_body` means the connection went quiet
-         *     mid-body; `unsupported_api_version` means the version header named something else.
+         *     partway through the body. `unsupported_api_version` means the version header named a
+         *     version the daemon doesn't speak.
          */
         BadRequest: {
             headers: {
@@ -1184,8 +1166,8 @@ export interface components {
             };
         };
         /**
-         * @description The submitted code is not the provisioned one, or nothing is provisioned. The two are
-         *     deliberately indistinguishable.
+         * @description The code doesn't match, or the daemon has no code set up. Both get the same answer on
+         *     purpose.
          */
         InvalidPairingCode: {
             headers: {
@@ -1243,9 +1225,11 @@ export interface components {
             };
         };
         /**
-         * @description The credential does not belong to the `userId` it claims. The player checks that against
-         *     the media server, because the account is asserted by the controller and a wrong entry is
-         *     otherwise silent. The body was well formed, which is what separates this from a `400`.
+         * @description The media server says the token isn't valid for the `userId` the push names. The player
+         *     checks, because the controller asserts the account and a wrong one would otherwise go
+         *     unnoticed. A token Jellyfin has since signed out, because a newer one was minted for the
+         *     same player and account, is refused the same way. The body was well formed, which is what
+         *     separates this from a `400`.
          *
          *     Nothing is stored, and any credential already held for that account is left as it was.
          */
@@ -1270,11 +1254,10 @@ export interface components {
             };
         };
         /**
-         * @description The declared `Content-Length` is over the cap, so the body was never read. The cap is 1 MiB
-         *     for any request and tighter per route: 4 KiB for `/pair`, `/media-server` and `/state`, and
-         *     8 KiB for `PUT /media`.
-         *     `/command` takes the full 1 MiB, because a `setQueue` carries the whole queue.
-         *     `PUT /media/{trackId}` is the exception: the media cache size caps it instead.
+         * @description The declared `Content-Length` is over the route's cap, so the body was never read.
+         *     `GET /hello` takes no body. `/pair`, `/media-server`, `/state` and `/stream-key` take up
+         *     to 4 KiB, and `PUT /media` 8 KiB. `/command` takes 1 MiB, because a `setQueue` carries the
+         *     whole queue. `PUT /media/{trackId}` is capped by the media cache size instead.
          */
         BodyTooLarge: {
             headers: {
@@ -1297,7 +1280,10 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description This caller must wait before pairing again. */
+        /**
+         * @description Too many wrong pairing codes, from this address or from every address together, so the
+         *     caller has to wait before trying again.
+         */
         TooManyAttempts: {
             headers: {
                 "Retry-After": components["headers"]["RetryAfter"];
@@ -1308,8 +1294,8 @@ export interface components {
             };
         };
         /**
-         * @description The request head exceeded 8 KiB, so it was never parsed. Answered before an operation is
-         *     selected, with the status line framed by hand.
+         * @description The request head was over 8 KiB, so it was never parsed. Answered before an operation is
+         *     selected.
          */
         HeadersTooLarge: {
             headers: {
@@ -1354,8 +1340,8 @@ export interface components {
             };
         };
         /**
-         * @description The handler threw. The daemon's log holds what went wrong; the problem says only that
-         *     something did, since a caller on the LAN has no business knowing more.
+         * @description The handler threw. The daemon's log says what went wrong. The problem only says that
+         *     something did, because a caller on the LAN doesn't need to know more.
          */
         HandlerFailed: {
             headers: {
@@ -1368,11 +1354,10 @@ export interface components {
     };
     parameters: {
         /**
-         * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-         *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-         *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-         *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-         *     answers any version.
+         * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+         *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+         *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+         *     what the daemon speaks. `GET /hello` answers any version.
          */
         ApiVersion: components["schemas"]["ApiVersion"];
     };
@@ -1492,11 +1477,10 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
@@ -1543,11 +1527,10 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
@@ -1572,7 +1555,7 @@ export interface operations {
         responses: {
             /**
              * @description Held. The body names the state version that reports it, so a controller can confirm
-             *     with `GET /state?since=` without waiting for the next change.
+             *     it with `GET /state?since=` without waiting for the next change.
              */
             200: {
                 headers: {
@@ -1604,11 +1587,10 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
@@ -1622,7 +1604,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted and applied to the queue. The body names the state version that reflects it. */
+            /** @description Accepted, and applied to the queue. The body names the state version that reflects it. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -1650,21 +1632,21 @@ export interface operations {
         parameters: {
             query?: {
                 /**
-                 * @description The version the controller already holds, which is normally the one it last
-                 *     applied. The daemon answers when it has something newer, or `304` when 25 seconds pass
-                 *     without that happening. A version higher than the current one is answered immediately
-                 *     instead, which is what stops a controller that outlived a restart from blocking forever
-                 *     against a counter that began again; see `StateVersion`.
+                 * @description The version the controller holds, normally the one it last applied. The daemon
+                 *     answers as soon as its own version is different, or `304` after 25 seconds without a
+                 *     change. A `since` from before a restart is usually answered at once, because the
+                 *     counter started again from 1. It can match the new count by chance, so a controller
+                 *     that lost contact with the player should drop `since` for its next read. See
+                 *     `StateVersion`.
                  */
                 since?: components["schemas"]["StateVersion"];
             };
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
@@ -1733,8 +1715,8 @@ export interface operations {
                 };
             };
             /**
-             * @description Twenty-five seconds passed with nothing newer than `since`. No body: the snapshot the
-             *     controller holds is still the current one.
+             * @description Twenty-five seconds passed with no change since `since`. There's no body, because the
+             *     snapshot the controller holds is still current.
              */
             304: {
                 headers: {
@@ -1757,11 +1739,10 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
@@ -1794,11 +1775,10 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
@@ -1834,11 +1814,10 @@ export interface operations {
             query?: never;
             header?: {
                 /**
-                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works and
-                 *     it agrees with the beacon's `"v": 1`. Surrounding whitespace is tolerated. Anything else,
-                 *     including a non-integer, is refused with `unsupported_api_version`, whose `supported`
-                 *     member reports what the daemon does speak. `GET /hello` is the documented exception and
-                 *     answers any version.
+                 * @description The version of this contract the caller speaks. Absent means 1, so a bare `curl` works.
+                 *     Spaces and tabs around the number are ignored. Any other value, including one that isn't a
+                 *     whole number, is refused with `unsupported_api_version`, whose `supported` member lists
+                 *     what the daemon speaks. `GET /hello` answers any version.
                  */
                 "Atolla-API-Version"?: components["parameters"]["ApiVersion"];
             };
