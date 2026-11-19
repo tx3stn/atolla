@@ -884,15 +884,48 @@ describe('PlayersStore status', () => {
 		return () => Object.assign(Promise.reject(new Error('timed out')), { cancel: () => {} });
 	}
 
-	async function watching(answers: Array<StatusAnswer>) {
+	const CREDENTIAL: MediaServer = {
+		accessToken: 'kitchen-token',
+		baseUrl: 'https://demo.jellyfin.local',
+		deviceId: 'atolla-0123456789abcdef-user-1',
+		serverId: 'server-1',
+		userId: 'user-1',
+	};
+
+	interface WatchOptions {
+		enabled?: boolean;
+		retries?: boolean;
+		userId?: string;
+	}
+
+	function settled<T>(json: T, status = 200): Promise<PlayerAnswer<T>> {
+		return Promise.resolve({ headers: {}, json, status });
+	}
+
+	async function watching(answers: Array<StatusAnswer>, options: WatchOptions = {}) {
 		const keyValueStore = new InMemoryKeyValueStore();
 		await keyValueStore.storeString(
 			PLAYERS_KEY,
-			JSON.stringify({ players: [SPEAKER], thisDeviceEnabled: true, version: 1 }),
+			JSON.stringify({
+				players: [{ ...SPEAKER, enabled: options.enabled ?? true }],
+				thisDeviceEnabled: true,
+				version: 1,
+			}),
 		);
 		const asked: Array<number | undefined> = [];
+		const pushes: Array<MediaServer> = [];
+		const unassigned: Array<string> = [];
 		let cancelled = 0;
 		const store = new PlayersStore({
+			createClient: () => ({
+				hello: () => settled(hello()),
+				mediaServer: (_token: string, body: MediaServer) => {
+					pushes.push(body);
+					return settled({ version: 2 });
+				},
+				pair: () => settled({ token: SPEAKER.token }),
+				state: () => settled({ ...snapshot({}), sourceHealth: { mediaServerUsers: [] } }),
+			}),
 			createStatusClient: () => ({
 				state: (_token, since) => {
 					asked.push(since);
@@ -907,14 +940,19 @@ describe('PlayersStore status', () => {
 					});
 				},
 			}),
+			provisioning: {
+				mint: () => Promise.resolve(CREDENTIAL),
+				userId: () => options.userId ?? 'user-1',
+			},
 			store: keyValueStore,
-			wait: () => new Promise<void>(() => {}),
+			wait: options.retries ? () => Promise.resolve() : () => new Promise<void>(() => {}),
 		});
 		await store.ensureLoaded();
 		let notifications = 0;
 		store.subscribe(() => {
 			notifications += 1;
 		});
+		store.onUnassigned((id) => unassigned.push(id));
 
 		const stop = store.watchStatus();
 		await settle();
@@ -923,8 +961,11 @@ describe('PlayersStore status', () => {
 			asked,
 			cancelled: () => cancelled,
 			notifications: () => notifications,
+			pushes,
 			speaker: () => store.enabledSpeakers()[0],
 			stop,
+			unassigned,
+			watchAgain: () => store.watchStatus(),
 		};
 	}
 
@@ -934,7 +975,7 @@ describe('PlayersStore status', () => {
 			leader: SPEAKER.id,
 			members: [
 				{
-					assigned: false,
+					assigned: true,
 					enabled: true,
 					id: SPEAKER.id,
 					name: SPEAKER.name,
@@ -1035,6 +1076,76 @@ describe('PlayersStore status', () => {
 
 		expect(cancelled()).toBe(1);
 		expect(asked.length).toBe(1);
+	});
+
+	it('heals a switched-on speaker that has not been given its job, and gives it its credential back', async () => {
+		const { pushes, unassigned } = await watching([answered(200, snapshot({ assigned: false }))]);
+
+		expect(unassigned).toEqual([SPEAKER.id]);
+		expect(pushes).toEqual([CREDENTIAL]);
+	});
+
+	it('does not heal a speaker again when it says the same again', async () => {
+		const { pushes, unassigned } = await watching([
+			answered(200, snapshot({ assigned: false }, 3)),
+			answered(200, snapshot({ assigned: false }, 4)),
+		]);
+
+		expect(unassigned).toEqual([SPEAKER.id]);
+		expect(pushes).toEqual([CREDENTIAL]);
+	});
+
+	it('heals a speaker that had its job once it says it has lost it', async () => {
+		const { unassigned } = await watching([
+			answered(200, snapshot({ assigned: true }, 3)),
+			answered(200, snapshot({ assigned: false }, 4)),
+		]);
+
+		expect(unassigned).toEqual([SPEAKER.id]);
+	});
+
+	it('leaves a switched-off speaker alone', async () => {
+		const { pushes, unassigned } = await watching([answered(200, snapshot({ assigned: false }))], {
+			enabled: false,
+		});
+
+		expect(unassigned).toEqual([]);
+		expect(pushes).toEqual([]);
+	});
+
+	it('reads a speaker afresh once it has been unreachable', async () => {
+		const { asked, unassigned } = await watching(
+			[
+				answered(200, snapshot({ assigned: false }, 3)),
+				unanswered(),
+				answered(200, snapshot({ assigned: false }, 1)),
+			],
+			{ retries: true },
+		);
+
+		expect(asked).toEqual([undefined, 3, undefined, 1]);
+		expect(unassigned).toEqual([SPEAKER.id, SPEAKER.id]);
+	});
+
+	it('reads every speaker afresh each time the tab opens', async () => {
+		const answers = [answered(200, snapshot({ assigned: false }))];
+		const { stop, unassigned, watchAgain } = await watching(answers);
+
+		stop();
+		answers.push(answered(200, snapshot({ assigned: false })));
+		watchAgain();
+		await settle();
+
+		expect(unassigned).toEqual([SPEAKER.id, SPEAKER.id]);
+	});
+
+	it('heals a speaker without pushing a credential while offline', async () => {
+		const { pushes, unassigned } = await watching([answered(200, snapshot({ assigned: false }))], {
+			userId: '',
+		});
+
+		expect(unassigned).toEqual([SPEAKER.id]);
+		expect(pushes).toEqual([]);
 	});
 });
 

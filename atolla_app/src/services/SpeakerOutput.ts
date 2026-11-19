@@ -77,6 +77,7 @@ export class SpeakerOutput {
 		this.unsubscribes = [
 			this.options.playbackStore.subscribe(this.sync),
 			this.options.playersStore.subscribe(this.sync),
+			this.options.playersStore.onUnassigned(this.heal),
 		];
 		void this.options.playersStore.ensureLoaded().then(this.sync);
 	}
@@ -151,6 +152,25 @@ export class SpeakerOutput {
 			speaker.loopMode = store.loopMode;
 		}
 	}
+
+	private heal = (id: string): void => {
+		const speaker = this.speakers.get(id);
+		if (speaker === undefined) {
+			return;
+		}
+
+		if (speaker === this.source) {
+			speaker.driving = false;
+			this.lastWindow = null;
+			for (const member of this.speakers.values()) {
+				member.joinedTo = null;
+			}
+		} else {
+			speaker.joinedTo = null;
+		}
+
+		this.sync();
+	};
 
 	private join(member: Speaker, source: Speaker): void {
 		if (member.driving) {

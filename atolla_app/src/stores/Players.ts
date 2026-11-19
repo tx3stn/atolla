@@ -129,6 +129,7 @@ export class PlayersStore {
 	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
 	private readonly tokens = new Map<string, string>();
+	private readonly unassignedListeners = new Set<(id: string) => void>();
 	private readonly wait: (ms: number) => Promise<void>;
 
 	constructor(options: PlayersStoreOptions = {}) {
@@ -178,6 +179,13 @@ export class PlayersStore {
 		);
 
 		return player?.name ?? null;
+	}
+
+	onUnassigned(listener: (id: string) => void): () => void {
+		this.unassignedListeners.add(listener);
+		return () => {
+			this.unassignedListeners.delete(listener);
+		};
 	}
 
 	pair(player: ProbedPlayer, code: string): Promise<Player> {
@@ -369,15 +377,22 @@ export class PlayersStore {
 
 	private applyStatus(id: string, snapshot: StateSnapshot): void {
 		const member = snapshot.members.find((candidate) => candidate.id === id);
-		const held = this.players.find((candidate) => candidate.id === id)?.source ?? null;
+		const player = this.players.find((candidate) => candidate.id === id);
+		const held = player?.source ?? null;
 		const reported = member?.source ?? null;
+		const assigned = member?.assigned ?? null;
+		const lostItsJob = assigned === false && player?.assigned !== false;
 
 		this.updateStatus(id, {
-			assigned: member?.assigned ?? null,
+			assigned,
 			reachable: true,
 			source: sameSource(held, reported) ? held : reported,
 			state: member?.state ?? PlayerStates.idle,
 		});
+
+		if (lostItsJob && player?.enabled === true) {
+			this.heal(id);
+		}
 	}
 
 	private async followStatus(id: string, watch: StatusWatch): Promise<void> {
@@ -388,6 +403,7 @@ export class PlayersStore {
 
 		const client = this.createStatusClient(baseUrl);
 		let since: number | undefined;
+		this.updateStatus(id, { assigned: null });
 
 		while (!watch.stopped) {
 			const token = this.tokens.get(id);
@@ -406,7 +422,8 @@ export class PlayersStore {
 			}
 
 			if (answer === null) {
-				this.updateStatus(id, { reachable: false });
+				since = undefined;
+				this.updateStatus(id, { assigned: null, reachable: false });
 				await this.wait(STATUS_RETRY_MS);
 				continue;
 			}
@@ -420,6 +437,16 @@ export class PlayersStore {
 				return;
 			}
 		}
+	}
+
+	private heal(id: string): void {
+		for (const listener of [...this.unassignedListeners]) {
+			listener(id);
+		}
+
+		this.provision(id).catch((error: unknown) => {
+			log.warn('could not give a player its credential back', { error: String(error), id });
+		});
 	}
 
 	private async load(): Promise<void> {

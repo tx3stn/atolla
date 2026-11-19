@@ -200,6 +200,11 @@ async function harness(options: Options = {}) {
 		},
 		userId: () => options.userId ?? 'user-1',
 	});
+	let unassigned: (id: string) => void = () => {};
+	playersStore.onUnassigned = (listener) => {
+		unassigned = listener;
+		return () => {};
+	};
 	output.start();
 	await settle();
 
@@ -222,6 +227,7 @@ async function harness(options: Options = {}) {
 		output,
 		playbackStore,
 		playersStore,
+		restarted: (speaker: typeof KITCHEN) => unassigned(speaker.id),
 		sent,
 		sentWindows,
 		targets,
@@ -808,6 +814,55 @@ describe('SpeakerOutput', () => {
 				{ baseUrl: KITCHEN.baseUrl, token: KITCHEN.token, trackIds: [] },
 			]);
 			expect(targets).toEqual([{ host: '', port: 0, token: '' }]);
+		});
+	});
+
+	describe('a speaker that restarted', () => {
+		it('sends a restarted source its queue and window again, and rejoins its members with its new key', async () => {
+			const options: Options = { speakers: [KITCHEN, LOUNGE] };
+			const setup = await harness(options);
+			setup.playbackStore.play([track1, track2], album, 0);
+			setup.playersStore.setEnabled(KITCHEN.id, true);
+			setup.playersStore.setEnabled(LOUNGE.id, true);
+			await settle();
+			const window = setup.uploadWindows[setup.uploadWindows.length - 1];
+			setup.clear();
+
+			options.keys = { [KITCHEN.baseUrl]: RESTARTED_KITCHEN_KEY };
+			setup.restarted(KITCHEN);
+			await settle();
+
+			expect(setup.commandsTo(KITCHEN)).toEqual([
+				{ album, command: 'setQueue', trackIndex: 0, tracks: [track1, track2], userId: 'user-1' },
+				{ command: 'setLoopMode', loopMode: LoopModes.none },
+			]);
+			expect(setup.commandsTo(LOUNGE)).toEqual([
+				{
+					command: 'joinSource',
+					host: '192.168.1.42',
+					key: RESTARTED_KITCHEN_KEY,
+					port: AUDIO_PORT,
+				},
+			]);
+			expect(setup.uploadWindows).toEqual([window]);
+			expect(setup.sentWindows).toEqual([]);
+		});
+
+		it('rejoins a restarted member, and sends its source nothing', async () => {
+			const { commandsTo, restarted } = await grouped([KITCHEN, LOUNGE]);
+
+			restarted(LOUNGE);
+			await settle();
+
+			expect(commandsTo(LOUNGE)).toEqual([
+				{
+					command: 'joinSource',
+					host: '192.168.1.42',
+					key: STREAM_KEYS[KITCHEN.baseUrl],
+					port: AUDIO_PORT,
+				},
+			]);
+			expect(commandsTo(KITCHEN)).toEqual([]);
 		});
 	});
 });
