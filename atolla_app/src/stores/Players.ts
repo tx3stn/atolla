@@ -126,6 +126,7 @@ export class PlayersStore {
 	private readonly deviceName: () => string;
 	private readonly networkTransport: () => NetworkTransport;
 	private readonly provisioning: MediaServerProvisioning | undefined;
+	private readonly provisions = new Map<string, Promise<void>>();
 	private readonly store: KeyValueStore;
 	private readonly subscribers = new Set<() => void>();
 	private readonly tokens = new Map<string, string>();
@@ -219,55 +220,18 @@ export class PlayersStore {
 		);
 	}
 
-	async provision(id: string): Promise<void> {
-		const provisioning = this.provisioning;
-		const createClient = this.createClient;
-		const player = this.players.find((candidate) => candidate.id === id);
-		const token = this.tokens.get(id);
-		if (
-			provisioning === undefined ||
-			createClient === undefined ||
-			player === undefined ||
-			player.baseUrl === null ||
-			token === undefined ||
-			this.networkTransport() === 'cellular'
-		) {
-			return;
+	provision(id: string): Promise<void> {
+		const running = this.provisions.get(id);
+		if (running !== undefined) {
+			return running;
 		}
 
-		const userId = provisioning.userId();
-		if (userId === '') {
-			return;
-		}
-
-		const client = createClient(player.baseUrl);
-
-		const greeting = await Promise.resolve(client.hello()).catch(() => {
-			throw PlayerErrors.PLAYER_UNREACHABLE;
+		const provisioned = this.pushCredential(id).finally(() => {
+			this.provisions.delete(id);
 		});
-		if (greeting.status !== 200 || (greeting.json as Partial<Hello>).id !== player.id) {
-			throw PlayerErrors.NOT_THE_PAIRED_PLAYER;
-		}
+		this.provisions.set(id, provisioned);
 
-		const snapshot = await Promise.resolve(client.state(token)).catch(() => {
-			throw PlayerErrors.PLAYER_UNREACHABLE;
-		});
-		if (snapshot.status !== 200) {
-			throw refusal(snapshot.json as Partial<Problem>);
-		}
-
-		const held = (snapshot.json as Partial<StateSnapshot>).sourceHealth?.mediaServerUsers;
-		if (held === undefined || held.includes(userId)) {
-			return;
-		}
-
-		const credential = await provisioning.mint(player);
-		const pushed = await Promise.resolve(client.mediaServer(token, credential)).catch(() => {
-			throw PlayerErrors.PLAYER_UNREACHABLE;
-		});
-		if (pushed.status !== 200) {
-			throw refusal(pushed.json as Partial<Problem>);
-		}
+		return provisioned;
 	}
 
 	probe(address: string): Promise<ProbedPlayer> {
@@ -509,6 +473,57 @@ export class PlayersStore {
 	private persistOrder(): Promise<void> {
 		const blob: PersistedPlayerOrder = { order: this.order, version: 1 };
 		return this.store.storeString(PLAYERS_ORDER_KEY, JSON.stringify(blob)).catch(() => {});
+	}
+
+	private async pushCredential(id: string): Promise<void> {
+		const provisioning = this.provisioning;
+		const createClient = this.createClient;
+		const player = this.players.find((candidate) => candidate.id === id);
+		const token = this.tokens.get(id);
+		if (
+			provisioning === undefined ||
+			createClient === undefined ||
+			player === undefined ||
+			player.baseUrl === null ||
+			token === undefined ||
+			this.networkTransport() === 'cellular'
+		) {
+			return;
+		}
+
+		const userId = provisioning.userId();
+		if (userId === '') {
+			return;
+		}
+
+		const client = createClient(player.baseUrl);
+
+		const greeting = await Promise.resolve(client.hello()).catch(() => {
+			throw PlayerErrors.PLAYER_UNREACHABLE;
+		});
+		if (greeting.status !== 200 || (greeting.json as Partial<Hello>).id !== player.id) {
+			throw PlayerErrors.NOT_THE_PAIRED_PLAYER;
+		}
+
+		const snapshot = await Promise.resolve(client.state(token)).catch(() => {
+			throw PlayerErrors.PLAYER_UNREACHABLE;
+		});
+		if (snapshot.status !== 200) {
+			throw refusal(snapshot.json as Partial<Problem>);
+		}
+
+		const held = (snapshot.json as Partial<StateSnapshot>).sourceHealth?.mediaServerUsers;
+		if (held === undefined || held.includes(userId)) {
+			return;
+		}
+
+		const credential = await provisioning.mint(player);
+		const pushed = await Promise.resolve(client.mediaServer(token, credential)).catch(() => {
+			throw PlayerErrors.PLAYER_UNREACHABLE;
+		});
+		if (pushed.status !== 200) {
+			throw refusal(pushed.json as Partial<Problem>);
+		}
 	}
 
 	private async readOrder(): Promise<Array<string>> {

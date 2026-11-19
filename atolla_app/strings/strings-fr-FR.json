@@ -315,8 +315,8 @@
 		"defaultMessage": "activez quick connect pour donner accès aux lecteurs"
 	},
 	"players_provision_refused": {
-		"defaultMessage": "{name%s} n'a pas pu accéder à votre bibliothèque",
-		"example": "cuisine n'a pas pu accéder à votre bibliothèque"
+		"defaultMessage": "{name%s} n'a pas pu se connecter à votre serveur multimédia",
+		"example": "cuisine n'a pas pu se connecter à votre serveur multimédia"
 	},
 	"players_status_connected": {
 		"defaultMessage": "connecté"

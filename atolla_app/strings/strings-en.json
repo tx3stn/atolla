@@ -315,8 +315,8 @@
 		"defaultMessage": "turn on quick connect to give players access"
 	},
 	"players_provision_refused": {
-		"defaultMessage": "{name%s} couldn't get access to your library",
-		"example": "kitchen couldn't get access to your library"
+		"defaultMessage": "{name%s} couldn't sign in to your media server",
+		"example": "kitchen couldn't sign in to your media server"
 	},
 	"players_status_connected": {
 		"defaultMessage": "connected"

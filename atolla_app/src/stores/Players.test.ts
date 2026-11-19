@@ -722,6 +722,24 @@ describe('PlayersStore provision', () => {
 		expect(pushes).toEqual([{ body: CREDENTIAL, token: 'a'.repeat(64) }]);
 	});
 
+	it('mints and pushes once when asked twice at the same time', async () => {
+		const { mints, pushes, store } = await paired({ held: [] });
+
+		await Promise.all([store.provision(KITCHEN.id), store.provision(KITCHEN.id)]);
+
+		expect(mints.length).toBe(1);
+		expect(pushes.length).toBe(1);
+	});
+
+	it('provisions again once the last one has finished', async () => {
+		const { mints, store } = await paired({ held: [] });
+
+		await store.provision(KITCHEN.id);
+		await store.provision(KITCHEN.id);
+
+		expect(mints.length).toBe(2);
+	});
+
 	it('mints nothing when the player already holds that account', async () => {
 		const { mints, pushes, store } = await paired({ held: ['user-1'] });
 
