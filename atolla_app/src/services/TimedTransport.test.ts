@@ -122,9 +122,9 @@ describe('TimedTransport', () => {
 		};
 		const { client } = answeringClient(response);
 
-		expect(await new TimedTransport(client, { timedOut: TIMED_OUT }).get('http://host:1/hello')).toBe(
-			response,
-		);
+		expect(
+			await new TimedTransport(client, { timedOut: TIMED_OUT }).get('http://host:1/hello'),
+		).toBe(response);
 	});
 
 	it('passes a rejection through as it arrives', async () => {

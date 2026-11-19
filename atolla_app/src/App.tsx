@@ -40,6 +40,9 @@ import {
 	setAtollaImageLoaderAuthHeader,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
+import { IntegrationErrors } from './integrations/IntegrationErrors';
+import { LidarrClient } from './integrations/lidarr/Client';
+import { LidarrConnection } from './integrations/lidarr/Connection';
 import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
 import { type ConnectionMode, ConnectionModes } from './models/App';
 import type { Player } from './models/Player';
@@ -161,6 +164,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			userId: () => this.sessionManager.getSession()?.userId ?? '',
 		},
 		store: new PersistentStore('atolla/players', {
+			deviceGlobal: true,
+			enableEncryption: true,
+		}),
+	});
+	private readonly lidarr = new LidarrConnection({
+		createClient: (url, apiKey) =>
+			new LidarrClient(
+				new TimedTransport(new HTTPClient(), { timedOut: IntegrationErrors.TIMED_OUT }),
+				url,
+				apiKey,
+			),
+		store: new PersistentStore('atolla/integrations/lidarr', {
 			deviceGlobal: true,
 			enableEncryption: true,
 		}),
@@ -496,6 +511,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				featureFlags={this.featureFlags}
 				homeViewModel={this.buildHomeViewModel()}
 				libraryViewModel={this.buildLibraryViewModel()}
+				lidarr={this.lidarr}
 				lyricsService={this.userScope.getLyricsService()}
 				modalSlot={this.modalSlot}
 				paletteService={this.userScope.getPaletteService()}
@@ -758,6 +774,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private async loadAndConnect(): Promise<void> {
 		await this.preferences.load();
+		await this.lidarr.load();
 		this.applyLoadedSettingsEffects();
 		const session = await this.sessionManager.loadSession();
 		await this.connectivity.bootstrap(session);

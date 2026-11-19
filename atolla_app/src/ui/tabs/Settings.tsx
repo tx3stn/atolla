@@ -8,6 +8,7 @@ export class SettingsTab extends Component<SettingsTabViewModel> {
 		<SettingsView
 			devTools={this.viewModel.devTools}
 			downloadService={this.viewModel.downloadService}
+			lidarr={this.viewModel.lidarr}
 			lyricsService={this.viewModel.lyricsService}
 			modalSlot={this.viewModel.modalSlot}
 			paletteService={this.viewModel.paletteService}

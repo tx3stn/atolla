@@ -141,6 +141,26 @@
 	"errors_auth_session_expired": {
 		"defaultMessage": "session expired"
 	},
+	"errors_integration_request_failed": {
+		"defaultMessage": "{name%s} couldn't answer the request",
+		"example": "lidarr couldn't answer the request"
+	},
+	"errors_integration_timed_out": {
+		"defaultMessage": "{name%s} took too long to answer",
+		"example": "lidarr took too long to answer"
+	},
+	"errors_integration_unauthorized": {
+		"defaultMessage": "{name%s} didn't accept the API key",
+		"example": "lidarr didn't accept the API key"
+	},
+	"errors_integration_unreachable": {
+		"defaultMessage": "couldn't reach {name%s} at the address",
+		"example": "couldn't reach lidarr at the address"
+	},
+	"errors_integration_wrong_service": {
+		"defaultMessage": "the address isn't a {name%s} server",
+		"example": "the address isn't a lidarr server"
+	},
 	"errors_playback_network": {
 		"defaultMessage": "couldn't load this track"
 	},
@@ -210,6 +230,22 @@
 	},
 	"instant_mix_failed_toast": {
 		"defaultMessage": "instant mix failed"
+	},
+	"integration_api_key_placeholder": {
+		"defaultMessage": "API key"
+	},
+	"integration_authenticate": {
+		"defaultMessage": "authenticate"
+	},
+	"integration_connect_title": {
+		"defaultMessage": "connect {name%s}",
+		"example": "connect lidarr"
+	},
+	"integration_http_warning": {
+		"defaultMessage": "this address uses HTTP\nthe API key is sent unencrypted"
+	},
+	"integration_url_placeholder": {
+		"defaultMessage": "server address"
 	},
 	"loading": {
 		"defaultMessage": "loading..."
@@ -488,6 +524,9 @@
 	"settings_include_lyrics": {
 		"defaultMessage": "include lyrics"
 	},
+	"settings_lidarr": {
+		"defaultMessage": "lidarr"
+	},
 	"settings_logout_button": {
 		"defaultMessage": "logout"
 	},
@@ -517,6 +556,9 @@
 	},
 	"settings_section_home": {
 		"defaultMessage": "HOME"
+	},
+	"settings_section_integrations": {
+		"defaultMessage": "INTEGRATIONS"
 	},
 	"settings_section_language": {
 		"defaultMessage": "LANGUAGE"

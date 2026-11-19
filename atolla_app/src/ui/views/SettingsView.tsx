@@ -22,6 +22,7 @@ import {
 	requestAtollaImageLoaderDiskCacheStats,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from '../../ImageLoaderBootstrap';
+import type { LidarrConnection } from '../../integrations/lidarr/Connection';
 import { type CardSize, CardSizes } from '../../models/App';
 import type { ArtworkPaletteService } from '../../services/ArtworkPaletteService';
 import type { LyricsService } from '../../services/LyricsService';
@@ -47,6 +48,7 @@ import {
 } from '../../TrackPlaybackNative';
 import { theme, withAlpha } from '../../theme';
 import { Button } from '../components/Button';
+import { IntegrationsSection } from '../components/IntegrationsSection';
 import { SelectOption } from '../components/SelectOption';
 import { Toggle } from '../components/Toggle';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
@@ -59,6 +61,7 @@ const NATIVE_CACHE_STATS_INTERVAL_MS = 1000;
 export interface SettingsViewModel {
 	devTools?: DevTools;
 	downloadService: DownloadService;
+	lidarr: LidarrConnection;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	paletteService: ArtworkPaletteService;
@@ -308,6 +311,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 							selectedValue={selectedOnThisDayLookahead}
 						/>
 					</view>
+
+					<IntegrationsSection
+						animationsEnabled={this.viewModel.preferences.animationsEnabled}
+						language={selectedLanguage}
+						lidarr={this.viewModel.lidarr}
+						modalSlot={this.viewModel.modalSlot}
+					/>
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionLanguage()} />
 					<view style={styles.section}>

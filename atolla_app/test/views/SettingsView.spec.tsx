@@ -1,4 +1,6 @@
 import 'jasmine/src/jasmine';
+import { LidarrClient } from 'atolla_app/src/integrations/lidarr/Client';
+import { LidarrConnection } from 'atolla_app/src/integrations/lidarr/Connection';
 import { CardSizes, type ConnectionMode, ConnectionModes } from 'atolla_app/src/models/App';
 import type { ArtworkPaletteService } from 'atolla_app/src/services/ArtworkPaletteService';
 import type { LyricsService } from 'atolla_app/src/services/LyricsService';
@@ -8,7 +10,9 @@ import { ToastService } from 'atolla_app/src/services/ToastService';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { SettingsView, type SettingsViewModel } from 'atolla_app/src/ui/views/SettingsView';
 import { Logger } from 'atolla_core/src/services/Logger';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import type { HttpTransport } from 'atolla_sync/src/api/Transport';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';
@@ -108,9 +112,28 @@ const lyricsServiceStub = {
 	clearAll: () => Promise.resolve(),
 } as unknown as LyricsService;
 
+const lidarrServer: HttpTransport = {
+	get: () =>
+		Promise.resolve({
+			body: new TextEncoder().encode('{"appName":"Lidarr"}'),
+			headers: {},
+			statusCode: 200,
+		}),
+	post: () => Promise.reject(new Error('unused')),
+	put: () => Promise.reject(new Error('unused')),
+};
+
+function makeLidarr(): LidarrConnection {
+	return new LidarrConnection({
+		createClient: (url, apiKey) => new LidarrClient(lidarrServer, url, apiKey),
+		store: new InMemoryKeyValueStore(),
+	});
+}
+
 function makeViewModel(overrides?: Partial<SettingsViewModel>): SettingsViewModel {
 	return {
 		downloadService: makeDownloadService(),
+		lidarr: makeLidarr(),
 		lyricsService: lyricsServiceStub,
 		modalSlot: new DetachedSlot(),
 		paletteService: paletteServiceStub,
@@ -258,6 +281,36 @@ describe('SettingsView', () => {
 			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(preferences.includeLyricsInDownloads).toBe(true);
+	});
+
+	valdiIt('turning lidarr on asks for its address and api key', async (driver) => {
+		const component = driver.renderComponent(SettingsViewWithSlot, makeViewModel(), undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-lidarr-toggle')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.TextField).some(
+				(field) => field.getAttribute('accessibilityId') === 'integration-api-key-input',
+			),
+		).toBe(true);
+	});
+
+	valdiIt('turning lidarr off disconnects it', async (driver) => {
+		const lidarr = makeLidarr();
+		await lidarr.connect('http://lidarr.local:8686', 'key-1');
+		const component = driver.renderComponent(
+			SettingsViewWithSlot,
+			makeViewModel({ lidarr }),
+			undefined,
+		);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-lidarr-toggle')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(lidarr.connected()).toBeNull();
 	});
 
 	valdiIt('logout confirm routes to the session controller', async (driver) => {

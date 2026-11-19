@@ -10,6 +10,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DevTools } from './dev/DevTools';
 import type { FeatureFlags } from './FeatureFlags';
+import type { LidarrConnection } from './integrations/lidarr/Connection';
 import { type ConnectionMode, type FooterTab, FooterTabs } from './models/App';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
@@ -39,6 +40,7 @@ export interface AuthedAppViewModel {
 	featureFlags: FeatureFlags;
 	homeViewModel: Omit<HomeTabViewModel, 'onNavigationControllerReady'>;
 	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
+	lidarr: LidarrConnection;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	paletteService: ArtworkPaletteService;
@@ -180,6 +182,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						<SettingsTab
 							devTools={this.viewModel.devTools}
 							downloadService={this.viewModel.downloadService}
+							lidarr={this.viewModel.lidarr}
 							lyricsService={this.viewModel.lyricsService}
 							modalSlot={this.viewModel.modalSlot}
 							paletteService={this.viewModel.paletteService}
