@@ -163,6 +163,8 @@ test --spawn_strategy=local
 test --strategy=TestRunner=local
 
 build:prod --define=build_mode=prod
+build:prod --snap_flavor=production
+build:prod --compilation_mode=opt
 
 # Per-machine settings (gitignored) — e.g. a personal remote-cache key
 try-import %workspace%/.bazelrc.user

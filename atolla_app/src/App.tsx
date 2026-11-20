@@ -44,6 +44,7 @@ import { IntegrationErrors } from './integrations/IntegrationErrors';
 import { LidarrClient } from './integrations/lidarr/Client';
 import { LidarrConnection } from './integrations/lidarr/Connection';
 import { UpcomingService } from './integrations/lidarr/UpcomingService';
+import { reportAtollaFullyDrawn } from './LaunchNative';
 import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
 import { type ConnectionMode, ConnectionModes } from './models/App';
 import type { Player } from './models/Player';
@@ -133,6 +134,7 @@ export interface AppViewModel {
 }
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
+	private readonly createdAt = Date.now();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly featureFlags: FeatureFlags = this.viewModel.featureFlags ?? { multiRoom: false };
 	private authService = this.createAuthService();
@@ -352,6 +354,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	onCreate(): void {
+		this.logBootPhase('fields');
 		configureAlbumArtMaxDimension(
 			deriveAlbumArtMaxDimension(EXPANDED_ARTWORK_SIZE, Device.getDisplayScale()),
 		);
@@ -436,6 +439,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}),
 		);
 		this.playbackOrchestrator.reconcilePlaybackState();
+		this.logBootPhase('oncreate');
 		this.startBootstrap();
 	}
 
@@ -637,6 +641,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.bootstrapCommitTimer = setTimeout(() => {
 			if (this.isDestroyed()) return;
 			this.setState({ isBootstrapped: true });
+			this.logBootPhase('committed');
+			if (Device.isAndroid()) {
+				reportAtollaFullyDrawn();
+			}
 			this.playbackOrchestrator.notifyAppReady();
 			this.downloadService.onAppReady();
 			// cold start doesn't fire onOnline(), so kick the downloaded-collection sync here
@@ -781,10 +789,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private async loadAndConnect(): Promise<void> {
 		await this.preferences.load();
+		this.logBootPhase('preferences');
 		await this.lidarr.load();
+		this.logBootPhase('lidarr');
 		this.applyLoadedSettingsEffects();
+		this.logBootPhase('settings');
 		const session = await this.sessionManager.loadSession();
+		this.logBootPhase('session');
 		await this.connectivity.bootstrap(session);
+		this.logBootPhase('connectivity');
+	}
+
+	private logBootPhase(phase: string): void {
+		log.info('boot phase', { ms: Date.now() - this.createdAt, phase });
 	}
 
 	private markSessionStartAndDetectPriorCrash(): void {
@@ -879,6 +896,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				]);
 			} catch {
 				if (!this.isDestroyed() && !this.state.isBootstrapped) {
+					this.logBootPhase('fallback');
 					// the timeout already fired, so this must not wait on the download index too
 					void this.connectivity.bootstrap(null, { waitForDownloadIndex: false });
 				}

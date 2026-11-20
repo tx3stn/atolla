@@ -106,7 +106,7 @@ jobs:
           restore-keys: |
             bazel-repo-${{ runner.os }}-
       - name: build apk
-        run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
+        run: JAVA_HOME="$JAVA_HOME_17_X64" VALDI_BAZEL_ARGS=--config=prod bun run build:apk
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: inputs.release
         with:
@@ -266,7 +266,7 @@ jobs:
       # Device build, ad hoc signed — see .scripts/build-ios-ipa.sh. No Apple account
       # or signing secrets involved; the installing user's sideloader re-signs.
       - name: build ipa
-        run: IOS_CPUS=arm64 bun run build:ipa
+        run: IOS_CPUS=arm64 VALDI_BAZEL_ARGS=--config=prod bun run build:ipa
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: inputs.release
         with:
