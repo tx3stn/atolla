@@ -7,6 +7,7 @@ export class SettingsPage extends BasePage {
 	private readonly cacheClearConfirmButton = 'cache-clear-confirm-btn';
 	private readonly logoutButton = 'settings-logout-btn';
 	private readonly logoutConfirmButton = 'settings-logout-confirm-btn';
+	private readonly lidarrToggle = 'settings-lidarr-toggle';
 
 	async waitForLoad(): Promise<void> {
 		await this.driver.waitUntil(async () => this.isVisible(), {
@@ -32,6 +33,11 @@ export class SettingsPage extends BasePage {
 
 	async tapClearCache(): Promise<void> {
 		await this.tapAndConfirm(this.clearCacheButton, this.cacheClearConfirmButton, 'clear cache');
+	}
+
+	async tapLidarrToggle(): Promise<void> {
+		const toggle = await this.scrollUntilDisplayed(this.lidarrToggle);
+		await toggle.click();
 	}
 
 	async tapLogout(): Promise<void> {

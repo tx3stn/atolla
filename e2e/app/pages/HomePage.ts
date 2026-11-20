@@ -6,6 +6,7 @@ export class HomePage extends BasePage {
 	private readonly albumCardPrefix = 'card-album-';
 	private readonly shuffleLibraryMix = 'card-mix-shuffle-library';
 	private readonly pinnedGrid = 'home-pinned-grid';
+	private readonly upcomingAlbumPrefix = 'card-detail-lidarr-';
 
 	isDisplayed(): Promise<boolean> {
 		return this.elementByID(this.recentlyAddedGrid).isDisplayed();
@@ -43,6 +44,11 @@ export class HomePage extends BasePage {
 			timeoutMsg: `Timed out waiting for on this day album: card-detail-${albumId}`,
 		});
 		await row.click();
+	}
+
+	async isUpcomingAlbumDisplayed(lidarrId: string): Promise<boolean> {
+		const card = await this.scrollUntilDisplayed(`${this.upcomingAlbumPrefix}${lidarrId}`);
+		return card.isDisplayed();
 	}
 
 	async longPressFirstVisibleAlbumCard(): Promise<void> {

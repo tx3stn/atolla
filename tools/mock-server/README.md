@@ -27,6 +27,11 @@ Then in the app's connection screen enter:
 - **`media-server.ts`** serves `/Audio/{id}/stream.mp3` and `/Items/{id}/Images/{type}`
   from `./media/` with HTTP Range support. Add `media/audio/<trackId>.mp3` and
   `media/images/<id>.jpg` (or a `default.*` fallback per folder).
+- **`lidarr/server.ts`** stands in for Lidarr on its own port, 8686, outside wiretap, since
+  wiretap only knows Jellyfin's spec. It answers `/api/v1/system/status` and
+  `/api/v1/calendar` (one album out a week from today) for any non-empty API key. Connect
+  it from Settings → INTEGRATIONS with `http://10.0.2.2:8686` (android emulator) or
+  `http://localhost:8686` (iOS simulator).
 
 ## Editing the data
 

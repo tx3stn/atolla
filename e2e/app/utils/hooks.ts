@@ -18,6 +18,11 @@ export function mockServerUrl(): string {
 	return isIOS ? 'http://localhost:9090' : 'http://10.0.2.2:9090';
 }
 
+export function mockLidarrUrl(): string {
+	const isIOS = (browser.capabilities.platformName as string).toLowerCase() === 'ios';
+	return isIOS ? 'http://localhost:8686' : 'http://10.0.2.2:8686';
+}
+
 export async function connectToServer(serverURL: string): Promise<void> {
 	const connectionPage = new ConnectionPage(browser);
 	const footer = new FooterPage(browser);

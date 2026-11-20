@@ -13,6 +13,7 @@ const HERE = import.meta.dir;
 const GENERATED = join(HERE, 'generated');
 const SPEC = join(HERE, 'openapi.json');
 const MEDIA_PORT = Number(process.env.MOCK_MEDIA_PORT ?? 8788);
+const LIDARR_PORT = Number(process.env.MOCK_LIDARR_PORT ?? 8686);
 const GATEWAY = 'http://localhost:9090';
 const CONTAINER = 'atolla-mock';
 const SENTINEL = `${GATEWAY}/Items?includeItemTypes=MusicAlbum&sortBy=Random`;
@@ -50,6 +51,12 @@ const media = Bun.spawn(['bun', join(HERE, 'media-server.ts')], {
 	stdout: 'inherit',
 });
 
+const lidarr = Bun.spawn(['bun', join(HERE, 'lidarr', 'server.ts')], {
+	env: { ...process.env, MOCK_LIDARR_PORT: String(LIDARR_PORT) },
+	stderr: 'inherit',
+	stdout: 'inherit',
+});
+
 await removeContainer();
 console.log('starting wiretap');
 const wiretap = Bun.spawn(
@@ -83,6 +90,7 @@ async function shutdown(): Promise<void> {
 	shuttingDown = true;
 	await removeContainer();
 	media.kill();
+	lidarr.kill();
 	process.exit(0);
 }
 process.on('SIGINT', shutdown);
@@ -96,6 +104,9 @@ if (!(await waitUntilReady())) {
 console.log('\n  ✓ atolla mock server ready');
 console.log('      android emulator : http://10.0.2.2:9090');
 console.log('      iOS simulator    : http://localhost:9090');
+console.log(
+	`      lidarr           : http://10.0.2.2:${LIDARR_PORT} / http://localhost:${LIDARR_PORT}`,
+);
 
 await wiretap.exited;
 await shutdown();
