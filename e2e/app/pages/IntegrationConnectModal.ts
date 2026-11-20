@@ -29,6 +29,16 @@ export class IntegrationConnectModal extends BasePage {
 		});
 	}
 
+	async dismissKeyboard(): Promise<void> {
+		if (this.isIOS()) {
+			await this.driver.keys(['\n']);
+		} else {
+			try {
+				await this.driver.hideKeyboard();
+			} catch {}
+		}
+	}
+
 	async enterUrl(url: string): Promise<void> {
 		await this.typeInto(this.urlInput, url, 'server address input');
 	}

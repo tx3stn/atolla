@@ -215,6 +215,17 @@ export class BasePage {
 		throw new Error('Element never scrolled clear of the header and footer nav');
 	}
 
+	// creeps so the list is at rest before the tap: a tap on a list that's still coasting only
+	// stops it
+	public async creepIntoTappableArea(id: string, maxSteps = 15): Promise<ChainablePromiseElement> {
+		const element = this.elementByID(id);
+		for (let step = 0; step < maxSteps && !(await element.isExisting()); step += 1) {
+			await this.creepDown();
+		}
+		await this.scrollIntoTappableArea(element, maxSteps);
+		return element;
+	}
+
 	public async longPressFirstVisibleByAccessibilityPrefix(
 		prefix: string,
 		durationMs = 800,

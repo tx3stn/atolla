@@ -18,8 +18,15 @@ describe('upcoming releases', () => {
 	});
 
 	afterEach(async () => {
+		if (await modal.isOpen()) {
+			await modal.dismissKeyboard();
+			await modal.tapCancel();
+			return;
+		}
+
 		await footer.tapSettings();
 		await settingsPage.waitForLoad();
+		await settingsPage.scrollToTop();
 		await settingsPage.tapLidarrToggle();
 		if (await modal.isOpen()) {
 			await modal.tapCancel();
@@ -29,15 +36,17 @@ describe('upcoming releases', () => {
 	it('shows an album from lidarr on home once lidarr is connected', async () => {
 		await footer.tapSettings();
 		await settingsPage.waitForLoad();
+		await settingsPage.scrollToTop();
 
 		await settingsPage.tapLidarrToggle();
 		await modal.waitForVisible();
 		await modal.enterUrl(mockLidarrUrl());
 		await modal.enterApiKey('atolla-mock-lidarr-key');
+		await modal.dismissKeyboard();
 		await modal.tapAuthenticate();
 		await modal.waitForHidden();
 		await footer.tapHome();
-		await homePage.waitForVisible();
+		await homePage.waitForLoad();
 
 		expect(await homePage.isUpcomingAlbumDisplayed('1')).toBe(true);
 	});

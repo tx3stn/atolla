@@ -47,7 +47,7 @@ export class HomePage extends BasePage {
 	}
 
 	async isUpcomingAlbumDisplayed(lidarrId: string): Promise<boolean> {
-		const card = await this.scrollUntilDisplayed(`${this.upcomingAlbumPrefix}${lidarrId}`);
+		const card = await this.creepIntoTappableArea(`${this.upcomingAlbumPrefix}${lidarrId}`, 20);
 		return card.isDisplayed();
 	}
 

@@ -36,7 +36,7 @@ export class SettingsPage extends BasePage {
 	}
 
 	async tapLidarrToggle(): Promise<void> {
-		const toggle = await this.scrollUntilDisplayed(this.lidarrToggle);
+		const toggle = await this.creepIntoTappableArea(this.lidarrToggle);
 		await toggle.click();
 	}
 
