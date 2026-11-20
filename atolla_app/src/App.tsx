@@ -98,7 +98,6 @@ import { ConnectionView } from './ui/views/ConnectionView';
 import { deriveAlbumArtMaxDimension } from './utils/ImageSizing';
 
 const BOOTSTRAP_TIMEOUT_MS = 5000;
-const MINIMUM_BOOT_SPLASH_MS = 100;
 
 const log = getLogger('app');
 
@@ -329,8 +328,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		requestRerender: () => this.requestRerender(),
 	});
 
-	private readonly bootstrapStartedAt = Date.now();
-	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
 	private lastSyncEditErrors: Array<PlaylistEditError> = [];
 	private unsubscribeToast?: () => void;
 	private readonly handleRequestModeChange = (mode: ConnectionMode): Promise<boolean> =>
@@ -448,9 +445,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.playbackStore.persistNow();
 		this.playbackOrchestrator.dispose();
 		this.speakerOutput.dispose();
-		if (this.bootstrapCommitTimer) {
-			clearTimeout(this.bootstrapCommitTimer);
-		}
 		if (this.unsubscribeToast) {
 			this.unsubscribeToast();
 		}
@@ -632,24 +626,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	private commitBootstrapped(): void {
-		if (this.bootstrapCommitTimer != null || this.state.isBootstrapped) {
+		if (this.isDestroyed()) {
 			return;
 		}
 
-		const elapsed = Date.now() - this.bootstrapStartedAt;
-		const remaining = Math.max(0, MINIMUM_BOOT_SPLASH_MS - elapsed);
-		this.bootstrapCommitTimer = setTimeout(() => {
-			if (this.isDestroyed()) return;
-			this.setState({ isBootstrapped: true });
-			this.logBootPhase('committed');
-			if (Device.isAndroid()) {
-				reportAtollaFullyDrawn();
-			}
-			this.playbackOrchestrator.notifyAppReady();
-			this.downloadService.onAppReady();
-			// cold start doesn't fire onOnline(), so kick the downloaded-collection sync here
-			this.syncDownloadedCollections();
-		}, remaining);
+		this.setState({ isBootstrapped: true });
+		this.logBootPhase('committed');
+		if (Device.isAndroid()) {
+			reportAtollaFullyDrawn();
+		}
+		this.playbackOrchestrator.notifyAppReady();
+		this.downloadService.onAppReady();
+		// cold start doesn't fire onOnline(), so kick the downloaded-collection sync here
+		this.syncDownloadedCollections();
 	}
 
 	private createAuthService(): JellyfinAuthService {
