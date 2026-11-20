@@ -13,7 +13,7 @@ import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { HomeView, type HomeViewModel } from 'atolla_app/src/ui/views/HomeView';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
-import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { HttpTransport } from 'atolla_sync/src/api/Transport';
@@ -569,6 +569,24 @@ describe('HomeView upcoming', () => {
 		expect(upcomingCardIds(component).length).toBe(4);
 	});
 
+	valdiIt('shows what lidarr sent even when it cannot be saved', async (driver) => {
+		const base = makeBaseDeps();
+		const failingStore: KeyValueStore = {
+			fetchString: () => Promise.reject(new Error('missing key')),
+			storeString: () => Promise.reject(new Error('disk full')),
+		};
+		const { lidarr, upcoming } = await connectedLidarr([lidarrAlbum({ id: 1 })], failingStore);
+
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(upcomingCardIds(component)).toEqual(['card-detail-lidarr-1']);
+	});
+
 	valdiIt('shows the saved list without asking lidarr while offline', async (driver) => {
 		const base = makeBaseDeps();
 		const { calendarCalls, lidarr, upcoming } = await connectedLidarr([lidarrAlbum({ id: 1 })]);
@@ -646,7 +664,10 @@ function fourReleases(): Array<LidarrAlbum> {
 	];
 }
 
-function unconnectedLidarr(albums: Array<LidarrAlbum>) {
+function unconnectedLidarr(
+	albums: Array<LidarrAlbum>,
+	upcomingStore: KeyValueStore = new InMemoryKeyValueStore(),
+) {
 	const calendarCalls = { count: 0 };
 	const transport: HttpTransport = {
 		get: (url) => {
@@ -664,7 +685,7 @@ function unconnectedLidarr(albums: Array<LidarrAlbum>) {
 		post: () => Promise.reject(new Error('unused')),
 		put: () => Promise.reject(new Error('unused')),
 	};
-	const upcoming = new UpcomingService(new InMemoryKeyValueStore());
+	const upcoming = new UpcomingService(upcomingStore);
 	const lidarr = new LidarrConnection({
 		createClient: (url, apiKey) => new LidarrClient(transport, url, apiKey),
 		store: new InMemoryKeyValueStore(),
@@ -674,8 +695,11 @@ function unconnectedLidarr(albums: Array<LidarrAlbum>) {
 	return { calendarCalls, lidarr, upcoming };
 }
 
-async function connectedLidarr(albums: Array<LidarrAlbum>) {
-	const unconnected = unconnectedLidarr(albums);
+async function connectedLidarr(
+	albums: Array<LidarrAlbum>,
+	upcomingStore: KeyValueStore = new InMemoryKeyValueStore(),
+) {
+	const unconnected = unconnectedLidarr(albums, upcomingStore);
 	await unconnected.lidarr.connect('http://lidarr.local:8686', 'key-1');
 
 	return unconnected;

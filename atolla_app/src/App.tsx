@@ -170,7 +170,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}),
 	});
 	private readonly upcoming = new UpcomingService(
-		new PersistentStore('atolla/integrations/lidarr/cache', { deviceGlobal: true }),
+		new PersistentStore('atolla/integrations/lidarr/upcoming', { deviceGlobal: true }),
 	);
 	private readonly lidarr = new LidarrConnection({
 		createClient: (url, apiKey) =>
@@ -179,7 +179,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				url,
 				apiKey,
 			),
-		store: new PersistentStore('atolla/integrations/lidarr', {
+		store: new PersistentStore('atolla/integrations/lidarr/auth', {
 			deviceGlobal: true,
 			enableEncryption: true,
 		}),

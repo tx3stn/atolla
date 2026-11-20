@@ -455,19 +455,22 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return Promise.resolve();
 		}
 
-		return upcoming
-			.ensureLoaded()
-			.then(() => {
-				if (this.isDestroyed() || generation !== this.loadGeneration) {
-					return;
-				}
-				this.setState({ upcomingAlbums: upcoming.albums(new Date()) });
+		return upcoming.ensureLoaded().then(() => {
+			if (this.isDestroyed() || generation !== this.loadGeneration) {
+				return;
+			}
+			this.setState({ upcomingAlbums: upcoming.albums(new Date()) });
 
-				if (this.viewModel.connectionMode === ConnectionModes.offline) {
-					return undefined;
-				}
+			if (this.viewModel.connectionMode === ConnectionModes.offline) {
+				return undefined;
+			}
 
-				return upcoming.refresh(client, new Date()).then(() => {
+			return upcoming
+				.refresh(client, new Date())
+				.catch((error: unknown) => {
+					log.warn('could not refresh upcoming albums', { error });
+				})
+				.then(() => {
 					if (this.isDestroyed() || generation !== this.loadGeneration) {
 						return;
 					}
@@ -475,10 +478,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					this.setState({ upcomingAlbums: albums });
 					this.preloadUpcomingArtwork(albums);
 				});
-			})
-			.catch((error: unknown) => {
-				log.warn('could not refresh upcoming albums', { error });
-			});
+		});
 	}
 
 	private preloadUpcomingArtwork(albums: Array<UpcomingAlbum>): void {

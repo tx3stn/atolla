@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { HttpResponse, HttpTransport } from 'atolla_sync/src/api/Transport';
 import { IntegrationErrors } from '../IntegrationErrors';
 import { LidarrClient } from './Client';
@@ -99,6 +99,19 @@ describe('UpcomingService', () => {
 		await expect(upcoming.refresh(unreachableLidarr(), NOW)).rejects.toEqual(
 			IntegrationErrors.UNREACHABLE.withDetail('Error: connection refused'),
 		);
+		expect(upcoming.albums(NOW).map((album) => album.title)).toEqual(['Axe to Fall']);
+	});
+
+	it('keeps the fresh list in memory when it cannot be saved', async () => {
+		const { client } = lidarr([lidarrAlbum()]);
+		const failure = new Error('disk full');
+		const store: KeyValueStore = {
+			fetchString: () => Promise.reject(new Error('missing key')),
+			storeString: () => Promise.reject(failure),
+		};
+		const upcoming = new UpcomingService(store);
+
+		await expect(upcoming.refresh(client, NOW)).rejects.toBe(failure);
 		expect(upcoming.albums(NOW).map((album) => album.title)).toEqual(['Axe to Fall']);
 	});
 
