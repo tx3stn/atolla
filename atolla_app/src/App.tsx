@@ -112,8 +112,6 @@ function defaultDeviceName(): string {
 interface AppState {
 	authErrorMessage: InternalError<string> | null;
 	connectionMode: ConnectionMode;
-	downloadedSizeBytes: number | null;
-	downloadedTrackCount: number;
 	downloadingCount: number;
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
@@ -336,8 +334,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	state: AppState = {
 		authErrorMessage: null,
 		connectionMode: ConnectionModes.offline,
-		downloadedSizeBytes: null,
-		downloadedTrackCount: 0,
 		downloadingCount: 0,
 		isAuthenticating: false,
 		isAuthRequired: false,
@@ -419,8 +415,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.registerDisposable(
 			this.downloadService.subscribe(() => {
 				this.setState({
-					downloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
-					downloadedTrackCount: this.downloadService.getDownloadedTrackCount(),
 					downloadingCount: this.downloadService.getDownloadingCount(),
 					offlineDataInvalidations: this.downloadService.getOfflineDataInvalidations(),
 				});
