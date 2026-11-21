@@ -771,10 +771,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private async loadAndConnect(): Promise<void> {
-		await this.preferences.load();
-		this.logBootPhase('preferences');
-		await this.lidarr.load();
-		this.logBootPhase('lidarr');
+		await Promise.all([
+			this.preferences.load().then(() => this.logBootPhase('preferences')),
+			this.lidarr.load().then(() => this.logBootPhase('lidarr')),
+		]);
 		this.applyLoadedSettingsEffects();
 		this.logBootPhase('settings');
 		const session = await this.sessionManager.loadSession();
