@@ -10,6 +10,7 @@ export interface CardDetailViewModel {
 	artworkId?: string | null;
 	artworkKey: string;
 	lineOne: string;
+	lineOneAccessibilityId: string;
 	lineThree: string;
 	lineTwo: string;
 	onLongPress?: () => void;
@@ -23,6 +24,7 @@ export class CardDetail extends Component<CardDetailViewModel> {
 			artworkId,
 			artworkKey,
 			lineOne,
+			lineOneAccessibilityId,
 			lineThree,
 			lineTwo,
 			onLongPress,
@@ -51,7 +53,7 @@ export class CardDetail extends Component<CardDetailViewModel> {
 			</view>
 			<layout style={styles.textColumn}>
 				<layout style={styles.textTop}>
-					<label style={styles.lineOne} value={lineOne} />
+					<label accessibilityId={lineOneAccessibilityId} style={styles.lineOne} value={lineOne} />
 					<label numberOfLines={2} style={styles.lineTwo} value={lineTwo} />
 				</layout>
 				<label style={styles.lineThree} value={lineThree} />

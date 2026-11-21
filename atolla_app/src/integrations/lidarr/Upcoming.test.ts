@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 import type { LidarrAlbum } from './Models';
-import { createUpcomingCardDetails, toUpcomingAlbums, type UpcomingAlbum } from './Upcoming';
+import {
+	createUpcomingCardDetails,
+	stillUpcoming,
+	toUpcomingAlbums,
+	type UpcomingAlbum,
+} from './Upcoming';
+
+const NOW = new Date(2026, 10, 21, 9, 30);
 
 function lidarrAlbum(overrides: Partial<LidarrAlbum> = {}): LidarrAlbum {
 	return {
@@ -78,7 +85,7 @@ describe('createUpcomingCardDetails', () => {
 	};
 
 	it('shows the release day, title and artist', () => {
-		expect(createUpcomingCardDetails([album], 'en')).toEqual([
+		expect(createUpcomingCardDetails([album], 'en', NOW)).toEqual([
 			{
 				artworkKey: 'https://covers.example/1.jpg',
 				id: 'lidarr-1',
@@ -91,14 +98,49 @@ describe('createUpcomingCardDetails', () => {
 	});
 
 	it('writes the release day in the language given', () => {
-		expect(createUpcomingCardDetails([album], 'fr')[0]?.lineOne).toBe(
+		expect(createUpcomingCardDetails([album], 'fr', NOW)[0]?.lineOne).toBe(
 			'dateDayMonth 5 monthDecember',
+		);
+	});
+
+	it('says out today on the day it comes out', () => {
+		const outToday = { ...album, releaseDate: '2026-11-21T00:00:00Z' };
+
+		expect(createUpcomingCardDetails([outToday], 'en', NOW)[0]?.lineOne).toBe(
+			'homeUpcomingOutToday',
+		);
+	});
+
+	it('shows the release day for a release out tomorrow', () => {
+		const outTomorrow = { ...album, releaseDate: '2026-11-22T00:00:00Z' };
+
+		expect(createUpcomingCardDetails([outTomorrow], 'en', NOW)[0]?.lineOne).toBe(
+			'dateDayMonth 22nd monthNovember',
 		);
 	});
 
 	it('falls back to the placeholder artwork without a cover', () => {
 		const withoutCover = { ...album, coverUrl: undefined };
 
-		expect(createUpcomingCardDetails([withoutCover], 'en')[0]?.artworkKey).toBe('');
+		expect(createUpcomingCardDetails([withoutCover], 'en', NOW)[0]?.artworkKey).toBe('');
+	});
+});
+
+describe('stillUpcoming', () => {
+	const album: UpcomingAlbum = {
+		artistName: 'Converge',
+		id: '1',
+		releaseDate: '2026-11-21T00:00:00Z',
+		title: 'No Heroes',
+	};
+
+	it('keeps a release on the day it comes out', () => {
+		expect(stillUpcoming([album], NOW)).toEqual([album]);
+	});
+
+	it('drops a release once its day has passed', () => {
+		const nextDay = new Date(2026, 10, 22, 0, 5);
+
+		expect(stillUpcoming([album], nextDay)).toEqual([]);
 	});
 });

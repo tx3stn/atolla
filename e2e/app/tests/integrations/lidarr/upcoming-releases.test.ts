@@ -33,7 +33,7 @@ describe('upcoming releases', () => {
 		}
 	});
 
-	it('shows an album from lidarr on home once lidarr is connected', async () => {
+	async function connectMockLidarr(): Promise<void> {
 		await footer.tapSettings();
 		await settingsPage.waitForLoad();
 		await settingsPage.scrollToTop();
@@ -45,9 +45,21 @@ describe('upcoming releases', () => {
 		await modal.dismissKeyboard();
 		await modal.tapAuthenticate();
 		await modal.waitForHidden();
+	}
+
+	it('shows an album from lidarr on home once lidarr is connected', async () => {
+		await connectMockLidarr();
 		await footer.tapHome();
 		await homePage.waitForLoad();
 
 		expect(await homePage.isUpcomingAlbumDisplayed('1')).toBe(true);
+	});
+
+	it('says out today on a release that comes out today', async () => {
+		await connectMockLidarr();
+		await footer.tapHome();
+		await homePage.waitForLoad();
+
+		expect(await homePage.upcomingReleaseDay('2')).toBe('out today');
 	});
 });

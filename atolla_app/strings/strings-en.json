@@ -225,6 +225,9 @@
 	"home_title": {
 		"defaultMessage": "HOME"
 	},
+	"home_upcoming_out_today": {
+		"defaultMessage": "out today"
+	},
 	"http_warning_modal_body": {
 		"defaultMessage": "this server uses HTTP\n\nyour credentials and data will be sent unencrypted over the network\n\nonly continue if you trust this network and can't use HTTPS"
 	},

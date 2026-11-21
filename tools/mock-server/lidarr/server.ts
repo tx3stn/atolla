@@ -1,5 +1,12 @@
 const PORT = Number(process.env.MOCK_LIDARR_PORT ?? 8686);
 
+function today(): string {
+	const release = new Date();
+	const month = `${release.getMonth() + 1}`.padStart(2, '0');
+	const day = `${release.getDate()}`.padStart(2, '0');
+	return `${release.getFullYear()}-${month}-${day}T00:00:00Z`;
+}
+
 function inAWeek(): string {
 	const release = new Date();
 	release.setUTCDate(release.getUTCDate() + 7);
@@ -14,6 +21,13 @@ function upcomingAlbums(): Array<unknown> {
 			images: [],
 			releaseDate: inAWeek(),
 			title: 'Axe to Fall',
+		},
+		{
+			artist: { artistName: 'Converge' },
+			id: 2,
+			images: [],
+			releaseDate: today(),
+			title: 'No Heroes',
 		},
 	];
 }

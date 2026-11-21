@@ -225,6 +225,9 @@
 	"home_title": {
 		"defaultMessage": "ACCUEIL"
 	},
+	"home_upcoming_out_today": {
+		"defaultMessage": "disponible aujourd'hui"
+	},
 	"http_warning_modal_body": {
 		"defaultMessage": "ce serveur utilise HTTP. vos identifiants et données seront envoyés sans chiffrement sur le réseau.\n\ncontinuez uniquement si vous faites confiance à ce réseau et n'avez pas d'autre option."
 	},

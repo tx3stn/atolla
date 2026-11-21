@@ -1,8 +1,6 @@
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
-import { localDateKey } from '../../services/OnThisDayService';
-import { formatReleaseDate } from '../../utils/Date';
 import type { LidarrClient } from './Client';
-import { toUpcomingAlbums, type UpcomingAlbum } from './Upcoming';
+import { stillUpcoming, toUpcomingAlbums, type UpcomingAlbum } from './Upcoming';
 
 const CACHE_KEY = 'upcoming_v1';
 const UPCOMING_LOOKAHEAD_DAYS = 90;
@@ -14,8 +12,7 @@ export class UpcomingService {
 	constructor(private readonly store: KeyValueStore) {}
 
 	albums(now: Date): Array<UpcomingAlbum> {
-		const today = localDateKey(now);
-		return this.cached.filter((album) => (formatReleaseDate(album.releaseDate) ?? '') >= today);
+		return stillUpcoming(this.cached, now);
 	}
 
 	async clear(): Promise<void> {

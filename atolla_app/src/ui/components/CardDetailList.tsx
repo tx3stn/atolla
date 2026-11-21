@@ -37,6 +37,7 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 								artworkId={entry.id}
 								artworkKey={entry.artworkKey}
 								lineOne={entry.lineOne}
+								lineOneAccessibilityId={`detail-card-line-one-${entry.id}`}
 								lineThree={entry.lineThree}
 								lineTwo={entry.lineTwo}
 								onLongPress={

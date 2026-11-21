@@ -7,6 +7,7 @@ export class HomePage extends BasePage {
 	private readonly shuffleLibraryMix = 'card-mix-shuffle-library';
 	private readonly pinnedGrid = 'home-pinned-grid';
 	private readonly upcomingAlbumPrefix = 'card-detail-lidarr-';
+	private readonly upcomingReleaseDayPrefix = 'detail-card-line-one-lidarr-';
 
 	isDisplayed(): Promise<boolean> {
 		return this.elementByID(this.recentlyAddedGrid).isDisplayed();
@@ -49,6 +50,12 @@ export class HomePage extends BasePage {
 	async isUpcomingAlbumDisplayed(lidarrId: string): Promise<boolean> {
 		const card = await this.creepIntoTappableArea(`${this.upcomingAlbumPrefix}${lidarrId}`, 20);
 		return card.isDisplayed();
+	}
+
+	async upcomingReleaseDay(lidarrId: string): Promise<string> {
+		await this.creepIntoTappableArea(`${this.upcomingAlbumPrefix}${lidarrId}`, 20);
+		const releaseDay = await this.elementByID(`${this.upcomingReleaseDayPrefix}${lidarrId}`);
+		return this.readElementText(releaseDay, this.upcomingReleaseDayPrefix);
 	}
 
 	async longPressFirstVisibleAlbumCard(): Promise<void> {

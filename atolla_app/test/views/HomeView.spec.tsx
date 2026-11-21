@@ -6,7 +6,7 @@ import { UpcomingService } from 'atolla_app/src/integrations/lidarr/UpcomingServ
 import { ConnectionModes } from 'atolla_app/src/models/App';
 import Strings from 'atolla_app/src/Strings';
 import type { LyricsService } from 'atolla_app/src/services/LyricsService';
-import type { OnThisDayService } from 'atolla_app/src/services/OnThisDayService';
+import { localDateKey, type OnThisDayService } from 'atolla_app/src/services/OnThisDayService';
 import type { RecentlyAddedService } from 'atolla_app/src/services/RecentlyAddedService';
 import type { ToastService } from 'atolla_app/src/services/ToastService';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
@@ -587,6 +587,50 @@ describe('HomeView upcoming', () => {
 		expect(labelValues(component)).toContain(Strings.dateDayMonth('15', Strings.monthJanuary()));
 	});
 
+	valdiIt('says out today on a release that comes out today', async (driver) => {
+		const base = makeBaseDeps();
+		const { lidarr, upcoming } = await connectedLidarr([
+			lidarrAlbum({ id: 1, releaseDate: releasedOn(new Date()) }),
+		]);
+
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		expect(labelValues(component)).toContain(Strings.homeUpcomingOutToday());
+	});
+
+	valdiIt('drops a release once its day has passed', async (driver) => {
+		const base = makeBaseDeps();
+		const today = new Date();
+		const { lidarr, upcoming } = await connectedLidarr([
+			lidarrAlbum({ id: 1, releaseDate: releasedOn(today) }),
+		]);
+		const component = driver.renderComponent(
+			HomeView,
+			buildViewModel({ ...base, lidarr, upcoming }, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		jasmine.clock().install();
+		try {
+			jasmine
+				.clock()
+				.mockDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 9));
+			await base.preferences.setAnimationsEnabled(!base.preferences.animationsEnabled);
+			await flushAsyncWork();
+
+			expect(upcomingCardIds(component)).toEqual([]);
+			expect(labelValues(component)).toContain(Strings.homeNoUpcoming());
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
 	valdiIt('shows only as many upcoming albums as chosen, soonest first', async (driver) => {
 		const base = makeBaseDeps();
 		await base.preferences.setUpcomingLimit(3);
@@ -707,6 +751,10 @@ function lidarrAlbum(overrides: Partial<LidarrAlbum> = {}): LidarrAlbum {
 		title: 'Axe to Fall',
 		...overrides,
 	};
+}
+
+function releasedOn(day: Date): string {
+	return `${localDateKey(day)}T00:00:00Z`;
 }
 
 function fourReleases(): Array<LidarrAlbum> {

@@ -1,7 +1,9 @@
+import Strings from 'atolla_app/src/Strings';
 import type { LanguageCode } from 'atolla_core/src/Language';
 import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
 import type { CardDetailItem } from '../../models/App';
-import { formatDayAndMonth } from '../../utils/Date';
+import { localDateKey } from '../../services/OnThisDayService';
+import { formatDayAndMonth, formatReleaseDate } from '../../utils/Date';
 import type { LidarrAlbum } from './Models';
 
 export interface UpcomingAlbum {
@@ -15,15 +17,25 @@ export interface UpcomingAlbum {
 export function createUpcomingCardDetails(
 	albums: Array<UpcomingAlbum>,
 	language: LanguageCode,
+	now: Date,
 ): Array<CardDetailItem> {
+	const today = localDateKey(now);
 	return albums.map((album) => ({
 		artworkKey: album.coverUrl ?? '',
 		id: `lidarr-${album.id}`,
 		kind: 'album',
-		lineOne: formatDayAndMonth(album.releaseDate, language),
+		lineOne:
+			formatReleaseDate(album.releaseDate) === today
+				? Strings.homeUpcomingOutToday()
+				: formatDayAndMonth(album.releaseDate, language),
 		lineThree: album.artistName,
 		lineTwo: album.title,
 	}));
+}
+
+export function stillUpcoming(albums: Array<UpcomingAlbum>, now: Date): Array<UpcomingAlbum> {
+	const today = localDateKey(now);
+	return albums.filter((album) => (formatReleaseDate(album.releaseDate) ?? '') >= today);
 }
 
 export function toUpcomingAlbums(albums: Array<LidarrAlbum>): Array<UpcomingAlbum> {

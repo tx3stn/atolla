@@ -15,14 +15,18 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { LidarrConnection } from '../../integrations/lidarr/Connection';
-import { createUpcomingCardDetails, type UpcomingAlbum } from '../../integrations/lidarr/Upcoming';
+import {
+	createUpcomingCardDetails,
+	stillUpcoming,
+	type UpcomingAlbum,
+} from '../../integrations/lidarr/Upcoming';
 import type { UpcomingService } from '../../integrations/lidarr/UpcomingService';
 import type { CardDetailItem } from '../../models/App';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import type { EntityRef } from '../../services/EntityTracks';
 import type { LyricsService } from '../../services/LyricsService';
 import { createOnThisDayCardDetails, selectOnThisDayCandidates } from '../../services/OnThisDay';
-import type { OnThisDayService } from '../../services/OnThisDayService';
+import { localDateKey, type OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import {
@@ -94,6 +98,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
 	private cachedUpcomingAlbumsRef: Array<UpcomingAlbum> | null = null;
 	private cachedUpcomingCards: Array<CardDetailItem> = [];
+	private cachedUpcomingDay = '';
 	private cachedUpcomingLanguage: LanguageCode | null = null;
 	private cachedUpcomingLimit = -1;
 	private subscribedPinnedItemsStore: PinnedItemsStore | undefined;
@@ -427,20 +432,25 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	private createUpcomingCards(): Array<CardDetailItem> {
 		const { language, upcomingLimit } = this.viewModel.preferences;
+		const now = new Date();
+		const today = localDateKey(now);
 		if (
 			this.state.upcomingAlbums === this.cachedUpcomingAlbumsRef &&
 			language === this.cachedUpcomingLanguage &&
-			upcomingLimit === this.cachedUpcomingLimit
+			upcomingLimit === this.cachedUpcomingLimit &&
+			today === this.cachedUpcomingDay
 		) {
 			return this.cachedUpcomingCards;
 		}
 
 		this.cachedUpcomingAlbumsRef = this.state.upcomingAlbums;
+		this.cachedUpcomingDay = today;
 		this.cachedUpcomingLanguage = language;
 		this.cachedUpcomingLimit = upcomingLimit;
 		this.cachedUpcomingCards = createUpcomingCardDetails(
-			this.state.upcomingAlbums.slice(0, upcomingLimit),
+			stillUpcoming(this.state.upcomingAlbums, now).slice(0, upcomingLimit),
 			language,
+			now,
 		);
 		return this.cachedUpcomingCards;
 	}
@@ -488,7 +498,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private preloadUpcomingArtwork(albums: Array<UpcomingAlbum>): void {
 		try {
 			preloadAtollaImages(
-				createUpcomingCardDetails(albums, this.viewModel.preferences.language)
+				createUpcomingCardDetails(albums, this.viewModel.preferences.language, new Date())
 					.filter((card) => card.artworkKey !== '')
 					.map((card) =>
 						buildImageSource({ category: 'album_art_thumb', id: card.id, url: card.artworkKey }),
