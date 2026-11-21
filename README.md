@@ -35,7 +35,7 @@
 * Local waveform generation for fancy progress bars
 * Image focussed UI (featuring artist logos)
 * Playlist creation & editing
-* Localised UI
+* Integrations with: [Lidarr](https://lidarr.audio/)
 
 ## Screenshots
 
@@ -59,6 +59,7 @@
 * recently added
 * recently played
 * various mixes
+* upcoming releases (requires Lidarr)
 
 ### artist view
 
@@ -115,16 +116,6 @@ There is currently no App store release, but you can install with your sideloade
 * [AltStore](https://altstore.io)
 * [Sideloadly](https://sideloadly.io)
 
-> [!IMPORTANT]
-> **The iOS app is considered beta.**
->
-> It has been tested **a lot** in an emulator, but I don't have an iPhone, so can't test
-> it on device.
-> As such there may be things to iron out on an actual device.
->
-> If you run into issues please raise them. If you can create a PR to fix the
-> issues and test it out on your own device, even better.
-
 ## Why?
 
 I switched from Plex to Jellyfin several years ago, but could never find a
@@ -145,49 +136,6 @@ the app as it's not a good fit, and that's fine.
 I'm not trying to build "Plexamp for Jellyfin", I'm trying to build a great
 music player for Jellyfin, so there will be some things that Plexamp does that
 atolla doesn't, and some things atolla does that Plexamp doesn't.
-
-### It's not a fully customisable 'make it your own' app
-
-The design is intentionally opinionated, it won't try to give you all of the
-customisation options you *might* want, as that makes it a lot harder
-to maintain. Suggestions for improvements or things that could be tweakable are
-always welcomed, but they **might not** be actioned.
-
-## How does `atolla` compare?
-
-There are other Jellyfin music apps out there, you might already be using one of them,
-so I thought it was worth giving a comparison to the alternatives.
-
-It's always good to have more options. Thank you to the people putting in the
-hardwork and spending their time to create and maintain these apps 🖤
-
-I mean no disrespect to anyone with my criticisms, I'm simply saying why they
-weren't the right choice for me personally. If they work for you, or you prefer
-them to atolla great!
-
-### [Finamp](https://github.com/UnicornsOnLSD/finamp)
-
-Finamp has a more comprehensive feature set than atolla, it can do a lot.
-Whilst they are aware the UI needs work and are working on a rework, it's very
-slow progress and I think it's a long way off being a polished app with a good
-user experience.
-
-* It's **very** slow to load for my music library. Painfully so at times.
-* The UI is ugly (to me) and dated.
-* It's trying to be everything to everyone, with a huge amount of options and customisation.
-
-atolla loads the same library instantly. It has been designed from the
-ground up for efficiency, making heavy use of caching, paginated API requests and
-background workers to ensure everything loads as quickly as possible so you can get
-straight to listening.
-
-### [Jellify](https://github.com/Jellify-Music/App)
-
-I haven't used Jellify personally so can't speak on it's performance, but these are
-the things that made me dismiss it in my search for the right Jellyfin music player.
-
-* The UI is ugly (to me), it's inconsistent, with lots of wasted space and tiny artwork.
-* Looking at the issues it's missing a lot of features I'd consider important for a music app (which atolla has implemented).
 
 ## What atolla does differently
 
