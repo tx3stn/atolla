@@ -116,6 +116,39 @@ describe('PlaylistCreateService.load', () => {
 		// both present because they have different localIds
 		expect(service2.getPending().length).toBeGreaterThanOrEqual(1);
 	});
+
+	it('does not write to storage when nothing was queued before load', async () => {
+		const store = createStoreMock(
+			JSON.stringify([
+				{ localId: 'local-playlist-1', name: 'Stored Playlist', trackId: 'track-99' },
+			]),
+		);
+		let writes = 0;
+		const service = new PlaylistCreateService({
+			fetchString: store.fetchString,
+			storeString: (key, value) => {
+				writes += 1;
+				return store.storeString(key, value);
+			},
+		});
+
+		await service.load();
+
+		expect(writes).toBe(0);
+	});
+
+	it('saves ops queued before load together with the stored ones', async () => {
+		const store = createStoreMock(
+			JSON.stringify([{ localId: 'local-playlist-old', name: 'Old Playlist', trackId: 'track-1' }]),
+		);
+		const service = new PlaylistCreateService(store);
+		service.enqueue('New Playlist', 'track-2');
+
+		await service.load();
+
+		const saved = JSON.parse(store.stored.pending_playlist_creates) as Array<{ name: string }>;
+		expect(saved.map((op) => op.name)).toEqual(['New Playlist', 'Old Playlist']);
+	});
 });
 
 describe('PlaylistCreateService.flush', () => {

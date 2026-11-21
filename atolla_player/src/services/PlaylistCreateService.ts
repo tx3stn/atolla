@@ -26,6 +26,7 @@ export class PlaylistCreateService {
 	async load(): Promise<void> {
 		if (this.isLoaded) return;
 		this.isLoaded = true;
+		const hasUnsavedOps = this.pending.length > 0;
 		try {
 			const raw = await this.store.fetchString(pendingKey);
 			const parsed: unknown = JSON.parse(raw);
@@ -38,7 +39,9 @@ export class PlaylistCreateService {
 		} catch {
 			// storage empty or invalid, keep whatever is in memory
 		}
-		await this.persist();
+		if (hasUnsavedOps) {
+			await this.persist();
+		}
 	}
 
 	enqueue(name: string, trackId: string): Playlist {
