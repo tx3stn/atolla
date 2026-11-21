@@ -95,6 +95,20 @@ describe('PinnedItemsStore', () => {
 
 		expect(second.isPinned('genre', 'g')).toBe(true);
 	});
+
+	it('notifies subscribers once the persisted pins have loaded', async () => {
+		const persistence = new InMemoryKeyValueStore();
+		const first = new PinnedItemsStore(persistence, () => 1);
+		await first.ensureLoaded();
+		await first.pin({ genre: makeGenre('g'), kind: 'genre' });
+		const second = new PinnedItemsStore(persistence);
+		const seenOnNotify: Array<Array<unknown>> = [];
+		second.subscribe(() => seenOnNotify.push(second.getAll()));
+
+		await second.ensureLoaded();
+
+		expect(seenOnNotify).toEqual([[{ genre: makeGenre('g'), kind: 'genre', pinnedAt: 1 }]]);
+	});
 });
 
 function makeAlbum(id: string) {

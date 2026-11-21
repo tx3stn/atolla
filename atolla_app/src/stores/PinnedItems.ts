@@ -111,6 +111,7 @@ export class PinnedItemsStore {
 			this.items = {};
 		}
 		this.isLoaded = true;
+		this.notify();
 	}
 
 	private notify(): void {
