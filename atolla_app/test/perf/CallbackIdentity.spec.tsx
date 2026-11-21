@@ -67,10 +67,12 @@ function makePreferences(): Preferences {
 
 function makeLibraryViewModel(transport: Record<string, unknown>) {
 	return {
+		active: true,
 		isOfflineMode: false,
 		navigationController: { push: () => {} },
 		playbackStore: new PlaybackStore(),
 		preferences: makePreferences(),
+		preload: false,
 		transport,
 		viewCache: makeTestViewCache(),
 	};

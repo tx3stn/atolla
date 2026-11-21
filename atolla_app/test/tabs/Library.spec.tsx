@@ -30,11 +30,13 @@ function makePreferences(): Preferences {
 
 function makeViewModel() {
 	return {
+		active: true,
 		connectionMode: ConnectionModes.online,
 		downloadService: stubDownloadService,
 		onNavigationControllerReady: () => {},
 		playbackStore: new PlaybackStore(),
 		preferences: makePreferences(),
+		preload: false,
 		toastService: { show: () => {} },
 		transport: stubTransport,
 		viewCache: makeTestViewCache(),

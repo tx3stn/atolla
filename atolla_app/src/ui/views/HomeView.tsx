@@ -54,6 +54,7 @@ export interface HomeViewModel {
 	lidarr: LidarrConnection;
 	lyricsService: LyricsService;
 	modalSlot?: DetachedSlot;
+	onInitialLoadSettled: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onOpenAlbum: (album: Album) => void;
 	onOpenGenre?: (genre: Genre) => void;
@@ -117,7 +118,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.handlePreferencesChange));
 		this.registerDisposable(this.viewModel.lidarr.subscribe(this.handleLidarrChange));
 		this.registerDisposable(this.playlistFlow.cancel);
-		this.loadAlbums();
+		void this.loadAlbums().then(() => this.viewModel.onInitialLoadSettled());
 		this.subscribeToPinnedItemsStore();
 	}
 
@@ -266,7 +267,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				connectionMode: this.viewModel.connectionMode,
 				onThisDay: this.state.onThisDayAlbums.length,
 			});
-			this.loadAlbums();
+			void this.loadAlbums();
 		}
 	}
 
@@ -312,17 +313,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		});
 	};
 
-	private loadAlbums(): void {
+	private loadAlbums(): Promise<void> {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
-		void this.loadOnThisDay(generation);
-		void this.loadUpcoming(generation);
-		this.restoreCachedRecentlyAdded(generation);
+		const loads = [
+			this.loadOnThisDay(generation),
+			this.loadUpcoming(generation),
+			this.restoreCachedRecentlyAdded(generation),
+		];
 
 		// offline only has downloaded albums, so keep the last full-library snapshot rather than overwrite home with the downloads subset
 		if (this.viewModel.connectionMode !== ConnectionModes.offline) {
-			void this.loadRecentlyAdded(generation);
+			loads.push(this.loadRecentlyAdded(generation));
 		}
+		return Promise.all(loads).then(() => {});
 	}
 
 	// shows cached anniversary albums immediately, then (online) rebuilds in the background via OnThisDayService and re-renders from its own state, so display never depends on a parent re-render arriving at the right moment
@@ -380,13 +384,13 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 	}
 
-	private restoreCachedRecentlyAdded(generation: number): void {
+	private restoreCachedRecentlyAdded(generation: number): Promise<void> {
 		const service = this.viewModel.recentlyAddedService;
 		if (!service) {
-			return;
+			return Promise.resolve();
 		}
 
-		void service
+		return service
 			.loadCached()
 			.then((cachedAlbums) => {
 				if (this.isDestroyed() || generation !== this.loadGeneration) {

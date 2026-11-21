@@ -33,6 +33,7 @@ import { GenresView } from '../views/GenresView';
 import { PlaylistsView } from '../views/PlaylistsView';
 
 export interface LibraryViewModel {
+	active: boolean;
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	lyricsService: LyricsService;
@@ -45,6 +46,7 @@ export interface LibraryViewModel {
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
 	preferences: Preferences;
+	preload: boolean;
 	toastService: ToastService;
 	transport: Transport;
 	viewCache: ViewCache;
@@ -80,6 +82,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 
 							if (tab === HeaderTabs.artists) {
 								<ArtistsView
+									active={this.viewModel.active}
 									downloadService={this.viewModel.downloadService}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
@@ -92,6 +95,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
 									preferences={this.viewModel.preferences}
+									preload={this.viewModel.preload}
 									toastService={this.viewModel.toastService}
 									transport={this.viewModel.transport}
 									viewCache={this.viewModel.viewCache}

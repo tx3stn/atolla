@@ -40,6 +40,7 @@ export interface HomeTabViewModel {
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
+	onInitialLoadSettled: () => void;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	onThisDayService?: OnThisDayService;
 	paletteQueue: PaletteGenerationQueue;
@@ -69,6 +70,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 						lidarr={this.viewModel.lidarr}
 						lyricsService={this.viewModel.lyricsService}
 						modalSlot={this.viewModel.modalSlot}
+						onInitialLoadSettled={this.viewModel.onInitialLoadSettled}
 						onNavigateToArtist={this.handleArtistTap}
 						onOpenAlbum={this.handleAlbumTap}
 						onOpenGenre={this.handleGenreTap}

@@ -31,6 +31,7 @@ import { createPagedGridController, gridPaginationConfig } from '../pagination/G
 import { sortArtists } from './sort/Artists';
 
 export interface ArtistsViewModel {
+	active: boolean;
 	downloadService: DownloadService;
 	isOfflineMode: boolean;
 	letterFilter?: string | null;
@@ -43,6 +44,7 @@ export interface ArtistsViewModel {
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
+	preload: boolean;
 	toastService: ToastService;
 	transport: Transport;
 	viewCache: ViewCache;
@@ -76,12 +78,15 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		revision: 0,
 	};
 
+	private hasStartedLoading = false;
+
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.pagedGridController.dispose());
 		this.registerDisposable(this.playlistFlow.cancel);
-		this.seedFromCache();
-		void this.loadInitialPages();
+		if (this.viewModel.active || this.viewModel.preload) {
+			this.startLoading();
+		}
 	}
 
 	onRender(): void {
@@ -116,6 +121,13 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {
 		if (!prevViewModel) {
+			return;
+		}
+
+		if (!this.hasStartedLoading) {
+			if (this.viewModel.active || this.viewModel.preload) {
+				this.startLoading();
+			}
 			return;
 		}
 
@@ -274,6 +286,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				this.setState({ artists: disk });
 			}
 		});
+	}
+
+	private startLoading(): void {
+		this.hasStartedLoading = true;
+		this.seedFromCache();
+		void this.loadInitialPages();
 	}
 
 	private async loadInitialPages(): Promise<void> {

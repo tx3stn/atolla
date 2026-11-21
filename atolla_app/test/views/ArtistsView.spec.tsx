@@ -8,7 +8,7 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
@@ -54,10 +54,12 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
+			active: true,
 			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -82,9 +84,11 @@ describe('ArtistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
+			active: true,
 			navigationController,
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -112,9 +116,11 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
+			active: true,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -137,10 +143,12 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
+			active: true,
 			letterFilter: 'C',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -167,10 +175,12 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
+			active: true,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -196,9 +206,11 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
+			active: true,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -226,10 +238,12 @@ describe('ArtistsView', () => {
 			};
 
 			const viewModel = {
+				active: true,
 				isOfflineMode: true,
 				navigationController: makeNavigationController(),
 				playbackStore: new PlaybackStore(),
 				preferences: makePreferences(),
+				preload: false,
 				transport,
 				viewCache: makeTestViewCache(),
 			};
@@ -263,10 +277,12 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
+			active: true,
 			isOfflineMode: true,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
+			preload: false,
 			transport,
 			viewCache: makeTestViewCache(),
 		};
@@ -280,5 +296,67 @@ describe('ArtistsView', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
 		);
 		expect(emptyState).toBeUndefined();
+	});
+
+	describe('deferred loading', () => {
+		function renderHiddenArtists() {
+			const requests = { artists: 0 };
+			const transport = {
+				getArtists: async () => {
+					requests.artists += 1;
+					return { hasMore: false, items: [] };
+				},
+			};
+			const viewModel = {
+				active: false,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				preload: false,
+				transport,
+				viewCache: makeTestViewCache(),
+			};
+			const instrumented = InstrumentedComponentJSX.create(ArtistsView, viewModel, undefined);
+			return { instrumented, requests, viewModel };
+		}
+
+		it('loads nothing while inactive and not preloading', async () => {
+			const { requests } = renderHiddenArtists();
+
+			await flushAsyncWork();
+
+			expect(requests.artists).toBe(0);
+		});
+
+		it('loads once it becomes active', async () => {
+			const { instrumented, requests, viewModel } = renderHiddenArtists();
+			await flushAsyncWork();
+
+			instrumented.setViewModel({ ...viewModel, active: true });
+			await flushAsyncWork();
+
+			expect(requests.artists).toBe(1);
+		});
+
+		it('loads in the background once preload is allowed', async () => {
+			const { instrumented, requests, viewModel } = renderHiddenArtists();
+			await flushAsyncWork();
+
+			instrumented.setViewModel({ ...viewModel, preload: true });
+			await flushAsyncWork();
+
+			expect(requests.artists).toBe(1);
+		});
+
+		it('does not load again when it becomes active after preloading', async () => {
+			const { instrumented, requests, viewModel } = renderHiddenArtists();
+			instrumented.setViewModel({ ...viewModel, preload: true });
+			await flushAsyncWork();
+
+			instrumented.setViewModel({ ...viewModel, active: true, preload: true });
+			await flushAsyncWork();
+
+			expect(requests.artists).toBe(1);
+		});
 	});
 });

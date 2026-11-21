@@ -564,6 +564,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
+			onInitialLoadSettled: this.handleHomeInitialLoadSettled,
 			onThisDayService: this.userScope.getOnThisDayService(),
 			paletteQueue: this.userScope.getPaletteQueue(),
 			pinnedItemsStore: this.userScope.getPinnedItemsStore(),
@@ -672,6 +673,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private handleConnect = (serverUrl: string): void => {
 		this.connectivity.connect(serverUrl);
+	};
+
+	private handleHomeInitialLoadSettled = (): void => {
+		this.logBootPhase('home');
 	};
 
 	private handleLanguageChange = (code: LanguageCode): void => {

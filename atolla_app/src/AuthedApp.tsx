@@ -39,7 +39,7 @@ export interface AuthedAppViewModel {
 	downloadService: DownloadService;
 	featureFlags: FeatureFlags;
 	homeViewModel: Omit<HomeTabViewModel, 'onNavigationControllerReady'>;
-	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
+	libraryViewModel: Omit<LibraryViewModel, 'active' | 'onNavigationControllerReady' | 'preload'>;
 	lidarr: LidarrConnection;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
@@ -54,11 +54,12 @@ export interface AuthedAppViewModel {
 }
 
 export interface AuthedAppState {
+	homeInitialLoadSettled: boolean;
 	revision: number;
 }
 
 export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppState> {
-	state: AuthedAppState = { revision: 0 };
+	state: AuthedAppState = { homeInitialLoadSettled: false, revision: 0 };
 
 	private androidBackObserverInstalled = false;
 
@@ -116,6 +117,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							lyricsService={home.lyricsService}
 							modalSlot={home.modalSlot}
 							networkStatus={home.networkStatus}
+							onInitialLoadSettled={this.handleHomeInitialLoadSettled}
 							onNavigationControllerReady={this.captureHomeController}
 							onThisDayService={home.onThisDayService}
 							paletteQueue={home.paletteQueue}
@@ -135,6 +137,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.library)}>
 					<ErrorBoundary resetKey='library'>
 						<LibraryView
+							active={appShellStore.activeFooterTab === FooterTabs.library}
 							connectionMode={library.connectionMode}
 							downloadService={library.downloadService}
 							lyricsService={library.lyricsService}
@@ -147,6 +150,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							playbackStore={library.playbackStore}
 							playlistEditService={library.playlistEditService}
 							preferences={library.preferences}
+							preload={this.state.homeInitialLoadSettled}
 							toastService={library.toastService}
 							transport={library.transport}
 							viewCache={library.viewCache}
@@ -237,6 +241,11 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 	}
 
 	private handleAndroidBack = (): boolean => backNavRouter.goBack();
+
+	private handleHomeInitialLoadSettled = (): void => {
+		this.setState({ homeInitialLoadSettled: true });
+		this.viewModel.homeViewModel.onInitialLoadSettled();
+	};
 
 	private publishTitleHeaders = (): void => {
 		headerStore.setDescriptor(FooterTabs.home, { kind: 'title', title: Strings.homeTitle() });

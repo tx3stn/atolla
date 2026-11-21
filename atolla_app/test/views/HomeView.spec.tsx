@@ -105,6 +105,7 @@ function makeBaseDeps() {
 		connectionMode: ConnectionModes.online,
 		lidarr,
 		lyricsService: {} as LyricsService,
+		onInitialLoadSettled: () => {},
 		onOpenAlbum: () => {},
 		playbackStore: { subscribe: () => () => {} } as unknown as PlaybackStore,
 		preferences: new Preferences({ fetchString: async () => '', storeString: async () => {} }),
@@ -470,6 +471,59 @@ describe('HomeView', () => {
 		).find((view) => view.getAttribute('accessibilityLabel') === 'home-context-menu');
 
 		expect(menu).toBeUndefined();
+	});
+});
+
+describe('HomeView initial load', () => {
+	it('reports once every load home starts on mount has settled', async () => {
+		const base = makeBaseDeps();
+		let finishRefresh: (albums: Array<Album>) => void = () => {};
+		const recentlyAdded = {
+			loadCached: async () => [],
+			refresh: () =>
+				new Promise<Array<Album>>((resolve) => {
+					finishRefresh = resolve;
+				}),
+		} as unknown as RecentlyAddedService;
+		const onInitialLoadSettled = jasmine.createSpy('onInitialLoadSettled');
+		InstrumentedComponentJSX.create(
+			HomeView,
+			{
+				...buildViewModel(base, makeOnThisDayService().service, recentlyAdded),
+				onInitialLoadSettled,
+			},
+			undefined,
+		);
+		await flushAsyncWork();
+		expect(onInitialLoadSettled).not.toHaveBeenCalled();
+
+		finishRefresh([]);
+		await flushAsyncWork();
+
+		expect(onInitialLoadSettled).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not report again when a later change reloads home', async () => {
+		const base = makeBaseDeps();
+		const onThisDay = makeOnThisDayService();
+		const recentlyAdded = makeRecentlyAddedService();
+		const onInitialLoadSettled = jasmine.createSpy('onInitialLoadSettled');
+		const instrumented = InstrumentedComponentJSX.create(
+			HomeView,
+			{ ...buildViewModel(base, onThisDay.service, recentlyAdded.service), onInitialLoadSettled },
+			undefined,
+		);
+		await flushAsyncWork();
+
+		instrumented.setViewModel({
+			...buildViewModel(base, onThisDay.service, recentlyAdded.service),
+			onInitialLoadSettled,
+			transport: {} as Transport,
+		});
+		await flushAsyncWork();
+
+		expect(recentlyAdded.calls.refresh).toBe(2);
+		expect(onInitialLoadSettled).toHaveBeenCalledTimes(1);
 	});
 });
 
