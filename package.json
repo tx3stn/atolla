@@ -54,6 +54,7 @@
 		"check:full": "./.scripts/check-full.sh",
 		"check:static": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig",
 		"check:zig": "bazel build //atolla_app/native/zig:atolla_algorithms_zig //atolla_headless/native/zig:atolla_headless_zig //atolla_headless/native/zig:dev_serve //:valdi_editor_anchor",
+		"combine": "bun ./.scripts/combine-images.ts",
 		"compile": "bazel build //:valdi_editor_anchor && bunx tsc -b tsconfig.check.json --noEmit",
 		"format": "biome format --write .",
 		"format:zig": "zig fmt ./atolla_app/native/zig/ ./atolla_headless/native/zig/",
