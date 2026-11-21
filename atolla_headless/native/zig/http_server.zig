@@ -777,6 +777,7 @@ fn testServer(server: *Server, options: Options) !void {
 const Connection = struct {
     io: std.Io,
     read_buffer: [4 * 1024]u8 = undefined,
+    reader: net.Stream.Reader = undefined,
     response: [4 * 1024]u8 = undefined,
     response_len: usize = 0,
     stream: net.Stream,
@@ -791,6 +792,7 @@ const Connection = struct {
             .response_len = 0,
             .stream = try net.IpAddress.connect(&address, testIo(), .{ .mode = .stream }),
         };
+        connection.reader = connection.stream.reader(connection.io, &connection.read_buffer);
 
         return connection;
     }
@@ -808,13 +810,25 @@ const Connection = struct {
     }
 
     fn status(self: *Connection) !u16 {
-        var reader = self.stream.reader(self.io, &self.read_buffer);
-        const line = try reader.interface.takeDelimiterExclusive('\n');
+        const line = try self.reader.interface.takeDelimiterInclusive('\n');
 
         var parts = std.mem.splitScalar(u8, line, ' ');
         _ = parts.next();
+        const code = try std.fmt.parseInt(u16, parts.next() orelse return error.NoStatus, 10);
 
-        return std.fmt.parseInt(u16, parts.next() orelse return error.NoStatus, 10);
+        var body_bytes: usize = 0;
+        while (true) {
+            const header = std.mem.trimEnd(u8, try self.reader.interface.takeDelimiterInclusive('\n'), "\r\n");
+            if (header.len == 0) break;
+
+            if (std.ascii.startsWithIgnoreCase(header, "content-length:")) {
+                body_bytes = try std.fmt.parseInt(usize, std.mem.trim(u8, header["content-length:".len..], " "), 10);
+            }
+        }
+
+        try self.reader.interface.discardAll(body_bytes);
+
+        return code;
     }
 
     /// Searches the raw answer rather than parsing it, so a header and a body member match the same
