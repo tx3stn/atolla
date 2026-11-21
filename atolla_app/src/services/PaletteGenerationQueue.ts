@@ -19,15 +19,11 @@ export class PaletteGenerationQueue {
 	private queue: Array<PaletteRequest> = [];
 	private queueSet = new Set<string>();
 	private activeUrls = new Set<string>();
-	private allWorkers: Array<IWorkerServiceClient<IPaletteNativeWorker>>;
-	private idleWorkers: Array<IWorkerServiceClient<IPaletteNativeWorker>>;
+	private allWorkers: Array<IWorkerServiceClient<IPaletteNativeWorker>> = [];
+	private idleWorkers: Array<IWorkerServiceClient<IPaletteNativeWorker>> = [];
+	private disposed = false;
 
-	constructor(private readonly paletteService: ArtworkPaletteService) {
-		this.allWorkers = Array.from({ length: CONCURRENCY }, () =>
-			startWorkerService(PaletteNativeWorkerEntryPoint, []),
-		);
-		this.idleWorkers = [...this.allWorkers];
-	}
+	constructor(private readonly paletteService: ArtworkPaletteService) {}
 
 	prioritize(id: string | null | undefined, imageUrl: string | null | undefined): void {
 		if (!imageUrl || this.paletteService.hasPalette(imageUrl)) return;
@@ -85,16 +81,20 @@ export class PaletteGenerationQueue {
 	}
 
 	dispose(): void {
+		this.disposed = true;
 		this.queue = [];
 		this.queueSet.clear();
 		for (const worker of this.allWorkers) worker.dispose();
 	}
 
 	private processNext(): void {
-		while (this.idleWorkers.length > 0 && this.queue.length > 0) {
-			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
-			const worker = this.idleWorkers.pop()!;
-			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
+		if (this.disposed) return;
+		while (this.queue.length > 0) {
+			const worker = this.takeWorker();
+			if (!worker) {
+				return;
+			}
+			// biome-ignore lint/style/noNonNullAssertion: length checked above
 			const request = this.queue.shift()!;
 			const url = request.url;
 			this.queueSet.delete(url);
@@ -121,5 +121,22 @@ export class PaletteGenerationQueue {
 		} catch {
 			// extraction failures are silent
 		}
+	}
+
+	private takeWorker(): IWorkerServiceClient<IPaletteNativeWorker> | null {
+		const idle = this.idleWorkers.pop();
+		if (idle) {
+			return idle;
+		}
+		if (this.allWorkers.length >= CONCURRENCY) {
+			return null;
+		}
+
+		const worker: IWorkerServiceClient<IPaletteNativeWorker> = startWorkerService(
+			PaletteNativeWorkerEntryPoint,
+			[],
+		);
+		this.allWorkers.push(worker);
+		return worker;
 	}
 }
