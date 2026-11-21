@@ -37,7 +37,8 @@ FIRST_IOS_UDID=$(echo "$E2E_IOS_UDIDS" | cut -d',' -f1)
 
 echo ""
 echo "=== Building and installing Android app ==="
-ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/build-and-run-android.sh"
+VALDI_BAZEL_ARGS="--config=prod --modify_execution_info=ValdiCompile=+no-cache" \
+	ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/build-and-run-android.sh"
 for serial in $(echo "$E2E_ANDROID_SERIALS" | tr ',' ' '); do
 	if [[ "$serial" != "$FIRST_ANDROID_SERIAL" ]]; then
 		echo "Installing freshly built apk on $serial..."
@@ -47,7 +48,8 @@ done
 
 echo ""
 echo "=== Building and installing iOS app ==="
-SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/build-and-run-ios.sh"
+VALDI_BAZEL_ARGS="--config=prod --modify_execution_info=ValdiCompile=+no-cache" \
+	SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/build-and-run-ios.sh"
 for udid in $(echo "$E2E_IOS_UDIDS" | tr ',' ' '); do
 	if [[ "$udid" != "$FIRST_IOS_UDID" ]]; then
 		echo "Installing freshly built ipa on $udid..."
