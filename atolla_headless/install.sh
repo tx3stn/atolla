@@ -28,7 +28,7 @@ fail() {
 }
 
 usage() {
-	fail "$PREFIX usage: sudo $0 [--name <player name>] <path to atolla binary>"
+	fail "usage: sudo $0 [--name <player name>] <path to atolla binary>"
 }
 
 check_platform() {
@@ -67,8 +67,13 @@ check_platform() {
 # }
 
 prompt_name() {
+	if ! { true </dev/tty; } 2>/dev/null; then
+		log "no terminal to ask for a player name, continuing without one"
+		return
+	fi
+
 	while [ -z "$name" ]; do
-		read -r -p "player name: " name </dev/tty || fail "unable to prompt for player name, set the name manually in the config file"
+		read -r -p "player name: " name </dev/tty
 	done
 }
 
@@ -174,6 +179,9 @@ status:         systemctl status atolla
 logs:           journalctl -u atolla -f
 pairing code:   atolla pair
 reset pairing:  sudo -u $SERVICE_USER atolla pair --reset
-change config:  $CONFIG
-                then restart: sudo systemctl restart atolla
+audio output:   "default" (list the available options with: atolla outputs)
+player name:    "$name"
+config:         $CONFIG
+
+restart after making changes to your config with: sudo systemctl restart atolla
 EOF
