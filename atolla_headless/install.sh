@@ -147,7 +147,7 @@ trap 'rm -f "$STAGED"' EXIT
 install -m 0755 "$source_binary" "$STAGED"
 version="$("$STAGED" --version)" || fail "$source_binary doesn't run here, check it was built for linux $(uname -m)"
 
-if [ ! -f "$CONFIG" ]; then
+if [ ! -f "$CONFIG" ] && [ -z "$name" ]; then
 	prompt_name
 fi
 
