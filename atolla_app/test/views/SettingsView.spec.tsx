@@ -98,7 +98,7 @@ function makeDownloadService(overrides?: Partial<DownloadService>): DownloadServ
 function makePlaybackOrchestrator(overrides?: Partial<PlaybackOrchestrator>): PlaybackOrchestrator {
 	return {
 		clearWaveformData: () => {},
-		getWaveformReadyCount: () => 0,
+		countWaveforms: () => Promise.resolve(0),
 		resetForTrackCacheCleared: () => {},
 		...overrides,
 	} as unknown as PlaybackOrchestrator;
@@ -435,6 +435,45 @@ describe('SettingsView', () => {
 			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(cleared).toBe(1);
+	});
+
+	valdiIt('cache clear confirm clears the stored waveforms', async (driver) => {
+		let cleared = 0;
+		const playbackOrchestrator = makePlaybackOrchestrator({
+			clearWaveformData: () => {
+				cleared += 1;
+			},
+		});
+		const viewModel = makeViewModel({ playbackOrchestrator });
+		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(cleared).toBe(1);
+	});
+
+	valdiIt('the clear-cache dialog shows the stored waveform count', async (driver) => {
+		const playbackOrchestrator = makePlaybackOrchestrator({
+			countWaveforms: () => Promise.resolve(3),
+		});
+		const viewModel = makeViewModel({ playbackOrchestrator });
+		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		).map((label) => label.getAttribute('value'));
+		expect(labels).toContain('[ 3 ] waveforms');
 	});
 
 	valdiIt('sharing the debug log opens the native share sheet', async (driver) => {

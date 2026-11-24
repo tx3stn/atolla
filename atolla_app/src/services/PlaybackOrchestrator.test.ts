@@ -15,7 +15,7 @@ import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificatio
 import type { TrackPlaybackNotificationPayload } from './TrackPlaybackNotificationSync';
 import type { TrackSourceNative } from './TrackSourceNativeAdapter';
 import type { WaveformRenderCache } from './WaveformRenderCache';
-import { WaveformService, type WaveformStore } from './WaveformService';
+import { type WaveformFiles, WaveformService } from './WaveformService';
 
 describe('PlaybackOrchestrator recently played', () => {
 	it('records the active track as most recent', () => {
@@ -316,34 +316,36 @@ describe('PlaybackOrchestrator notification sync', () => {
 });
 
 describe('PlaybackOrchestrator waveforms', () => {
-	it('returns no mask until amplitude data is ready, then the rendered mask url', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+	it('returns no mask until the waveform is stored, then the rendered mask url', () => {
+		const files = fakeWaveformFiles();
+		const waveformService = new WaveformService(files.files);
 		const { cache: waveformRenderCache } = fakeWaveformRenderCache({ a: 'mask://a' });
 		const orchestrator = createOrchestrator({ track: null });
 		orchestrator.setUserServices(userServices({ waveformRenderCache, waveformService }));
 
 		expect(orchestrator.getWaveformMaskUrl('a')).toBeNull();
 		waveformService.scheduleGeneration('a');
-		waveformService.onGenerationSucceeded('a', 'AMPS');
+		files.state.stored.add('a');
+		waveformService.onGenerationSucceeded('a');
 
 		expect(orchestrator.getWaveformMaskUrl('a')).toBe('mask://a');
 	});
 
 	it('schedules, enqueues, and reorders to playback order when enqueueing a track', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const { callbacks, state } = fakeWaveformQueue();
 		const orchestrator = createOrchestrator(waveformPlaybackStore(['a', 'b'], 1));
 		orchestrator.setUserServices(userServices({ ...callbacks, waveformService }));
 
 		orchestrator.enqueueWaveformIfNeeded('a', 'path://a');
 
-		expect(waveformService.getCount()).toBe(1);
+		expect(waveformService.getStatus('a')).toBe('pending');
 		expect(state.enqueued).toEqual([{ audioPath: 'path://a', trackId: 'a' }]);
 		expect(state.reorders[state.reorders.length - 1]).toEqual(['b', 'a']);
 	});
 
 	it('enqueues in-window tracks with a local file, skipping those without', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const { callbacks, state } = fakeWaveformQueue();
 		const orchestrator = createOrchestrator(
 			waveformPlaybackStore(['a', 'b'], 0),
@@ -361,7 +363,7 @@ describe('PlaybackOrchestrator waveforms', () => {
 	});
 
 	it('caps waveform pre-generation to a forward window from the current track', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const { callbacks, state } = fakeWaveformQueue();
 		const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 		const currentIndex = 1;
@@ -382,7 +384,7 @@ describe('PlaybackOrchestrator waveforms', () => {
 	});
 
 	it('skips re-enqueueing when neither the track list nor the active index changed', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const { callbacks, state } = fakeWaveformQueue();
 		const orchestrator = createOrchestrator(
 			waveformPlaybackStore(['a'], 0),
@@ -406,35 +408,35 @@ describe('PlaybackOrchestrator waveforms', () => {
 		expect(() => orchestrator.handleWaveformPriority()).not.toThrow();
 	});
 
-	it('reports the ready waveform count', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+	it('reports the stored waveform count', async () => {
+		const files = fakeWaveformFiles();
+		files.state.stored.add('a');
 		const orchestrator = createOrchestrator({ track: null });
-		expect(orchestrator.getWaveformReadyCount()).toBe(0);
+		expect(await orchestrator.countWaveforms()).toBe(0);
 
-		orchestrator.setUserServices(userServices({ waveformService }));
-		waveformService.scheduleGeneration('a');
-		waveformService.onGenerationSucceeded('a', 'AMPS');
+		orchestrator.setUserServices(
+			userServices({ waveformService: new WaveformService(files.files) }),
+		);
 
-		expect(orchestrator.getWaveformReadyCount()).toBe(1);
+		expect(await orchestrator.countWaveforms()).toBe(1);
 	});
 
-	it('clears amplitude data and the rendered mask cache on demand', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+	it('clears the stored waveforms and the rendered mask cache on demand', () => {
+		const files = fakeWaveformFiles();
+		const waveformService = new WaveformService(files.files);
 		const { cache: waveformRenderCache, state } = fakeWaveformRenderCache();
 		const orchestrator = createOrchestrator({ track: null });
 		orchestrator.setUserServices(userServices({ waveformRenderCache, waveformService }));
-		waveformService.scheduleGeneration('a');
-		waveformService.onGenerationSucceeded('a', 'AMPS');
 
 		orchestrator.clearWaveformData();
 
-		expect(waveformService.getReadyCount()).toBe(0);
+		expect(files.state.cleared).toBe(1);
 		expect(state.cleared).toBe(1);
 	});
 
 	it('requests an overlay rerender when the waveform service notifies', () => {
 		let overlayRerenders = 0;
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const orchestrator = createOrchestrator({ track: null }, () => {}, fakeNotification(), {
 			requestOverlayRerender: () => {
 				overlayRerenders += 1;
@@ -446,7 +448,7 @@ describe('PlaybackOrchestrator waveforms', () => {
 		waveformService.scheduleGeneration('a');
 		const before = overlayRerenders;
 
-		waveformService.onGenerationSucceeded('a', 'AMPS');
+		waveformService.onGenerationSucceeded('a');
 
 		expect(overlayRerenders).toBeGreaterThan(before);
 	});
@@ -478,7 +480,7 @@ describe('PlaybackOrchestrator waveforms', () => {
 	});
 
 	it('holds the waveform pass back while playing until the playback cushion', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const { callbacks, state } = fakeWaveformQueue();
 		const tracks = [makeTrack('a'), makeTrack('b')];
 		const store = {
@@ -509,7 +511,7 @@ describe('PlaybackOrchestrator waveforms', () => {
 	});
 
 	it('runs the waveform pass immediately when not playing', () => {
-		const waveformService = new WaveformService(noopWaveformStore());
+		const waveformService = new WaveformService(fakeWaveformFiles().files);
 		const { callbacks, state } = fakeWaveformQueue();
 		const tracks = [makeTrack('a')];
 		const store = { isPlaying: false, track: tracks[0] as Track | null, trackIndex: 0, tracks };
@@ -1977,8 +1979,20 @@ function fakeTrackSourceNative(overrides: Partial<TrackSourceNative> = {}): Trac
 	};
 }
 
-function noopWaveformStore(): WaveformStore {
-	return { load: () => Promise.resolve({}), save: () => Promise.resolve() };
+function fakeWaveformFiles(): {
+	files: WaveformFiles;
+	state: { cleared: number; stored: Set<string> };
+} {
+	const state = { cleared: 0, stored: new Set<string>() };
+	const files: WaveformFiles = {
+		clear: () => {
+			state.cleared += 1;
+			state.stored.clear();
+		},
+		count: () => Promise.resolve(state.stored.size),
+		has: (trackId) => state.stored.has(trackId),
+	};
+	return { files, state };
 }
 
 function fakeWaveformQueue(): {
@@ -2073,7 +2087,7 @@ function userServices(overrides: Partial<PlaybackUserServices> = {}): PlaybackUs
 		recentlyPlayed: new RecentlyPlayedStore(),
 		scrobble: fakeScrobbleService(),
 		waveformRenderCache: fakeWaveformRenderCache().cache,
-		waveformService: new WaveformService(noopWaveformStore()),
+		waveformService: new WaveformService(fakeWaveformFiles().files),
 		...overrides,
 	};
 }

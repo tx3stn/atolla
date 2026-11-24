@@ -9,7 +9,7 @@ type MockWorker = IWorkerServiceClient<IWaveformNativeWorker> & {
 	dispose: jasmine.Spy;
 };
 
-type GenerateImpl = (trackId: string, audioPath: string) => Promise<string | null>;
+type GenerateImpl = (trackId: string, audioPath: string) => Promise<boolean>;
 
 function createMockWorker(generateImpl: GenerateImpl): MockWorker {
 	return {
@@ -22,23 +22,19 @@ function createMockWorker(generateImpl: GenerateImpl): MockWorker {
 }
 
 function createMockService() {
-	const ready = new Map<string, string>();
+	const statuses = new Map<string, 'ready' | 'failed'>();
+	const stored = new Set<string>();
 	return {
-		_ready: ready,
-		getAmps: (id: string) => ready.get(id) ?? null,
-		getStatus: (id: string): 'ready' | 'failed' | null => {
-			const value = ready.get(id);
-			if (value === undefined) return null;
-			return value === '__failed__' ? 'failed' : 'ready';
-		},
+		_statuses: statuses,
+		_stored: stored,
+		getStatus: (id: string): 'ready' | 'failed' | null => statuses.get(id) ?? null,
+		isStored: (id: string) => stored.has(id),
 		onGenerationFailed: jasmine.createSpy('onGenerationFailed').and.callFake((id: string) => {
-			ready.set(id, '__failed__');
+			statuses.set(id, 'failed');
 		}),
-		onGenerationSucceeded: jasmine
-			.createSpy('onGenerationSucceeded')
-			.and.callFake((id: string, amps: string) => {
-				ready.set(id, amps);
-			}),
+		onGenerationSucceeded: jasmine.createSpy('onGenerationSucceeded').and.callFake((id: string) => {
+			statuses.set(id, 'ready');
+		}),
 	};
 }
 
@@ -62,7 +58,7 @@ describe('WaveformGenerationQueue', () => {
 
 	beforeEach(() => {
 		workers = [];
-		generateFor = () => () => Promise.resolve('amps-base64-ok');
+		generateFor = () => () => Promise.resolve(true);
 		// biome-ignore lint/suspicious/noExplicitAny: spy returns mock, not the full generic type
 		spyOn(WorkerService, 'startWorkerService').and.callFake((): any => {
 			const index = workers.length;
@@ -84,7 +80,7 @@ describe('WaveformGenerationQueue', () => {
 	describe('enqueue', () => {
 		it('skips a track whose waveform is already ready', async () => {
 			const service = createMockService();
-			service._ready.set('t1', 'data:image/png;base64,existing');
+			service._statuses.set('t1', 'ready');
 			const { queue } = makeQueue(service);
 
 			queue.enqueue('t1', '/audio/t1.flac');
@@ -96,7 +92,7 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('skips a track already pending in the queue', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const { queue } = makeQueue();
 			useWorkerBehaviour(() => d.promise);
 			// fill all 3 worker slots
@@ -108,7 +104,7 @@ describe('WaveformGenerationQueue', () => {
 			// enqueue t4 again, should be ignored
 			queue.enqueue('t4', '/a/t4.flac');
 
-			d.resolve('data:image/png;base64,x');
+			d.resolve(true);
 			await tick();
 
 			const t4Calls = workers
@@ -119,7 +115,7 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('skips a track that is already in-flight', () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const { queue } = makeQueue();
 			// all workers use the same deferred so whichever handles t1 stays busy
 			useWorkerBehaviour(() => d.promise);
@@ -131,7 +127,7 @@ describe('WaveformGenerationQueue', () => {
 				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
 				.filter(([id]) => id === 't1');
 			expect(t1Calls.length).toBe(1);
-			d.resolve(null);
+			d.resolve(false);
 			queue.dispose();
 		});
 
@@ -149,19 +145,19 @@ describe('WaveformGenerationQueue', () => {
 			queue.dispose();
 		});
 
-		it('calls onGenerationSucceeded when the worker returns a URL', async () => {
+		it('calls onGenerationSucceeded when the worker stores the waveform', async () => {
 			const { queue, service } = makeQueue();
 
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
 
-			expect(service.onGenerationSucceeded).toHaveBeenCalledWith('t1', 'amps-base64-ok');
+			expect(service.onGenerationSucceeded).toHaveBeenCalledWith('t1');
 			queue.dispose();
 		});
 
-		it('calls onGenerationFailed when the worker returns null', async () => {
+		it('calls onGenerationFailed when the worker stores nothing', async () => {
 			const { queue, service } = makeQueue();
-			useWorkerBehaviour(() => Promise.resolve(null));
+			useWorkerBehaviour(() => Promise.resolve(false));
 
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
@@ -181,8 +177,29 @@ describe('WaveformGenerationQueue', () => {
 			queue.dispose();
 		});
 
+		it('marks a queued track ready without generating it when its waveform was stored while it waited', async () => {
+			const d = deferred<boolean>();
+			const { queue, service } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
+			queue.enqueue('t1', '/a/t1.flac');
+			queue.enqueue('t2', '/a/t2.flac');
+			queue.enqueue('t3', '/a/t3.flac');
+			queue.enqueue('t4', '/a/t4.flac');
+			service._stored.add('t4');
+
+			d.resolve(true);
+			await tick();
+
+			const t4Calls = workers
+				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
+				.filter(([id]) => id === 't4');
+			expect(t4Calls.length).toBe(0);
+			expect(service.onGenerationSucceeded).toHaveBeenCalledWith('t4');
+			queue.dispose();
+		});
+
 		it('queues a fourth track when all three worker slots are busy', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const { queue } = makeQueue();
 			useWorkerBehaviour(() => d.promise);
 
@@ -200,7 +217,7 @@ describe('WaveformGenerationQueue', () => {
 			expect(beforeCalls).not.toContain('t4');
 
 			// release all slots, t4 should run
-			d.resolve('data:image/png;base64,ok');
+			d.resolve(true);
 			await tick();
 
 			const afterCalls = workers
@@ -214,7 +231,7 @@ describe('WaveformGenerationQueue', () => {
 
 	describe('prioritize', () => {
 		it('moves a queued track to the front', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const callOrder: Array<string> = [];
 			const { queue } = makeQueue();
 			useWorkerBehaviour((trackId) => {
@@ -232,7 +249,7 @@ describe('WaveformGenerationQueue', () => {
 			queue.prioritize('t5');
 
 			// free all slots, t5 should be picked up before t4
-			d.resolve('data:image/png;base64,x');
+			d.resolve(true);
 			await tick();
 
 			const t4Pos = callOrder.indexOf('t4');
@@ -246,7 +263,7 @@ describe('WaveformGenerationQueue', () => {
 
 	describe('reorderToMatch', () => {
 		it('reorders pending entries to match the given sequence', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const callOrder: Array<string> = [];
 			const { queue } = makeQueue();
 			useWorkerBehaviour((trackId) => {
@@ -264,7 +281,7 @@ describe('WaveformGenerationQueue', () => {
 			// reverse t4/t5 priority
 			queue.reorderToMatch(['t1', 't2', 't3', 't5', 't4']);
 
-			d.resolve('data:image/png;base64,x');
+			d.resolve(true);
 			await tick();
 
 			const t4Pos = callOrder.indexOf('t4');
@@ -276,11 +293,7 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('abandons in-flight jobs that rank below the new queue front', async () => {
-			const deferreds = [
-				deferred<string | null>(),
-				deferred<string | null>(),
-				deferred<string | null>(),
-			];
+			const deferreds = [deferred<boolean>(), deferred<boolean>(), deferred<boolean>()];
 			const callOrder: Array<string> = [];
 			const { queue } = makeQueue();
 			generateFor = (index) => (trackId) => {
@@ -299,9 +312,9 @@ describe('WaveformGenerationQueue', () => {
 			queue.reorderToMatch(['t4', 't1', 't2', 't3']);
 
 			// resolve the workers that had abandoned jobs
-			deferreds[0].resolve('data:image/png;base64,t1');
-			deferreds[1].resolve('data:image/png;base64,t2');
-			deferreds[2].resolve('data:image/png;base64,t3');
+			deferreds[0].resolve(true);
+			deferreds[1].resolve(true);
+			deferreds[2].resolve(true);
 			await tick();
 
 			// t4 should be the next track dispatched after the abandoned slots free up
@@ -316,7 +329,7 @@ describe('WaveformGenerationQueue', () => {
 
 	describe('dispose', () => {
 		it('disposes every worker it started', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const { queue } = makeQueue();
 			useWorkerBehaviour(() => d.promise);
 			queue.enqueue('t1', '/a/t1.flac');
@@ -324,7 +337,7 @@ describe('WaveformGenerationQueue', () => {
 			queue.enqueue('t3', '/a/t3.flac');
 
 			queue.dispose();
-			d.resolve(null);
+			d.resolve(false);
 			await tick();
 
 			expect(workers.length).toBe(3);
@@ -342,13 +355,13 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('reports nothing for jobs still in flight when disposed', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const { queue, service } = makeQueue();
 			useWorkerBehaviour(() => d.promise);
 			queue.enqueue('t1', '/a/t1.flac');
 
 			queue.dispose();
-			d.resolve('amps-base64-ok');
+			d.resolve(true);
 			await tick();
 
 			expect(service.onGenerationSucceeded).not.toHaveBeenCalled();
@@ -356,7 +369,7 @@ describe('WaveformGenerationQueue', () => {
 		});
 
 		it('dispatches no queued work after being disposed', async () => {
-			const d = deferred<string | null>();
+			const d = deferred<boolean>();
 			const { queue } = makeQueue();
 			useWorkerBehaviour(() => d.promise);
 			queue.enqueue('t1', '/a/t1.flac');
@@ -365,7 +378,7 @@ describe('WaveformGenerationQueue', () => {
 			queue.enqueue('t4', '/a/t4.flac');
 
 			queue.dispose();
-			d.resolve(null);
+			d.resolve(false);
 			await tick();
 
 			const dispatched = workers

@@ -1,4 +1,4 @@
-import { renderAtollaWaveformFromAmpsAsync } from '../WaveformNative';
+import { renderAtollaWaveformAsync } from '../WaveformNative';
 
 const WAVEFORM_WIDTH = 500;
 const WAVEFORM_HEIGHT = 100;
@@ -8,13 +8,13 @@ export class WaveformRenderCache {
 	private pending = new Set<string>();
 	private listeners = new Set<() => void>();
 
-	getOrRequest(trackId: string, amps: string): string | null {
+	getOrRequest(trackId: string): string | null {
 		const cached = this.cache.get(trackId);
 		if (cached) return cached;
 
 		if (!this.pending.has(trackId)) {
 			this.pending.add(trackId);
-			renderAtollaWaveformFromAmpsAsync(amps, WAVEFORM_WIDTH, WAVEFORM_HEIGHT, (url) => {
+			renderAtollaWaveformAsync(trackId, WAVEFORM_WIDTH, WAVEFORM_HEIGHT, (url) => {
 				this.pending.delete(trackId);
 				if (url) {
 					this.cache.set(trackId, url);

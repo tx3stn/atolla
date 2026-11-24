@@ -1,17 +1,15 @@
 import type { IWorkerService } from 'worker/src/IWorkerService';
 import { WorkerServiceEntryPoint, workerService } from 'worker/src/WorkerServiceEntryPoint';
-import { generateAtollaWaveformAmpsAsync } from '../WaveformNative';
+import { generateAtollaWaveformAsync } from '../WaveformNative';
 
 export interface IWaveformNativeWorker {
-	generateWaveform(trackId: string, audioPath: string): Promise<string | null>;
+	generateWaveform(trackId: string, audioPath: string): Promise<boolean>;
 }
 
 class WaveformNativeWorkerImpl implements IWaveformNativeWorker {
-	generateWaveform(trackId: string, audioPath: string): Promise<string | null> {
+	generateWaveform(trackId: string, audioPath: string): Promise<boolean> {
 		return new Promise((resolve) => {
-			generateAtollaWaveformAmpsAsync(trackId, audioPath, (ampsBase64: string) => {
-				resolve(ampsBase64 || null);
-			});
+			generateAtollaWaveformAsync(trackId, audioPath, resolve);
 		});
 	}
 }

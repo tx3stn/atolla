@@ -80,6 +80,7 @@ interface SettingsViewState {
 	lyricsCachedCount: number;
 	revision: number;
 	trackCacheCachedCount: number;
+	waveformCount: number;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsViewState> {
@@ -92,6 +93,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		lyricsCachedCount: 0,
 		revision: 0,
 		trackCacheCachedCount: 0,
+		waveformCount: 0,
 	};
 
 	onCreate(): void {
@@ -432,6 +434,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 		if (selection.waveformData) {
 			this.viewModel.playbackOrchestrator.clearWaveformData();
+			this.refreshWaveformCount();
 		}
 
 		if (selection.lyrics) {
@@ -466,7 +469,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 					lyrics: this.state.lyricsCachedCount,
 					playlistImage: (counts.playlist_image ?? 0) + (counts.playlist_image_thumb ?? 0),
 					tracks: this.state.trackCacheCachedCount,
-					waveformData: this.viewModel.playbackOrchestrator.getWaveformReadyCount(),
+					waveformData: this.state.waveformCount,
 				}}
 				onCancel={this.handleCacheClearCancel}
 				onConfirm={this.handleCacheClearConfirm}
@@ -649,10 +652,20 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		this.setState({ trackCacheCachedCount: count });
 	}
 
+	private refreshWaveformCount(): void {
+		void this.viewModel.playbackOrchestrator.countWaveforms().then((count) => {
+			if (this.isDestroyed() || count === this.state.waveformCount) {
+				return;
+			}
+			this.setState({ waveformCount: count });
+		});
+	}
+
 	private startStatsPolling(): void {
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
 		this.refreshLyricsCachedCount();
+		this.refreshWaveformCount();
 		if (this.statsInterval != null) {
 			return;
 		}

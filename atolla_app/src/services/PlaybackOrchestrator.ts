@@ -358,7 +358,6 @@ export class PlaybackOrchestrator {
 		this.lastWaveformPriorityTrackIndex = -1;
 		this.lastUpcomingPaletteTracksRef = null;
 		this.lastUpcomingPaletteTrackIndex = -1;
-		fireAndForget('waveformWarmUp', this.waveformService.warmUp());
 		this.unsubscribeWaveform = this.waveformService.subscribe(() => this.notifyOverlayContent());
 		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(() =>
 			this.notifyOverlayContent(),
@@ -737,13 +736,12 @@ export class PlaybackOrchestrator {
 
 	getWaveformMaskUrl(trackId: string): string | null {
 		if (!this.waveformService || !this.waveformRenderCache) return null;
-		const amps = this.waveformService.getAmps(trackId);
-		if (!amps) return null;
-		return this.waveformRenderCache.getOrRequest(trackId, amps);
+		if (this.waveformService.getStatus(trackId) !== 'ready') return null;
+		return this.waveformRenderCache.getOrRequest(trackId);
 	}
 
-	getWaveformReadyCount(): number {
-		return this.waveformService?.getReadyCount() ?? 0;
+	countWaveforms(): Promise<number> {
+		return this.waveformService?.countStored() ?? Promise.resolve(0);
 	}
 
 	clearWaveformData(): void {

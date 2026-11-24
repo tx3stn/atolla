@@ -22,12 +22,16 @@ import {
 	getAtollaAudioPlaybackPositionMs,
 	readAtollaPendingScrobbles,
 } from '../TrackPlaybackNative';
+import {
+	clearAtollaWaveforms,
+	getAtollaWaveformCountAsync,
+	hasAtollaWaveform,
+} from '../WaveformNative';
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
 import { LyricsService } from './LyricsService';
 import { OnThisDayService } from './OnThisDayService';
 import { PaletteGenerationQueue } from './PaletteGenerationQueue';
-import { PersistentWaveformStore } from './PersistentWaveformStore';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
 import { RecentlyAddedService } from './RecentlyAddedService';
 import { ReconnectSyncCoordinator } from './ReconnectSyncCoordinator';
@@ -153,11 +157,11 @@ export class UserScope {
 				read: () => parseNativePendingScrobbles(readAtollaPendingScrobbles()),
 			},
 		});
-		const waveformService = new WaveformService(
-			new PersistentWaveformStore(
-				new PersistentStore(`atolla/user/${userId}/waveform_data`, { deviceGlobal: true }),
-			),
-		);
+		const waveformService = new WaveformService({
+			clear: clearAtollaWaveforms,
+			count: () => new Promise((resolve) => getAtollaWaveformCountAsync(resolve)),
+			has: hasAtollaWaveform,
+		});
 		const waveformRenderCache = new WaveformRenderCache();
 		const waveformQueue = new WaveformGenerationQueue(waveformService);
 		this.deps.playbackOrchestrator.setUserServices({

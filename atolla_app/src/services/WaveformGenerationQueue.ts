@@ -136,12 +136,15 @@ export class WaveformGenerationQueue {
 		job: ActiveJob,
 	): Promise<void> {
 		const { trackId, audioPath } = job.entry;
-		if (this.waveformService.getAmps(trackId) !== null) return;
+		if (this.waveformService.isStored(trackId)) {
+			this.waveformService.onGenerationSucceeded(trackId);
+			return;
+		}
 		try {
-			const amps = await worker.api.generateWaveform(trackId, audioPath);
+			const stored = await worker.api.generateWaveform(trackId, audioPath);
 			if (job.abandoned) return;
-			if (amps) {
-				this.waveformService.onGenerationSucceeded(trackId, amps);
+			if (stored) {
+				this.waveformService.onGenerationSucceeded(trackId);
 			} else {
 				this.waveformService.onGenerationFailed(trackId);
 			}
