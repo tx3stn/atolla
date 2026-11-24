@@ -1589,9 +1589,11 @@ object AtollaTrackPlaybackNativeCache {
 
 object AtollaDownloadedTrackNativeCache {
 	private const val tag = "AtollaDownloadedTrackCache"
-	private const val cacheFolder = "atolla-downloaded-track-cache"
+	private const val cacheFolder = "atolla/downloads"
+	private const val legacyCacheFolder = "atolla-downloaded-track-cache"
 
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+	private var legacyCacheFolderChecked = false
 
 	fun cacheTrackFromUrl(trackId: String, url: String, authHeader: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
@@ -1745,10 +1747,17 @@ object AtollaDownloadedTrackNativeCache {
 		}
 	}
 
+	@Synchronized
 	private fun resolveCacheDir(): File? {
-		val appFilesDir = resolveAppFilesDir() ?: return null
-		val dir = File(appFilesDir, cacheFolder)
+		val root = resolveDownloadsRoot() ?: return null
+		val dir = File(root, cacheFolder)
 		return try {
+			if (!legacyCacheFolderChecked) {
+				legacyCacheFolderChecked = true
+				if (!AtollaDownloadsFolder.moveLegacy(File(root, legacyCacheFolder), dir)) {
+					Log.e(tag, "Failed to move legacy downloaded track cache directory")
+				}
+			}
 			if (!dir.exists()) {
 				dir.mkdirs()
 			}
@@ -1763,7 +1772,7 @@ object AtollaDownloadedTrackNativeCache {
 		}
 	}
 
-	private fun resolveAppFilesDir(): File? {
+	private fun resolveDownloadsRoot(): File? {
 		return try {
 			val activityThreadClass = Class.forName("android.app.ActivityThread")
 			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)

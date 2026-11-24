@@ -107,3 +107,15 @@ kt_jvm_test(
         "@test_mvn//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "AtollaDownloadsFolderTest",
+    size = "small",
+    srcs = ["AtollaDownloadsFolderTest.kt"],
+    jvm_flags = ["-Djava.security.manager=allow"],
+    test_class = "atolla.native.android.AtollaDownloadsFolderTest",
+    deps = [
+        "//atolla_app/native:atolla_downloads_folder",
+        "@test_mvn//:junit_junit",
+    ],
+)

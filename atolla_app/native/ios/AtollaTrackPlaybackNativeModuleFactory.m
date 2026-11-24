@@ -8,6 +8,7 @@
 #import "atolla_app/native/ios/AtollaTrackCacheRetention.h"
 #import "atolla_app/native/ios/AtollaAuthRedirectGuard.h"
 #import "atolla_app/native/ios/AtollaDownloadGuards.h"
+#import "atolla_app/native/ios/AtollaDownloadsFolder.h"
 #import "atolla_app/native/ios/AtollaImageCacheAccess.h"
 #import "atolla_app/native/ios/AtollaMediaUploadWindow.h"
 #import "media_uploader_ios_bridge.h"
@@ -404,7 +405,9 @@ static NSSet<NSString *> *sRetainedKeys;
 
 @implementation AtollaDownloadedTrackCache
 
-static NSString * const kDownloadedTrackCacheFolder = @"atolla-downloaded-track-cache";
+static NSString * const kAtollaFolder = @"atolla";
+static NSString * const kDownloadedTrackCacheFolder = @"downloads";
+static NSString * const kLegacyDownloadedTrackCacheFolder = @"atolla-downloaded-track-cache";
 static NSLock *sDownloadedTrackCacheLock;
 static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
 
@@ -419,14 +422,22 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     NSURL *docs = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory
                                                           inDomains:NSUserDomainMask] firstObject];
     if (!docs) return nil;
-    NSURL *dir = [docs URLByAppendingPathComponent:kDownloadedTrackCacheFolder isDirectory:YES];
+    NSURL *atollaDir = [docs URLByAppendingPathComponent:kAtollaFolder isDirectory:YES];
+    NSURL *dir = [atollaDir URLByAppendingPathComponent:kDownloadedTrackCacheFolder isDirectory:YES];
+    static dispatch_once_t legacyFolderOnce;
+    dispatch_once(&legacyFolderOnce, ^{
+        NSURL *legacy = [docs URLByAppendingPathComponent:kLegacyDownloadedTrackCacheFolder isDirectory:YES];
+        if (![AtollaDownloadsFolder moveLegacy:legacy to:dir]) {
+            NSLog(@"[AtollaDownloadedTrackCache] failed to move legacy downloads folder");
+        }
+    });
     NSError *error = nil;
     [[NSFileManager defaultManager] createDirectoryAtURL:dir
                                withIntermediateDirectories:YES
                                                 attributes:nil
                                                      error:&error];
     if (error) return nil;
-    [dir setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
+    [atollaDir setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
     return dir;
 }
 
