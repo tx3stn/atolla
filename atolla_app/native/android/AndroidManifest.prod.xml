@@ -11,6 +11,7 @@
     />
 
     <application
+        android:name="atolla.native.android.AtollaApplication"
         android:allowBackup="false"
         android:label="atolla"
         android:supportsRtl="true"
