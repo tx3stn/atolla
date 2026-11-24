@@ -628,7 +628,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ isBootstrapped: true });
 		this.logBootPhase('committed');
 		if (Device.isAndroid()) {
-			reportAtollaFullyDrawn();
+			this.renderer.onLayoutComplete(() => reportAtollaFullyDrawn());
 		}
 		this.playbackOrchestrator.notifyAppReady();
 		this.downloadService.onAppReady();

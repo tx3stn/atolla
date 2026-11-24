@@ -15,6 +15,7 @@ class AtollaLaunchNativeModuleFactory : LaunchNativeModuleFactory() {
 		return object : LaunchNativeModule {
 			override fun reportAtollaFullyDrawn() {
 				mainHandler.post {
+					AtollaApplication.firstDrawGate.release()
 					resolveForegroundActivity()?.reportFullyDrawn()
 				}
 			}
