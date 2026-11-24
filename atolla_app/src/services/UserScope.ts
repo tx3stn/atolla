@@ -1,6 +1,7 @@
 import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import { fireAndForget } from 'atolla_core/src/utils/Async';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import { parseNativePendingScrobbles } from 'atolla_player/src/services/NativeAudioPlaybackEventSync';
 import type { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
@@ -26,6 +27,7 @@ import {
 	clearAtollaWaveforms,
 	getAtollaWaveformCountAsync,
 	hasAtollaWaveform,
+	migrateAtollaWaveformsAsync,
 } from '../WaveformNative';
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
@@ -37,6 +39,7 @@ import { RecentlyAddedService } from './RecentlyAddedService';
 import { ReconnectSyncCoordinator } from './ReconnectSyncCoordinator';
 import { VIEW_CACHE_MAX_BYTES, VIEW_CACHE_MAX_ENTRIES, ViewCache } from './ViewCache';
 import { WaveformGenerationQueue } from './WaveformGenerationQueue';
+import { migrateWaveformRecords } from './WaveformMigration';
 import { WaveformRenderCache } from './WaveformRenderCache';
 import { WaveformService } from './WaveformService';
 
@@ -231,5 +234,20 @@ export class UserScope {
 
 	getViewCache(): ViewCache {
 		return this.viewCache;
+	}
+
+	// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
+	migrateWaveforms(): void {
+		if (this.activeUserId === null) return;
+		fireAndForget(
+			'waveformMigration',
+			migrateWaveformRecords(
+				new PersistentStore(`atolla/user/${this.activeUserId}/waveform_data`, {
+					deviceGlobal: true,
+				}),
+				(recordsJson) =>
+					new Promise((resolve) => migrateAtollaWaveformsAsync(recordsJson, resolve)),
+			),
+		);
 	}
 }

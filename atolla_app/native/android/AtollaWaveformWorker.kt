@@ -52,7 +52,7 @@ object AtollaWaveformStore {
 
 	fun has(trackId: String): Boolean = dir?.let { nativeHas(it, trackId) } ?: false
 
-	// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+	// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 	fun migrate(recordsJson: String): Int = dir?.let { nativeMigrate(it, recordsJson) } ?: 0
 
 	fun read(trackId: String): ByteArray? = dir?.let { nativeRead(it, trackId) }
@@ -65,7 +65,7 @@ object AtollaWaveformStore {
 
 	private external fun nativeHas(dir: String, trackId: String): Boolean
 
-	// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+	// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 	private external fun nativeMigrate(dir: String, recordsJson: String): Int
 
 	private external fun nativeRead(dir: String, trackId: String): ByteArray?

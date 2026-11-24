@@ -677,6 +677,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private handleHomeInitialLoadSettled = (): void => {
 		this.logBootPhase('home');
+		// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
+		this.userScope.migrateWaveforms();
 	};
 
 	private handleLanguageChange = (code: LanguageCode): void => {

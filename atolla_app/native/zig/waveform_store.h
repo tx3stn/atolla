@@ -15,7 +15,7 @@ uint32_t atolla_waveform_store_count(const uint8_t* dir, size_t dir_len);
 
 bool atolla_waveform_store_has(const uint8_t* dir, size_t dir_len, const uint8_t* track_id, size_t track_id_len);
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 uint32_t atolla_waveform_store_migrate(
     const uint8_t* dir,
     size_t dir_len,

@@ -36,7 +36,7 @@ export function getAtollaWaveformCountAsync(onComplete: (count: number) => void)
 export function hasAtollaWaveform(trackId: string): boolean;
 
 // @ExportFunction
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 // Write a waveform file for each ready record in recordsJson, the JSON from
 // the old waveform_records store. Calls onComplete with the number of
 // waveforms written.

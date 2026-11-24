@@ -17,7 +17,7 @@ export fn atolla_waveform_store_has(dir: [*]const u8, dir_len: usize, track_id: 
     return has(dir[0..dir_len], track_id[0..track_id_len]);
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 export fn atolla_waveform_store_migrate(
     dir: [*]const u8,
     dir_len: usize,
@@ -85,7 +85,7 @@ fn io() std.Io {
     return std.Io.Threaded.global_single_threaded.io();
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 fn migrate(dir_path: []const u8, records_json: []const u8) u32 {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -347,7 +347,7 @@ test "waveform_store: a write larger than a waveform is refused" {
     try testing.expectEqual(0, try dir.entries());
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 test "waveform_store: migrate writes the ready records and skips the rest" {
     var dir: TestDir = undefined;
     try dir.create();
@@ -368,7 +368,7 @@ test "waveform_store: migrate writes the ready records and skips the rest" {
     try testing.expect(!has(dir.path, "track-3"));
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 test "waveform_store: migrate skips a record whose amps aren't base64 and carries on" {
     var dir: TestDir = undefined;
     try dir.create();
@@ -385,7 +385,7 @@ test "waveform_store: migrate skips a record whose amps aren't base64 and carrie
     try testing.expect(has(dir.path, "track-2"));
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 test "waveform_store: migrate writes nothing from JSON that doesn't parse" {
     var dir: TestDir = undefined;
     try dir.create();

@@ -43,7 +43,7 @@ Java_com_tx3stn_atolla_AtollaWaveformStore_nativeHas(
     return has ? JNI_TRUE : JNI_FALSE;
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 extern "C" JNIEXPORT jint JNICALL
 Java_com_tx3stn_atolla_AtollaWaveformStore_nativeMigrate(
     JNIEnv* env, jobject /*thiz*/, jstring dir, jstring recordsJson) {

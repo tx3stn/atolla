@@ -49,7 +49,7 @@ static BOOL AtollaWaveformStoreHas(NSString *trackId) {
                                      (const uint8_t *)trackIdBytes, strlen(trackIdBytes));
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 static NSInteger AtollaWaveformStoreMigrate(NSString *recordsJson) {
     NSURL *dir = AtollaWaveformsDir();
     if (!dir) return 0;
@@ -131,7 +131,7 @@ static BOOL AtollaWaveformStoreWrite(NSString *trackId, NSData *amps) {
     return AtollaWaveformStoreHas(trackId);
 }
 
-// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 - (void)migrateAtollaWaveformsAsyncWithRecordsJson:(NSString * _Nonnull)recordsJson
                                         onComplete:(atolla_appWaveformNativeModuleMigrateAtollaWaveformsAsyncOnCompleteBlock _Nonnull)onComplete {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{

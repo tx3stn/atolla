@@ -64,7 +64,7 @@ class AtollaWaveformNativeModuleFactory : WaveformNativeModuleFactory() {
 				return AtollaWaveformStore.has(trackId)
 			}
 
-			// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+			// TODO(waveform-migration): remove once it's been long enough that all uses of old waveform cache have been replaced
 			override fun migrateAtollaWaveformsAsync(recordsJson: String, onComplete: (Double) -> Unit) {
 				Thread {
 					onComplete(AtollaWaveformStore.migrate(recordsJson).toDouble())
