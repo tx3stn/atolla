@@ -8,4 +8,4 @@ The CLI is a work in progress so is not included in any releases yet.
 ## schema
 
 The [json schema](https://json-schema.org/) of the config file for the atolla
-CLI is defined in [schmea.json](./schema.json).
+CLI is defined in [schema.json](./schema.json).

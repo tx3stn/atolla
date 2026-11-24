@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import { CLI_ERROR } from './commands/Errors';
 import {
+	CONFIG_SCHEMA_URL,
 	type ConfigFiles,
 	DEFAULT_AUDIO_DEVICE,
 	DEFAULT_AUDIO_PORT,
@@ -208,6 +209,14 @@ describe('makeConfigStore write', () => {
 		store.write(config);
 
 		expect(store.read()).toEqual(config);
+	});
+
+	it('links the written file to its schema', () => {
+		const { files, written } = fakeFiles();
+
+		makeConfigStore(files, PATH).write(CONFIG);
+
+		expect(JSON.parse(written[0][1]).$schema).toBe(CONFIG_SCHEMA_URL);
 	});
 
 	it('writes newline-terminated json so the file edits cleanly by hand', () => {

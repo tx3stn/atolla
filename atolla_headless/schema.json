@@ -4,6 +4,7 @@
 	"description": "Config for an atolla headless player. `atolla init` creates the config file, at /etc/atolla/player.json by default. The player reads it only when it starts, so restart the player after changing it, e.g.: `sudo systemctl restart atolla`.",
 	"properties": {
 		"$schema": {
+			"default": "https://raw.githubusercontent.com/tx3stn/atolla/refs/heads/main/atolla_headless/schema.json",
 			"description": "Link to this schema. Editors that support JSON schema use it to validate the file and describe each field.",
 			"type": "string"
 		},

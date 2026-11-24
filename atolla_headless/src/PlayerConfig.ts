@@ -4,6 +4,8 @@ import Strings from 'atolla_headless/src/Strings';
 import { CLI_ERROR } from './commands/Errors';
 import { ensureDirectory } from './EnsureDirectory';
 
+export const CONFIG_SCHEMA_URL =
+	'https://raw.githubusercontent.com/tx3stn/atolla/refs/heads/main/atolla_headless/schema.json';
 export const DEFAULT_AUDIO_DEVICE = 'default';
 
 // Decodes and keeps time without an output device, for hardware that has none.
@@ -64,7 +66,10 @@ export function makeConfigStore(files: ConfigFiles, path: string): ConfigStore {
 				ensureDirectory(files, directory);
 			}
 
-			files.writeFileSync(path, `${JSON.stringify(config, null, '\t')}\n`);
+			files.writeFileSync(
+				path,
+				`${JSON.stringify({ $schema: CONFIG_SCHEMA_URL, ...config }, null, '\t')}\n`,
+			);
 		},
 	};
 }

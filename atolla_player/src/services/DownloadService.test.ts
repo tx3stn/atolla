@@ -1268,6 +1268,38 @@ describe('DownloadService', () => {
 			expect(cacheCalls[0].trackId).toBe('track-1');
 			expect(s2.getAlbumDownloadState('album-1')).toBe('downloaded');
 		});
+
+		it('does not throw when the store fails to load', () => {
+			// InMemoryStore rejects fetchString for missing keys, simulating a store with no
+			// data. onAppReady returns void; the internal .catch() absorbs the rejection
+			const { service } = createService();
+			expect(() => service.onAppReady()).not.toThrow();
+		});
+
+		it('re-enqueues incomplete downloads from a persisted store on startup', async () => {
+			const store = new InMemoryStore();
+
+			// seed the store with an incomplete track entry
+			await store.storeString(
+				'dl_tracks',
+				JSON.stringify({
+					'track-1': {
+						albumIds: ['album-1'],
+						complete: false,
+						genreIds: [],
+						playlistIds: [],
+						streamUrl: 'http://stream/track-1',
+						track: makeTrack('track-1'),
+					},
+				}),
+			);
+
+			const { service, cacheCalls } = createService({ store });
+			service.onAppReady();
+			await flush();
+
+			expect(cacheCalls.some((c) => c.trackId === 'track-1')).toBe(true);
+		});
 	});
 
 	describe('track failure, partial state and retry', () => {
@@ -1630,40 +1662,6 @@ describe('DownloadService', () => {
 			await flush();
 
 			expect(notifyCount).toBe(0);
-		});
-	});
-
-	describe('onAppReady', () => {
-		it('does not throw when the store fails to load', () => {
-			// InMemoryStore rejects fetchString for missing keys, simulating a store with no
-			// data. onAppReady returns void; the internal .catch() absorbs the rejection
-			const { service } = createService();
-			expect(() => service.onAppReady()).not.toThrow();
-		});
-
-		it('re-enqueues incomplete downloads from a persisted store on startup', async () => {
-			const store = new InMemoryStore();
-
-			// seed the store with an incomplete track entry
-			await store.storeString(
-				'dl_tracks',
-				JSON.stringify({
-					'track-1': {
-						albumIds: ['album-1'],
-						complete: false,
-						genreIds: [],
-						playlistIds: [],
-						streamUrl: 'http://stream/track-1',
-						track: makeTrack('track-1'),
-					},
-				}),
-			);
-
-			const { service, cacheCalls } = createService({ store });
-			service.onAppReady();
-			await flush();
-
-			expect(cacheCalls.some((c) => c.trackId === 'track-1')).toBe(true);
 		});
 	});
 

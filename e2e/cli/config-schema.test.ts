@@ -4,13 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020';
+import { LANGUAGE_OPTIONS } from 'atolla_core/src/Language';
 import { Cli } from './cli';
 
 interface Schema {
-	properties: Record<string, { default?: unknown }>;
+	properties: Record<string, { default?: unknown; enum?: Array<unknown> }>;
 }
 
-const SCHEMA_FILE = fileURLToPath(new URL('../../atolla_headless/schema.json', import.meta.url));
+const SCHEMA_PATH = 'atolla_headless/schema.json';
+const SCHEMA_FILE = fileURLToPath(new URL(`../../${SCHEMA_PATH}`, import.meta.url));
 
 function readSchema(): Schema {
 	return JSON.parse(readFileSync(SCHEMA_FILE, 'utf8'));
@@ -56,5 +58,19 @@ describe('config schema', () => {
 		cli.init();
 
 		expect(written()).toEqual(defaults);
+	});
+
+	it('language codes match the ones defined in atolla_core', () => {
+		expect(readSchema().properties.language.enum).toEqual(
+			LANGUAGE_OPTIONS.map((option) => option.code),
+		);
+	});
+
+	it('atolla init links the config to the schema in this repo', () => {
+		cli.init();
+
+		expect(written().$schema).toBe(
+			`https://raw.githubusercontent.com/tx3stn/atolla/refs/heads/main/${SCHEMA_PATH}`,
+		);
 	});
 });

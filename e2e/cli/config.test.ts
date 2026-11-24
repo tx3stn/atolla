@@ -41,13 +41,14 @@ describe('atolla config', () => {
 		expect(stored().name).toBe('Bedroom');
 	});
 
-	it('prints the configuration that is on disk', () => {
+	it('prints the settings that are on disk, without the schema link', () => {
 		cli.init('--name', 'Kitchen');
+		const { $schema, ...settings } = stored();
 
 		const result = cli.config();
 
 		expect(result.code).toBe(0);
-		expect(JSON.parse(result.stdout.slice(result.stdout.indexOf('{')))).toEqual(stored());
+		expect(JSON.parse(result.stdout.slice(result.stdout.indexOf('{')))).toEqual(settings);
 	});
 
 	it('leaves fields it was not asked to change alone', () => {
