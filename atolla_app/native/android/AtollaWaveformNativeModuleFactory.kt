@@ -64,6 +64,13 @@ class AtollaWaveformNativeModuleFactory : WaveformNativeModuleFactory() {
 				return AtollaWaveformStore.has(trackId)
 			}
 
+			// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+			override fun migrateAtollaWaveformsAsync(recordsJson: String, onComplete: (Double) -> Unit) {
+				Thread {
+					onComplete(AtollaWaveformStore.migrate(recordsJson).toDouble())
+				}.also { it.isDaemon = true }.start()
+			}
+
 			override fun renderAtollaWaveformAsync(trackId: String, width: Double, height: Double, onComplete: (String) -> Unit) {
 				Thread {
 					val result = try {
@@ -102,14 +109,6 @@ class AtollaWaveformNativeModuleFactory : WaveformNativeModuleFactory() {
 					}
 					onComplete(result)
 				}.also { it.isDaemon = true }.start()
-			}
-
-			override fun storeAtollaWaveformAmps(trackId: String, ampsBase64: String) {
-				try {
-					AtollaWaveformStore.write(trackId, Base64.decode(ampsBase64, Base64.NO_WRAP))
-				} catch (e: Throwable) {
-					Log.e("AtollaWaveformModule", "Storing waveform amps failed trackId=$trackId", e)
-				}
 			}
 		}
 	}

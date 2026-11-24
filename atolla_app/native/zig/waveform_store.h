@@ -15,6 +15,14 @@ uint32_t atolla_waveform_store_count(const uint8_t* dir, size_t dir_len);
 
 bool atolla_waveform_store_has(const uint8_t* dir, size_t dir_len, const uint8_t* track_id, size_t track_id_len);
 
+// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+uint32_t atolla_waveform_store_migrate(
+    const uint8_t* dir,
+    size_t dir_len,
+    const uint8_t* records_json,
+    size_t records_json_len
+);
+
 bool atolla_waveform_store_read(
     const uint8_t* dir,
     size_t dir_len,

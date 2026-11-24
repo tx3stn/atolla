@@ -49,6 +49,16 @@ static BOOL AtollaWaveformStoreHas(NSString *trackId) {
                                      (const uint8_t *)trackIdBytes, strlen(trackIdBytes));
 }
 
+// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+static NSInteger AtollaWaveformStoreMigrate(NSString *recordsJson) {
+    NSURL *dir = AtollaWaveformsDir();
+    if (!dir) return 0;
+    const char *dirPath = dir.fileSystemRepresentation;
+    const char *recordsJsonBytes = recordsJson.UTF8String;
+    return atolla_waveform_store_migrate((const uint8_t *)dirPath, strlen(dirPath),
+                                         (const uint8_t *)recordsJsonBytes, strlen(recordsJsonBytes));
+}
+
 static NSData *AtollaWaveformStoreRead(NSString *trackId) {
     NSURL *dir = AtollaWaveformsDir();
     if (!dir) return nil;
@@ -121,6 +131,14 @@ static BOOL AtollaWaveformStoreWrite(NSString *trackId, NSData *amps) {
     return AtollaWaveformStoreHas(trackId);
 }
 
+// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+- (void)migrateAtollaWaveformsAsyncWithRecordsJson:(NSString * _Nonnull)recordsJson
+                                        onComplete:(atolla_appWaveformNativeModuleMigrateAtollaWaveformsAsyncOnCompleteBlock _Nonnull)onComplete {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        onComplete((double)AtollaWaveformStoreMigrate(recordsJson));
+    });
+}
+
 - (void)renderAtollaWaveformAsyncWithTrackId:(NSString * _Nonnull)trackId
                                        width:(double)width
                                       height:(double)height
@@ -167,12 +185,6 @@ static BOOL AtollaWaveformStoreWrite(NSString *trackId, NSData *amps) {
             : @"";
         onComplete(outputUrl);
     });
-}
-
-- (void)storeAtollaWaveformAmpsWithTrackId:(NSString * _Nonnull)trackId
-                                ampsBase64:(NSString * _Nonnull)ampsBase64 {
-    NSData *amps = [[NSData alloc] initWithBase64EncodedString:ampsBase64 options:0];
-    if (amps) AtollaWaveformStoreWrite(trackId, amps);
 }
 
 @end

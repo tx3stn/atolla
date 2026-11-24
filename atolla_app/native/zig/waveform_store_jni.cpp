@@ -43,6 +43,25 @@ Java_com_tx3stn_atolla_AtollaWaveformStore_nativeHas(
     return has ? JNI_TRUE : JNI_FALSE;
 }
 
+// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_tx3stn_atolla_AtollaWaveformStore_nativeMigrate(
+    JNIEnv* env, jobject /*thiz*/, jstring dir, jstring recordsJson) {
+    const char* dirChars = env->GetStringUTFChars(dir, nullptr);
+    const char* recordsJsonChars = env->GetStringUTFChars(recordsJson, nullptr);
+
+    const uint32_t migrated = atolla_waveform_store_migrate(
+        reinterpret_cast<const uint8_t*>(dirChars),
+        static_cast<size_t>(env->GetStringUTFLength(dir)),
+        reinterpret_cast<const uint8_t*>(recordsJsonChars),
+        static_cast<size_t>(env->GetStringUTFLength(recordsJson)));
+
+    env->ReleaseStringUTFChars(recordsJson, recordsJsonChars);
+    env->ReleaseStringUTFChars(dir, dirChars);
+
+    return static_cast<jint>(migrated);
+}
+
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_tx3stn_atolla_AtollaWaveformStore_nativeRead(
     JNIEnv* env, jobject /*thiz*/, jstring dir, jstring trackId) {

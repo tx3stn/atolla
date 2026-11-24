@@ -36,6 +36,16 @@ export function getAtollaWaveformCountAsync(onComplete: (count: number) => void)
 export function hasAtollaWaveform(trackId: string): boolean;
 
 // @ExportFunction
+// TODO(waveform-migration): remove once enough users have updated past the release that moves waveforms out of the waveform_records store.
+// Write a waveform file for each ready record in recordsJson, the JSON from
+// the old waveform_records store. Calls onComplete with the number of
+// waveforms written.
+export function migrateAtollaWaveformsAsync(
+	recordsJson: string,
+	onComplete: (migrated: number) => void,
+): void;
+
+// @ExportFunction
 // Render the stored waveform for trackId as a width by height mask PNG.
 // Calls onComplete with the local file URL of the PNG, or an empty string
 // if no waveform is stored or rendering failed.
@@ -56,6 +66,3 @@ export function renderAtollaWaveformFromAmpsAsync(
 	height: number,
 	onComplete: (outputUrl: string) => void,
 ): void;
-
-// @ExportFunction
-export function storeAtollaWaveformAmps(trackId: string, ampsBase64: string): void;
