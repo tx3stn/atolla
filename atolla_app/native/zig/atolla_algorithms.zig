@@ -16,4 +16,5 @@ comptime {
     _ = @import("palette_extractor.zig");
     _ = @import("scrobble_tracker.zig");
     _ = @import("waveform_generator.zig");
+    _ = @import("waveform_store.zig");
 }

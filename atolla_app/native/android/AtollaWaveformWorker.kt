@@ -38,6 +38,49 @@ object AtollaWaveformRenderTempStore {
 	}
 }
 
+object AtollaWaveformStore {
+	private const val tag = "AtollaWaveformStore"
+	private const val folder = "atolla/waveforms"
+
+	private val dir: String? by lazy { resolveDir() }
+
+	fun clear() {
+		dir?.let { nativeClear(it) }
+	}
+
+	fun count(): Int = dir?.let { nativeCount(it) } ?: 0
+
+	fun has(trackId: String): Boolean = dir?.let { nativeHas(it, trackId) } ?: false
+
+	fun read(trackId: String): ByteArray? = dir?.let { nativeRead(it, trackId) }
+
+	fun write(trackId: String, amps: ByteArray): Boolean = dir?.let { nativeWrite(it, trackId, amps) } ?: false
+
+	private external fun nativeClear(dir: String)
+
+	private external fun nativeCount(dir: String): Int
+
+	private external fun nativeHas(dir: String, trackId: String): Boolean
+
+	private external fun nativeRead(dir: String, trackId: String): ByteArray?
+
+	private external fun nativeWrite(dir: String, trackId: String, amps: ByteArray): Boolean
+
+	private fun resolveDir(): String? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+			val app = currentApplication as? android.app.Application ?: return null
+			val dir = File(app.filesDir, folder)
+			dir.mkdirs()
+			if (dir.isDirectory) dir.absolutePath else null
+		} catch (error: Throwable) {
+			Log.e(tag, "Unable to resolve waveforms directory", error)
+			null
+		}
+	}
+}
+
 class AtollaWaveformWorker {
 	// bridged to shared Zig (waveform_generator.zig) via JNI (waveform_jni.cpp). declared as a
 	// class instance method so the generated JNI symbol matches the other native bridges:

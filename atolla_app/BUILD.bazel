@@ -44,6 +44,7 @@ valdi_module(
         "//atolla_app/native/zig:palette_android_jni",
         "//atolla_app/native/zig:scrobble_android_jni",
         "//atolla_app/native/zig:waveform_android_jni",
+        "//atolla_app/native/zig:waveform_store_android_jni",
     ],
     res = glob([
         "res/**/*.jpeg",

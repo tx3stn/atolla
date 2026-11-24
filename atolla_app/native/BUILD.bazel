@@ -231,6 +231,7 @@ objc_library(
     copts = ["-I."],
     deps = [
         ":waveform_ios_bridge",
+        "//atolla_app/native/zig:waveform_store_algorithm",
         "//atolla_app:atolla_app_api_objc",
     ],
 )
