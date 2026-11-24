@@ -166,10 +166,13 @@ export class UserScope {
 			has: hasAtollaWaveform,
 		});
 		const waveformRenderCache = new WaveformRenderCache();
-		const waveformQueue = new WaveformGenerationQueue(waveformService);
+		const waveformQueue = new WaveformGenerationQueue(waveformService, () =>
+			this.deps.playbackOrchestrator.handleWaveformQueueIdle(),
+		);
 		this.deps.playbackOrchestrator.setUserServices({
 			disposeWaveformQueue: () => waveformQueue.dispose(),
 			enqueueWaveform: (trackId, audioPath) => waveformQueue.enqueue(trackId, audioPath),
+			isWaveformQueueIdle: () => waveformQueue.isIdle(),
 			paletteQueue: this.paletteQueue,
 			paletteService: this.paletteService,
 			recentlyPlayed,

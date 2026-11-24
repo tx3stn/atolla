@@ -73,8 +73,9 @@ describe('WaveformGenerationQueue', () => {
 	}
 
 	function makeQueue(service = createMockService()) {
-		const queue = new WaveformGenerationQueue(service as never);
-		return { queue, service };
+		const onIdle = jasmine.createSpy('onIdle');
+		const queue = new WaveformGenerationQueue(service as never, onIdle);
+		return { onIdle, queue, service };
 	}
 
 	describe('enqueue', () => {
@@ -226,6 +227,73 @@ describe('WaveformGenerationQueue', () => {
 			expect(afterCalls).toContain('t4');
 			expect(workers.length).toBe(3);
 			queue.dispose();
+		});
+	});
+
+	describe('idle', () => {
+		it('is idle before any work is queued', () => {
+			const { queue } = makeQueue();
+
+			expect(queue.isIdle()).toBe(true);
+			queue.dispose();
+		});
+
+		it('is not idle while a job runs', () => {
+			const d = deferred<boolean>();
+			const { queue } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
+
+			queue.enqueue('t1', '/a/t1.flac');
+
+			expect(queue.isIdle()).toBe(false);
+			d.resolve(true);
+			queue.dispose();
+		});
+
+		it('calls onIdle once the last job finishes', async () => {
+			const { onIdle, queue } = makeQueue();
+
+			queue.enqueue('t1', '/a/t1.flac');
+			await tick();
+
+			expect(onIdle).toHaveBeenCalledTimes(1);
+			expect(queue.isIdle()).toBe(true);
+			queue.dispose();
+		});
+
+		it('does not call onIdle between jobs while work is still queued', async () => {
+			const deferreds = [deferred<boolean>(), deferred<boolean>(), deferred<boolean>()];
+			const { onIdle, queue } = makeQueue();
+			generateFor = (index) => () => deferreds[index].promise;
+			queue.enqueue('t1', '/a/t1.flac');
+			queue.enqueue('t2', '/a/t2.flac');
+			queue.enqueue('t3', '/a/t3.flac');
+			queue.enqueue('t4', '/a/t4.flac');
+
+			deferreds[0].resolve(true);
+			await tick();
+
+			expect(onIdle).not.toHaveBeenCalled();
+
+			deferreds[1].resolve(true);
+			deferreds[2].resolve(true);
+			await tick();
+
+			expect(onIdle).toHaveBeenCalledTimes(1);
+			queue.dispose();
+		});
+
+		it('does not call onIdle after being disposed', async () => {
+			const d = deferred<boolean>();
+			const { onIdle, queue } = makeQueue();
+			useWorkerBehaviour(() => d.promise);
+			queue.enqueue('t1', '/a/t1.flac');
+
+			queue.dispose();
+			d.resolve(true);
+			await tick();
+
+			expect(onIdle).not.toHaveBeenCalled();
 		});
 	});
 

@@ -28,7 +28,10 @@ export class WaveformGenerationQueue {
 	private activeJobs: Array<ActiveJob> = [];
 	private disposed = false;
 
-	constructor(private readonly waveformService: WaveformService) {}
+	constructor(
+		private readonly waveformService: WaveformService,
+		private readonly onIdle: () => void,
+	) {}
 
 	dispose(): void {
 		this.disposed = true;
@@ -45,6 +48,10 @@ export class WaveformGenerationQueue {
 		if (this.activeJobs.some((j) => j.entry.trackId === trackId && !j.abandoned)) return;
 		this.queue.push({ audioPath, trackId });
 		this.processNext();
+	}
+
+	isIdle(): boolean {
+		return this.queue.length === 0 && this.activeJobs.length === 0;
 	}
 
 	// reorder pending entries to match trackIds, then abandon in-flight jobs now
@@ -120,6 +127,7 @@ export class WaveformGenerationQueue {
 				if (idx >= 0) this.activeJobs.splice(idx, 1);
 				this.idleWorkers.push(worker);
 				this.processNext();
+				if (!this.disposed && this.isIdle()) this.onIdle();
 			});
 		}
 	}

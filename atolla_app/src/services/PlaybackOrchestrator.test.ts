@@ -527,6 +527,141 @@ describe('PlaybackOrchestrator waveforms', () => {
 	});
 });
 
+describe('PlaybackOrchestrator waveform lookahead', () => {
+	function lookahead(
+		trackIds: Array<string>,
+		options: {
+			audio?: (trackId: string) => string | null;
+			maxTracks?: number;
+			playing?: boolean;
+		} = {},
+	) {
+		const files = fakeWaveformFiles();
+		const waveformService = new WaveformService(files.files);
+		const queue = fakeWaveformQueue(waveformService);
+		const store = { ...waveformPlaybackStore(trackIds), isPlaying: options.playing ?? false };
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			getAudioFileUrl: options.audio ?? ((id) => `path://${id}`),
+			getTrackCacheMaxTracks: () => options.maxTracks ?? 20,
+			getTrackCacheUrl: (id) => `/downloads/${id}.mp3`,
+			isOfflinePlaybackMode: () => true,
+		});
+		orchestrator.setUserServices(userServices({ ...queue.callbacks, waveformService }));
+		const finishJobs = (finished: Array<string>) => {
+			for (const trackId of finished) {
+				files.state.stored.add(trackId);
+				waveformService.onGenerationSucceeded(trackId);
+			}
+			queue.state.running = 0;
+			orchestrator.handleWaveformQueueIdle();
+		};
+		const enqueuedIds = () => queue.state.enqueued.map((entry) => entry.trackId);
+		return { enqueuedIds, files, finishJobs, orchestrator, store, waveformService };
+	}
+
+	it('queues the first track after the window once the queue goes idle', () => {
+		const { enqueuedIds, finishJobs, orchestrator } = lookahead(['a', 'b', 'c', 'd']);
+		orchestrator.handleWaveformPriority();
+
+		finishJobs(['a', 'b']);
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'c']);
+	});
+
+	it('queues one track each time the queue goes idle, in play order', () => {
+		const { enqueuedIds, finishJobs, orchestrator } = lookahead(['a', 'b', 'c', 'd', 'e']);
+		orchestrator.handleWaveformPriority();
+
+		finishJobs(['a', 'b']);
+		finishJobs(['c']);
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'c', 'd']);
+	});
+
+	it('skips stored, pending and failed tracks, and tracks with no local audio', () => {
+		const { enqueuedIds, files, finishJobs, orchestrator, waveformService } = lookahead(
+			['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+			{ audio: (id) => (id === 'f' ? null : `path://${id}`) },
+		);
+		files.state.stored.add('c');
+		waveformService.scheduleGeneration('d');
+		waveformService.scheduleGeneration('e');
+		waveformService.onGenerationFailed('e');
+		orchestrator.handleWaveformPriority();
+
+		finishJobs(['a', 'b']);
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'g']);
+	});
+
+	it('queues nothing while the queue is busy', () => {
+		const { enqueuedIds, orchestrator } = lookahead(['a', 'b', 'c']);
+		orchestrator.handleWaveformPriority();
+
+		orchestrator.handleWaveformQueueIdle();
+
+		expect(enqueuedIds()).toEqual(['a', 'b']);
+	});
+
+	it('stops at the track cache forward window', () => {
+		const { enqueuedIds, finishJobs, orchestrator } = lookahead(['a', 'b', 'c', 'd', 'e'], {
+			maxTracks: 3,
+		});
+		orchestrator.handleWaveformPriority();
+
+		finishJobs(['a', 'b']);
+		finishJobs(['c']);
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'c']);
+	});
+
+	it('carries on from the new current track after a track change', () => {
+		const { enqueuedIds, finishJobs, orchestrator, store } = lookahead([
+			'a',
+			'b',
+			'c',
+			'd',
+			'e',
+			'f',
+		]);
+		orchestrator.handleWaveformPriority();
+		store.trackIndex = 3;
+		store.track = store.tracks[3];
+		orchestrator.handleWaveformPriority();
+
+		finishJobs(['a', 'b', 'd', 'e']);
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'd', 'e', 'f']);
+	});
+
+	it('waits for the playback cushion before looking ahead while playing', () => {
+		const { enqueuedIds, finishJobs, orchestrator } = lookahead(['a', 'b', 'c'], {
+			playing: true,
+		});
+		orchestrator.handleTrackPlaybackSourceChange();
+		orchestrator.handleWaveformPriority();
+
+		orchestrator.handleWaveformQueueIdle();
+		expect(enqueuedIds()).toEqual([]);
+
+		orchestrator.handlePlaybackEvent('playback-cushion');
+		finishJobs(['a', 'b']);
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'c']);
+		orchestrator.dispose();
+	});
+
+	it('regenerates from the current track once the waveforms are cleared', () => {
+		const { enqueuedIds, finishJobs, orchestrator } = lookahead(['a', 'b']);
+		orchestrator.handleWaveformPriority();
+		finishJobs(['a', 'b']);
+
+		orchestrator.clearWaveformData();
+
+		expect(enqueuedIds()).toEqual(['a', 'b', 'a']);
+	});
+});
+
 describe('PlaybackOrchestrator playback subscription', () => {
 	it('subscribes in start and fires onPlaybackTick behind the gate', () => {
 		const sequence: Array<string> = [];
@@ -1995,21 +2130,23 @@ function fakeWaveformFiles(): {
 	return { files, state };
 }
 
-function fakeWaveformQueue(): {
+function fakeWaveformQueue(waveformService?: WaveformService): {
 	callbacks: Pick<
 		PlaybackUserServices,
-		'disposeWaveformQueue' | 'enqueueWaveform' | 'reorderWaveformQueue'
+		'disposeWaveformQueue' | 'enqueueWaveform' | 'isWaveformQueueIdle' | 'reorderWaveformQueue'
 	>;
 	state: {
 		enqueued: Array<{ trackId: string; audioPath: string }>;
 		reorders: Array<Array<string>>;
 		disposed: number;
+		running: number;
 	};
 } {
 	const state = {
 		disposed: 0,
 		enqueued: [] as Array<{ trackId: string; audioPath: string }>,
 		reorders: [] as Array<Array<string>>,
+		running: 0,
 	};
 	return {
 		callbacks: {
@@ -2017,8 +2154,12 @@ function fakeWaveformQueue(): {
 				state.disposed += 1;
 			},
 			enqueueWaveform: (trackId: string, audioPath: string) => {
+				const status = waveformService?.getStatus(trackId);
+				if (status === 'ready' || status === 'failed') return;
 				state.enqueued.push({ audioPath, trackId });
+				state.running += 1;
 			},
+			isWaveformQueueIdle: () => state.running === 0,
 			reorderWaveformQueue: (trackIds: Array<string>) => {
 				state.reorders.push(trackIds);
 			},

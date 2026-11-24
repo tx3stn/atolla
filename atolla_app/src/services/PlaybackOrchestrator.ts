@@ -83,6 +83,7 @@ export interface PlaybackOrchestratorDeps {
 export interface PlaybackUserServices {
 	disposeWaveformQueue: () => void;
 	enqueueWaveform: (trackId: string, audioPath: string) => void;
+	isWaveformQueueIdle: () => boolean;
 	paletteQueue: NowPlayingPaletteQueue;
 	paletteService: NowPlayingPaletteService;
 	recentlyPlayed: RecentlyPlayedStore;
@@ -138,6 +139,7 @@ export class PlaybackOrchestrator {
 	private waveformService?: WaveformService;
 	private waveformRenderCache?: WaveformRenderCache;
 	private enqueueWaveform?: (trackId: string, audioPath: string) => void;
+	private isWaveformQueueIdle?: () => boolean;
 	private reorderWaveformQueue?: (trackIds: Array<string>) => void;
 	private disposeWaveformQueue?: () => void;
 	private unsubscribeWaveform?: () => void;
@@ -145,6 +147,7 @@ export class PlaybackOrchestrator {
 	private readonly overlayContentListeners = new Set<() => void>();
 	private lastWaveformPriorityTracksRef: Array<Track> | null = null;
 	private lastWaveformPriorityTrackIndex = -1;
+	private waveformLookaheadReleased = false;
 	private lastUpcomingPaletteTracksRef: Array<Track> | null = null;
 	private lastUpcomingPaletteTrackIndex = -1;
 	private recentlyPlayedTracks: Array<Track> = [];
@@ -297,6 +300,7 @@ export class PlaybackOrchestrator {
 		if (this.waveformRenderCache) {
 			this.waveformRenderCache.clear();
 		}
+		this.waveformLookaheadReleased = false;
 	}
 
 	consumeNotificationAction(): void {
@@ -352,13 +356,17 @@ export class PlaybackOrchestrator {
 		this.waveformService = services.waveformService;
 		this.waveformRenderCache = services.waveformRenderCache;
 		this.enqueueWaveform = services.enqueueWaveform;
+		this.isWaveformQueueIdle = services.isWaveformQueueIdle;
 		this.reorderWaveformQueue = services.reorderWaveformQueue;
 		this.disposeWaveformQueue = services.disposeWaveformQueue;
 		this.lastWaveformPriorityTracksRef = null;
 		this.lastWaveformPriorityTrackIndex = -1;
 		this.lastUpcomingPaletteTracksRef = null;
 		this.lastUpcomingPaletteTrackIndex = -1;
-		this.unsubscribeWaveform = this.waveformService.subscribe(() => this.notifyOverlayContent());
+		this.unsubscribeWaveform = this.waveformService.subscribe(() => {
+			this.notifyOverlayContent();
+			this.runWaveformLookahead();
+		});
 		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(() =>
 			this.notifyOverlayContent(),
 		);
@@ -692,6 +700,7 @@ export class PlaybackOrchestrator {
 		}
 		this.lastWaveformPriorityTracksRef = this.playbackStore.tracks;
 		this.lastWaveformPriorityTrackIndex = this.playbackStore.trackIndex;
+		this.waveformLookaheadReleased = false;
 
 		// decoding the current (and upcoming) files competes with the engine opening the current
 		// track at play start and stutters it, so hold the waveform pass back until the track has
@@ -721,6 +730,29 @@ export class PlaybackOrchestrator {
 			}
 		}
 		this.reorderWaveformQueue?.(this.getPlaybackTrackIds());
+		this.waveformLookaheadReleased = true;
+		this.runWaveformLookahead();
+	}
+
+	handleWaveformQueueIdle(): void {
+		this.runWaveformLookahead();
+	}
+
+	private runWaveformLookahead(): void {
+		if (!this.waveformService || !this.waveformLookaheadReleased || !this.isWaveformQueueIdle?.()) {
+			return;
+		}
+		const { tracks, trackIndex } = this.playbackStore;
+		const forwardCount = retainedForwardCount(this.playbackStore, this.getTrackCacheMaxTracks());
+		const end = Math.min(tracks.length, trackIndex + 1 + forwardCount);
+		for (let i = trackIndex; i < end; i++) {
+			const trackId = tracks[i].id;
+			if (this.waveformService.getStatus(trackId) !== null) continue;
+			const audioPath = this.getAudioFileUrl(trackId);
+			if (!audioPath) continue;
+			this.scheduleAndEnqueueWaveform(trackId, audioPath);
+			return;
+		}
 	}
 
 	enqueueWaveformIfNeeded(trackId: string, audioPath: string): void {
