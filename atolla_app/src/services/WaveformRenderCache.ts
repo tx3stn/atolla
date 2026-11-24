@@ -26,11 +26,6 @@ export class WaveformRenderCache {
 		return null;
 	}
 
-	invalidate(trackId: string): void {
-		this.cache.delete(trackId);
-		this.pending.delete(trackId);
-	}
-
 	clear(): void {
 		this.cache.clear();
 		this.pending.clear();

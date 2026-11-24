@@ -24,7 +24,7 @@ enum {
     if (tracks.count == 0) return nil;
 
     // 8000 Hz is the minimum AVFoundation accepts and still far exceeds what's needed for
-    // a 100-point amplitude envelope
+    // a 300-point amplitude envelope
     NSDictionary *outputSettings = @{
         AVFormatIDKey:               @(kAudioFormatLinearPCM),
         AVLinearPCMBitDepthKey:      @32,
@@ -160,14 +160,6 @@ enum {
 
     if (!image) return nil;
     return UIImagePNGRepresentation(image);
-}
-
-+ (nullable NSData *)generateWaveformFromAudioPath:(nonnull NSString *)audioPath
-                                             width:(NSInteger)width
-                                            height:(NSInteger)height {
-    NSData *ampsData = [self extractAmpsFromAudioPath:audioPath];
-    if (!ampsData) return nil;
-    return [self renderWaveformFromAmps:ampsData width:width height:height];
 }
 
 @end

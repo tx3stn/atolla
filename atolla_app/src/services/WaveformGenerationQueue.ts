@@ -66,13 +66,6 @@ export class WaveformGenerationQueue {
 		this.processNext();
 	}
 
-	prioritize(trackId: string): void {
-		const idx = this.queue.findIndex((e) => e.trackId === trackId);
-		if (idx <= 0) return;
-		const [entry] = this.queue.splice(idx, 1);
-		this.queue.unshift(entry);
-	}
-
 	// abandon in-flight jobs ranked below the queue front: native work finishes
 	// but the result is dropped and the track is re-queued at the back
 	private abandonLowPriorityJobs(desiredOrder: Array<string>): void {

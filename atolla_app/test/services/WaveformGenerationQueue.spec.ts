@@ -229,38 +229,6 @@ describe('WaveformGenerationQueue', () => {
 		});
 	});
 
-	describe('prioritize', () => {
-		it('moves a queued track to the front', async () => {
-			const d = deferred<boolean>();
-			const callOrder: Array<string> = [];
-			const { queue } = makeQueue();
-			useWorkerBehaviour((trackId) => {
-				callOrder.push(trackId);
-				return d.promise;
-			});
-
-			queue.enqueue('t1', '/a/t1.flac');
-			queue.enqueue('t2', '/a/t2.flac');
-			queue.enqueue('t3', '/a/t3.flac');
-			// t4 and t5 sit in the pending queue (all workers are busy)
-			queue.enqueue('t4', '/a/t4.flac');
-			queue.enqueue('t5', '/a/t5.flac');
-
-			queue.prioritize('t5');
-
-			// free all slots, t5 should be picked up before t4
-			d.resolve(true);
-			await tick();
-
-			const t4Pos = callOrder.indexOf('t4');
-			const t5Pos = callOrder.indexOf('t5');
-			expect(t5Pos).toBeGreaterThanOrEqual(0);
-			if (t4Pos >= 0) expect(t5Pos).toBeLessThan(t4Pos);
-
-			queue.dispose();
-		});
-	});
-
 	describe('reorderToMatch', () => {
 		it('reorders pending entries to match the given sequence', async () => {
 			const d = deferred<boolean>();
