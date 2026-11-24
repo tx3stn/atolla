@@ -61,6 +61,14 @@ const Progress = struct {
         return .{ .state = .playing, .lag_ns = lag };
     }
 
+    fn pendingUntil(self: *const Progress, now_ns: u64) ?u64 {
+        if (self.pushed_from_ns.load(.acquire) == not_pushed) return null;
+
+        const until = self.pushed_until_ns.load(.acquire);
+
+        return if (until > now_ns) until else null;
+    }
+
     fn pushed(self: *Progress, from_ns: u64, until_ns: u64) bool {
         const first = self.pushed_from_ns.cmpxchgStrong(not_pushed, from_ns, .acq_rel, .acquire) == null;
         self.pushed_until_ns.store(until_ns, .release);
@@ -86,6 +94,24 @@ fn onReached(_: *gst.Object, info: *gst.PadProbeInfo, user_data: ?*anyopaque) ca
     return gst.pad_probe_ok;
 }
 
+const Held = struct {
+    play_at_ns: u64,
+    format: Format,
+    bytes: []u8,
+};
+
+const Hold = struct {
+    mutex: std.Io.Mutex = .init,
+    condition: std.Io.Condition = .init,
+    chunks: std.ArrayList(Held) = .empty,
+    holding: bool = false,
+    boundary_ns: u64 = 0,
+    generation: u32 = 0,
+    id: ?*gst.ClockId = null,
+    waiter: ?std.Thread = null,
+    stopping: bool = false,
+};
+
 pub const Member = struct {
     pipeline: gst.Pipeline,
     source: *gst.Object,
@@ -93,6 +119,7 @@ pub const Member = struct {
     format: ?Format = null,
     refused: u32 = 0,
     state: OutputState = .idle,
+    hold: Hold = .{},
 
     pub fn init(runtime: *const gst.Gst, output: Output, clock: *gst.Object) Error!Member {
         var description: [512]u8 = undefined;
@@ -127,6 +154,17 @@ pub const Member = struct {
 
     pub fn deinit(self: *Member) void {
         const runtime = self.pipeline.gst;
+        const io = io_context();
+
+        self.hold.mutex.lockUncancelable(io);
+        self.dropHeld();
+        self.hold.stopping = true;
+        self.hold.condition.signal(io);
+        const waiter = self.hold.waiter;
+        self.hold.mutex.unlock(io);
+
+        if (waiter) |thread| thread.join();
+        self.hold.chunks.deinit(std.heap.c_allocator);
 
         self.pipeline.deinit();
         runtime.gstreamer.gst_object_unref(self.source);
@@ -155,8 +193,116 @@ pub const Member = struct {
         return measured.state;
     }
 
-    pub fn flush(self: *const Member) void {
+    pub fn flush(self: *Member) void {
+        const io = io_context();
+
+        self.hold.mutex.lockUncancelable(io);
+        defer self.hold.mutex.unlock(io);
+
+        self.flushLocked();
+    }
+
+    pub fn play(self: *Member, play_at_ns: u64, format: Format, bytes: []const u8) bool {
+        const io = io_context();
+
+        self.hold.mutex.lockUncancelable(io);
+        defer self.hold.mutex.unlock(io);
+
+        return self.accept(play_at_ns, format, bytes);
+    }
+
+    pub fn playOn(self: *Member, clock: *gst.Object) void {
+        const io = io_context();
+
+        self.hold.mutex.lockUncancelable(io);
+        defer self.hold.mutex.unlock(io);
+
+        self.flushLocked();
+        _ = self.pipeline.setState(.ready);
+        self.pipeline.schedule(clock, 0);
+        _ = self.pipeline.setState(.playing);
+    }
+
+    fn accept(self: *Member, play_at_ns: u64, format: Format, bytes: []const u8) bool {
+        if (self.hold.holding) return self.keep(play_at_ns, format, bytes);
+
+        const current = self.format orelse return self.push(play_at_ns, format, bytes);
+        if (current.rate == format.rate) return self.push(play_at_ns, format, bytes);
+
+        if (self.startHold()) return self.keep(play_at_ns, format, bytes);
+
+        self.reopen(current.rate, format.rate);
+
+        return self.push(play_at_ns, format, bytes);
+    }
+
+    fn announce(self: *const Member, play_at_ns: u64) void {
         const runtime = self.pipeline.gst;
+        const clock = runtime.gstreamer.gst_pipeline_get_clock(self.pipeline.element) orelse return;
+        defer runtime.gstreamer.gst_object_unref(clock);
+
+        const now_ns = runtime.gstreamer.gst_clock_get_time(clock);
+        const due_in_ns = @as(i128, play_at_ns) - @as(i128, now_ns);
+        const due_in_ms: i64 = @intCast(@divTrunc(due_in_ns, std.time.ns_per_ms));
+
+        log.info("audio", "output got its next audio {f}", .{log.fields(.{ .dueInMs = due_in_ms })});
+    }
+
+    fn awaitBoundaries(self: *Member) void {
+        const runtime = self.pipeline.gst;
+        const io = io_context();
+
+        self.hold.mutex.lockUncancelable(io);
+        defer self.hold.mutex.unlock(io);
+
+        while (!self.hold.stopping) {
+            if (!self.hold.holding) {
+                self.hold.condition.waitUncancelable(io, &self.hold.mutex);
+                continue;
+            }
+
+            const generation = self.hold.generation;
+            const id = self.boundaryId() orelse {
+                self.release();
+                continue;
+            };
+
+            self.hold.id = id;
+            self.hold.mutex.unlock(io);
+            const result = runtime.gstreamer.gst_clock_id_wait(id, null);
+            self.hold.mutex.lockUncancelable(io);
+            self.hold.id = null;
+            runtime.gstreamer.gst_clock_id_unref(id);
+
+            if (result == gst.clock_unscheduled or self.hold.generation != generation) continue;
+
+            self.release();
+        }
+    }
+
+    fn boundaryId(self: *const Member) ?*gst.ClockId {
+        const runtime = self.pipeline.gst;
+        const clock = runtime.gstreamer.gst_pipeline_get_clock(self.pipeline.element) orelse return null;
+        defer runtime.gstreamer.gst_object_unref(clock);
+
+        return runtime.gstreamer.gst_clock_new_single_shot_id(clock, self.hold.boundary_ns);
+    }
+
+    fn dropHeld(self: *Member) void {
+        const runtime = self.pipeline.gst;
+
+        self.hold.holding = false;
+        self.hold.generation +%= 1;
+        if (self.hold.id) |id| runtime.gstreamer.gst_clock_id_unschedule(id);
+
+        for (self.hold.chunks.items) |chunk| std.heap.c_allocator.free(chunk.bytes);
+        self.hold.chunks.clearRetainingCapacity();
+    }
+
+    fn flushLocked(self: *Member) void {
+        const runtime = self.pipeline.gst;
+
+        self.dropHeld();
 
         if (runtime.gstreamer.gst_event_new_flush_start()) |event| {
             _ = runtime.gstreamer.gst_element_send_event(self.source, event);
@@ -170,7 +316,28 @@ pub const Member = struct {
         _ = self.pipeline.setState(.playing);
     }
 
-    pub fn play(self: *Member, play_at_ns: u64, format: Format, bytes: []const u8) bool {
+    fn keep(self: *Member, play_at_ns: u64, format: Format, bytes: []const u8) bool {
+        const allocator = std.heap.c_allocator;
+        const copy = allocator.dupe(u8, bytes) catch return false;
+
+        self.hold.chunks.append(allocator, .{ .play_at_ns = play_at_ns, .format = format, .bytes = copy }) catch {
+            allocator.free(copy);
+
+            return false;
+        };
+
+        return true;
+    }
+
+    fn pendingUntil(self: *const Member) ?u64 {
+        const runtime = self.pipeline.gst;
+        const clock = runtime.gstreamer.gst_pipeline_get_clock(self.pipeline.element) orelse return null;
+        defer runtime.gstreamer.gst_object_unref(clock);
+
+        return self.progress.pendingUntil(runtime.gstreamer.gst_clock_get_time(clock));
+    }
+
+    fn push(self: *Member, play_at_ns: u64, format: Format, bytes: []const u8) bool {
         const runtime = self.pipeline.gst;
 
         self.setFormat(format);
@@ -210,23 +377,31 @@ pub const Member = struct {
         return true;
     }
 
-    pub fn playOn(self: *const Member, clock: *gst.Object) void {
-        self.flush();
-        _ = self.pipeline.setState(.ready);
-        self.pipeline.schedule(clock, 0);
-        _ = self.pipeline.setState(.playing);
+    fn release(self: *Member) void {
+        const allocator = std.heap.c_allocator;
+
+        var held = self.hold.chunks;
+        self.hold.chunks = .empty;
+        self.hold.holding = false;
+        defer {
+            for (held.items) |chunk| allocator.free(chunk.bytes);
+            held.deinit(allocator);
+        }
+
+        for (held.items) |chunk| _ = self.accept(chunk.play_at_ns, chunk.format, chunk.bytes);
     }
 
-    fn announce(self: *const Member, play_at_ns: u64) void {
+    fn reopen(self: *Member, from_rate: u32, to_rate: u32) void {
         const runtime = self.pipeline.gst;
         const clock = runtime.gstreamer.gst_pipeline_get_clock(self.pipeline.element) orelse return;
         defer runtime.gstreamer.gst_object_unref(clock);
 
-        const now_ns = runtime.gstreamer.gst_clock_get_time(clock);
-        const due_in_ns = @as(i128, play_at_ns) - @as(i128, now_ns);
-        const due_in_ms: i64 = @intCast(@divTrunc(due_in_ns, std.time.ns_per_ms));
+        _ = self.pipeline.setState(.null);
+        self.progress.reset();
+        self.pipeline.schedule(clock, 0);
+        _ = self.pipeline.setState(.playing);
 
-        log.info("audio", "output got its next audio {f}", .{log.fields(.{ .dueInMs = due_in_ms })});
+        log.info("audio", "output reopened for a new rate {f}", .{log.fields(.{ .from = from_rate, .to = to_rate })});
     }
 
     fn setFormat(self: *Member, format: Format) void {
@@ -244,6 +419,21 @@ pub const Member = struct {
             @tagName(format.sample),
             format.channels,
         });
+    }
+
+    fn startHold(self: *Member) bool {
+        const boundary_ns = self.pendingUntil() orelse return false;
+
+        if (self.hold.waiter == null) {
+            self.hold.waiter = std.Thread.spawn(.{}, awaitBoundaries, .{self}) catch return false;
+        }
+
+        self.hold.holding = true;
+        self.hold.boundary_ns = boundary_ns;
+        self.hold.generation +%= 1;
+        self.hold.condition.signal(io_context());
+
+        return true;
     }
 };
 
@@ -1713,6 +1903,106 @@ test "audio_stream: a member plays each chunk in the format it came with" {
     try testing.expectEqual(at + 100 * std.time.ns_per_ms, rendered.last_pts.load(.acquire));
     try testing.expectEqual(100 * std.time.ns_per_ms, rendered.last_duration_ns.load(.acquire));
     try testing.expectEqual(96000, rendered.last_rate.load(.acquire));
+}
+
+test "audio_stream: a member holds audio at a new rate until what it has already been given has played, then plays it on time" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &clock };
+    try watch(&member, &rendered);
+
+    const hi_res: Format = .{ .rate = 96000, .channels = 2, .sample = .s24, .channel_mask = 0 };
+    const first: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const second: [hi_res.bytesPerSecond() / 10]u8 = @splat(0);
+    const at = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
+    const boundary = at + 100 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(at, test_format, &first));
+    try testing.expect(member.play(boundary, hi_res, &second));
+
+    try untilRendered(&rendered);
+    rendered.at_ns.store(0, .release);
+    try untilRenderedAtLeast(&rendered, 2);
+
+    try testing.expectEqual(boundary, rendered.pts.load(.acquire));
+    try testing.expect(rendered.at_ns.load(.acquire) >= boundary);
+    try testing.expect(rendered.at_ns.load(.acquire) < boundary + 100 * std.time.ns_per_ms);
+}
+
+test "audio_stream: a flush while a member holds audio drops it, and nothing plays it later" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &clock };
+    try watch(&member, &rendered);
+
+    const hi_res: Format = .{ .rate = 96000, .channels = 2, .sample = .s24, .channel_mask = 0 };
+    const first: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const second: [hi_res.bytesPerSecond() / 10]u8 = @splat(0);
+    const at = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(at, test_format, &first));
+    try testing.expect(member.play(at + 100 * std.time.ns_per_ms, hi_res, &second));
+    member.flush();
+
+    sleepUntil(&clock, at + 300 * std.time.ns_per_ms);
+
+    try testing.expectEqual(0, rendered.count.load(.acquire));
+}
+
+test "audio_stream: audio at a new rate plays at once when nothing of the old rate is still to be heard" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+    defer member.deinit();
+
+    var rendered: Rendered = .{ .clock = &clock };
+    try watch(&member, &rendered);
+
+    const cd_format: Format = .{ .rate = 44100, .channels = 2, .sample = .s16, .channel_mask = 0 };
+    const cd_silence: [cd_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const cd_at = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(cd_at, cd_format, &cd_silence));
+    try untilRendered(&rendered);
+    sleepUntil(&clock, cd_at + 200 * std.time.ns_per_ms);
+    rendered.at_ns.store(0, .release);
+
+    const silence: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const at = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(at, test_format, &silence));
+    try untilRenderedAtLeast(&rendered, 2);
+
+    try testing.expectEqual(at, rendered.pts.load(.acquire));
+    try testing.expectEqual(48000, rendered.last_rate.load(.acquire));
+    try testing.expect(rendered.at_ns.load(.acquire) >= at);
+    try testing.expect(rendered.at_ns.load(.acquire) < at + 100 * std.time.ns_per_ms);
+}
+
+test "audio_stream: a member torn down while it holds audio stops its waiter" {
+    var runtime = try loaded();
+    const clock = try startedClock(&runtime);
+
+    var member = try Member.init(&runtime, watched_output, clock.system);
+
+    const hi_res: Format = .{ .rate = 96000, .channels = 2, .sample = .s24, .channel_mask = 0 };
+    const first: [test_format.bytesPerSecond() / 10]u8 = @splat(0);
+    const second: [hi_res.bytesPerSecond() / 10]u8 = @splat(0);
+    const at = clock.net.now(clock.system) + 300 * std.time.ns_per_ms;
+
+    try testing.expect(member.play(at, test_format, &first));
+    try testing.expect(member.play(at + 100 * std.time.ns_per_ms, hi_res, &second));
+
+    member.deinit();
 }
 
 test "audio_stream: a source splits a long buffer on whole frames and keeps its channel layout" {

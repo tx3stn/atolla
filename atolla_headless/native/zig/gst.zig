@@ -9,6 +9,8 @@ pub const Error = error{ LibraryNotFound, SymbolNotFound };
 
 pub const Caps = opaque {};
 
+pub const ClockId = opaque {};
+
 pub const Event = opaque {};
 
 pub const Object = opaque {};
@@ -124,6 +126,8 @@ pub const map_read: c_uint = 1;
 
 pub const flow_ok: c_int = 0;
 
+pub const clock_unscheduled: c_int = 2;
+
 pub const second: u64 = 1_000_000_000;
 
 pub const clock_time_none: u64 = std.math.maxInt(u64);
@@ -138,6 +142,10 @@ const Gstreamer = struct {
     gst_bus_timed_pop_filtered: *const fn (*Object, u64, c_uint) callconv(.c) ?*Message,
     gst_caps_get_structure: *const fn (*const Caps, c_uint) callconv(.c) ?*const Structure,
     gst_clock_get_time: *const fn (*Object) callconv(.c) u64,
+    gst_clock_id_unref: *const fn (*ClockId) callconv(.c) void,
+    gst_clock_id_unschedule: *const fn (*ClockId) callconv(.c) void,
+    gst_clock_id_wait: *const fn (*ClockId, ?*i64) callconv(.c) c_int,
+    gst_clock_new_single_shot_id: *const fn (*Object, u64) callconv(.c) ?*ClockId,
     gst_device_create_element: *const fn (*Object, ?[*:0]const u8) callconv(.c) ?*Object,
     gst_device_get_display_name: *const fn (*Object) callconv(.c) ?[*:0]u8,
     gst_device_monitor_add_filter: *const fn (*Object, [*:0]const u8, ?*Object) callconv(.c) c_uint,
