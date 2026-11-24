@@ -4,3 +4,8 @@ Valdi module to build the `atolla` CLI which uses some code from other atolla
 modules, so things like queueing and playback don't need to be duplicated.
 
 The CLI is a work in progress so is not included in any releases yet.
+
+## schema
+
+The [json schema](https://json-schema.org/) of the config file for the atolla
+CLI is defined in [schmea.json](./schema.json).

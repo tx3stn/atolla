@@ -1,0 +1,79 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"additionalProperties": false,
+	"description": "Config for an atolla headless player. `atolla init` creates the config file, at /etc/atolla/player.json by default. The player reads it only when it starts, so restart the player after changing it, e.g.: `sudo systemctl restart atolla`.",
+	"properties": {
+		"$schema": {
+			"description": "Link to this schema. Editors that support JSON schema use it to validate the file and describe each field.",
+			"type": "string"
+		},
+		"audioDevice": {
+			"default": "default",
+			"description": "Audio output to play through. `default` lets the system choose and `none` plays nothing while still keeping in sync. Use `atolla outputs` to list the available options.",
+			"minLength": 1,
+			"type": "string"
+		},
+		"audioPort": {
+			"default": 45891,
+			"description": "Port this player streams audio on. While it's the source, other players in its group connect to it.",
+			"maximum": 65535,
+			"minimum": 1,
+			"type": "integer"
+		},
+		"bindAddress": {
+			"default": "0.0.0.0",
+			"description": "IPv4 address the control server, clock and audio stream listen on. `0.0.0.0` listens on every network interface.",
+			"pattern": "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[0-9]{1,2})\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[0-9]{1,2})$",
+			"type": "string"
+		},
+		"clockPort": {
+			"default": 45890,
+			"description": "Port this player serves its clock on. While it's the source, other players in its group follow this clock to stay in step.",
+			"maximum": 65535,
+			"minimum": 1,
+			"type": "integer"
+		},
+		"dataDir": {
+			"default": "/var/lib/atolla",
+			"description": "Directory for atolla to write data to such as cached tracks and saved state.",
+			"minLength": 1,
+			"type": "string"
+		},
+		"language": {
+			"default": "en",
+			"description": "Language for command output.",
+			"enum": ["en", "fr"]
+		},
+		"logLevel": {
+			"default": "info",
+			"description": "How much detail to log.",
+			"enum": ["debug", "info", "warn", "error"]
+		},
+		"mediaCacheGb": {
+			"default": 3,
+			"description": "Gigabytes of tracks to available in cache before evicted. Required for offline playback when this player is the controller.",
+			"exclusiveMinimum": 0,
+			"type": "number"
+		},
+		"name": {
+			"default": "",
+			"description": "Name the app shows for this player.",
+			"type": "string"
+		},
+		"port": {
+			"default": 45889,
+			"description": "Port the control server listens on that the app connects to.",
+			"maximum": 65535,
+			"minimum": 1,
+			"type": "integer"
+		},
+		"streamLatencyMs": {
+			"default": 200,
+			"description": "How far ahead the source schedules audio, in milliseconds. Play, resume, skip and seek each wait this long before you hear them. If a speaker plays short bursts and then silence, raise it by 50. Use the same value on every speaker in a group, because only the source's value is used. Keep it under 500, or the controls in the app will feel slow.",
+			"minimum": 1,
+			"type": "integer"
+		}
+	},
+	"title": "atolla player config",
+	"type": "object"
+}
