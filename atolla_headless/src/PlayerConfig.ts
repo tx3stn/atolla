@@ -16,7 +16,7 @@ export const DEFAULT_DATA_DIR = '/var/lib/atolla';
 export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
 export const DEFAULT_MEDIA_CACHE_GB = 3;
 export const DEFAULT_PORT = 45889;
-export const DEFAULT_STREAM_LATENCY_MS = 125;
+export const DEFAULT_STREAM_LATENCY_MS = 200;
 
 export interface PlayerConfig {
 	audioDevice: string;
